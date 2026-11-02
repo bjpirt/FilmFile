@@ -1,0 +1,42 @@
+import { newIdWithUniqueFolder } from '../../../domain/rolls/folder-names.ts';
+import type { Frame } from '../../../domain/rolls/roll.ts';
+import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
+import type { NotFound } from '../../../domain/shared/domain-error.ts';
+import type { RollId } from '../../../domain/shared/ids.ts';
+import { err, ok, type Result } from '../../../domain/shared/result.ts';
+import type { IdGenerator } from '../../ports/id-generator.ts';
+import type { RollRepository } from '../../ports/roll-repository.ts';
+
+/** Adds a frame with no versions to the end of a roll. */
+export class CreateFrame {
+  readonly #rolls: RollRepository;
+  readonly #ids: IdGenerator;
+
+  constructor(rolls: RollRepository, ids: IdGenerator) {
+    this.#rolls = rolls;
+    this.#ids = ids;
+  }
+
+  async execute(
+    ctx: ArchiveContext,
+    input: { readonly rollId: RollId; readonly number?: string | undefined },
+  ): Promise<Result<Frame, NotFound>> {
+    const roll = await this.#rolls.get(ctx, input.rollId);
+    if (roll === undefined) {
+      return err({ kind: 'not-found', entity: 'roll', id: input.rollId });
+    }
+    const frame: Frame = {
+      id: newIdWithUniqueFolder(
+        roll.frames.map((f) => f.id),
+        () => this.#ids.newFrameId(),
+      ),
+      number: input.number ?? null,
+      versions: [],
+    };
+    const saved = await this.#rolls.save(ctx, {
+      ...roll,
+      frames: [...roll.frames, frame],
+    });
+    return saved.ok ? ok(frame) : saved;
+  }
+}

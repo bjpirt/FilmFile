@@ -56,6 +56,33 @@ test.each<[DomainError, number, unknown]>([
       issues: [{ path: ['anchors', 0], message: 'not numeric' }],
     },
   ],
+  [
+    { kind: 'scan-already-in-roll', frameId: '01JC8Z7K3M0000000000000002' },
+    409,
+    {
+      error: 'this scan is already in the roll',
+      frameId: '01JC8Z7K3M0000000000000002',
+    },
+  ],
+  [
+    { kind: 'image-rejected', reason: 'not-jpeg' },
+    415,
+    { error: 'The file is not a JPEG.' },
+  ],
+  [
+    { kind: 'image-rejected', reason: 'unreadable' },
+    422,
+    { error: 'The file could not be read as an image.' },
+  ],
+  [
+    {
+      kind: 'image-rejected',
+      reason: 'too-many-pixels',
+      maxPixels: 100_000_000,
+    },
+    422,
+    { error: 'The image has more than 100 megapixels.' },
+  ],
 ])('a %o error is a %i', async (error, status, body) => {
   expect(await responseTo(error)).toEqual({ status, body });
 });

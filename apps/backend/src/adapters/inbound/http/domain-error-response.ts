@@ -4,8 +4,10 @@ import type {
   AlreadyExists,
   ConcurrencyConflict,
   DomainError,
+  ImageRejected,
   MappingInvalid,
   NotFound,
+  ScanAlreadyInRoll,
   ValidationFailed,
 } from '../../../domain/shared/domain-error.ts';
 
@@ -38,12 +40,41 @@ function invalid(c: Context, error: ValidationFailed | MappingInvalid) {
   );
 }
 
+function scanAlreadyInRoll(c: Context, error: ScanAlreadyInRoll) {
+  return c.json(
+    { error: 'this scan is already in the roll', frameId: error.frameId },
+    409,
+  );
+}
+
+function imageRejected(c: Context, error: ImageRejected) {
+  switch (error.reason) {
+    case 'not-jpeg':
+      return c.json({ error: 'The file is not a JPEG.' }, 415);
+    case 'unreadable':
+      return c.json({ error: 'The file could not be read as an image.' }, 422);
+    case 'too-many-pixels':
+      return c.json(
+        {
+          error: `The image has more than ${String(error.maxPixels / 1_000_000)} megapixels.`,
+        },
+        422,
+      );
+    default:
+      return assertNever(error);
+  }
+}
+
 /** The response for each kind of error, so routes' declared responses can be checked. */
 type ResponseFor<E extends DomainError> = E extends NotFound
   ? ReturnType<typeof notFound>
   : E extends AlreadyExists | ConcurrencyConflict
     ? ReturnType<typeof conflict>
-    : ReturnType<typeof invalid>;
+    : E extends ScanAlreadyInRoll
+      ? ReturnType<typeof scanAlreadyInRoll>
+      : E extends ImageRejected
+        ? ReturnType<typeof imageRejected>
+        : ReturnType<typeof invalid>;
 
 function responseFor(c: Context, error: DomainError) {
   switch (error.kind) {
@@ -55,6 +86,10 @@ function responseFor(c: Context, error: DomainError) {
     case 'validation-failed':
     case 'mapping-invalid':
       return invalid(c, error);
+    case 'scan-already-in-roll':
+      return scanAlreadyInRoll(c, error);
+    case 'image-rejected':
+      return imageRejected(c, error);
     default:
       return assertNever(error);
   }

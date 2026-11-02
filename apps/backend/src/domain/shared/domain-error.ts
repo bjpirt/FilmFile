@@ -1,15 +1,19 @@
 /**
  * Expected failures, returned in a `Result`. Each carries only what a client
  * may see (what was involved and why), never file paths or other internals.
- * The HTTP adapter maps them to status codes: not found → 404,
- * validation failed and mapping invalid → 422, conflict and already exists → 409.
+ * The HTTP adapter maps them to status codes: not found → 404, validation
+ * failed, mapping invalid and an unreadable or oversized image → 422,
+ * conflict, already exists and a scan already in the roll → 409, and a file
+ * that isn't a JPEG → 415.
  */
 export type DomainError =
   | NotFound
   | AlreadyExists
   | ConcurrencyConflict
   | ValidationFailed
-  | MappingInvalid;
+  | MappingInvalid
+  | ImageRejected
+  | ScanAlreadyInRoll;
 
 export type EntityKind = 'archive' | 'roll' | 'frame' | 'version' | 'equipment';
 
@@ -41,6 +45,24 @@ export interface ValidationFailed {
 export interface MappingInvalid {
   readonly kind: 'mapping-invalid';
   readonly issues: readonly Issue[];
+}
+
+/** An uploaded file that can't be accepted as an image. */
+export type ImageRejected =
+  | {
+      readonly kind: 'image-rejected';
+      readonly reason: 'not-jpeg' | 'unreadable';
+    }
+  | {
+      readonly kind: 'image-rejected';
+      readonly reason: 'too-many-pixels';
+      readonly maxPixels: number;
+    };
+
+/** The same scan, by content, is already a version of a frame in the roll. */
+export interface ScanAlreadyInRoll {
+  readonly kind: 'scan-already-in-roll';
+  readonly frameId: string;
 }
 
 /** One problem with the input: where it is (e.g. `['frames', 3, 'rating']`) and what's wrong. */
