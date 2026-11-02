@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Test output
+coverage/
+test-results/
+playwright-report/
+
+# Local configuration and secrets
+.env
+.env.*
+
+# OS and editor files
+.DS_Store
+.idea/
