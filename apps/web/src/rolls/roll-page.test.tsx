@@ -2,7 +2,13 @@
 import { createApiClient } from '@filmfile/contracts/client';
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { RollPage } from './roll-page.tsx';
 
@@ -249,6 +255,44 @@ describe('editing a frame number', () => {
     expect(
       screen.getByLabelText('Frame number').getAttribute('maxlength'),
     ).toBe('9');
+  });
+
+  test('refuses to overwrite a roll changed since the page loaded, and offers a reload', async () => {
+    const service = fakeRollService([aFrameWithScan('1', '12340001.jpg')]);
+    renderPage(service);
+    fireEvent.click(await numberButton('Change frame number 1'));
+    // Someone else changes the roll, e.g. in another tab.
+    service.changed();
+
+    typeNumber('2');
+
+    expect(
+      await screen.findByText('This roll changed since you opened it.'),
+    ).toBeDefined();
+    expect(service.frames[0]?.number).toBe('1');
+    expect(screen.getByLabelText<HTMLInputElement>('Frame number').value).toBe(
+      '2',
+    );
+  });
+
+  test('saves again after a reload, against the roll as it is now', async () => {
+    const service = fakeRollService([aFrameWithScan('1', '12340001.jpg')]);
+    renderPage(service);
+    fireEvent.click(await numberButton('Change frame number 1'));
+    service.changed();
+    typeNumber('2');
+    await screen.findByText('This roll changed since you opened it.');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reload' }));
+    await waitFor(() => {
+      expect(
+        screen.queryByText('This roll changed since you opened it.'),
+      ).toBeNull();
+    });
+    typeNumber('2');
+
+    expect(await numberButton('Change frame number 2')).toBeDefined();
+    expect(service.ifMatches).toEqual(['"v1"', '"v2"']);
   });
 
   test('says so and stays open when a save fails', async () => {

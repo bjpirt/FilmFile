@@ -1,5 +1,8 @@
 import { useState } from 'react';
 
+/** How a save went. The page explains a roll changed elsewhere. */
+export type SaveOutcome = 'saved' | 'changed-elsewhere' | 'failed';
+
 /**
  * A frame's number, which turns into a text box when clicked: Enter saves,
  * Esc or leaving the box cancels. Emptying it clears the number.
@@ -9,27 +12,28 @@ export function FrameNumberEditor({
   save,
 }: {
   readonly number: string | null;
-  /** Saves the new number, or null to clear it; resolves to whether it was saved. */
-  readonly save: (number: string | null) => Promise<boolean>;
+  /** Saves the new number, or null to clear it. */
+  readonly save: (number: string | null) => Promise<SaveOutcome>;
 }) {
   const [draft, setDraft] = useState<string | undefined>(undefined);
   const [saving, setSaving] = useState(false);
-  const [failed, setFailed] = useState(false);
+  // After a refused save, the box stays open with what was typed, to try again.
+  const [refused, setRefused] = useState<SaveOutcome | undefined>(undefined);
 
   function stopEditing() {
     setDraft(undefined);
-    setFailed(false);
+    setRefused(undefined);
   }
 
   async function submit(value: string) {
     setSaving(true);
     const trimmed = value.trim();
-    const saved = await save(trimmed === '' ? null : trimmed);
+    const outcome = await save(trimmed === '' ? null : trimmed);
     setSaving(false);
-    if (saved) {
+    if (outcome === 'saved') {
       stopEditing();
     } else {
-      setFailed(true);
+      setRefused(outcome);
     }
   }
 
@@ -79,12 +83,14 @@ export function FrameNumberEditor({
           }
         }}
         onBlur={() => {
-          if (!saving && !failed) {
+          if (!saving && refused === undefined) {
             stopEditing();
           }
         }}
       />
-      {failed && <span role="alert">Couldn't save the number.</span>}
+      {refused === 'failed' && (
+        <span role="alert">Couldn't save the number.</span>
+      )}
     </span>
   );
 }

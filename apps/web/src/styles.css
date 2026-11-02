@@ -79,3 +79,9 @@ body {
 .frame-number-editor input {
   width: 9ch;
 }
+
+.changed-elsewhere {
+  border: 1px solid currentColor;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+}

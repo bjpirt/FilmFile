@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from '../routing.tsx';
 import { droppedFiles } from './dropped-files.ts';
-import { FrameNumberEditor } from './frame-number-editor.tsx';
+import { FrameNumberEditor, type SaveOutcome } from './frame-number-editor.tsx';
 import { inFrameOrder } from './frame-order.ts';
 import { uploadScans, type UploadReport } from './upload-scans.ts';
 
@@ -68,6 +68,7 @@ export function RollPage({
   const queryClient = useQueryClient();
   const [upload, setUpload] = useState<Upload>({ kind: 'idle' });
   const [order, setOrder] = useState<'frame' | 'scan'>('frame');
+  const [changedElsewhere, setChangedElsewhere] = useState(false);
 
   const roll = useQuery({
     queryKey: ['rolls', rollId],
@@ -105,9 +106,9 @@ export function RollPage({
   async function saveNumber(
     frameId: string,
     number: string | null,
-  ): Promise<boolean> {
+  ): Promise<SaveOutcome> {
     if (roll.data === undefined) {
-      return false;
+      return 'failed';
     }
     const { response } = await api.PATCH(
       '/api/rolls/{rollId}/frames/{frameId}',
@@ -119,11 +120,21 @@ export function RollPage({
         body: { number },
       },
     );
+    if (response.status === 409) {
+      // Saved against the roll as loaded, so nothing changed since is overwritten.
+      setChangedElsewhere(true);
+      return 'changed-elsewhere';
+    }
     if (!response.ok) {
-      return false;
+      return 'failed';
     }
     await queryClient.invalidateQueries({ queryKey: ['rolls', rollId] });
-    return true;
+    return 'saved';
+  }
+
+  async function reload() {
+    await queryClient.invalidateQueries({ queryKey: ['rolls', rollId] });
+    setChangedElsewhere(false);
   }
 
   if (roll.isPending) {
@@ -146,6 +157,15 @@ export function RollPage({
         <Link to="/">All rolls</Link>
       </p>
       <h2>Roll {roll.data.roll.roll}</h2>
+
+      {changedElsewhere && (
+        <p role="alert" className="changed-elsewhere">
+          This roll changed since you opened it.{' '}
+          <button type="button" onClick={() => void reload()}>
+            Reload
+          </button>
+        </p>
+      )}
 
       <div
         className="drop-zone"
