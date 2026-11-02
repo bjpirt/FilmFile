@@ -2,8 +2,6 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    // Remove once the first test exists (task 0.1.5).
-    passWithNoTests: true,
     coverage: {
       provider: 'v8',
       // Count every source file, not only those a test imported.

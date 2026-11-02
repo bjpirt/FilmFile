@@ -1,7 +1,12 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
+    // Root config files and tests are loaded by jiti and Vite, which resolve
+    // modules like a bundler, not by Node directly.
+    "module": "preserve",
+    "moduleResolution": "bundler",
     "types": ["node"]
   },
-  "include": ["*.config.ts"]
+  "include": ["*.config.ts", "test"],
+  "exclude": ["test/architecture/fixtures"]
 }
