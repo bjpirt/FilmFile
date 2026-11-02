@@ -7,9 +7,22 @@
   },
   "packageManager": "pnpm@12.16.1",
   "scripts": {
-    "typecheck": "pnpm -r typecheck"
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit && pnpm -r typecheck",
+    "test": "vitest run --coverage"
   },
   "devDependencies": {
-    "typescript": "~6.0.3"
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.6",
+    "@vitest/coverage-v8": "^5.0.5",
+    "eslint": "^10.13.0",
+    "jiti": "^2.7.0",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.0.5"
   }
 }

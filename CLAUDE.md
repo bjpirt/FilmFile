@@ -55,7 +55,7 @@ Before adding a dependency, check whether a few lines of our own code would do. 
 
 ## TypeScript rules
 
-- `tsconfig` is strict, plus `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, `verbatimModuleSyntax`. ESM throughout.
+- `tsconfig` is strict, plus `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, `verbatimModuleSyntax`, `erasableSyntaxOnly` (so no enums, namespaces or constructor parameter properties; declare injected dependencies as fields). ESM throughout.
 - **No `any`.** External data enters as `unknown` and is parsed with Zod at the boundary (HTTP request, file read, config). Inside the core, types are trusted.
 - **No non-null assertions (`!`)**, and no type assertions (`as`) outside tested boundary code.
 - **Model states with discriminated unions** and handle them with exhaustive `switch` statements ending in an `assertNever`.
