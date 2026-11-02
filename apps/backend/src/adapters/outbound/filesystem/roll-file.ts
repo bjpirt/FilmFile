@@ -1,5 +1,9 @@
 import { z } from 'zod';
 import {
+  isFrameNumber,
+  type FrameNumber,
+} from '../../../domain/rolls/frame-number.ts';
+import {
   isRollNumber,
   type RollNumber,
 } from '../../../domain/rolls/roll-number.ts';
@@ -48,7 +52,10 @@ const storedVersion = z.object({
 
 const storedFrame = z.object({
   id: branded<FrameId>(isFrameId, 'must be a ULID'),
-  number: z.string().nullable(),
+  number: branded<FrameNumber>(
+    isFrameNumber,
+    'must be 1 to 9 characters',
+  ).nullable(),
   versions: z.array(storedVersion),
 });
 

@@ -1,4 +1,5 @@
 import type { Frame, Roll, Version } from '../../src/domain/rolls/roll.ts';
+import { isFrameNumber } from '../../src/domain/rolls/frame-number.ts';
 import { isRollNumber } from '../../src/domain/rolls/roll-number.ts';
 import type { ArchiveContext } from '../../src/domain/shared/archive-context.ts';
 import {
@@ -48,7 +49,10 @@ export function aFrame(
 ): Frame {
   return {
     id: checked(overrides.id ?? ulidFor(2), isFrameId),
-    number: overrides.number ?? null,
+    number:
+      overrides.number === undefined || overrides.number === null
+        ? null
+        : checked(overrides.number, isFrameNumber),
     versions: overrides.versions ?? [],
   };
 }

@@ -10,6 +10,7 @@ import { AddVersion } from '../../../src/application/use-cases/frames/add-versio
 import { CreateFrame } from '../../../src/application/use-cases/frames/create-frame.ts';
 import { GetOriginal } from '../../../src/application/use-cases/frames/get-original.ts';
 import { GetThumbnail } from '../../../src/application/use-cases/frames/get-thumbnail.ts';
+import { UpdateFrame } from '../../../src/application/use-cases/frames/update-frame.ts';
 import { CreateRoll } from '../../../src/application/use-cases/rolls/create-roll.ts';
 import type { ArchiveContext } from '../../../src/domain/shared/archive-context.ts';
 import {
@@ -54,6 +55,7 @@ async function setUp() {
     ),
     getOriginal: new GetOriginal(rolls, blobs),
     getThumbnail: new GetThumbnail(rolls, blobs, previews),
+    updateFrame: new UpdateFrame(rolls),
   };
 }
 
@@ -104,6 +106,96 @@ describe('CreateFrame', () => {
       ok: false,
       error: { kind: 'not-found', entity: 'roll', id: missing },
     });
+  });
+});
+
+describe('UpdateFrame', () => {
+  async function withAFrame() {
+    const setup = await setUp();
+    const frameId = await aFrameIn(setup.createFrame, setup.roll.id);
+    const read = await setup.rolls.get(ctx, setup.roll.id);
+    return { ...setup, frameId, version: read?.version ?? '' };
+  }
+
+  test('sets the frame number, and gives the roll’s new version', async () => {
+    const { rolls, roll, frameId, version, updateFrame } = await withAFrame();
+
+    const updated = await updateFrame.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      expectedVersion: version,
+      number: '12A',
+    });
+
+    const after = await rolls.get(ctx, roll.id);
+    expect(updated).toEqual({
+      ok: true,
+      value: {
+        frame: { id: frameId, number: '12A', versions: [] },
+        version: after?.version,
+      },
+    });
+    expect(after?.roll.frames[0]?.number).toBe('12A');
+  });
+
+  test('clears the frame number', async () => {
+    const { roll, frameId, version, updateFrame } = await withAFrame();
+
+    const updated = await updateFrame.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      expectedVersion: version,
+      number: null,
+    });
+
+    expect(updated.ok && updated.value.frame.number).toBeNull();
+  });
+
+  test('refuses a number over 9 characters', async () => {
+    const { roll, frameId, version, updateFrame } = await withAFrame();
+
+    expect(
+      await updateFrame.execute(ctx, {
+        rollId: roll.id,
+        frameId,
+        expectedVersion: version,
+        number: '1234567890',
+      }),
+    ).toMatchObject({ ok: false, error: { kind: 'validation-failed' } });
+  });
+
+  test('refuses when the roll changed since it was read', async () => {
+    const { roll, frameId, version, createFrame, updateFrame } =
+      await withAFrame();
+    await createFrame.execute(ctx, { rollId: roll.id });
+
+    expect(
+      await updateFrame.execute(ctx, {
+        rollId: roll.id,
+        frameId,
+        expectedVersion: version,
+        number: '1',
+      }),
+    ).toEqual({
+      ok: false,
+      error: { kind: 'concurrency-conflict', entity: 'roll', id: roll.id },
+    });
+  });
+
+  test.each([
+    ['roll', missing, '00000000000000000000000002'],
+    ['frame', '00000000000000000000000001', missing],
+  ])('says when the %s does not exist', async (entity, rollId, frameId) => {
+    const { version, updateFrame } = await withAFrame();
+
+    expect(
+      await updateFrame.execute(ctx, {
+        rollId: checked(rollId, isRollId),
+        frameId: checked(frameId, isFrameId),
+        expectedVersion: version,
+        number: '1',
+      }),
+    ).toEqual({ ok: false, error: { kind: 'not-found', entity, id: missing } });
   });
 });
 

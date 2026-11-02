@@ -3,7 +3,7 @@ import { createApiClient } from '@filmfile/contracts/client';
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, expect, test } from 'vitest';
+import { afterEach, describe, expect, test } from 'vitest';
 import { RollPage } from './roll-page.tsx';
 
 afterEach(cleanup);
@@ -20,7 +20,14 @@ async function sha256(bytes: ArrayBuffer): Promise<string> {
 /** Answers the roll's endpoints the way the backend does, keeping frames in memory. */
 function fakeRollService(frames: Frame[] = []) {
   const requests: string[] = [];
+  const ifMatches: (string | null)[] = [];
   let nextId = 100;
+  // The roll's version, sent as its ETag, which changes whenever the roll does.
+  let version = 1;
+  const etag = () => `"v${String(version)}"`;
+  const changed = () => {
+    version += 1;
+  };
   const newId = () => `01JC8Z7K3M0000000000000${String((nextId += 1))}`;
 
   async function answer(request: Request): Promise<Response> {
@@ -28,7 +35,34 @@ function fakeRollService(frames: Frame[] = []) {
     requests.push(`${request.method} ${url.pathname}${url.search}`);
     if (request.method === 'GET' && url.pathname === `/api/rolls/${rollId}`) {
       const roll: Roll = { id: rollId, roll: '2026-014', frames };
-      return Response.json(roll);
+      return Response.json(roll, { headers: { ETag: etag() } });
+    }
+    if (request.method === 'PATCH') {
+      const ifMatch = request.headers.get('If-Match');
+      ifMatches.push(ifMatch);
+      if (ifMatch === null) {
+        return Response.json({ error: 'no If-Match' }, { status: 428 });
+      }
+      if (ifMatch !== etag()) {
+        return Response.json({ error: 'changed' }, { status: 409 });
+      }
+      const body: unknown = await request.json();
+      const number =
+        typeof body === 'object' &&
+        body !== null &&
+        'number' in body &&
+        typeof body.number === 'string'
+          ? body.number
+          : null;
+      const index = frames.findIndex((f) => url.pathname.endsWith(f.id));
+      const current = frames[index];
+      if (current === undefined) {
+        return Response.json({ error: 'not found' }, { status: 404 });
+      }
+      const updated: Frame = { ...current, number };
+      frames[index] = updated;
+      changed();
+      return Response.json(updated, { headers: { ETag: etag() } });
     }
     if (request.method === 'POST' && url.pathname.endsWith('/frames')) {
       const body: unknown = await request.json();
@@ -38,6 +72,7 @@ function fakeRollService(frames: Frame[] = []) {
           : null;
       const frame: Frame = { id: newId(), number, versions: [] };
       frames.push(frame);
+      changed();
       return Response.json(frame, { status: 201 });
     }
     const frame = frames.find((f) => url.pathname.includes(f.id));
@@ -57,12 +92,13 @@ function fakeRollService(frames: Frame[] = []) {
         added: '2026-11-02T12:00:00.000Z',
       };
       frame.versions.push(version);
+      changed();
       return Response.json(version, { status: 201 });
     }
     return Response.json({ error: 'not found' }, { status: 404 });
   }
 
-  return { answer, requests, frames };
+  return { answer, requests, ifMatches, frames, changed };
 }
 
 function aScan(name: string, content = name): File {
@@ -158,6 +194,88 @@ test('shows frames in frame order, or in scan order when chosen', async () => {
     '12340002.jpg',
     '12340003.jpg',
   ]);
+});
+
+describe('editing a frame number', () => {
+  function numberButton(name: string) {
+    return screen.findByRole('button', { name });
+  }
+
+  function typeNumber(value: string, key = 'Enter') {
+    const input = screen.getByLabelText('Frame number');
+    fireEvent.change(input, { target: { value } });
+    fireEvent.keyDown(input, { key });
+  }
+
+  test('saves a new number on Enter, sending the roll’s ETag', async () => {
+    const service = fakeRollService([aFrameWithScan('1', '12340001.jpg')]);
+    renderPage(service);
+
+    fireEvent.click(await numberButton('Change frame number 1'));
+    typeNumber('12A');
+
+    expect(await numberButton('Change frame number 12A')).toBeDefined();
+    expect(service.frames[0]?.number).toBe('12A');
+    expect(service.ifMatches).toEqual(['"v1"']);
+  });
+
+  test('clears the number when it is emptied', async () => {
+    const service = fakeRollService([aFrameWithScan('1', '12340001.jpg')]);
+    renderPage(service);
+
+    fireEvent.click(await numberButton('Change frame number 1'));
+    typeNumber('');
+
+    expect(await numberButton('Set a frame number')).toBeDefined();
+    expect(service.frames[0]?.number).toBeNull();
+  });
+
+  test('changes nothing on Esc', async () => {
+    const service = fakeRollService([aFrameWithScan('1', '12340001.jpg')]);
+    renderPage(service);
+
+    fireEvent.click(await numberButton('Change frame number 1'));
+    typeNumber('7', 'Escape');
+
+    expect(await numberButton('Change frame number 1')).toBeDefined();
+    expect(service.ifMatches).toEqual([]);
+  });
+
+  test('takes at most 9 characters', async () => {
+    renderPage(fakeRollService([aFrameWithScan('1', '12340001.jpg')]));
+
+    fireEvent.click(await numberButton('Change frame number 1'));
+
+    expect(
+      screen.getByLabelText('Frame number').getAttribute('maxlength'),
+    ).toBe('9');
+  });
+
+  test('says so and stays open when a save fails', async () => {
+    renderPage({
+      answer: (request) =>
+        Promise.resolve(
+          request.method === 'PATCH'
+            ? new Response('', { status: 500 })
+            : Response.json(
+                {
+                  id: rollId,
+                  roll: '2026-014',
+                  frames: [aFrameWithScan('1', '12340001.jpg')],
+                },
+                { headers: { ETag: '"v1"' } },
+              ),
+        ),
+    });
+
+    fireEvent.click(await numberButton('Change frame number 1'));
+    typeNumber('2');
+
+    expect(await screen.findByText("Couldn't save the number.")).toBeDefined();
+    expect(screen.getByLabelText<HTMLInputElement>('Frame number').value).toBe(
+      '2',
+    );
+  });
 });
 
 test('shows a placeholder for a frame with no scan', async () => {

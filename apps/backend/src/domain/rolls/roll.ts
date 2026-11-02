@@ -1,4 +1,5 @@
 import type { FrameId, RollId, VersionId } from '../shared/ids.ts';
+import type { FrameNumber } from './frame-number.ts';
 import type { RollNumber } from './roll-number.ts';
 
 /** One image file of a frame: a lab scan for now. */
@@ -17,7 +18,7 @@ export interface Version {
 export interface Frame {
   readonly id: FrameId;
   /** The frame number printed on the film, or null if not known yet. */
-  readonly number: string | null;
+  readonly number: FrameNumber | null;
   readonly versions: readonly Version[];
 }
 

@@ -270,6 +270,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/rolls/{rollId}/frames/{frameId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set or clear a frame's number
+         * @description Send the roll's ETag as If-Match: the change is refused if the roll has changed since. The response's ETag is the roll's new version.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: {
+                    /** @description The roll's ETag, from when it was read. */
+                    "if-match"?: string;
+                };
+                path: {
+                    rollId: string;
+                    frameId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateFrameRequest"];
+                };
+            };
+            responses: {
+                /** @description The updated frame. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Frame"];
+                    };
+                };
+                /** @description The body is not valid JSON. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The roll has no frame with that ID. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The roll has changed since it was read. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The body is not of the expected type. */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The request is invalid. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+                /** @description If-Match is missing. */
+                428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/api/rolls/{rollId}/frames/{frameId}/versions": {
         parameters: {
             query?: never;
@@ -565,7 +668,15 @@ export interface components {
             roll: string;
         };
         CreateFrameRequest: {
+            /** @example 12A */
             number?: string;
+        };
+        UpdateFrameRequest: {
+            /**
+             * @description The new frame number, or null to clear it.
+             * @example 12A
+             */
+            number: string | null;
         };
     };
     responses: never;

@@ -9,10 +9,12 @@ import {
   createRollRequest,
   frame,
   frameParams,
+  ifMatchHeader,
   roll,
   rollList,
   rollParams,
   thumbnailQuery,
+  updateFrameRequest,
   version,
   versionParams,
 } from '@filmfile/contracts/rolls';
@@ -21,6 +23,7 @@ import type { AddVersion } from '../../../../application/use-cases/frames/add-ve
 import type { CreateFrame } from '../../../../application/use-cases/frames/create-frame.ts';
 import type { GetOriginal } from '../../../../application/use-cases/frames/get-original.ts';
 import type { GetThumbnail } from '../../../../application/use-cases/frames/get-thumbnail.ts';
+import type { UpdateFrame } from '../../../../application/use-cases/frames/update-frame.ts';
 import type { CreateRoll } from '../../../../application/use-cases/rolls/create-roll.ts';
 import type { GetRoll } from '../../../../application/use-cases/rolls/get-roll.ts';
 import type { ListRolls } from '../../../../application/use-cases/rolls/list-rolls.ts';
@@ -34,6 +37,16 @@ import { domainErrorResponse } from '../domain-error-response.ts';
 import { requireContentType } from '../middleware/require-content-type.ts';
 import { invalidRequestHook } from './invalid-request-hook.ts';
 import { rollDto, versionDto } from './roll-dto.ts';
+
+/** A roll's version as an ETag: quoted, as HTTP requires. */
+function etagOf(version: string): string {
+  return `"${version}"`;
+}
+
+/** The version in an If-Match header, which may be quoted and marked weak. */
+function versionFrom(ifMatch: string): string {
+  return ifMatch.replace(/^W\//, '').replace(/^"(.*)"$/, '$1');
+}
 
 // D4: lab scans are a few MB; this leaves room for large scans to come.
 const maxUploadMegabytes = 200;
@@ -119,6 +132,32 @@ const createFrame = createRoute({
   },
 });
 
+const updateFrame = createRoute({
+  method: 'patch',
+  path: '/{rollId}/frames/{frameId}',
+  summary: "Set or clear a frame's number",
+  description:
+    "Send the roll's ETag as If-Match: the change is refused if the roll has changed since. The response's ETag is the roll's new version.",
+  middleware: [requireJson] as const,
+  request: {
+    params: frameParams,
+    headers: ifMatchHeader,
+    body: {
+      required: true,
+      content: { 'application/json': { schema: updateFrameRequest } },
+    },
+  },
+  responses: {
+    200: json(frame, 'The updated frame.'),
+    400: malformed,
+    404: json(errorResponse, 'The roll has no frame with that ID.'),
+    409: json(errorResponse, 'The roll has changed since it was read.'),
+    415: wrongType,
+    422: invalid,
+    428: json(errorResponse, 'If-Match is missing.'),
+  },
+});
+
 const addVersion = createRoute({
   method: 'post',
   path: '/{rollId}/frames/{frameId}/versions',
@@ -187,6 +226,7 @@ export interface RollUseCases {
   readonly getRoll: GetRoll;
   readonly listRolls: ListRolls;
   readonly createFrame: CreateFrame;
+  readonly updateFrame: UpdateFrame;
   readonly addVersion: AddVersion;
   readonly getOriginal: GetOriginal;
   readonly getThumbnail: GetThumbnail;
@@ -226,7 +266,7 @@ export function rollRoutes({
       return domainErrorResponse(c, found.error);
     }
     // The version token, for a later edit to send back as If-Match.
-    c.header('ETag', `"${found.value.version}"`);
+    c.header('ETag', etagOf(found.value.version));
     return c.json(rollDto(found.value.roll), 200);
   });
 
@@ -249,6 +289,28 @@ export function rollRoutes({
     return created.ok
       ? c.json({ ...created.value, versions: [] }, 201)
       : domainErrorResponse(c, created.error);
+  });
+
+  routes.openapi(updateFrame, async (c) => {
+    const { rollId, frameId } = c.req.valid('param');
+    if (!isRollId(rollId) || !isFrameId(frameId)) {
+      return c.json(notFound, 404);
+    }
+    const ifMatch = c.req.valid('header')['if-match'];
+    if (ifMatch === undefined) {
+      return c.json({ error: 'send the roll’s ETag as If-Match' }, 428);
+    }
+    const updated = await useCases.updateFrame.execute(ctx, {
+      rollId,
+      frameId,
+      expectedVersion: versionFrom(ifMatch),
+      number: c.req.valid('json').number,
+    });
+    if (!updated.ok) {
+      return domainErrorResponse(c, updated.error);
+    }
+    c.header('ETag', etagOf(updated.value.version));
+    return c.json({ ...updated.value.frame, versions: [] }, 200);
   });
 
   routes.openapi(addVersion, async (c) => {

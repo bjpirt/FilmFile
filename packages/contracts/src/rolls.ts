@@ -71,14 +71,32 @@ export const createRollRequest = z
   .object({ roll: rollNumber })
   .meta({ id: 'CreateRollRequest' });
 
+/** The number printed on the film beside a frame: any text of 1 to 9 characters (D19). */
+export const frameNumber = z
+  .string()
+  .min(1, 'must be 1 to 9 characters, like 23 or 12A')
+  .max(9, 'must be 1 to 9 characters, like 23 or 12A')
+  .meta({ example: '12A' });
+
 export const createFrameRequest = z
-  .object({
-    number: z
-      .string()
-      .min(1, 'must be a frame number like 23 or 12A')
-      .optional(),
-  })
+  .object({ number: frameNumber.optional() })
   .meta({ id: 'CreateFrameRequest' });
+
+export const updateFrameRequest = z
+  .object({
+    number: frameNumber
+      .nullable()
+      .meta({ description: 'The new frame number, or null to clear it.' }),
+  })
+  .meta({ id: 'UpdateFrameRequest' });
+
+/** The roll's version, from the ETag it was read with, so a changed roll isn't overwritten. */
+export const ifMatchHeader = z.object({
+  'if-match': z
+    .string()
+    .optional()
+    .meta({ description: "The roll's ETag, from when it was read." }),
+});
 
 export const addVersionQuery = z.object({
   file: z

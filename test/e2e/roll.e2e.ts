@@ -4,7 +4,7 @@ import {
   labScans,
 } from '../../apps/backend/test/support/lab-scans.ts';
 
-test('create a roll, add its lab scans, and find them all still there after a reload', async ({
+test('create a roll, add its lab scans, correct a number, and find it all still there after a reload', async ({
   page,
 }) => {
   await page.goto('/');
@@ -37,4 +37,14 @@ test('create a roll, add its lab scans, and find them all still there after a re
   for (const number of ['1', '2', '3', '4', '5', '6']) {
     await expect(page.getByText(number, { exact: true })).toBeVisible();
   }
+
+  // Correct one frame's number, and find it saved after another reload.
+  await page.getByRole('button', { name: 'Change frame number 6' }).click();
+  await page.getByLabel('Frame number', { exact: true }).fill('6A');
+  await page.getByLabel('Frame number', { exact: true }).press('Enter');
+  await expect(
+    page.getByRole('button', { name: 'Change frame number 6A' }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('6A', { exact: true })).toBeVisible();
 });

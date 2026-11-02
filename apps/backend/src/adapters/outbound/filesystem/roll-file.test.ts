@@ -1,5 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, test } from 'vitest';
+import { isFrameNumber } from '../../../domain/rolls/frame-number.ts';
 import { isRollNumber } from '../../../domain/rolls/roll-number.ts';
 import type { Roll } from '../../../domain/rolls/roll.ts';
 import {
@@ -27,7 +28,10 @@ const aVersion = fc.record({
 
 const aFrame = fc.record({
   id: ulid.filter(isFrameId),
-  number: fc.option(fc.string(), { nil: null }),
+  number: fc.option(
+    fc.string({ minLength: 1, maxLength: 9 }).filter(isFrameNumber),
+    { nil: null },
+  ),
   versions: fc.array(aVersion, { maxLength: 3 }),
 });
 

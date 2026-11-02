@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from '../routing.tsx';
 import { droppedFiles } from './dropped-files.ts';
+import { FrameNumberEditor } from './frame-number-editor.tsx';
 import { inFrameOrder } from './frame-order.ts';
 import { uploadScans, type UploadReport } from './upload-scans.ts';
 
@@ -75,7 +76,8 @@ export function RollPage({
         params: { path: { rollId } },
       });
       if (data !== undefined) {
-        return data;
+        // The version the roll was read at, sent back as If-Match with a change.
+        return { roll: data, etag: response.headers.get('ETag') ?? '' };
       }
       throw response.status === 404
         ? new RollNotFound()
@@ -93,11 +95,35 @@ export function RollPage({
     }
     const total = files.length;
     setUpload({ kind: 'uploading', done: 0, total });
-    const report = await uploadScans(api, roll.data, files, (done) => {
+    const report = await uploadScans(api, roll.data.roll, files, (done) => {
       setUpload({ kind: 'uploading', done, total });
       void queryClient.invalidateQueries({ queryKey: ['rolls', rollId] });
     });
     setUpload({ kind: 'finished', report });
+  }
+
+  async function saveNumber(
+    frameId: string,
+    number: string | null,
+  ): Promise<boolean> {
+    if (roll.data === undefined) {
+      return false;
+    }
+    const { response } = await api.PATCH(
+      '/api/rolls/{rollId}/frames/{frameId}',
+      {
+        params: {
+          path: { rollId, frameId },
+          header: { 'if-match': roll.data.etag },
+        },
+        body: { number },
+      },
+    );
+    if (!response.ok) {
+      return false;
+    }
+    await queryClient.invalidateQueries({ queryKey: ['rolls', rollId] });
+    return true;
   }
 
   if (roll.isPending) {
@@ -119,7 +145,7 @@ export function RollPage({
       <p>
         <Link to="/">All rolls</Link>
       </p>
-      <h2>Roll {roll.data.roll}</h2>
+      <h2>Roll {roll.data.roll.roll}</h2>
 
       <div
         className="drop-zone"
@@ -162,7 +188,7 @@ export function RollPage({
         )}
       </div>
 
-      {roll.data.frames.length === 0 ? (
+      {roll.data.roll.frames.length === 0 ? (
         <p>No frames yet.</p>
       ) : (
         <>
@@ -193,18 +219,15 @@ export function RollPage({
           </fieldset>
           <ol className="contact-sheet">
             {(order === 'frame'
-              ? inFrameOrder(roll.data.frames)
-              : roll.data.frames
+              ? inFrameOrder(roll.data.roll.frames)
+              : roll.data.roll.frames
             ).map((frame) => (
               <li key={frame.id}>
                 <Thumbnail rollId={rollId} frame={frame} />
-                {frame.number === null ? (
-                  <span className="frame-number none" aria-label="No number">
-                    —
-                  </span>
-                ) : (
-                  <span className="frame-number">{frame.number}</span>
-                )}
+                <FrameNumberEditor
+                  number={frame.number}
+                  save={(number) => saveNumber(frame.id, number)}
+                />
               </li>
             ))}
           </ol>
