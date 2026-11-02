@@ -1,6 +1,7 @@
 import { glob, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
+import { safePath } from '../../../outbound/filesystem/safe-path.ts';
 
 // Reading and writing roll.json files, until the roll repository replaces this (task H.6).
 
@@ -46,7 +47,7 @@ export async function readRollFiles(archivePath: string): Promise<RollFile[]> {
   for await (const relative of glob('rolls/*/*/roll.json', {
     cwd: archivePath,
   })) {
-    const file = path.join(archivePath, relative);
+    const file = safePath(archivePath, ...relative.split(path.sep));
     const stored = storedRoll.parse(JSON.parse(await readFile(file, 'utf8')));
     rollFiles.push({ file, stored });
   }

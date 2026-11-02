@@ -330,7 +330,16 @@ export interface paths {
                         };
                     };
                 };
-                /** @description The body is not of the expected type. */
+                /** @description The file is larger than 200 MB. */
+                413: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The body is not a JPEG. */
                 415: {
                     headers: {
                         [name: string]: unknown;
@@ -339,13 +348,13 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description The request is invalid. */
+                /** @description The request is invalid, the file could not be read as an image, or it has more than 100 megapixels. */
                 422: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["InvalidRequest"];
+                        "application/json": components["schemas"]["InvalidRequest"] | components["schemas"]["Error"];
                     };
                 };
             };

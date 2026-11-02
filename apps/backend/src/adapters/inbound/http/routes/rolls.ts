@@ -18,7 +18,9 @@ import {
   version,
   versionParams,
 } from '@filmfile/contracts/rolls';
+import { bodyLimit } from 'hono/body-limit';
 import sharp from 'sharp';
+import { safePath } from '../../../outbound/filesystem/safe-path.ts';
 import { newUlid } from '../../../outbound/node/new-ulid.ts';
 import { requireContentType } from '../middleware/require-content-type.ts';
 import { folderName, newIdWithUniqueFolder } from './folder-names.ts';
@@ -37,6 +39,42 @@ function toRoll({ id, roll, frames }: StoredRoll): Omit<StoredRoll, 'schema'> {
 }
 
 const thumbnailPixels = { small: 400, large: 2048 } as const;
+
+// D4: lab scans are a few MB; this leaves room for large scans to come.
+const maxUploadMegabytes = 200;
+
+// Images are decoded only up to this size, so a small file claiming huge
+// dimensions (a decompression bomb) can't exhaust memory.
+const maxPixels = 100_000_000;
+
+/** JPEGs start with an SOI marker followed by another marker: FF D8 FF. */
+function isJpeg(bytes: Uint8Array): boolean {
+  return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+}
+
+/** The image's dimensions from its header, or why it can't be accepted. */
+async function inspectImage(
+  image: Buffer,
+): Promise<
+  | { readonly width: number; readonly height: number }
+  | 'unreadable'
+  | 'too-many-pixels'
+> {
+  let width: number;
+  let height: number;
+  try {
+    ({ width, height } = await sharp(image).metadata());
+  } catch {
+    // sharp throws for any image it can't parse; the client hears why below.
+    return 'unreadable';
+  }
+  return width * height > maxPixels ? 'too-many-pixels' : { width, height };
+}
+
+/** A version's file, from the path stored in roll.json, which must stay in the roll's folder. */
+function versionFile(rollFolder: string, version: StoredVersion): string {
+  return safePath(rollFolder, ...version.file.split('/'));
+}
 
 function hasErrorCode(error: unknown, code: string): boolean {
   return error instanceof Error && 'code' in error && error.code === code;
@@ -67,7 +105,7 @@ async function thumbnail(
   version: StoredVersion,
   size: keyof typeof thumbnailPixels,
 ): Promise<Buffer> {
-  const cached = path.join(
+  const cached = safePath(
     cachePath,
     'thumbnails',
     `${version.sha256}-${size}.webp`,
@@ -80,7 +118,7 @@ async function thumbnail(
     }
   }
   const pixels = thumbnailPixels[size];
-  const made = await sharp(original)
+  const made = await sharp(original, { limitInputPixels: maxPixels })
     .resize(pixels, pixels, { fit: 'inside', withoutEnlargement: true })
     .webp()
     .toBuffer();
@@ -173,7 +211,19 @@ const addVersion = createRoute({
   path: '/{rollId}/frames/{frameId}/versions',
   summary: 'Upload a lab scan as a new version of a frame',
   description: 'The body is the JPEG itself. It is stored unchanged.',
-  middleware: [requireContentType('image/jpeg')] as const,
+  middleware: [
+    bodyLimit({
+      maxSize: maxUploadMegabytes * 1024 * 1024,
+      onError: (c) =>
+        c.json(
+          {
+            error: `The file is larger than ${String(maxUploadMegabytes)} MB.`,
+          },
+          413,
+        ),
+    }),
+    requireContentType('image/jpeg'),
+  ] as const,
   request: {
     params: frameParams,
     query: addVersionQuery,
@@ -186,8 +236,12 @@ const addVersion = createRoute({
       errorResponse.extend({ frameId: z.string() }),
       'The same scan is already in the roll, in the frame given.',
     ),
-    415: wrongType,
-    422: invalid,
+    413: json(errorResponse, 'The file is larger than 200 MB.'),
+    415: json(errorResponse, 'The body is not a JPEG.'),
+    422: json(
+      z.union([invalidRequestResponse, errorResponse]),
+      'The request is invalid, the file could not be read as an image, or it has more than 100 megapixels.',
+    ),
   },
 });
 
@@ -243,17 +297,13 @@ export function rollRoutes({
   routes.openapi(createRoll, async (c) => {
     const { roll } = c.req.valid('json');
     const created: StoredRoll = { schema: 1, id: newUlid(), roll, frames: [] };
-    const folder = path.join(archivePath, 'rolls', roll.slice(0, 4), roll);
+    const folder = safePath(archivePath, 'rolls', roll.slice(0, 4), roll);
     await mkdir(folder, { recursive: true });
     try {
       // 'wx' fails if the file exists, so two rolls can't share an ID.
-      await writeFile(
-        path.join(folder, 'roll.json'),
-        rollFileContent(created),
-        {
-          flag: 'wx',
-        },
-      );
+      await writeFile(safePath(folder, 'roll.json'), rollFileContent(created), {
+        flag: 'wx',
+      });
     } catch (error) {
       if (isAlreadyExists(error)) {
         return c.json({ error: `roll ${roll} already exists` }, 409);
@@ -296,6 +346,9 @@ export function rollRoutes({
     }
 
     const image = Buffer.from(await c.req.arrayBuffer());
+    if (!isJpeg(image)) {
+      return c.json({ error: 'The file is not a JPEG.' }, 415);
+    }
     const sha256 = createHash('sha256').update(image).digest('hex');
     const { stored } = rollFile;
     const duplicate = stored.frames.find((f) =>
@@ -308,7 +361,19 @@ export function rollRoutes({
       );
     }
 
-    const { width, height } = await sharp(image).metadata();
+    const inspected = await inspectImage(image);
+    if (inspected === 'unreadable') {
+      return c.json({ error: 'The file could not be read as an image.' }, 422);
+    }
+    if (inspected === 'too-many-pixels') {
+      return c.json(
+        {
+          error: `The image has more than ${String(maxPixels / 1_000_000)} megapixels.`,
+        },
+        422,
+      );
+    }
+    const { width, height } = inspected;
     const versionId = newIdWithUniqueFolder(frame.versions.map((v) => v.id));
     const file = path.posix.join(
       'frames',
@@ -316,7 +381,13 @@ export function rollRoutes({
       folderName(versionId),
       query.file,
     );
-    const target = path.join(path.dirname(rollFile.file), file);
+    const target = safePath(
+      path.dirname(rollFile.file),
+      'frames',
+      folderName(frame.id),
+      folderName(versionId),
+      query.file,
+    );
     await mkdir(path.dirname(target), { recursive: true });
     // 'wx' fails if the file exists: originals are never overwritten.
     await writeFile(target, image, { flag: 'wx' });
@@ -345,9 +416,7 @@ export function rollRoutes({
     if (found === undefined) {
       return c.json({ error: 'no such version' }, 404);
     }
-    const image = await readFile(
-      path.join(found.rollFolder, found.version.file),
-    );
+    const image = await readFile(versionFile(found.rollFolder, found.version));
     return c.body(new Uint8Array(image), 200, { 'Content-Type': 'image/jpeg' });
   });
 
@@ -358,7 +427,7 @@ export function rollRoutes({
     }
     const image = await thumbnail(
       cachePath,
-      path.join(found.rollFolder, found.version.file),
+      versionFile(found.rollFolder, found.version),
       found.version,
       c.req.valid('query').size,
     );

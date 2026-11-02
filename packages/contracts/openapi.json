@@ -523,8 +523,18 @@
               }
             }
           },
+          "413": {
+            "description": "The file is larger than 200 MB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "415": {
-            "description": "The body is not of the expected type.",
+            "description": "The body is not a JPEG.",
             "content": {
               "application/json": {
                 "schema": {
@@ -534,11 +544,18 @@
             }
           },
           "422": {
-            "description": "The request is invalid.",
+            "description": "The request is invalid, the file could not be read as an image, or it has more than 100 megapixels.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InvalidRequest"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/InvalidRequest"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    }
+                  ]
                 }
               }
             }
