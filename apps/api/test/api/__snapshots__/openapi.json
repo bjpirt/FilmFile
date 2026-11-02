@@ -1,0 +1,675 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FilmFile API",
+    "version": "0.0.0"
+  },
+  "components": {
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "Roll": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+          },
+          "roll": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{3}$",
+            "description": "The year the roll was shot and a number, YYYY-NNN.",
+            "example": "2026-014"
+          },
+          "frames": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Frame"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "roll",
+          "frames"
+        ]
+      },
+      "Frame": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+          },
+          "number": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The edge number, or null if not known yet.",
+            "example": "12A"
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Version"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "versions"
+        ]
+      },
+      "Version": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+          },
+          "file": {
+            "type": "string",
+            "description": "Where the file is, relative to the roll's folder.",
+            "example": "frames/S9WDVXNP/9PMYF63D/12340014.jpg"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "bytes": {
+            "type": "integer"
+          },
+          "width": {
+            "type": "integer"
+          },
+          "height": {
+            "type": "integer"
+          },
+          "added": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "file",
+          "sha256",
+          "bytes",
+          "width",
+          "height",
+          "added"
+        ],
+        "description": "One image file of a frame."
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "description": "What went wrong, for a person to read."
+      },
+      "InvalidRequest": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "invalid request"
+            ]
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ]
+                  }
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "message"
+              ]
+            }
+          }
+        },
+        "required": [
+          "error",
+          "issues"
+        ],
+        "description": "Each problem with the request: where it is and what is wrong."
+      },
+      "CreateRollRequest": {
+        "type": "object",
+        "properties": {
+          "roll": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{3}$",
+            "description": "The year the roll was shot and a number, YYYY-NNN.",
+            "example": "2026-014"
+          }
+        },
+        "required": [
+          "roll"
+        ]
+      },
+      "CreateFrameRequest": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Check that the service is up",
+        "responses": {
+          "200": {
+            "description": "The service is up.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rolls": {
+      "get": {
+        "summary": "List every roll, ordered by roll ID",
+        "responses": {
+          "200": {
+            "description": "The rolls.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Roll"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create an empty roll",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRollRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new roll.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Roll"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not valid JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A roll with that roll ID already exists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rolls/{rollId}": {
+      "get": {
+        "summary": "Get a roll with its frames and versions",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "rollId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The roll.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Roll"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No roll has that ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rolls/{rollId}/frames": {
+      "post": {
+        "summary": "Add a frame with no versions to a roll",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "rollId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFrameRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new frame.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Frame"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not valid JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No roll has that ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rolls/{rollId}/frames/{frameId}/versions": {
+      "post": {
+        "summary": "Upload a lab scan as a new version of a frame",
+        "description": "The body is the JPEG itself. It is stored unchanged.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "rollId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "frameId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[\\w-]+\\.jpe?g$/i",
+              "description": "The scan's original file name, kept when it's stored.",
+              "example": "12340014.jpg"
+            },
+            "required": true,
+            "description": "The scan's original file name, kept when it's stored.",
+            "name": "file",
+            "in": "query"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "The scan.",
+          "content": {
+            "image/jpeg": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Version"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The roll has no frame with that ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The same scan is already in the roll, in the frame given.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "frameId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "frameId"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rolls/{rollId}/frames/{frameId}/versions/{versionId}/file": {
+      "get": {
+        "summary": "Download a version's original file",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "rollId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "frameId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "versionId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The original, unchanged.",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rolls/{rollId}/frames/{frameId}/versions/{versionId}/thumbnail": {
+      "get": {
+        "summary": "Get a thumbnail of a version",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "rollId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "frameId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "versionId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "small",
+                "large"
+              ],
+              "description": "small fits within 400 px, large within 2048 px."
+            },
+            "required": true,
+            "description": "small fits within 400 px, large within 2048 px.",
+            "name": "size",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A WebP that fits within the size.",
+            "content": {
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}

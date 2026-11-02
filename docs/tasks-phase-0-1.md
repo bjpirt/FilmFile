@@ -64,13 +64,13 @@ Every task starts with API tests in `apps/api/test/api/`, run against a temp arc
 - [x] **S1.4 Create a frame.** `POST /api/rolls/{rollId}/frames` with an optional edge number appends a frame with a ULID and no versions to `roll.json`, and returns 201.
 - [x] **S1.5 Upload a lab scan.** `POST /api/rolls/{rollId}/frames/{frameId}/versions?file=12340014.jpg` with the image as the raw body writes it unchanged to the version's own folder, `frames/<frame>/<version>/` (D17), and appends a version with its ULID, SHA-256, size, width and height (read with sharp). A second upload of the same bytes returns 409. Tests generate a small JPEG with sharp.
 - [x] **S1.6 Thumbnails and originals.** `GET /api/rolls/{rollId}/frames/{frameId}/versions/{versionId}/thumbnail?size=small|large` returns a 400 px or 2048 px WebP made with sharp and cached in the cache directory by content hash; `GET …/versions/{versionId}/file` returns the original.
-- [ ] **S1.7 Checkpoint.** Create a roll and upload a real roll's scans with `curl`, then open thumbnails in the browser.
+- [x] **S1.7 Checkpoint.** Create a roll and upload a real roll's scans with `curl`, then open thumbnails in the browser.
 
 **Done when:** API tests pass for every endpoint, and S1.7 works with real scans.
 
 ## S2: Contracts and a basic UI
 
-- [ ] **S2.1 Contracts and OpenAPI.** Define the S1 routes with `@hono/zod-openapi`, with request and response schemas in `@filmfile/contracts`. Serve `/api/openapi.json` and the docs page at `/api/docs` (assets served locally, D2). Snapshot test of the spec. *(Was 0.2.6, 0.3.1, 0.3.3.)*
+- [x] **S2.1 Contracts and OpenAPI.** Define the S1 routes with `@hono/zod-openapi`, with request and response schemas in `@filmfile/contracts`. Serve `/api/openapi.json` and the docs page at `/api/docs` (assets served locally, D2). Snapshot test of the spec. Path parameters are validated as ULIDs (422). Malformed JSON is a 400 with the usual `{ error }` body, since 422 is for valid JSON that breaks the rules. The docs page is Swagger UI from `swagger-ui-dist`, with its telemetry dependency's install script blocked. *(Was 0.2.6, 0.3.1, 0.3.3.)*
 - [ ] **S2.2 Typed client.** Generate types from the spec with `openapi-typescript` and export an `openapi-fetch` client from the contracts package. A check in `pnpm verify` fails if the generated files are out of date. *(Was 0.3.2.)*
 - [ ] **S2.3 Web app shell.** Vite, React and TanStack Query in `apps/web`, calling the health endpoint through the typed client. The service serves the built UI; in development Vite proxies `/api` (D1). *(Was 0.3.4 and part of 1b.1.)*
 - [ ] **S2.4 Rolls page.** List rolls and create one with a roll ID field (no suggestion yet).

@@ -1,49 +1,39 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { Hono, type Context } from 'hono';
+import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
+import {
+  errorResponse,
+  invalidRequestResponse,
+} from '@filmfile/contracts/errors';
+import {
+  addVersionQuery,
+  createFrameRequest,
+  createRollRequest,
+  frame,
+  frameParams,
+  roll,
+  rollParams,
+  thumbnailQuery,
+  version,
+  versionParams,
+} from '@filmfile/contracts/rolls';
 import sharp from 'sharp';
-import { z } from 'zod';
 import { newUlid } from '../../../outbound/node/new-ulid.ts';
 import { folderName, newIdWithUniqueFolder } from './folder-names.ts';
+import { invalidRequestHook } from './invalid-request-hook.ts';
 import {
   findRollFile,
   readRollFiles,
   rollFileContent,
-  rollId,
   writeRollFile,
   type StoredRoll,
   type StoredVersion,
 } from './roll-files.ts';
 
-const createRollRequest = z.object({ roll: rollId });
-
-const createFrameRequest = z.object({
-  number: z.string().min(1, 'must be an edge number like 23 or 12A').optional(),
-});
-
-const addVersionQuery = z.object({
-  // A bare file name, because it's written into the version's folder.
-  file: z
-    .string()
-    .regex(/^[\w-]+\.jpe?g$/i, 'must be a JPEG file name like 12340014.jpg'),
-});
-
 function toRoll({ id, roll, frames }: StoredRoll): Omit<StoredRoll, 'schema'> {
   return { id, roll, frames };
 }
-
-/** The request body as JSON; malformed JSON becomes undefined, which every schema rejects. */
-async function jsonBody(c: Context): Promise<unknown> {
-  return c.req.json().catch(() => undefined);
-}
-
-function invalidRequest(c: Context, error: z.ZodError): Response {
-  const issues = error.issues.map(({ path, message }) => ({ path, message }));
-  return c.json({ error: 'invalid request', issues }, 422);
-}
-
-const thumbnailQuery = z.object({ size: z.enum(['small', 'large']) });
 
 const thumbnailPixels = { small: 400, large: 2048 } as const;
 
@@ -57,9 +47,9 @@ function isAlreadyExists(error: unknown): boolean {
 
 async function findVersion(
   archivePath: string,
-  ids: { id: string; frameId: string; versionId: string },
+  ids: { rollId: string; frameId: string; versionId: string },
 ): Promise<{ rollFolder: string; version: StoredVersion } | undefined> {
-  const rollFile = await findRollFile(archivePath, ids.id);
+  const rollFile = await findRollFile(archivePath, ids.rollId);
   const version = rollFile?.stored.frames
     .find((f) => f.id === ids.frameId)
     ?.versions.find((v) => v.id === ids.versionId);
@@ -98,35 +88,149 @@ async function thumbnail(
   return made;
 }
 
+function json<T extends z.ZodType>(schema: T, description: string) {
+  return { description, content: { 'application/json': { schema } } };
+}
+
+function image(type: string, description: string) {
+  return {
+    description,
+    content: { [type]: { schema: z.string().meta({ format: 'binary' }) } },
+  };
+}
+
+const invalid = json(invalidRequestResponse, 'The request is invalid.');
+
+const malformed = json(errorResponse, 'The body is not valid JSON.');
+
+const listRolls = createRoute({
+  method: 'get',
+  path: '/',
+  summary: 'List every roll, ordered by roll ID',
+  responses: { 200: json(z.array(roll), 'The rolls.') },
+});
+
+const getRoll = createRoute({
+  method: 'get',
+  path: '/{rollId}',
+  summary: 'Get a roll with its frames and versions',
+  request: { params: rollParams },
+  responses: {
+    200: json(roll, 'The roll.'),
+    404: json(errorResponse, 'No roll has that ID.'),
+    422: invalid,
+  },
+});
+
+const createRoll = createRoute({
+  method: 'post',
+  path: '/',
+  summary: 'Create an empty roll',
+  request: {
+    body: {
+      required: true,
+      content: { 'application/json': { schema: createRollRequest } },
+    },
+  },
+  responses: {
+    201: json(roll, 'The new roll.'),
+    400: malformed,
+    409: json(errorResponse, 'A roll with that roll ID already exists.'),
+    422: invalid,
+  },
+});
+
+const createFrame = createRoute({
+  method: 'post',
+  path: '/{rollId}/frames',
+  summary: 'Add a frame with no versions to a roll',
+  request: {
+    params: rollParams,
+    body: {
+      required: true,
+      content: { 'application/json': { schema: createFrameRequest } },
+    },
+  },
+  responses: {
+    201: json(frame, 'The new frame.'),
+    400: malformed,
+    404: json(errorResponse, 'No roll has that ID.'),
+    422: invalid,
+  },
+});
+
+const addVersion = createRoute({
+  method: 'post',
+  path: '/{rollId}/frames/{frameId}/versions',
+  summary: 'Upload a lab scan as a new version of a frame',
+  description: 'The body is the JPEG itself. It is stored unchanged.',
+  request: {
+    params: frameParams,
+    query: addVersionQuery,
+    body: { required: true, ...image('image/jpeg', 'The scan.') },
+  },
+  responses: {
+    201: json(version, 'The new version.'),
+    404: json(errorResponse, 'The roll has no frame with that ID.'),
+    409: json(
+      errorResponse.extend({ frameId: z.string() }),
+      'The same scan is already in the roll, in the frame given.',
+    ),
+    422: invalid,
+  },
+});
+
+const getOriginal = createRoute({
+  method: 'get',
+  path: '/{rollId}/frames/{frameId}/versions/{versionId}/file',
+  summary: "Download a version's original file",
+  request: { params: versionParams },
+  responses: {
+    200: image('image/jpeg', 'The original, unchanged.'),
+    404: json(errorResponse, 'No such version.'),
+    422: invalid,
+  },
+});
+
+const getThumbnail = createRoute({
+  method: 'get',
+  path: '/{rollId}/frames/{frameId}/versions/{versionId}/thumbnail',
+  summary: 'Get a thumbnail of a version',
+  request: { params: versionParams, query: thumbnailQuery },
+  responses: {
+    200: image('image/webp', 'A WebP that fits within the size.'),
+    404: json(errorResponse, 'No such version.'),
+    422: invalid,
+  },
+});
+
 export function rollRoutes({
   archivePath,
   cachePath,
 }: {
   readonly archivePath: string;
   readonly cachePath: string;
-}): Hono {
-  const routes = new Hono();
+}): OpenAPIHono {
+  const routes = new OpenAPIHono({ defaultHook: invalidRequestHook });
 
-  routes.get('/', async (c) =>
-    c.json((await readRollFiles(archivePath)).map((r) => toRoll(r.stored))),
+  routes.openapi(listRolls, async (c) =>
+    c.json(
+      (await readRollFiles(archivePath)).map((r) => toRoll(r.stored)),
+      200,
+    ),
   );
 
-  routes.get('/:id', async (c) => {
-    const id = c.req.param('id');
-    const rollFile = await findRollFile(archivePath, id);
+  routes.openapi(getRoll, async (c) => {
+    const { rollId } = c.req.valid('param');
+    const rollFile = await findRollFile(archivePath, rollId);
     if (rollFile === undefined) {
-      return c.json({ error: `no roll with ID ${id}` }, 404);
+      return c.json({ error: `no roll with ID ${rollId}` }, 404);
     }
-    return c.json(toRoll(rollFile.stored));
+    return c.json(toRoll(rollFile.stored), 200);
   });
 
-  routes.post('/', async (c) => {
-    const parsed = createRollRequest.safeParse(await jsonBody(c));
-    if (!parsed.success) {
-      return invalidRequest(c, parsed.error);
-    }
-
-    const { roll } = parsed.data;
+  routes.openapi(createRoll, async (c) => {
+    const { roll } = c.req.valid('json');
     const created: StoredRoll = { schema: 1, id: newUlid(), roll, frames: [] };
     const folder = path.join(archivePath, 'rolls', roll.slice(0, 4), roll);
     await mkdir(folder, { recursive: true });
@@ -149,21 +253,18 @@ export function rollRoutes({
     return c.json(toRoll(created), 201);
   });
 
-  routes.post('/:id/frames', async (c) => {
-    const id = c.req.param('id');
-    const rollFile = await findRollFile(archivePath, id);
+  routes.openapi(createFrame, async (c) => {
+    const { rollId } = c.req.valid('param');
+    const { number } = c.req.valid('json');
+    const rollFile = await findRollFile(archivePath, rollId);
     if (rollFile === undefined) {
-      return c.json({ error: `no roll with ID ${id}` }, 404);
-    }
-    const parsed = createFrameRequest.safeParse(await jsonBody(c));
-    if (!parsed.success) {
-      return invalidRequest(c, parsed.error);
+      return c.json({ error: `no roll with ID ${rollId}` }, 404);
     }
 
     const { stored } = rollFile;
     const frame = {
       id: newIdWithUniqueFolder(stored.frames.map((f) => f.id)),
-      number: parsed.data.number ?? null,
+      number: number ?? null,
       versions: [],
     };
     await writeRollFile(rollFile.file, {
@@ -174,16 +275,13 @@ export function rollRoutes({
     return c.json(frame, 201);
   });
 
-  routes.post('/:id/frames/:frameId/versions', async (c) => {
-    const { id, frameId } = c.req.param();
-    const rollFile = await findRollFile(archivePath, id);
+  routes.openapi(addVersion, async (c) => {
+    const { rollId, frameId } = c.req.valid('param');
+    const query = c.req.valid('query');
+    const rollFile = await findRollFile(archivePath, rollId);
     const frame = rollFile?.stored.frames.find((f) => f.id === frameId);
     if (rollFile === undefined || frame === undefined) {
-      return c.json({ error: `no frame ${frameId} in roll ${id}` }, 404);
-    }
-    const parsed = addVersionQuery.safeParse(c.req.query());
-    if (!parsed.success) {
-      return invalidRequest(c, parsed.error);
+      return c.json({ error: `no frame ${frameId} in roll ${rollId}` }, 404);
     }
 
     const image = Buffer.from(await c.req.arrayBuffer());
@@ -205,7 +303,7 @@ export function rollRoutes({
       'frames',
       folderName(frame.id),
       folderName(versionId),
-      parsed.data.file,
+      query.file,
     );
     const target = path.join(path.dirname(rollFile.file), file);
     await mkdir(path.dirname(target), { recursive: true });
@@ -231,8 +329,8 @@ export function rollRoutes({
     return c.json(version, 201);
   });
 
-  routes.get('/:id/frames/:frameId/versions/:versionId/file', async (c) => {
-    const found = await findVersion(archivePath, c.req.param());
+  routes.openapi(getOriginal, async (c) => {
+    const found = await findVersion(archivePath, c.req.valid('param'));
     if (found === undefined) {
       return c.json({ error: 'no such version' }, 404);
     }
@@ -242,28 +340,21 @@ export function rollRoutes({
     return c.body(new Uint8Array(image), 200, { 'Content-Type': 'image/jpeg' });
   });
 
-  routes.get(
-    '/:id/frames/:frameId/versions/:versionId/thumbnail',
-    async (c) => {
-      const found = await findVersion(archivePath, c.req.param());
-      if (found === undefined) {
-        return c.json({ error: 'no such version' }, 404);
-      }
-      const parsed = thumbnailQuery.safeParse(c.req.query());
-      if (!parsed.success) {
-        return invalidRequest(c, parsed.error);
-      }
-      const image = await thumbnail(
-        cachePath,
-        path.join(found.rollFolder, found.version.file),
-        found.version,
-        parsed.data.size,
-      );
-      return c.body(new Uint8Array(image), 200, {
-        'Content-Type': 'image/webp',
-      });
-    },
-  );
+  routes.openapi(getThumbnail, async (c) => {
+    const found = await findVersion(archivePath, c.req.valid('param'));
+    if (found === undefined) {
+      return c.json({ error: 'no such version' }, 404);
+    }
+    const image = await thumbnail(
+      cachePath,
+      path.join(found.rollFolder, found.version.file),
+      found.version,
+      c.req.valid('query').size,
+    );
+    return c.body(new Uint8Array(image), 200, {
+      'Content-Type': 'image/webp',
+    });
+  });
 
   return routes;
 }

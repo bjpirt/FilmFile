@@ -2,3 +2,6 @@ pnpm-lock.yaml
 
 # Prettier pads Markdown tables to their widest cell, which makes the docs hard to edit.
 *.md
+
+# Written by Vitest; reformatting it would make the snapshot test fail.
+apps/api/test/api/__snapshots__/

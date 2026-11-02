@@ -65,7 +65,10 @@ describe('POST /api/rolls', () => {
       body: '{"roll": ',
     });
 
-    expect(response.status).toBe(422);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: 'Malformed JSON in request body',
+    });
   });
 
   test.each(['2026-14', '26-014', '2026-014a', '../../2026-014', ''])(
@@ -105,6 +108,12 @@ describe('GET /api/rolls/{id}', () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(created);
+  });
+
+  test('rejects an ID that is not a ULID', async () => {
+    const response = await request('/api/rolls/2026-014');
+
+    expect(response.status).toBe(422);
   });
 
   test('returns 404 for an ID that no roll has', async () => {
