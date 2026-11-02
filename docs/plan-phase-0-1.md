@@ -165,7 +165,6 @@ archive/
         {
           "id": "01JC8ZB7TQ…",
           "file": "lab/12340014.jpg",
-          "kind": "lab-scan",
           "lab": { "lab": "local-lab", "batch": "1234", "scan": 14 },
           "sha256": "9f2c…",
           "bytes": 1843021,
@@ -183,7 +182,7 @@ archive/
 
 - **Inheritable `meta` fields** (archive, roll and frame level): `camera`, `lens`, `film`, `location`, `tags`, `author`, `copyright`, `licence`.
 - **Frame-only:** `id`, `number`, `title`, `rating` (0–5), `notes`, `defaultVersion` (optional version ID; when unset the newest version is shown), `versions` (may be empty).
-- **Version:** `id`, `file`, `kind`, kind-specific details (`lab` for `lab-scan`), `sha256`, `bytes`, `width`, `height`, `added`. Low-res display images are generated previews in the cache, not versions. Phase 1 has only `lab-scan`; the schema is a union by `kind` so Phase 2 adds members.
+- **Version:** `id`, `file`, `lab` (for lab scans), `sha256`, `bytes`, `width`, `height`, `added`. No `kind` field. Low-res display images are generated previews in the cache, not versions. Phase 1 has only `lab-scan`; the schema is a union by `kind` so Phase 2 adds members.
 - **Roll-only:** `id`, `roll`, `developed`, `shot`, `sleeve`, `notes`, `numbering`. Whether `numbering` also records the mapping used is an open question.
 - `number` is a string, or `null` for a skipped or unidentified scan.
 - `frames` uses the `versions` list from day one, so Phase 2 adds entries without a format change.
@@ -229,7 +228,7 @@ All take `ArchiveContext` and return `Result`. Each one that writes also updates
 | `CreateRoll`, `UpdateRoll`, `GetResolvedRoll`, `ListRolls` | `CreateRoll` requires an explicit roll ID. `ListRolls` queries the index with filters (year, camera, film, tag) and sorts by roll ID (default) or shot date |
 | `RenameRoll` | Changes the roll ID: checks it's free, moves the folder, re-indexes. The ULID is unchanged |
 | `CreateFrame` | Appends a frame (JSON: edge number and other fields optional) to an existing roll. No version token needed: the service locks the roll and appends |
-| `AddVersion` | Uploads one file as a version of a frame and records its pixel dimensions. Phase 1 accepts `kind=lab-scan` only, with the lab and file name; rejects names not matching the lab pattern, files over 200 MB, and files whose signature isn't an allowed image type. Appends under the roll's lock, without a version token. A file whose hash is already in the roll returns `AlreadyExists` with the existing frame and version, so retries are safe |
+| `AddVersion` | Uploads one file as a version of a frame and records its pixel dimensions. Phase 1 takes lab scans only, with the lab and file name; rejects names not matching the lab pattern, files over 200 MB, and files whose signature isn't an allowed image type. Appends under the roll's lock, without a version token. A file whose hash is already in the roll returns `AlreadyExists` with the existing frame and version, so retries are safe |
 | `UpdateFrame`, `UpdateFrames` | Single and bulk edits, including edge numbers; bulk is one roll save |
 | `DeleteVersion`, `DeleteFrame`, `DeleteRoll` | Explicit deletes into the holding area; nothing is permanently deleted. Each saves the roll first, then moves the JSON and files to `deleted/`. Deleting the default version unsets `defaultVersion`. A roll can be deleted only when it has no frames |
 | Mapping use cases | Depend on where the mapping engine lives (open question). Confirming numbering is an `UpdateRoll` |
@@ -259,7 +258,7 @@ PATCH  /api/rolls/{rollId}/frames            bulk, If-Match required
 DELETE /api/rolls/{rollId}                   only when empty, If-Match required
 POST   /api/rolls/{rollId}/frames            JSON → new frame (no image)
 DELETE /api/rolls/{rollId}/frames/{frameId}  If-Match required
-POST   /api/rolls/{rollId}/frames/{frameId}/versions?kind=lab-scan&lab=&file=   raw image body → new version
+POST   /api/rolls/{rollId}/frames/{frameId}/versions?lab=&file=   raw image body → new version
 DELETE /api/rolls/{rollId}/frames/{frameId}/versions/{versionId}   If-Match required
 GET    /api/rolls/{rollId}/frames/{frameId}/versions/{versionId}/file   original, read-only
 PUT    /api/rolls/{rollId}/sleeve            upload sleeve photo

@@ -60,7 +60,7 @@ Archive
   - Lists sort by roll ID by default, or by shot date when chosen. Roll-level shot dates are optional and kept for reference; within a roll, edge-number order is shot order.
   - A roll ID can be changed only by an explicit rename, which checks the new ID is free and moves the roll's folder. The roll's ULID doesn't change, so links survive. Files inside the folder never move relative to it.
 - **Frame:** identified by the **edge number printed on the film**, as a string: `"0"`, `"23"`, `"12A"`, or `"14-15"` for a panoramic frame spanning two numbers. `null` for a scan that's skipped or not yet identified. 120 film uses position on the roll. A frame holds metadata and zero or more versions; a frame with no versions is valid (e.g. a frame the lab skipped, catalogued from the sleeve). `defaultVersion` optionally names the version to show; when unset, the newest version is shown.
-- **Version:** a file with a ULID, a kind, kind-specific details (e.g. lab, batch and scan index for a lab scan), a content hash, its pixel dimensions and parents. The kind says where the file came from, not what it's for: low-res display images are generated previews in the cache, never versions. `defaultVersion` and `parents` refer to version IDs, never paths. Kinds: `lab-scan`, `raw`, `master` (editor export), `edit`, `export` (derived for publishing). **`parents` is a list**, since a master may come from several raws (brackets, stitched sections, trichrome).
+- **Version:** a file with a ULID, a content hash, its pixel dimensions and parents. Versions have no `kind`: a version is a version, and the frame's `defaultVersion` decides which one is shown. Low-res display images are generated previews in the cache, never versions. `defaultVersion` and `parents` refer to version IDs, never paths. Phase 2 adds raws, masters (editor exports), edits and exports; how the service tells them apart where behaviour differs (e.g. never writing metadata into raws) is an open question (section 15). **`parents` is a list**, since a master may come from several raws (brackets, stitched sections, trichrome).
 - **Event:** a named happening with optional dates, location and parent event. Rolls and frames belong to events (section 7).
 
 ---
@@ -116,7 +116,6 @@ Version entries (from Phase 2) look like:
 {
   "id": "01JD2K4F8R…",
   "file": "masters/DSC_4821.tif",
-  "kind": "master",
   "parents": ["01JD2J9X1B…"],
   "editor": { "name": "NegPy", "version": "0.54" },
   "recipe": ".recipes/3f9a….negpy",
@@ -177,7 +176,7 @@ Lab scans are low-res JPEGs of every frame named `BBBBNNNN.jpg` (batch, scan ind
 
 - The file pattern and default direction are configured per lab in `archive.json`.
 - **Mapping** from scan index to edge number uses **anchors** (`scan → frame`, counting up or down from each anchor), **overrides** (one-off numbers such as `25A`, not affecting counting), and **skips** (scans with no frame). Algorithm details are in the Phase 0–1 plan.
-- **The API has no import workflow.** A roll is created first; then each frame is created (JSON, edge number optional), and its lab scan is uploaded (at most 200 MB) as a `lab-scan` version of that frame, stored unchanged in `lab/`. Frames can be added to a roll that already has frames.
+- **The API has no import workflow.** A roll is created first; then each frame is created (JSON, edge number optional), and its lab scan is uploaded (at most 200 MB) as a version of that frame, stored unchanged in `lab/`. Frames can be added to a roll that already has frames.
 - **The UI drives the import:** drag the lab's download folder onto the import page, create a frame and upload its scan for each file, then set the numbering.
 - Upload is idempotent: a file whose hash is already in the roll is refused with a reference to the existing frame and version, so an interrupted import is completed by uploading again. An interruption between creating a frame and uploading its scan leaves a frame with no versions, which is valid and can be uploaded into or deleted.
 - Where the mapping engine runs is open (section 15).
@@ -357,7 +356,7 @@ Each use case is a class with its dependencies injected through the constructor 
 - **REST resources** with an **OpenAPI spec generated from the Zod schemas** in `@filmfile/contracts`, served at `/api/openapi.json` with an interactive docs page at `/api/docs` (useful for trying the API before the UI exists). The docs page's assets are served by the service itself, not a CDN, so the CSP needs no exceptions.
 - The web UI uses a **typed client generated from the spec** (`openapi-typescript` + `openapi-fetch`), so it depends only on the API contract.
 - The API serves **resolved data**: a roll comes back with every frame's resolved metadata and provenance, plus an `ETag`. Writes require `If-Match` and return 409 on conflict.
-- **Image data and metadata have separate endpoints.** Frames are created and edited as JSON (`/api/rolls/{rollId}/frames`). Images are uploaded as versions of a frame, one file per request, with the raw image as the body (`POST /api/rolls/{rollId}/frames/{frameId}/versions?kind=…`); kind-specific details go in the query and are validated per kind. Phase 1 accepts only `lab-scan`; Phase 2 adds kinds without a new upload mechanism. A raw image body can't be sent by a cross-site form.
+- **Image data and metadata have separate endpoints.** Frames are created and edited as JSON (`/api/rolls/{rollId}/frames`). Images are uploaded as versions of a frame, one file per request, with the raw image as the body (`POST /api/rolls/{rollId}/frames/{frameId}/versions?file=…`), with details such as the file name in the query. Phase 1 uploads lab scans only; Phase 2 adds other files through the same endpoint. A raw image body can't be sent by a cross-site form.
 - Original files are read by version ID (`…/versions/{versionId}/file`), never by path.
 - Live updates go over **server-sent events** (`/api/events`).
 
@@ -437,6 +436,7 @@ packages/
 
 ## 15. Open questions
 
+- **Telling versions apart (Phase 2):** versions have no `kind`. When raws and masters arrive, decide how the service knows a version is a raw (never write metadata into it), a master (has parents and a recipe) or a lab scan (has a batch and scan index): an explicit field, or inferred from the folder and fields present. The likely answer is an optional `source` attribute recording where the file came from (e.g. lab scan, camera scan, editor export), added when it's first needed.
 - **Mapping engine location:** in the service behind a stateless endpoint, in a shared package, or in the UI. Decide once more of the app is built.
 - **Stored mapping:** whether `roll.json` records the mapping used to number a roll, or only the resulting edge numbers.
 - **Name clearance:** check the domain, GitHub organisation and UK IPO register for FilmFile, noting the Print File sleeve brand.

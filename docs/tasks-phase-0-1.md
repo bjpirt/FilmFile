@@ -35,11 +35,12 @@ Settled on 2 November 2026 and recorded in `docs/design.md`. Tasks refer to them
 | D10 | A roll ID can be changed only by an explicit rename, which moves the roll's folder. The ULID is unchanged. | 0.4.1, 1.3.15, 1c.2 |
 | D11 | The API has no import workflow. A roll is created first, then each frame is created and its lab scan uploaded as a version (D13); the UI drives the import. Edge numbers are optional on creation and can be set later. Creating a frame is an append that doesn't need `If-Match`; a scan whose hash is already in the roll returns 409, so retries are safe. Frames can be added to a roll that already has frames. | 1.3.6, 1.4.4, 1b.3–1b.5 |
 | D12 | Frames can be deleted, and rolls can be deleted when they have no frames, as explicit, confirmed actions. Nothing is permanently deleted: deleted items move into `deleted/` in the archive, one dated folder each with the files and their JSON, and only the user empties it. No restore in the UI in Phase 1. | 0.4.1, 1.2.3, 1.3.16, 1c.2, 1c.3 |
-| D13 | Image data and metadata have separate endpoints. Frames are JSON; images are uploaded as versions of a frame (`POST …/frames/{frameId}/versions?kind=…`, raw body). Versions have ULIDs; `defaultVersion` and `parents` refer to version IDs, never paths. Phase 1 accepts only `kind=lab-scan`. A frame with no versions is valid. `defaultVersion` is optional; when unset the newest version is shown. A single version can be deleted into the holding area. Originals are read by version ID. | 1.1.1, 1.1.7, 1.3.6, 1.3.11, 1.3.16, 1.4.3–1.4.6, 1b.4, 1b.7, 1b.8 |
-| D14 | No "preview" version kind: kind is where a file came from, not what it's for. On-screen images are generated previews of the frame's shown version, cached outside the archive. Every version records `width` and `height`, read by the `ImageInspector` port at upload. | 1.1.1, 1.2.7, 1.3.6 |
+| D13 | Image data and metadata have separate endpoints. Frames are JSON; images are uploaded as versions of a frame (`POST …/frames/{frameId}/versions?file=…`, raw body). Versions have ULIDs and no `kind`; `defaultVersion` and `parents` refer to version IDs, never paths. Phase 1 uploads lab scans only. A frame with no versions is valid. `defaultVersion` is optional; when unset the newest version is shown. A single version can be deleted into the holding area. Originals are read by version ID. | 1.1.1, 1.1.7, 1.3.6, 1.3.11, 1.3.16, 1.4.3–1.4.6, 1b.4, 1b.7, 1b.8 |
+| D14 | No "preview" versions: on-screen images are generated previews of the frame's shown version, cached outside the archive. Every version records `width` and `height`, read by the `ImageInspector` port at upload. | 1.1.1, 1.2.7, 1.3.6 |
 | D15 | A frame's `defaultVersion` (optional version ID) is the version the UI shows; when unset, the newest version is shown. It lives on the frame rather than as a flag on versions, so there can only be one. Set from the frame view. | 1.1.1, 1.1.7, 1b.8 |
+| D16 | Versions have no `kind`: a version is a version, and `defaultVersion` decides what's shown. How Phase 2 tells raws, masters and lab scans apart where behaviour differs is an open question; a `source` attribute recording where a file came from may be added then. | 1.1.1, S1.5 |
 
-**Still open** (in `docs/design.md`, section 15): where the mapping engine lives (service endpoint, shared package or UI), and whether `roll.json` keeps the mapping used. Tasks that depend on it are marked *(blocked: mapping location)*.
+**Still open** (in `docs/design.md`, section 15): where the mapping engine lives (service endpoint, shared package or UI), whether `roll.json` keeps the mapping used, and how Phase 2 tells versions apart without a `kind` (D16). Tasks that depend on it are marked *(blocked: mapping location)*.
 
 ---
 
@@ -60,7 +61,7 @@ Every task starts with API tests in `apps/service/test/api/`, run against a temp
 - [x] **S1.3 List and get rolls.** `GET /api/rolls` reads every `roll.json` under `rolls/`; `GET /api/rolls/{rollId}` returns one by its ULID, or 404.
 - [x] **S1.3a Basic Zod parsing.** Request bodies and `roll.json` are parsed with Zod schemas in the route file; invalid requests, including malformed JSON, return 422 with each issue's path and message. *(Brought forward from S2.1 and H.8, which move the schemas to the contracts package and the filesystem adapter.)*
 - [x] **S1.4 Create a frame.** `POST /api/rolls/{rollId}/frames` with an optional edge number appends a frame with a ULID and no versions to `roll.json`, and returns 201.
-- [ ] **S1.5 Upload a lab scan.** `POST /api/rolls/{rollId}/frames/{frameId}/versions?kind=lab-scan&file=12340014.jpg` with the image as the raw body writes it unchanged to the roll's `lab/` folder and appends a version with its ULID, SHA-256, size, width and height (read with sharp). A second upload of the same bytes returns 409. Tests generate a small JPEG with sharp.
+- [x] **S1.5 Upload a lab scan.** `POST /api/rolls/{rollId}/frames/{frameId}/versions?file=12340014.jpg` with the image as the raw body writes it unchanged to the roll's `lab/` folder and appends a version with its ULID, SHA-256, size, width and height (read with sharp). A second upload of the same bytes returns 409. Tests generate a small JPEG with sharp.
 - [ ] **S1.6 Thumbnails and originals.** `GET /api/previews/{sha256}?size=thumb|preview` returns a 400 px or 2048 px WebP made with sharp and cached in the cache directory; `GET …/versions/{versionId}/file` returns the original.
 - [ ] **S1.7 Checkpoint.** Create a roll and upload a real roll's scans with `curl`, then open thumbnails in the browser.
 
@@ -72,7 +73,7 @@ Every task starts with API tests in `apps/service/test/api/`, run against a temp
 - [ ] **S2.2 Typed client.** Generate types from the spec with `openapi-typescript` and export an `openapi-fetch` client from the contracts package. A check in `pnpm verify` fails if the generated files are out of date. *(Was 0.3.2.)*
 - [ ] **S2.3 Web app shell.** Vite, React and TanStack Query in `apps/web`, calling the health endpoint through the typed client. The service serves the built UI; in development Vite proxies `/api` (D1). *(Was 0.3.4 and part of 1b.1.)*
 - [ ] **S2.4 Rolls page.** List rolls and create one with a roll ID field (no suggestion yet).
-- [ ] **S2.5 Roll page.** Drop lab scans onto a roll: for each file, create a frame and upload the scan as its version, with progress. Show a contact sheet of thumbnails.
+- [ ] **S2.5 Roll page.** Drop lab scans onto a roll: for each file, create a frame and upload the scan as its version, with progress. Upload one file at a time: until H.9 adds locking, two requests changing the same roll at once can lose one of the changes. Show a contact sheet of thumbnails.
 - [ ] **S2.6 Checkpoint.** Create a real roll in the browser, drop its scans, reload, and see everything still there.
 
 **Done when:** S2.6 works with a real roll.
@@ -104,7 +105,7 @@ Built to the full standard from the start. Task IDs are the original ones; tasks
 
 ### Domain
 
-- [ ] **1.1.1 Domain types.** `Archive`, `Roll`, `Frame`, `Version`, `Meta`, `Equipment` (camera, lens, film as a union), with readonly fields. Roll IDs parsed as `YYYY-NNN` (D7). `Version` is a discriminated union by `kind` with only `lab-scan` in Phase 1, and every version has `width` and `height` (D13, D14). A helper for the version a frame shows (`defaultVersion`, else newest).
+- [ ] **1.1.1 Domain types.** `Archive`, `Roll`, `Frame`, `Version`, `Meta`, `Equipment` (camera, lens, film as a union), with readonly fields. Roll IDs parsed as `YYYY-NNN` (D7). `Version` has no `kind` (D16), and every version has `width` and `height` (D13, D14). A helper for the version a frame shows (`defaultVersion`, else newest).
 - [ ] **1.1.2 Edge numbers.** `EdgeNumber` type with parse and format for `"00"`, `"0"`, integers, `"12A"` and `"14-15"`; arithmetic only for numeric values (`"00"` = −1). Table-driven tests, plus a property test that format(parse(x)) = x for valid input.
 - [ ] **1.1.3 Mapping engine.** Pure function from sorted scans and a `Mapping` (direction, anchors, overrides, skips) to a frame number per scan, following the rules in the plan. Rejects non-numeric anchors with `MappingInvalid`. Table-driven and property tests. *(Blocked: mapping location, for where it runs.)*
 - [ ] **1.1.4 Mapping warnings.** Duplicate numbers and below `00` (D3), as warnings alongside the result.
