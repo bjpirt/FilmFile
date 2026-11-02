@@ -1,28 +1,14 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { composeLocal } from '../../src/composition/compose-local.ts';
+import { apiFor, idOf } from '../support/api.ts';
 import { useTempArchive } from '../support/temp-archive.ts';
 
 const archive = useTempArchive();
-
-function request(url: string, init?: RequestInit): Promise<Response> {
-  const app = composeLocal({ archivePath: archive.path() });
-  return Promise.resolve(app.request(url, init));
-}
+const { request, post } = apiFor(archive);
 
 function createRoll(roll: string): Promise<Response> {
-  return request('/api/rolls', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ roll }),
-  });
-}
-
-function idOf(body: unknown): unknown {
-  return typeof body === 'object' && body !== null && 'id' in body
-    ? body.id
-    : undefined;
+  return post('/api/rolls', { roll });
 }
 
 describe('POST /api/rolls', () => {
@@ -64,11 +50,7 @@ describe('POST /api/rolls', () => {
   });
 
   test('says which field is wrong when the request is invalid', async () => {
-    const response = await request('/api/rolls', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roll: 2026 }),
-    });
+    const response = await post('/api/rolls', { roll: 2026 });
 
     expect(response.status).toBe(422);
     expect(await response.json()).toMatchObject({
