@@ -6,15 +6,17 @@ import { useTempArchive } from '../support/temp-archive.ts';
 
 const archive = useTempArchive();
 
-function createRoll(roll: string): Promise<Response> {
+function request(url: string, init?: RequestInit): Promise<Response> {
   const app = composeLocal({ archivePath: archive.path() });
-  return Promise.resolve(
-    app.request('/api/rolls', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roll }),
-    }),
-  );
+  return Promise.resolve(app.request(url, init));
+}
+
+function createRoll(roll: string): Promise<Response> {
+  return request('/api/rolls', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roll }),
+  });
 }
 
 function idOf(body: unknown): unknown {
@@ -69,4 +71,42 @@ describe('POST /api/rolls', () => {
       expect(response.status).toBe(422);
     },
   );
+});
+
+describe('GET /api/rolls', () => {
+  test('lists nothing in an empty archive', async () => {
+    const response = await request('/api/rolls');
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual([]);
+  });
+
+  test('lists every roll, ordered by roll ID', async () => {
+    const roll014: unknown = await (await createRoll('2026-014')).json();
+    const roll003: unknown = await (await createRoll('2025-003')).json();
+    const roll002: unknown = await (await createRoll('2026-002')).json();
+
+    const response = await request('/api/rolls');
+
+    expect(await response.json()).toEqual([roll003, roll002, roll014]);
+  });
+});
+
+describe('GET /api/rolls/{id}', () => {
+  test('returns the roll with that ID', async () => {
+    const created: unknown = await (await createRoll('2026-014')).json();
+
+    const response = await request(`/api/rolls/${String(idOf(created))}`);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(created);
+  });
+
+  test('returns 404 for an ID that no roll has', async () => {
+    await createRoll('2026-014');
+
+    const response = await request('/api/rolls/01JC8Z7K3M0000000000000000');
+
+    expect(response.status).toBe(404);
+  });
 });
