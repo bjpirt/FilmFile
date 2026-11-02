@@ -10,6 +10,9 @@ coverage/
 test-results/
 playwright-report/
 
+# Archive used by pnpm start:dev
+.dev-archive/
+
 # Local configuration and secrets
 .env
 .env.*
