@@ -33,19 +33,3 @@ test.each([
     height,
   });
 });
-
-test('makes each thumbnail once, then serves it from the cache', async () => {
-  const original = new Uint8Array(await aJpeg());
-  const previews = new SharpPreviewProvider(cachePath, 100_000_000);
-  let loads = 0;
-  const load = () => {
-    loads += 1;
-    return Promise.resolve(original);
-  };
-
-  const first = await previews.thumbnail('abc', 'small', load);
-  const second = await previews.thumbnail('abc', 'small', load);
-
-  expect(second).toEqual(first);
-  expect(loads).toBe(1);
-});

@@ -12,6 +12,9 @@ import {
 import { checked } from '../../support/checked.ts';
 import { FilesystemBlobStore } from '../../../src/adapters/outbound/filesystem/filesystem-blob-store.ts';
 
+// What only the filesystem adapter does; what every adapter does is in
+// test/contracts/blob-store-contract.ts.
+
 let archivePath = '';
 
 beforeEach(async () => {
@@ -41,23 +44,6 @@ test('stores a file in its version’s folder, inside its frame’s, under its o
   expect(file).toBe('frames/S9WDVXNP/9PMYF63D/12340014.jpg');
   expect(
     await readFile(path.join(archivePath, 'rolls/2026/2026-014', file)),
-  ).toEqual(Buffer.from([1, 2, 3]));
-});
-
-test('gives back what it stored', async () => {
-  const file = await store().put(ctx, blob, new Uint8Array([1, 2, 3]));
-
-  expect(await store().get(ctx, roll, file)).toEqual(Buffer.from([1, 2, 3]));
-});
-
-test('never overwrites a stored file', async () => {
-  await store().put(ctx, blob, new Uint8Array([1, 2, 3]));
-
-  await expect(store().put(ctx, blob, new Uint8Array([4]))).rejects.toThrow(
-    /EEXIST/,
-  );
-  expect(
-    await store().get(ctx, roll, 'frames/S9WDVXNP/9PMYF63D/12340014.jpg'),
   ).toEqual(Buffer.from([1, 2, 3]));
 });
 
