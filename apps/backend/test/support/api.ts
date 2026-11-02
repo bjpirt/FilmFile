@@ -1,3 +1,5 @@
+import type { Clock } from '../../src/application/ports/clock.ts';
+import type { IdGenerator } from '../../src/application/ports/id-generator.ts';
 import { composeLocal } from '../../src/composition/compose-local.ts';
 import type { TempArchive } from './temp-archive.ts';
 
@@ -10,12 +12,16 @@ export const origin = `http://127.0.0.1:${String(port)}`;
  * Sends requests to a service wired to the given archive, without a network,
  * the way the UI does: to the backend's address, with its Origin.
  */
-export function apiFor(archive: TempArchive) {
+export function apiFor(
+  archive: TempArchive,
+  overrides: { readonly clock?: Clock; readonly ids?: IdGenerator } = {},
+) {
   function request(url: string, init?: RequestInit): Promise<Response> {
     const app = composeLocal({
       archivePath: archive.path(),
       cachePath: archive.cachePath(),
       port,
+      ...overrides,
     });
     const headers = new Headers(init?.headers);
     headers.set('Origin', origin);

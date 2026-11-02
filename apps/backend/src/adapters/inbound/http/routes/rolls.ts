@@ -21,7 +21,8 @@ import {
 import { bodyLimit } from 'hono/body-limit';
 import sharp from 'sharp';
 import { safePath } from '../../../outbound/filesystem/safe-path.ts';
-import { newUlid } from '../../../outbound/node/new-ulid.ts';
+import type { Clock } from '../../../../application/ports/clock.ts';
+import type { IdGenerator } from '../../../../application/ports/id-generator.ts';
 import { requireContentType } from '../middleware/require-content-type.ts';
 import { folderName, newIdWithUniqueFolder } from './folder-names.ts';
 import { invalidRequestHook } from './invalid-request-hook.ts';
@@ -272,9 +273,13 @@ const getThumbnail = createRoute({
 export function rollRoutes({
   archivePath,
   cachePath,
+  clock,
+  ids,
 }: {
   readonly archivePath: string;
   readonly cachePath: string;
+  readonly clock: Clock;
+  readonly ids: IdGenerator;
 }): OpenAPIHono {
   const routes = new OpenAPIHono({ defaultHook: invalidRequestHook });
 
@@ -296,7 +301,12 @@ export function rollRoutes({
 
   routes.openapi(createRoll, async (c) => {
     const { roll } = c.req.valid('json');
-    const created: StoredRoll = { schema: 1, id: newUlid(), roll, frames: [] };
+    const created: StoredRoll = {
+      schema: 1,
+      id: ids.newRollId(),
+      roll,
+      frames: [],
+    };
     const folder = safePath(archivePath, 'rolls', roll.slice(0, 4), roll);
     await mkdir(folder, { recursive: true });
     try {
@@ -324,7 +334,10 @@ export function rollRoutes({
 
     const { stored } = rollFile;
     const frame = {
-      id: newIdWithUniqueFolder(stored.frames.map((f) => f.id)),
+      id: newIdWithUniqueFolder(
+        stored.frames.map((f) => f.id),
+        () => ids.newFrameId(),
+      ),
       number: number ?? null,
       versions: [],
     };
@@ -374,7 +387,10 @@ export function rollRoutes({
       );
     }
     const { width, height } = inspected;
-    const versionId = newIdWithUniqueFolder(frame.versions.map((v) => v.id));
+    const versionId = newIdWithUniqueFolder(
+      frame.versions.map((v) => v.id),
+      () => ids.newVersionId(),
+    );
     const file = path.posix.join(
       'frames',
       folderName(frame.id),
@@ -399,7 +415,7 @@ export function rollRoutes({
       bytes: image.length,
       width,
       height,
-      added: new Date().toISOString(),
+      added: clock.now().toISOString(),
     };
     await writeRollFile(rollFile.file, {
       ...stored,
