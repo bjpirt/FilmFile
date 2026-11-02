@@ -6,9 +6,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Design:** `docs/design.md`. Section 13 defines the architecture. Read it before making design decisions; if a task conflicts with it, raise it rather than silently diverging.
 - **Current plan:** `docs/plan-phase-0-1.md` (what and why), broken into ordered, commit-sized tasks in `docs/tasks-phase-0-1.md`. Work through the tasks in order, tick them off there, and check each step's "done when" criteria.
-- **Status:** pre-code. Nothing from plan step 0.1 (workspace, tooling, `pnpm verify`) exists yet, and the directory isn't a git repository. Don't assume any script, package or config is there until it has been created; the target layout is design section 13.9.
+
+## How we work: make it work, then make it pretty
+
+Working always includes tests.
+
+- **Make it work first.** Get the smallest end-to-end version of a feature running before improving it. "Working" means its behaviour is covered by tests that pass in `pnpm verify`, not just that it runs.
+- **Test first, from the outside.** For an endpoint, write the API test first, then the simplest code that passes it.
+- **Then make it pretty**, as separate tasks: move logic into the right layer, add types, error handling and safeguards, tidy up. The tests stay green throughout, which is what makes the changes safe.
+- **Don't build ahead.** No abstraction, safeguard or helper before the task that needs it, even where the rules below describe it as the end state. The task list says when each one arrives.
+- **One task at a time.** Finish a task, summarise what changed and how to check it, then stop for review. Commit only when asked.
+
+In the current plan, milestones S1 and S2 are "make it work" for rolls and scans (API, then a basic UI), and milestone H is "make it pretty". During S1 and S2, routes may do file I/O directly, and security middleware, atomic writes, version tokens and contract suites wait for their H task.
 
 ## How we build: lightweight, legible, well tested, secure
+
+These describe where the code ends up; "How we work" above sets the order in which it gets there.
 
 1. **Simple first.** Build what the current plan step needs, nothing speculative. The ports in the design are the only planned abstractions; don't add generic base classes, frameworks, factories or config options "for later". Three similar lines beat a premature helper.
 2. **Legible.** Code is read far more than written. Clear names, small focused modules, obvious flow. A newcomer should understand a file without reading the rest of the codebase.
