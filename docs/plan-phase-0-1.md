@@ -25,7 +25,7 @@ Change them here if they're wrong.
 
 ### 0.1 Repository and tooling (S)
 
-- pnpm workspace with `apps/api`, `apps/web` and `packages/contracts` (layout in design section 13.9).
+- pnpm workspace with `apps/backend`, `apps/web` and `packages/contracts` (layout in design section 13.9).
 - TypeScript strict with the extra flags listed in `CLAUDE.md`, in a shared `tsconfig.base.json`.
 - ESLint (`typescript-eslint` `strictTypeChecked` + `stylisticTypeChecked`), Prettier, Vitest with coverage thresholds, and a `pnpm verify` script that runs format check, lint, typecheck and tests.
 - **Layer rules** enforced by `eslint-plugin-boundaries`:

@@ -37,12 +37,12 @@ afterAll(() => {
   delete process.env.ESLINT_PLUGIN_BOUNDARIES_ROOT_PATH;
 });
 
-const domain = 'apps/api/src/domain/source.ts';
-const application = 'apps/api/src/application/source.ts';
-const adapters = 'apps/api/src/adapters/source.ts';
-const composition = 'apps/api/src/composition/source.ts';
-const main = 'apps/api/src/main.ts';
-const apiTest = 'apps/api/test/source.ts';
+const domain = 'apps/backend/src/domain/source.ts';
+const application = 'apps/backend/src/application/source.ts';
+const adapters = 'apps/backend/src/adapters/source.ts';
+const composition = 'apps/backend/src/composition/source.ts';
+const main = 'apps/backend/src/main.ts';
+const backendTest = 'apps/backend/test/source.ts';
 const web = 'apps/web/src/source.ts';
 const contracts = 'packages/contracts/src/source.ts';
 
@@ -80,8 +80,8 @@ describe('allowed imports', () => {
       "import { target } from './composition/target.ts';",
     ],
     [
-      'api tests import composition',
-      apiTest,
+      'backend tests import composition',
+      backendTest,
       "import { target } from '../src/composition/target.ts';",
     ],
     ['contracts use npm packages', contracts, "import { target } from 'zod';"],
@@ -93,7 +93,7 @@ describe('allowed imports', () => {
     ['web uses npm packages', web, "import { target } from 'react';"],
     [
       'a domain test uses the test tools',
-      'apps/api/src/domain/source.test.ts',
+      'apps/backend/src/domain/source.test.ts',
       "import { target } from 'vitest';",
     ],
   ])('%s', async (_name, fromFile, importStatement) => {
@@ -151,15 +151,15 @@ describe('disallowed imports', () => {
       "import { target } from './domain/target.ts';",
     ],
     [
-      'web imports the API',
+      'web imports the backend',
       web,
-      "import { target } from '../../api/src/domain/target.ts';",
+      "import { target } from '../../backend/src/domain/target.ts';",
     ],
     ['web uses Node built-ins', web, "import { target } from 'node:fs';"],
     [
-      'contracts import the API',
+      'contracts import the backend',
       contracts,
-      "import { target } from '../../../apps/api/src/domain/target.ts';",
+      "import { target } from '../../../apps/backend/src/domain/target.ts';",
     ],
   ])('%s', async (_name, fromFile, importStatement) => {
     expect(await boundaryErrors(fromFile, importStatement)).not.toEqual([]);

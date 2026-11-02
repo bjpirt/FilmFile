@@ -368,7 +368,7 @@ Each use case is a class with its dependencies injected through the constructor 
 
 ```
 apps/
-  api/                     @filmfile/api — the core API service
+  backend/                 @filmfile/backend — the core API service, which also serves the UI
     src/
       domain/
       application/
