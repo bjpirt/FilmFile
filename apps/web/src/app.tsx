@@ -1,11 +1,36 @@
 import type { ApiClient } from '@filmfile/contracts/client';
+import { RollPage } from './rolls/roll-page.tsx';
 import { RollsPage } from './rolls/rolls-page.tsx';
+import { Link, usePath } from './routing.tsx';
+
+const rollPath = /^\/rolls\/([0-9A-HJKMNP-TV-Z]{26})$/;
+
+function Page({
+  api,
+  path,
+}: {
+  readonly api: ApiClient;
+  readonly path: string;
+}) {
+  if (path === '/') {
+    return <RollsPage api={api} />;
+  }
+  const rollId = rollPath.exec(path)?.[1];
+  if (rollId !== undefined) {
+    return <RollPage api={api} rollId={rollId} />;
+  }
+  return (
+    <p>
+      There is no page here. <Link to="/">All rolls</Link>
+    </p>
+  );
+}
 
 export function App({ api }: { readonly api: ApiClient }) {
   return (
     <main>
       <h1>FilmFile</h1>
-      <RollsPage api={api} />
+      <Page api={api} path={usePath()} />
     </main>
   );
 }

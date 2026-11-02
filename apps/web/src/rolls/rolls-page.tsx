@@ -1,6 +1,7 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type SubmitEvent } from 'react';
+import { Link } from '../routing.tsx';
 
 function frameCount(frames: number): string {
   return frames === 1 ? '1 frame' : `${String(frames)} frames`;
@@ -78,7 +79,7 @@ export function RollsPage({ api }: { readonly api: ApiClient }) {
         <ul>
           {rolls.data.map((roll) => (
             <li key={roll.id}>
-              <span>{roll.roll}</span>{' '}
+              <Link to={`/rolls/${roll.id}`}>{roll.roll}</Link>{' '}
               <span>{frameCount(roll.frames.length)}</span>
             </li>
           ))}

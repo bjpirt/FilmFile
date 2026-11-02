@@ -278,7 +278,7 @@ export interface paths {
             /** @description The scan. */
             requestBody: {
                 content: {
-                    "image/jpeg": string;
+                    "image/jpeg": Blob;
                 };
             };
             responses: {
@@ -356,7 +356,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "image/jpeg": string;
+                        "image/jpeg": Blob;
                     };
                 };
                 /** @description No such version. */
@@ -417,7 +417,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "image/webp": string;
+                        "image/webp": Blob;
                     };
                 };
                 /** @description No such version. */
