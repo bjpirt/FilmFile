@@ -129,6 +129,35 @@ test('shows a thumbnail of each frame, labelled with its frame number', async ()
   expect(screen.getByText('No number')).toBeDefined();
 });
 
+test('shows frames in frame order, or in scan order when chosen', async () => {
+  renderPage(
+    fakeRollService([
+      aFrameWithScan('3', '12340001.jpg'),
+      aFrameWithScan('1', '12340002.jpg'),
+      aFrameWithScan('2', '12340003.jpg'),
+    ]),
+  );
+  const order = async () =>
+    (await screen.findAllByRole('img')).map((img) => img.getAttribute('alt'));
+
+  expect(await order()).toEqual([
+    '12340002.jpg',
+    '12340003.jpg',
+    '12340001.jpg',
+  ]);
+  expect(screen.getByLabelText<HTMLInputElement>('Frame order').checked).toBe(
+    true,
+  );
+
+  fireEvent.click(screen.getByLabelText('Scan order'));
+
+  expect(await order()).toEqual([
+    '12340001.jpg',
+    '12340002.jpg',
+    '12340003.jpg',
+  ]);
+});
+
 test('shows a placeholder for a frame with no scan', async () => {
   renderPage(
     fakeRollService([

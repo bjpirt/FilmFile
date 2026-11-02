@@ -106,7 +106,7 @@ Brings S1 and S2 up to the standards in `CLAUDE.md`. Security comes first.
 
 Driven from the UI (D19). Each task is a change you can see in the browser, with its tests at every level it touches.
 
-- [ ] **N1 Frame order.** The roll's contact sheet is sorted by frame number, with a toggle back to scan order (the order frames were added). Natural sort: leading number first, negatives before positives, then the rest as text; frames with no number last. UI only.
+- [x] **N1 Frame order.** The roll's contact sheet is sorted by frame number, with a toggle back to scan order (the order frames were added). Natural sort: leading number first, negatives before positives, then the rest as text; frames with no number last. UI only.
 - [ ] **N2 Number labels.** Each thumbnail is captioned with its frame number in large type; a frame with no number shows a muted dash. UI only.
 - [ ] **N3 Edit one number.** Click a frame's number to edit it in place; Enter saves, Esc cancels. Any text up to 9 characters; empty clears the number. API: `PATCH /api/rolls/{rollId}/frames/{frameId}` with the number, `If-Match` required (428 when missing, 409 when stale).
 - [ ] **N4 Changed elsewhere.** When a save is refused because the roll changed since the page loaded, the page says "This roll changed since you opened it" with a Reload button. Nothing is overwritten.

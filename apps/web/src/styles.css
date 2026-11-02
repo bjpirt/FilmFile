@@ -42,3 +42,16 @@ body {
   display: flex;
   justify-content: center;
 }
+
+.order {
+  border: none;
+  display: flex;
+  gap: 1rem;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.order legend {
+  float: left;
+  margin-right: 0.5rem;
+}

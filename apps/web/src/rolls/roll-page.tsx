@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from '../routing.tsx';
 import { droppedFiles } from './dropped-files.ts';
+import { inFrameOrder } from './frame-order.ts';
 import { uploadScans, type UploadReport } from './upload-scans.ts';
 
 type Upload =
@@ -65,6 +66,7 @@ export function RollPage({
 }) {
   const queryClient = useQueryClient();
   const [upload, setUpload] = useState<Upload>({ kind: 'idle' });
+  const [order, setOrder] = useState<'frame' | 'scan'>('frame');
 
   const roll = useQuery({
     queryKey: ['rolls', rollId],
@@ -163,14 +165,44 @@ export function RollPage({
       {roll.data.frames.length === 0 ? (
         <p>No frames yet.</p>
       ) : (
-        <ol className="contact-sheet">
-          {roll.data.frames.map((frame) => (
-            <li key={frame.id}>
-              <Thumbnail rollId={rollId} frame={frame} />
-              <span>{frame.number ?? 'No number'}</span>
-            </li>
-          ))}
-        </ol>
+        <>
+          <fieldset className="order">
+            <legend>Show frames in</legend>
+            <label>
+              <input
+                type="radio"
+                name="order"
+                checked={order === 'frame'}
+                onChange={() => {
+                  setOrder('frame');
+                }}
+              />
+              Frame order
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="order"
+                checked={order === 'scan'}
+                onChange={() => {
+                  setOrder('scan');
+                }}
+              />
+              Scan order
+            </label>
+          </fieldset>
+          <ol className="contact-sheet">
+            {(order === 'frame'
+              ? inFrameOrder(roll.data.frames)
+              : roll.data.frames
+            ).map((frame) => (
+              <li key={frame.id}>
+                <Thumbnail rollId={rollId} frame={frame} />
+                <span>{frame.number ?? 'No number'}</span>
+              </li>
+            ))}
+          </ol>
+        </>
       )}
     </section>
   );
