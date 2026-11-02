@@ -1,6 +1,10 @@
 // @vitest-environment happy-dom
 import { createApiClient } from '@filmfile/contracts/client';
-import type { Frame, Roll } from '@filmfile/contracts/rolls';
+import {
+  updateFrameNumbersRequest,
+  type Frame,
+  type Roll,
+} from '@filmfile/contracts/rolls';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   cleanup,
@@ -53,6 +57,19 @@ function fakeRollService(frames: Frame[] = []) {
         return Response.json({ error: 'changed' }, { status: 409 });
       }
       const body: unknown = await request.json();
+      if (url.pathname.endsWith('/frames')) {
+        const { numbers } = updateFrameNumbersRequest.parse(body);
+        for (const { frameId, number } of numbers) {
+          const index = frames.findIndex((f) => f.id === frameId);
+          const current = frames[index];
+          if (current !== undefined) {
+            frames[index] = { ...current, number };
+          }
+        }
+        changed();
+        const roll: Roll = { id: rollId, roll: '2026-014', frames };
+        return Response.json(roll, { headers: { ETag: etag() } });
+      }
       const number =
         typeof body === 'object' &&
         body !== null &&
@@ -415,6 +432,70 @@ describe('renumbering', () => {
       screen.getByText('Enter a whole number, like 1 or 36.'),
     ).toBeDefined();
     expect(captions()).toEqual(['1', '2', '3']);
+  });
+
+  test('saves the numbers in one update, sending the roll’s ETag', async () => {
+    const service = await aTailToHeadRoll();
+    renumberSo('last', '1', 'down');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(
+      await screen.findByRole('button', { name: 'Change frame number 3' }),
+    ).toBeDefined();
+    expect(screen.queryByLabelText('Which scan')).toBeNull();
+    expect(service.frames.map((f) => f.number)).toEqual(['3', '2', '1']);
+    expect(service.ifMatches).toEqual(['"v1"']);
+  });
+
+  test('can’t save until the number is a whole number', async () => {
+    await aTailToHeadRoll();
+
+    renumberSo('first', '12A', 'up');
+
+    expect(
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Save' }).disabled,
+    ).toBe(true);
+  });
+
+  test('refuses to overwrite a roll changed since the page loaded, keeping the settings', async () => {
+    const service = await aTailToHeadRoll();
+    renumberSo('last', '1', 'down');
+    service.changed();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(
+      await screen.findByText('This roll changed since you opened it.'),
+    ).toBeDefined();
+    expect(service.frames.map((f) => f.number)).toEqual(['1', '2', '3']);
+    expect(screen.getByLabelText<HTMLSelectElement>('Which scan').value).toBe(
+      'last',
+    );
+  });
+
+  test('says so when the numbers could not be saved', async () => {
+    renderPage({
+      answer: (request) =>
+        Promise.resolve(
+          request.method === 'PATCH'
+            ? new Response('', { status: 500 })
+            : Response.json(
+                {
+                  id: rollId,
+                  roll: '2026-014',
+                  frames: [aFrameWithScan('1', '12340001.jpg')],
+                },
+                { headers: { ETag: '"v1"' } },
+              ),
+        ),
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Renumber…' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText("Couldn't save the numbers.")).toBeDefined();
+    expect(screen.getByLabelText('Which scan')).toBeDefined();
   });
 
   test('goes back to the roll as it was on Cancel, saving nothing', async () => {

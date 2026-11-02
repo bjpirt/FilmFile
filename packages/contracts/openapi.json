@@ -237,6 +237,41 @@
           }
         }
       },
+      "UpdateFrameNumbersRequest": {
+        "type": "object",
+        "properties": {
+          "numbers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "frameId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                  "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+                },
+                "number": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1,
+                  "maxLength": 9,
+                  "example": "12A",
+                  "description": "The new frame number, or null to clear it."
+                }
+              },
+              "required": [
+                "frameId",
+                "number"
+              ]
+            }
+          }
+        },
+        "required": [
+          "numbers"
+        ]
+      },
       "UpdateFrameRequest": {
         "type": "object",
         "properties": {
@@ -480,6 +515,114 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Set or clear many frames' numbers in one save",
+        "description": "As when renumbering a roll. Frames not listed are left alone. Send the roll's ETag as If-Match: the change is refused if the roll has changed since. The response's ETag is the roll's new version.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "rollId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The roll's ETag, from when it was read."
+            },
+            "required": false,
+            "description": "The roll's ETag, from when it was read.",
+            "name": "if-match",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFrameNumbersRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The roll, with its new numbers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Roll"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not valid JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such roll, or a frame not in it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The roll has changed since it was read.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "The body is not of the expected type.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }

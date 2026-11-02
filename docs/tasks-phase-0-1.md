@@ -111,7 +111,7 @@ Driven from the UI (D19). Each task is a change you can see in the browser, with
 - [x] **N3 Edit one number.** Click a frame's number to edit it in place; Enter saves, Esc cancels. Any text up to 9 characters; empty clears the number. API: `PATCH /api/rolls/{rollId}/frames/{frameId}` with the number, `If-Match` required (428 when missing, 409 when stale).
 - [x] **N4 Changed elsewhere.** When a save is refused because the roll changed since the page loaded, the page says "This roll changed since you opened it" with a Reload button. Nothing is overwritten.
 - [x] **N5 Renumber preview.** A Renumber panel on the roll page that reads as a sentence: "[First|Last] scan is frame [N], counting [up|down]", so a tail-to-head roll is "last scan is frame 1, counting down". The contact sheet shows the proposed numbers in scan order, changed ones highlighted. Plain integers, going below zero if need be. Nothing is saved. UI only.
-- [ ] **N6 Save a renumber.** Save writes every proposed number in one bulk update with `If-Match`; Cancel discards the draft. API: bulk update of frame numbers.
+- [x] **N6 Save a renumber.** Save writes every proposed number in one bulk update with `If-Match`; Cancel discards the draft. API: bulk update of frame numbers.
 - [ ] **N7 Confirm numbering.** A "Numbering checked" button marks the roll's numbering confirmed; until then the rolls list and roll page show a small "numbering not confirmed" badge (D6). API: a confirmed flag on the roll.
 - [ ] **N8 Changing confirmed numbering.** Renumbering or editing a number on a confirmed roll clears the confirmation, with a note saying so.
 

@@ -99,6 +99,8 @@ export function RollPage({
   const [upload, setUpload] = useState<Upload>({ kind: 'idle' });
   const [order, setOrder] = useState<'frame' | 'scan'>('frame');
   const [changedElsewhere, setChangedElsewhere] = useState(false);
+  const [savingNumbers, setSavingNumbers] = useState(false);
+  const [numbersNotSaved, setNumbersNotSaved] = useState(false);
   const [renumbering, setRenumbering] = useState<RenumberSettings | undefined>(
     undefined,
   );
@@ -163,6 +165,41 @@ export function RollPage({
     }
     await queryClient.invalidateQueries({ queryKey: ['rolls', rollId] });
     return 'saved';
+  }
+
+  /** Saves every frame's proposed number in one update, closing the panel if it's saved. */
+  async function saveRenumbering(
+    frames: readonly Frame[],
+    proposed: readonly string[],
+  ) {
+    if (roll.data === undefined) {
+      return;
+    }
+    setSavingNumbers(true);
+    setNumbersNotSaved(false);
+    const { response } = await api.PATCH('/api/rolls/{rollId}/frames', {
+      params: {
+        path: { rollId },
+        header: { 'if-match': roll.data.etag },
+      },
+      body: {
+        numbers: frames.map((frame, i) => ({
+          frameId: frame.id,
+          number: proposed[i] ?? null,
+        })),
+      },
+    });
+    setSavingNumbers(false);
+    if (response.status === 409) {
+      setChangedElsewhere(true);
+      return;
+    }
+    if (!response.ok) {
+      setNumbersNotSaved(true);
+      return;
+    }
+    await queryClient.invalidateQueries({ queryKey: ['rolls', rollId] });
+    setRenumbering(undefined);
   }
 
   async function reload() {
@@ -305,7 +342,15 @@ export function RollPage({
             <RenumberPanel
               settings={renumbering}
               change={setRenumbering}
+              saving={savingNumbers}
+              notSaved={numbersNotSaved}
+              save={() => {
+                if (proposed !== undefined) {
+                  void saveRenumbering(frames, proposed);
+                }
+              }}
               cancel={() => {
+                setNumbersNotSaved(false);
                 setRenumbering(undefined);
               }}
             />

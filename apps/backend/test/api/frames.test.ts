@@ -169,3 +169,118 @@ describe('PATCH /api/rolls/{id}/frames/{frameId}', () => {
     expect(response.status).toBe(404);
   });
 });
+
+describe('PATCH /api/rolls/{id}/frames', () => {
+  async function aRollWithFrames(count: number) {
+    const rollId = await aRoll();
+    const frameIds: string[] = [];
+    for (let i = 0; i < count; i += 1) {
+      frameIds.push(
+        String(
+          idOf(await (await post(`/api/rolls/${rollId}/frames`, {})).json()),
+        ),
+      );
+    }
+    const etag = (await request(`/api/rolls/${rollId}`)).headers.get('ETag');
+    return {
+      rollId,
+      frameIds,
+      url: `/api/rolls/${rollId}/frames`,
+      etag: etag ?? '',
+    };
+  }
+
+  function patchNumbers(url: string, body: unknown, ifMatch?: string) {
+    return request(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(ifMatch === undefined ? {} : { 'If-Match': ifMatch }),
+      },
+      body: JSON.stringify(body),
+    });
+  }
+
+  test('sets many frames’ numbers in one save, returning the roll and its new ETag', async () => {
+    const { rollId, frameIds, url, etag } = await aRollWithFrames(3);
+
+    const response = await patchNumbers(
+      url,
+      {
+        numbers: frameIds.map((frameId, i) => ({
+          frameId,
+          number: String(3 - i),
+        })),
+      },
+      etag,
+    );
+
+    expect(response.status).toBe(200);
+    const roll: unknown = await response.json();
+    expect(roll).toMatchObject({
+      id: rollId,
+      frames: [{ number: '3' }, { number: '2' }, { number: '1' }],
+    });
+    const fetched = await request(`/api/rolls/${rollId}`);
+    expect(await fetched.json()).toEqual(roll);
+    expect(response.headers.get('ETag')).toBe(fetched.headers.get('ETag'));
+  });
+
+  test('requires If-Match', async () => {
+    const { frameIds, url } = await aRollWithFrames(1);
+
+    const response = await patchNumbers(url, {
+      numbers: frameIds.map((frameId) => ({ frameId, number: '1' })),
+    });
+
+    expect(response.status).toBe(428);
+  });
+
+  test('refuses a stale If-Match, changing nothing', async () => {
+    const { rollId, frameIds, url, etag } = await aRollWithFrames(1);
+    await post(`/api/rolls/${rollId}/frames`, {});
+
+    const response = await patchNumbers(
+      url,
+      { numbers: frameIds.map((frameId) => ({ frameId, number: '9' })) },
+      etag,
+    );
+
+    expect(response.status).toBe(409);
+    expect(await (await request(`/api/rolls/${rollId}`)).json()).toMatchObject({
+      frames: [{ number: null }, { number: null }],
+    });
+  });
+
+  test('says which number is invalid', async () => {
+    const { frameIds, url, etag } = await aRollWithFrames(2);
+
+    const response = await patchNumbers(
+      url,
+      {
+        numbers: frameIds.map((frameId, i) => ({
+          frameId,
+          number: i === 1 ? '1234567890' : '1',
+        })),
+      },
+      etag,
+    );
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({
+      issues: [{ path: ['numbers', 1, 'number'] }],
+    });
+  });
+
+  test('says when a frame is not in the roll', async () => {
+    const { url, etag } = await aRollWithFrames(1);
+
+    const response = await patchNumbers(
+      url,
+      { numbers: [{ frameId: '01JC8Z7K3M0000000000000000', number: '1' }] },
+      etag,
+    );
+
+    expect(response.status).toBe(404);
+  });
+});

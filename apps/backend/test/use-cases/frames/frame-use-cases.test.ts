@@ -11,6 +11,7 @@ import { CreateFrame } from '../../../src/application/use-cases/frames/create-fr
 import { GetOriginal } from '../../../src/application/use-cases/frames/get-original.ts';
 import { GetThumbnail } from '../../../src/application/use-cases/frames/get-thumbnail.ts';
 import { UpdateFrame } from '../../../src/application/use-cases/frames/update-frame.ts';
+import { UpdateFrameNumbers } from '../../../src/application/use-cases/frames/update-frame-numbers.ts';
 import { CreateRoll } from '../../../src/application/use-cases/rolls/create-roll.ts';
 import type { ArchiveContext } from '../../../src/domain/shared/archive-context.ts';
 import {
@@ -56,6 +57,7 @@ async function setUp() {
     getOriginal: new GetOriginal(rolls, blobs),
     getThumbnail: new GetThumbnail(rolls, blobs, previews),
     updateFrame: new UpdateFrame(rolls),
+    updateFrameNumbers: new UpdateFrameNumbers(rolls),
   };
 }
 
@@ -196,6 +198,126 @@ describe('UpdateFrame', () => {
         number: '1',
       }),
     ).toEqual({ ok: false, error: { kind: 'not-found', entity, id: missing } });
+  });
+});
+
+describe('UpdateFrameNumbers', () => {
+  async function withFrames(count: number) {
+    const setup = await setUp();
+    const frameIds: FrameId[] = [];
+    for (let i = 0; i < count; i += 1) {
+      frameIds.push(await aFrameIn(setup.createFrame, setup.roll.id));
+    }
+    const read = await setup.rolls.get(ctx, setup.roll.id);
+    return { ...setup, frameIds, version: read?.version ?? '' };
+  }
+
+  test('sets every frame’s number in one save, and gives the roll as saved', async () => {
+    const { rolls, roll, frameIds, version, updateFrameNumbers } =
+      await withFrames(3);
+
+    const updated = await updateFrameNumbers.execute(ctx, {
+      rollId: roll.id,
+      expectedVersion: version,
+      numbers: frameIds.map((frameId, i) => ({
+        frameId,
+        number: String(3 - i),
+      })),
+    });
+
+    const after = await rolls.get(ctx, roll.id);
+    expect(updated).toEqual({ ok: true, value: after });
+    expect(after?.roll.frames.map((f) => f.number)).toEqual(['3', '2', '1']);
+    expect(Number(after?.version)).toBe(Number(version) + 1);
+  });
+
+  test('leaves frames it isn’t given alone, and can clear numbers', async () => {
+    const { rolls, roll, frameIds, version, updateFrameNumbers } =
+      await withFrames(2);
+    const [first, second] = frameIds;
+    if (first === undefined || second === undefined) {
+      throw new Error('setup failed');
+    }
+    await updateFrameNumbers.execute(ctx, {
+      rollId: roll.id,
+      expectedVersion: version,
+      numbers: [
+        { frameId: first, number: '7' },
+        { frameId: second, number: '8' },
+      ],
+    });
+    const read = await rolls.get(ctx, roll.id);
+
+    await updateFrameNumbers.execute(ctx, {
+      rollId: roll.id,
+      expectedVersion: read?.version ?? '',
+      numbers: [{ frameId: second, number: null }],
+    });
+
+    expect(
+      (await rolls.get(ctx, roll.id))?.roll.frames.map((f) => f.number),
+    ).toEqual(['7', null]);
+  });
+
+  test('saves nothing if any number is invalid, saying which', async () => {
+    const { rolls, roll, frameIds, version, updateFrameNumbers } =
+      await withFrames(2);
+
+    const updated = await updateFrameNumbers.execute(ctx, {
+      rollId: roll.id,
+      expectedVersion: version,
+      numbers: frameIds.map((frameId, i) => ({
+        frameId,
+        number: i === 1 ? '1234567890' : '1',
+      })),
+    });
+
+    expect(updated).toEqual({
+      ok: false,
+      error: {
+        kind: 'validation-failed',
+        issues: [
+          {
+            path: ['numbers', 1, 'number'],
+            message: 'must be 1 to 9 characters, like 23 or 12A',
+          },
+        ],
+      },
+    });
+    expect((await rolls.get(ctx, roll.id))?.version).toBe(version);
+  });
+
+  test('refuses when the roll changed since it was read', async () => {
+    const { roll, frameIds, version, createFrame, updateFrameNumbers } =
+      await withFrames(1);
+    await createFrame.execute(ctx, { rollId: roll.id });
+
+    expect(
+      await updateFrameNumbers.execute(ctx, {
+        rollId: roll.id,
+        expectedVersion: version,
+        numbers: frameIds.map((frameId) => ({ frameId, number: '1' })),
+      }),
+    ).toEqual({
+      ok: false,
+      error: { kind: 'concurrency-conflict', entity: 'roll', id: roll.id },
+    });
+  });
+
+  test('says when a frame is not in the roll, saving nothing', async () => {
+    const { rolls, roll, version, updateFrameNumbers } = await withFrames(1);
+
+    expect(
+      await updateFrameNumbers.execute(ctx, {
+        rollId: roll.id,
+        expectedVersion: version,
+        numbers: [{ frameId: checked(missing, isFrameId), number: '1' }],
+      }),
+    ).toEqual({
+      ok: false,
+      error: { kind: 'not-found', entity: 'frame', id: missing },
+    });
+    expect((await rolls.get(ctx, roll.id))?.version).toBe(version);
   });
 });
 

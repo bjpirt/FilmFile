@@ -90,6 +90,19 @@ export const updateFrameRequest = z
   })
   .meta({ id: 'UpdateFrameRequest' });
 
+export const updateFrameNumbersRequest = z
+  .object({
+    numbers: z.array(
+      z.object({
+        frameId: ulid,
+        number: frameNumber
+          .nullable()
+          .meta({ description: 'The new frame number, or null to clear it.' }),
+      }),
+    ),
+  })
+  .meta({ id: 'UpdateFrameNumbersRequest' });
+
 /** The roll's version, from the ETag it was read with, so a changed roll isn't overwritten. */
 export const ifMatchHeader = z.object({
   'if-match': z

@@ -24,12 +24,20 @@ export function renumberingOf(
 export function RenumberPanel({
   settings,
   change,
+  save,
+  saving,
+  notSaved,
   cancel,
 }: {
   readonly settings: RenumberSettings;
   readonly change: (settings: RenumberSettings) => void;
+  readonly save: () => void;
+  readonly saving: boolean;
+  /** The last save failed for a reason other than the roll changing. */
+  readonly notSaved: boolean;
   readonly cancel: () => void;
 }) {
+  const valid = renumberingOf(settings) !== undefined;
   return (
     <fieldset className="renumber">
       <legend>Renumber the roll</legend>
@@ -75,12 +83,14 @@ export function RenumberPanel({
           <option value="down">down</option>
         </select>
       </span>
-      <button type="button" onClick={cancel}>
+      <button type="button" onClick={save} disabled={!valid || saving}>
+        Save
+      </button>
+      <button type="button" onClick={cancel} disabled={saving}>
         Cancel
       </button>
-      {renumberingOf(settings) === undefined && (
-        <p role="alert">Enter a whole number, like 1 or 36.</p>
-      )}
+      {notSaved && <p role="alert">Couldn't save the numbers.</p>}
+      {!valid && <p role="alert">Enter a whole number, like 1 or 36.</p>}
     </fieldset>
   );
 }
