@@ -9,6 +9,8 @@
   "scripts": {
     "start": "pnpm --filter @filmfile/backend start",
     "start:dev": "FILMFILE_ARCHIVE=\"$PWD/.dev-archive\" pnpm start",
+    "dev": "FILMFILE_ARCHIVE=\"$PWD/.dev-archive\" pnpm --parallel --filter @filmfile/backend --filter @filmfile/web dev",
+    "build": "pnpm --filter @filmfile/web build",
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

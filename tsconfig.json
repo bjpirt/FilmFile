@@ -7,6 +7,6 @@
     "moduleResolution": "bundler",
     "types": ["node"]
   },
-  "include": ["*.config.ts", "test"],
+  "include": ["*.config.ts", "apps/*/*.config.ts", "test"],
   "exclude": ["test/architecture/fixtures"]
 }

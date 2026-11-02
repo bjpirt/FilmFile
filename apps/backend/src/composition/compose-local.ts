@@ -5,6 +5,7 @@ import { createApp } from '../adapters/inbound/http/create-app.ts';
 export function composeLocal(config: {
   readonly archivePath: string;
   readonly cachePath: string;
+  readonly uiPath?: string;
 }): OpenAPIHono {
   return createApp(config);
 }

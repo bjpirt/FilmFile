@@ -3,6 +3,7 @@ import { health } from '@filmfile/contracts/health';
 import { HTTPException } from 'hono/http-exception';
 import { docsRoutes } from './routes/docs.ts';
 import { rollRoutes } from './routes/rolls.ts';
+import { uiRoutes } from './routes/ui.ts';
 
 const getHealth = createRoute({
   method: 'get',
@@ -19,6 +20,7 @@ const getHealth = createRoute({
 export function createApp(config: {
   readonly archivePath: string;
   readonly cachePath: string;
+  readonly uiPath?: string;
 }): OpenAPIHono {
   const app = new OpenAPIHono();
 
@@ -29,6 +31,10 @@ export function createApp(config: {
     info: { title: 'FilmFile API', version: '0.0.0' },
   });
   app.route('/api/docs', docsRoutes());
+  app.all('/api/*', (c) => c.json({ error: 'not found' }, 404));
+  if (config.uiPath !== undefined) {
+    app.route('/', uiRoutes(config.uiPath));
+  }
   // Hono raises these itself, e.g. for malformed JSON; give them our error shape.
   app.onError((error, c) => {
     if (error instanceof HTTPException) {

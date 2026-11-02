@@ -1,10 +1,12 @@
 import { homedir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export interface LocalConfig {
   readonly archivePath: string;
   readonly cachePath: string;
   readonly port: number;
+  readonly uiPath: string;
 }
 
 interface System {
@@ -13,6 +15,9 @@ interface System {
 }
 
 const defaultPort = 4310;
+
+// Where `pnpm build` puts the web UI.
+const builtUi = fileURLToPath(new URL('../../../web/dist', import.meta.url));
 
 /** Reads the service's settings from environment variables. */
 export function readLocalConfig(
@@ -29,6 +34,7 @@ export function readLocalConfig(
     archivePath,
     cachePath: env.FILMFILE_CACHE ?? defaultCachePath(env, system),
     port: Number(env.FILMFILE_PORT ?? defaultPort),
+    uiPath: builtUi,
   };
 }
 

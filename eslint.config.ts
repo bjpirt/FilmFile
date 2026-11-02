@@ -182,7 +182,7 @@ export default defineConfig(
   },
   {
     // Tool config files must use a default export.
-    files: ['*.config.ts'],
+    files: ['*.config.ts', 'apps/*/*.config.ts'],
     rules: { 'no-restricted-syntax': 'off' },
   },
 );
