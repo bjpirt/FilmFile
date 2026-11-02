@@ -3,7 +3,7 @@ import type { RollRepository } from '../../src/application/ports/roll-repository
 import { isRollId } from '../../src/domain/shared/ids.ts';
 import { err, ok } from '../../src/domain/shared/result.ts';
 import { checked } from '../support/checked.ts';
-import { aFrame, aRoll, aVersion, ctx } from '../support/roll-fixtures.ts';
+import { aFrame, aRoll, aVersion, ctx, ulidFor } from '../support/builders.ts';
 
 /** What every RollRepository must do, run against each adapter. */
 export function rollRepositoryContract(
@@ -13,7 +13,7 @@ export function rollRepositoryContract(
   describe(`${name} meets the RollRepository contract`, () => {
     test('gets back exactly what was created', async () => {
       const rolls = makeRepository();
-      const roll = aRoll('2026-014');
+      const roll = aRoll();
 
       expect(await rolls.create(ctx, roll)).toEqual(ok(undefined));
       expect((await rolls.get(ctx, roll.id))?.roll).toEqual(roll);
@@ -21,22 +21,17 @@ export function rollRepositoryContract(
 
     test('refuses to create a roll whose roll number is taken', async () => {
       const rolls = makeRepository();
-      await rolls.create(ctx, aRoll('2026-014'));
+      await rolls.create(ctx, aRoll());
 
-      expect(
-        await rolls.create(
-          ctx,
-          aRoll('2026-014', '00000000000000000000000009'),
-        ),
-      ).toEqual(
+      expect(await rolls.create(ctx, aRoll({ id: ulidFor(9) }))).toEqual(
         err({ kind: 'already-exists', entity: 'roll', id: '2026-014' }),
       );
     });
 
     test('lists rolls in roll number order', async () => {
       const rolls = makeRepository();
-      await rolls.create(ctx, aRoll('2026-014', '00000000000000000000000001'));
-      await rolls.create(ctx, aRoll('2025-003', '00000000000000000000000002'));
+      await rolls.create(ctx, aRoll());
+      await rolls.create(ctx, aRoll({ roll: '2025-003', id: ulidFor(2) }));
 
       expect((await rolls.list(ctx)).rolls.map((r) => r.roll)).toEqual([
         '2025-003',
@@ -62,12 +57,12 @@ export function rollRepositoryContract(
 
     test('saves a roll read with the current version, and gives the new version', async () => {
       const rolls = makeRepository();
-      const roll = aRoll('2026-014');
+      const roll = aRoll();
       await rolls.create(ctx, roll);
       const read = await rolls.get(ctx, roll.id);
       const changed = {
         ...roll,
-        frames: [aFrame('00000000000000000000000002', [aVersion])],
+        frames: [aFrame({ versions: [aVersion()] })],
       };
 
       const saved = await rolls.save(ctx, changed, read?.version ?? '');
@@ -81,10 +76,10 @@ export function rollRepositoryContract(
 
     test('refuses a save when the roll changed since it was read', async () => {
       const rolls = makeRepository();
-      const roll = aRoll('2026-014');
+      const roll = aRoll();
       await rolls.create(ctx, roll);
       const read = await rolls.get(ctx, roll.id);
-      const first = { ...roll, frames: [aFrame('00000000000000000000000002')] };
+      const first = { ...roll, frames: [aFrame()] };
       await rolls.save(ctx, first, read?.version ?? '');
 
       expect(await rolls.save(ctx, roll, read?.version ?? '')).toEqual(
@@ -95,7 +90,7 @@ export function rollRepositoryContract(
 
     test('lets only one of two saves from the same read through', async () => {
       const rolls = makeRepository();
-      const roll = aRoll('2026-014');
+      const roll = aRoll();
       await rolls.create(ctx, roll);
       const read = await rolls.get(ctx, roll.id);
 
@@ -104,7 +99,7 @@ export function rollRepositoryContract(
           (frameId) =>
             rolls.save(
               ctx,
-              { ...roll, frames: [aFrame(frameId)] },
+              { ...roll, frames: [aFrame({ id: frameId })] },
               read?.version ?? '',
             ),
         ),
@@ -114,7 +109,7 @@ export function rollRepositoryContract(
     });
 
     test('refuses to save a roll that was never created', async () => {
-      const roll = aRoll('2026-014');
+      const roll = aRoll();
 
       expect(await makeRepository().save(ctx, roll, 'any')).toEqual(
         err({ kind: 'not-found', entity: 'roll', id: roll.id }),
@@ -123,7 +118,7 @@ export function rollRepositoryContract(
 
     test('applies changes made at the same time one after another, so none is lost', async () => {
       const rolls = makeRepository();
-      const roll = aRoll('2026-014');
+      const roll = aRoll();
       await rolls.create(ctx, roll);
       const frameIds = Array.from(
         { length: 20 },
@@ -137,7 +132,7 @@ export function rollRepositoryContract(
               ok({
                 roll: {
                   ...current,
-                  frames: [...current.frames, aFrame(frameId)],
+                  frames: [...current.frames, aFrame({ id: frameId })],
                 },
                 value: frameId,
               }),
@@ -153,7 +148,7 @@ export function rollRepositoryContract(
 
     test('saves nothing when a change fails', async () => {
       const rolls = makeRepository();
-      const roll = aRoll('2026-014');
+      const roll = aRoll();
       await rolls.create(ctx, roll);
       const before = await rolls.get(ctx, roll.id);
 

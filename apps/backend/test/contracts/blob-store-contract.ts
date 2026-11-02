@@ -3,7 +3,7 @@ import type { BlobStore } from '../../src/application/ports/blob-store.ts';
 import { isRollNumber } from '../../src/domain/rolls/roll-number.ts';
 import { isFrameId, isVersionId } from '../../src/domain/shared/ids.ts';
 import { checked } from '../support/checked.ts';
-import { ctx } from '../support/roll-fixtures.ts';
+import { ctx } from '../support/builders.ts';
 
 const roll = checked('2026-014', isRollNumber);
 const blob = {

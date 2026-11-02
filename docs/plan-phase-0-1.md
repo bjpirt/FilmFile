@@ -184,7 +184,7 @@ archive/
 
 - **Inheritable `meta` fields** (archive, roll and frame level): `camera`, `lens`, `film`, `location`, `tags`, `author`, `copyright`, `licence`.
 - **Frame-only:** `id`, `number`, `title`, `rating` (0–5), `notes`, `defaultVersion` (optional version ID; when unset the newest version is shown), `versions` (may be empty).
-- **Version:** `id`, `file`, `lab` (for lab scans), `sha256`, `bytes`, `width`, `height`, `added`. No `kind` field. Low-res display images are generated previews in the cache, not versions. Phase 1 has only `lab-scan`; the schema is a union by `kind` so Phase 2 adds members.
+- **Version:** `id`, `file`, `lab` (for lab scans), `sha256`, `bytes`, `width`, `height`, `added`. No `kind` field. Low-res display images are generated previews in the cache, not versions. Phase 2 may add an optional `source` attribute to tell raws, masters and lab scans apart (D16).
 - **Roll-only:** `id`, `roll`, `developed`, `shot`, `sleeve`, `notes`, `numbering`. Whether `numbering` also records the mapping used is an open question.
 - `number` is a string, or `null` for a skipped or unidentified scan.
 - `frames` uses the `versions` list from day one, so Phase 2 adds entries without a format change.
