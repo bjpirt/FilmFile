@@ -6,6 +6,12 @@ import { Link } from '../routing.tsx';
 import { droppedFiles } from './dropped-files.ts';
 import { FrameNumberEditor, type SaveOutcome } from './frame-number-editor.tsx';
 import { inFrameOrder } from './frame-order.ts';
+import { renumber } from './renumber.ts';
+import {
+  RenumberPanel,
+  renumberingOf,
+  type RenumberSettings,
+} from './renumber-panel.tsx';
 import { uploadScans, type UploadReport } from './upload-scans.ts';
 
 type Upload =
@@ -58,6 +64,30 @@ function Thumbnail({
   );
 }
 
+/** A frame's number as renumbering would leave it, highlighted if it changes. */
+function ProposedNumber({
+  current,
+  proposed,
+}: {
+  readonly current: string | null;
+  readonly proposed: string | undefined;
+}) {
+  const shown = proposed ?? current;
+  if (shown === null) {
+    return (
+      <span className="frame-number none" aria-label="No number">
+        —
+      </span>
+    );
+  }
+  const changes = proposed !== undefined && proposed !== current;
+  return (
+    <span className={changes ? 'frame-number changed' : 'frame-number'}>
+      {shown}
+    </span>
+  );
+}
+
 export function RollPage({
   api,
   rollId,
@@ -69,6 +99,9 @@ export function RollPage({
   const [upload, setUpload] = useState<Upload>({ kind: 'idle' });
   const [order, setOrder] = useState<'frame' | 'scan'>('frame');
   const [changedElsewhere, setChangedElsewhere] = useState(false);
+  const [renumbering, setRenumbering] = useState<RenumberSettings | undefined>(
+    undefined,
+  );
 
   const roll = useQuery({
     queryKey: ['rolls', rollId],
@@ -137,6 +170,16 @@ export function RollPage({
     setChangedElsewhere(false);
   }
 
+  /** Where renumbering starts: the first scan's number if it's a whole number. */
+  function startRenumbering(frames: readonly Frame[]) {
+    const first = frames[0]?.number ?? '';
+    setRenumbering({
+      from: 'first',
+      number: /^-?\d+$/.test(first) ? first : '1',
+      direction: 'up',
+    });
+  }
+
   if (roll.isPending) {
     return <p>Loading the roll…</p>;
   }
@@ -150,6 +193,16 @@ export function RollPage({
       </p>
     );
   }
+
+  const frames = roll.data.roll.frames;
+  // While renumbering, frames are shown in scan order, which is the order the numbers count along.
+  const shown =
+    renumbering === undefined && order === 'frame'
+      ? inFrameOrder(frames)
+      : frames;
+  const settings = renumbering && renumberingOf(renumbering);
+  const proposed =
+    settings === undefined ? undefined : renumber(frames.length, settings);
 
   return (
     <section>
@@ -208,46 +261,70 @@ export function RollPage({
         )}
       </div>
 
-      {roll.data.roll.frames.length === 0 ? (
+      {frames.length === 0 ? (
         <p>No frames yet.</p>
       ) : (
         <>
-          <fieldset className="order">
-            <legend>Show frames in</legend>
-            <label>
-              <input
-                type="radio"
-                name="order"
-                checked={order === 'frame'}
-                onChange={() => {
-                  setOrder('frame');
+          {renumbering === undefined ? (
+            <div className="sheet-controls">
+              <fieldset className="order">
+                <legend>Show frames in</legend>
+                <label>
+                  <input
+                    type="radio"
+                    name="order"
+                    checked={order === 'frame'}
+                    onChange={() => {
+                      setOrder('frame');
+                    }}
+                  />
+                  Frame order
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="order"
+                    checked={order === 'scan'}
+                    onChange={() => {
+                      setOrder('scan');
+                    }}
+                  />
+                  Scan order
+                </label>
+              </fieldset>
+              <button
+                type="button"
+                onClick={() => {
+                  startRenumbering(frames);
                 }}
-              />
-              Frame order
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="order"
-                checked={order === 'scan'}
-                onChange={() => {
-                  setOrder('scan');
-                }}
-              />
-              Scan order
-            </label>
-          </fieldset>
+              >
+                Renumber…
+              </button>
+            </div>
+          ) : (
+            <RenumberPanel
+              settings={renumbering}
+              change={setRenumbering}
+              cancel={() => {
+                setRenumbering(undefined);
+              }}
+            />
+          )}
           <ol className="contact-sheet">
-            {(order === 'frame'
-              ? inFrameOrder(roll.data.roll.frames)
-              : roll.data.roll.frames
-            ).map((frame) => (
+            {shown.map((frame, i) => (
               <li key={frame.id}>
                 <Thumbnail rollId={rollId} frame={frame} />
-                <FrameNumberEditor
-                  number={frame.number}
-                  save={(number) => saveNumber(frame.id, number)}
-                />
+                {renumbering === undefined ? (
+                  <FrameNumberEditor
+                    number={frame.number}
+                    save={(number) => saveNumber(frame.id, number)}
+                  />
+                ) : (
+                  <ProposedNumber
+                    current={frame.number}
+                    proposed={proposed?.[i]}
+                  />
+                )}
               </li>
             ))}
           </ol>

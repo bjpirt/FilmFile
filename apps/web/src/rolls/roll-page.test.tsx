@@ -322,6 +322,115 @@ describe('editing a frame number', () => {
   });
 });
 
+describe('renumbering', () => {
+  /** The numbers under the thumbnails, in the order shown. */
+  function captions(): (string | null)[] {
+    return Array.from(
+      document.querySelectorAll('.contact-sheet .frame-number'),
+      (caption) => caption.textContent,
+    );
+  }
+
+  function changed(): (string | null)[] {
+    return Array.from(
+      document.querySelectorAll('.contact-sheet .frame-number.changed'),
+      (caption) => caption.textContent,
+    );
+  }
+
+  /** Fills in "[from] scan is frame [number], counting [direction]". */
+  function renumberSo(from: string, number: string, direction: string) {
+    fireEvent.change(screen.getByLabelText('Which scan'), {
+      target: { value: from },
+    });
+    fireEvent.change(
+      screen.getByLabelText(`Frame number of the ${from} scan`),
+      { target: { value: number } },
+    );
+    fireEvent.change(screen.getByLabelText('Counting'), {
+      target: { value: direction },
+    });
+  }
+
+  async function aTailToHeadRoll() {
+    // Uploaded in file name order, so numbered 1, 2, 3, though the film runs 3, 2, 1.
+    const service = fakeRollService([
+      aFrameWithScan('1', '12340001.jpg'),
+      aFrameWithScan('2', '12340002.jpg'),
+      aFrameWithScan('3', '12340003.jpg'),
+    ]);
+    renderPage(service);
+    fireEvent.click(await screen.findByRole('button', { name: 'Renumber…' }));
+    return service;
+  }
+
+  test('previews the numbers in scan order, highlighting the ones that change', async () => {
+    const service = await aTailToHeadRoll();
+
+    renumberSo('first', '3', 'down');
+
+    expect(captions()).toEqual(['3', '2', '1']);
+    expect(changed()).toEqual(['3', '1']);
+    expect(service.ifMatches).toEqual([]);
+  });
+
+  test('numbers back from the last scan when that is the one chosen', async () => {
+    await aTailToHeadRoll();
+
+    renumberSo('last', '1', 'down');
+
+    expect(captions()).toEqual(['3', '2', '1']);
+  });
+
+  test('starts from the first scan’s number, counting up', async () => {
+    await aTailToHeadRoll();
+
+    expect(screen.getByLabelText<HTMLSelectElement>('Which scan').value).toBe(
+      'first',
+    );
+    expect(
+      screen.getByLabelText<HTMLInputElement>('Frame number of the first scan')
+        .value,
+    ).toBe('1');
+    expect(screen.getByLabelText<HTMLSelectElement>('Counting').value).toBe(
+      'up',
+    );
+    expect(changed()).toEqual([]);
+  });
+
+  test('can count below zero', async () => {
+    await aTailToHeadRoll();
+
+    renumberSo('first', '1', 'down');
+
+    expect(captions()).toEqual(['1', '0', '-1']);
+  });
+
+  test('asks for a whole number, showing the current numbers meanwhile', async () => {
+    await aTailToHeadRoll();
+
+    renumberSo('first', '12A', 'up');
+
+    expect(
+      screen.getByText('Enter a whole number, like 1 or 36.'),
+    ).toBeDefined();
+    expect(captions()).toEqual(['1', '2', '3']);
+  });
+
+  test('goes back to the roll as it was on Cancel, saving nothing', async () => {
+    const service = await aTailToHeadRoll();
+    renumberSo('first', '9', 'up');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByLabelText('Which scan')).toBeNull();
+    expect(
+      await screen.findByRole('button', { name: 'Change frame number 1' }),
+    ).toBeDefined();
+    expect(service.ifMatches).toEqual([]);
+  });
+});
+
 test('shows a placeholder for a frame with no scan', async () => {
   renderPage(
     fakeRollService([
