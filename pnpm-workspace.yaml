@@ -1,0 +1,24 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Supply-chain protection (see CLAUDE.md, "Dependencies and CI").
+
+# Only install versions published at least 3 days ago (in minutes).
+minimumReleaseAge: 4320
+
+# Dependency install scripts are blocked unless listed here.
+allowBuilds:
+  sharp: true
+  better-sqlite3: true
+  esbuild: true
+
+# Fail the install if a dependency has an install script that isn't listed above.
+strictDepBuilds: true
+
+# Only direct dependencies may come from git, tarball URLs and other non-registry sources.
+blockExoticSubdeps: true
+
+# Fail if a package's publishing trust level drops compared with earlier releases,
+# a sign of a hijacked maintainer account.
+trustPolicy: no-downgrade

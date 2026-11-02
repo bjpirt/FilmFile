@@ -109,7 +109,7 @@ FilmFile runs on localhost without login, but **any website the user visits can 
 **Dependencies and CI (supply chain)**
 
 - pnpm with a committed lockfile; CI installs with `--frozen-lockfile`.
-- In `pnpm-workspace.yaml`: `minimumReleaseAge` of at least 3 days, `allowBuilds` listing only packages that genuinely need install scripts (e.g. `sharp`, `better-sqlite3`, `esbuild`), `strictDepBuilds: true`, `blockExoticSubdeps: true`.
+- In `pnpm-workspace.yaml`: `minimumReleaseAge` of at least 3 days, `allowBuilds` listing only packages that genuinely need install scripts (e.g. `sharp`, `better-sqlite3`, `esbuild`), `strictDepBuilds: true`, `blockExoticSubdeps: true`, `trustPolicy: no-downgrade`.
 - `pnpm audit --audit-level high` (or OSV-Scanner) in CI, and Dependabot or Renovate for updates.
 - GitHub Actions pinned to full commit SHAs, with `permissions: contents: read` by default.
 - Secret scanning (gitleaks) in CI. No secrets in the repo; configuration comes from environment variables or a local, git-ignored config file. Future AWS access uses named profiles or OIDC, never committed keys.
