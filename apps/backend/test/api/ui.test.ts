@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { composeLocal } from '../../src/composition/compose-local.ts';
+import { origin, port } from '../support/api.ts';
 
 // The UI folder sits inside a temp folder, so a test can put a file beside it.
 let folder = '';
@@ -25,8 +26,9 @@ function request(url: string, ui = uiPath): Promise<Response> {
     archivePath: '/unused',
     cachePath: '/unused',
     uiPath: ui,
+    port,
   });
-  return Promise.resolve(app.request(url));
+  return Promise.resolve(app.request(`${origin}${url}`));
 }
 
 describe('the built UI', () => {

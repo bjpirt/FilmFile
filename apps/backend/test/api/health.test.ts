@@ -1,10 +1,11 @@
 import { expect, test } from 'vitest';
-import { composeLocal } from '../../src/composition/compose-local.ts';
+import { apiFor } from '../support/api.ts';
+import { useTempArchive } from '../support/temp-archive.ts';
+
+const { request } = apiFor(useTempArchive());
 
 test('reports that the service is up', async () => {
-  const app = composeLocal({ archivePath: '/unused', cachePath: '/unused' });
-
-  const response = await app.request('/api/health');
+  const response = await request('/api/health');
 
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({ status: 'ok' });

@@ -2,6 +2,7 @@ import { createApiClient } from '@filmfile/contracts/client';
 import { expect, test } from 'vitest';
 import { composeLocal } from '../../src/composition/compose-local.ts';
 import { aJpeg } from '../support/a-jpeg.ts';
+import { origin, port } from '../support/api.ts';
 import { useTempArchive } from '../support/temp-archive.ts';
 
 const archive = useTempArchive();
@@ -10,9 +11,12 @@ function client() {
   const app = composeLocal({
     archivePath: archive.path(),
     cachePath: archive.cachePath(),
+    port,
   });
+  // A browser adds the Origin header itself; here the test plays the browser.
   return createApiClient({
-    baseUrl: 'http://localhost',
+    baseUrl: origin,
+    headers: { Origin: origin },
     fetch: (request) => Promise.resolve(app.request(request)),
   });
 }

@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, expect, test } from 'vitest';
@@ -14,10 +15,25 @@ afterEach(async () => {
   }
 });
 
-function startService(): ChildProcess {
-  // Port 0 lets the OS pick a free port; the service logs the one it got.
+// The service checks requests against its port, so it needs a real one, not 0.
+async function freePort(): Promise<number> {
+  const server = createServer().listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const address = server.address();
+  server.close();
+  if (address === null || typeof address === 'string') {
+    throw new Error('Expected a TCP address');
+  }
+  return address.port;
+}
+
+async function startService(): Promise<ChildProcess> {
   return spawn(process.execPath, [main], {
-    env: { ...process.env, FILMFILE_ARCHIVE: tmpdir(), FILMFILE_PORT: '0' },
+    env: {
+      ...process.env,
+      FILMFILE_ARCHIVE: tmpdir(),
+      FILMFILE_PORT: String(await freePort()),
+    },
   });
 }
 
@@ -36,7 +52,7 @@ function waitForListeningUrl(child: ChildProcess): Promise<string> {
 }
 
 test('starts from source and answers on localhost', async () => {
-  service = startService();
+  service = await startService();
 
   const url = await waitForListeningUrl(service);
   const response = await fetch(`${url}/api/health`);
@@ -46,7 +62,7 @@ test('starts from source and answers on localhost', async () => {
 });
 
 test('stops cleanly when asked to', async () => {
-  const child = startService();
+  const child = await startService();
   service = child;
   await waitForListeningUrl(child);
 

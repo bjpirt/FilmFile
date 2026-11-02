@@ -1,14 +1,27 @@
 import { composeLocal } from '../../src/composition/compose-local.ts';
 import type { TempArchive } from './temp-archive.ts';
 
-/** Sends requests to a service wired to the given archive, without a network. */
+export const port = 4310;
+
+/** The backend's own address, which its request checks accept as Host and Origin. */
+export const origin = `http://127.0.0.1:${String(port)}`;
+
+/**
+ * Sends requests to a service wired to the given archive, without a network,
+ * the way the UI does: to the backend's address, with its Origin.
+ */
 export function apiFor(archive: TempArchive) {
   function request(url: string, init?: RequestInit): Promise<Response> {
     const app = composeLocal({
       archivePath: archive.path(),
       cachePath: archive.cachePath(),
+      port,
     });
-    return Promise.resolve(app.request(url, init));
+    const headers = new Headers(init?.headers);
+    headers.set('Origin', origin);
+    return Promise.resolve(
+      app.request(new URL(url, origin), { ...init, headers }),
+    );
   }
 
   function post(url: string, body: unknown): Promise<Response> {

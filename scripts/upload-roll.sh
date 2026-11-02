@@ -12,13 +12,15 @@ fi
 roll=$1
 folder=$2
 api=${FILMFILE_API:-http://127.0.0.1:${FILMFILE_PORT:-4310}/api}
+# The service refuses changes without an Origin; its own address is accepted.
+origin=${api%/api}
 
 id_of() {
   node -e 'let s = ""; process.stdin.on("data", (d) => (s += d)).on("end", () => console.log(JSON.parse(s).id));'
 }
 
 post_json() {
-  curl --silent --show-error --fail-with-body -X POST \
+  curl --silent --show-error --fail-with-body -X POST -H "Origin: $origin" \
     -H 'Content-Type: application/json' -d "$2" "$api/$1"
 }
 
@@ -31,7 +33,7 @@ for scan in "$folder"/*.jpg "$folder"/*.jpeg; do
   name=$(basename "$scan")
   frame_id=$(post_json "rolls/$roll_id/frames" '{}' | id_of)
   version_url="$api/rolls/$roll_id/frames/$frame_id/versions"
-  version_id=$(curl --silent --show-error --fail-with-body -X POST \
+  version_id=$(curl --silent --show-error --fail-with-body -X POST -H "Origin: $origin" \
     -H 'Content-Type: image/jpeg' --data-binary "@$scan" \
     "$version_url?file=$name" | id_of)
   echo "$name  $version_url/$version_id/thumbnail?size=small"

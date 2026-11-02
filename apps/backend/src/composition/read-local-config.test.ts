@@ -27,6 +27,15 @@ test('serves the UI built in apps/web/dist', () => {
   expect(readLocalConfig(archive, mac).uiPath).toMatch(/apps\/web\/dist$/);
 });
 
+test('reads the origin of a separately served UI from FILMFILE_UI_ORIGIN', () => {
+  expect(
+    readLocalConfig(
+      { ...archive, FILMFILE_UI_ORIGIN: 'http://localhost:5173' },
+      mac,
+    ).uiOrigin,
+  ).toBe('http://localhost:5173');
+});
+
 test('reads the cache folder from FILMFILE_CACHE', () => {
   expect(
     readLocalConfig({ ...archive, FILMFILE_CACHE: '/tmp/cache' }, mac)

@@ -6,6 +6,8 @@ export function composeLocal(config: {
   readonly archivePath: string;
   readonly cachePath: string;
   readonly uiPath?: string;
+  readonly port: number;
+  readonly uiOrigin?: string;
 }): OpenAPIHono {
   return createApp(config);
 }
