@@ -1,0 +1,19 @@
+#!/bin/sh
+# Checks the formatting and lint of the files being committed, to catch
+# mistakes early. It only checks: run `pnpm format` to fix formatting.
+# CI runs every check (pnpm verify).
+set -eu
+
+files=$(git diff --cached --name-only --diff-filter=ACMR)
+if [ -z "$files" ]; then
+  exit 0
+fi
+
+echo "$files" | tr '\n' '\0' |
+  xargs -0 pnpm exec prettier --check --ignore-unknown --log-level warn ||
+  { echo "Formatting is off: run pnpm format, then stage the changes." >&2; exit 1; }
+
+scripts=$(echo "$files" | grep -E '\.tsx?$' || true)
+if [ -n "$scripts" ]; then
+  echo "$scripts" | tr '\n' '\0' | xargs -0 pnpm exec eslint --no-warn-ignored
+fi

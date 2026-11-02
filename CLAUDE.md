@@ -134,7 +134,7 @@ FilmFile runs on localhost without login, but **any website the user visits can 
 
 - **`pnpm verify`** runs everything CI runs: format check (Prettier), lint (ESLint with `typescript-eslint` `strictTypeChecked` and `stylisticTypeChecked`, plus `eslint-plugin-boundaries`), typecheck (`tsc --noEmit` across the workspace), and unit, integration and API tests with coverage thresholds.
 - **CI** runs `pnpm verify`, then the build, Playwright end-to-end tests, the dependency audit, secret scanning and static analysis. CI must pass before merging.
-- **Pre-commit hook** (lint-staged) only formats and lints staged files, to keep commits fast. CI is the real gate.
+- **Pre-commit hook** (`.githooks/pre-commit`, set up by `pnpm install`) only checks the formatting and lint of staged files, to keep commits fast; it doesn't rewrite them (`pnpm format` does). CI is the real gate.
 - Lint rules are not disabled inline without a comment explaining why.
 
 ## Definition of done for any change

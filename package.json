@@ -7,6 +7,7 @@
   },
   "packageManager": "pnpm@12.16.1",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks",
     "start": "pnpm --filter @filmfile/backend start",
     "start:dev": "FILMFILE_ARCHIVE=\"$PWD/.dev-archive\" pnpm start",
     "dev": "FILMFILE_ARCHIVE=\"$PWD/.dev-archive\" FILMFILE_UI_ORIGIN=http://localhost:5173 pnpm --parallel --filter @filmfile/backend --filter @filmfile/web dev",
@@ -17,10 +18,12 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit && pnpm -r typecheck",
     "test": "vitest run --coverage",
+    "e2e": "pnpm build && playwright test",
     "generate": "vitest run apps/backend/test/api/openapi.test.ts -u && vitest run packages/contracts -u"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.1",
     "@types/node": "^26.6.6",
     "@vitest/coverage-v8": "^5.0.5",
     "eslint": "^10.13.0",

@@ -79,7 +79,7 @@ Change them here if they're wrong.
 
 - **CI pipeline** (GitHub Actions, pinned to commit SHAs, `permissions: contents: read`): frozen-lockfile install, `pnpm verify`, build, Playwright, dependency audit, gitleaks, and CodeQL or Semgrep.
 - **pnpm supply-chain settings** in `pnpm-workspace.yaml`: `minimumReleaseAge` (at least 3 days), `allowBuilds` for `sharp`, `better-sqlite3` and `esbuild` only, `strictDepBuilds`, `blockExoticSubdeps`. Dependabot or Renovate configured.
-- **Pre-commit hook** with lint-staged (format and lint staged files only).
+- **Pre-commit hook** checking the format and lint of staged files only (a few lines of shell, not lint-staged).
 - **HTTP security middleware**, in place before any real endpoint exists: Host allow-list, Origin check, JSON content-type requirement, security headers, and an error handler that never leaks internals.
 - **Safe path helper** in the filesystem adapter that rejects absolute paths, `..` and anything resolving outside the archive or cache root, with tests.
 

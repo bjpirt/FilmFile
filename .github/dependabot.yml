@@ -1,0 +1,21 @@
+# Weekly update PRs for npm packages and GitHub Actions (Actions stay pinned
+# to commit SHAs; Dependabot updates the SHA and its version comment).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # Matches minimumReleaseAge in pnpm-workspace.yaml: no release younger than 3 days.
+    cooldown:
+      default-days: 3
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 3
