@@ -219,7 +219,7 @@
     },
     "/api/rolls": {
       "get": {
-        "summary": "List every roll, ordered by roll ID",
+        "summary": "List every roll, ordered by roll number",
         "responses": {
           "200": {
             "description": "The rolls.",
@@ -270,7 +270,7 @@
             }
           },
           "409": {
-            "description": "A roll with that roll ID already exists.",
+            "description": "A roll with that roll number already exists.",
             "content": {
               "application/json": {
                 "schema": {

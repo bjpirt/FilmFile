@@ -26,7 +26,7 @@ describe.each([
     ['too short', ulid.slice(1)],
     ['lower case', ulid.toLowerCase()],
     ['a letter Crockford base 32 leaves out', `${ulid.slice(0, 25)}U`],
-    ['a roll ID', '2026-014'],
+    ['a roll number', '2026-014'],
     ['empty', ''],
   ])('refuses one that is %s', (_case, value) => {
     expect(parse(value)).toEqual({

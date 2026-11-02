@@ -35,7 +35,7 @@ export function RollsPage({ api }: { readonly api: ApiClient }) {
           throw new Error(`Roll ${roll} already exists.`);
         case 422:
           throw new Error(
-            'Enter a roll ID like 2026-014: the year it was shot and a number.',
+            'Enter a roll number like 2026-014: the year it was shot, then three digits.',
           );
         default:
           throw new Error("Couldn't create the roll. Is the service running?");
@@ -57,9 +57,9 @@ export function RollsPage({ api }: { readonly api: ApiClient }) {
       <h2>Rolls</h2>
 
       <form onSubmit={submit}>
-        <label htmlFor="roll-id">Roll ID</label>
+        <label htmlFor="roll-number">Roll number</label>
         <input
-          id="roll-id"
+          id="roll-number"
           value={rollId}
           placeholder="2026-014"
           onChange={(event) => {

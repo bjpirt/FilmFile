@@ -25,7 +25,7 @@ function fakeRollsService(rolls: Roll[] = []) {
         {
           error: 'invalid request',
           issues: [
-            { path: ['roll'], message: 'must be a roll ID like 2026-014' },
+            { path: ['roll'], message: 'must be a roll number like 2026-014' },
           ],
         },
         { status: 422 },
@@ -73,7 +73,7 @@ function renderPage(service: (request: Request) => Promise<Response>) {
 }
 
 function createRoll(roll: string) {
-  fireEvent.change(screen.getByLabelText('Roll ID'), {
+  fireEvent.change(screen.getByLabelText('Roll number'), {
     target: { value: roll },
   });
   fireEvent.click(screen.getByRole('button', { name: 'Create roll' }));
@@ -109,17 +109,17 @@ test('creates a roll and shows it in the list', async () => {
   createRoll('2026-014');
 
   expect(await screen.findByText('2026-014')).toBeDefined();
-  expect(screen.getByLabelText<HTMLInputElement>('Roll ID').value).toBe('');
+  expect(screen.getByLabelText<HTMLInputElement>('Roll number').value).toBe('');
 });
 
-test('starts with an empty roll ID field', async () => {
+test('starts with an empty roll number field', async () => {
   renderPage(fakeRollsService([aRoll('2026-014')]));
   await screen.findByText('2026-014');
 
-  expect(screen.getByLabelText<HTMLInputElement>('Roll ID').value).toBe('');
+  expect(screen.getByLabelText<HTMLInputElement>('Roll number').value).toBe('');
 });
 
-test('explains why a roll ID was refused', async () => {
+test('explains why a roll number was refused', async () => {
   renderPage(fakeRollsService());
   await screen.findByText('No rolls yet.');
 
@@ -127,12 +127,12 @@ test('explains why a roll ID was refused', async () => {
 
   expect(
     await screen.findByText(
-      'Enter a roll ID like 2026-014: the year it was shot and a number.',
+      'Enter a roll number like 2026-014: the year it was shot, then three digits.',
     ),
   ).toBeDefined();
 });
 
-test('says when the roll ID is already taken', async () => {
+test('says when the roll number is already taken', async () => {
   renderPage(fakeRollsService([aRoll('2026-014')]));
   await screen.findByText('2026-014');
 

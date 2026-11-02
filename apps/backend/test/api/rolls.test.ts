@@ -41,7 +41,7 @@ describe('POST /api/rolls', () => {
     });
   });
 
-  test('refuses a roll ID that already exists', async () => {
+  test('refuses a roll number that already exists', async () => {
     await createRoll('2026-014');
 
     const response = await createRoll('2026-014');
@@ -72,7 +72,7 @@ describe('POST /api/rolls', () => {
   });
 
   test.each(['2026-14', '26-014', '2026-014a', '../../2026-014', ''])(
-    'rejects %j, which is not a YYYY-NNN roll ID',
+    'rejects %j, which is not a YYYY-NNN roll number',
     async (roll) => {
       const response = await createRoll(roll);
 
@@ -89,7 +89,7 @@ describe('GET /api/rolls', () => {
     expect(await response.json()).toEqual([]);
   });
 
-  test('lists every roll, ordered by roll ID', async () => {
+  test('lists every roll, ordered by roll number', async () => {
     const roll014: unknown = await (await createRoll('2026-014')).json();
     const roll003: unknown = await (await createRoll('2025-003')).json();
     const roll002: unknown = await (await createRoll('2026-002')).json();

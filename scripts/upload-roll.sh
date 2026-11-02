@@ -6,7 +6,7 @@
 set -euo pipefail
 
 if [ $# -ne 2 ]; then
-  echo "usage: $0 <roll ID, e.g. 2026-014> <folder of JPEG scans>" >&2
+  echo "usage: $0 <roll number, e.g. 2026-014> <folder of JPEG scans>" >&2
   exit 1
 fi
 roll=$1

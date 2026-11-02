@@ -29,10 +29,10 @@ Settled on 2 November 2026 and recorded in `docs/design.md`. Tasks refer to them
 | D4 | Lab scan uploads are limited to 200 MB per file, checked while streaming. | 1.3.6, 1.4.4 |
 | D5 | *Superseded by D11:* there are no import sessions or staging. | |
 | D6 | Unconfirmed numbering is shown with a badge on the roll only; frame numbers look normal. | 1b.6 |
-| D7 | Roll IDs are `YYYY-NNN` (e.g. `2026-014`), stored under `rolls/YYYY/YYYY-NNN/`. `YYYY` is the year shot; `NNN` is the next free number in that year when catalogued. No other formats. | 1.1.1, 1.2.1 |
-| D8 | The API never invents a roll ID; `CreateRoll` requires one. The UI suggests the next free number for a year, worked out from the roll list, but the field starts empty. | 1.3.3, 1b.3 |
-| D9 | Roll lists sort by roll ID by default, or by shot date when chosen. Roll shot dates are optional. | 1.2.4, 1.3.4, 1b.6 |
-| D10 | A roll ID can be changed only by an explicit rename, which moves the roll's folder. The ULID is unchanged. | 0.4.1, 1.3.15, 1c.2 |
+| D7 | Roll numbers are `YYYY-NNN` (e.g. `2026-014`), stored under `rolls/YYYY/YYYY-NNN/`. `YYYY` is the year shot; `NNN` is the next free number in that year when catalogued. No other formats. | 1.1.1, 1.2.1 |
+| D8 | The API never invents a roll number; `CreateRoll` requires one. The UI suggests the next free number for a year, worked out from the roll list, but the field starts empty. | 1.3.3, 1b.3 |
+| D9 | Roll lists sort by roll number by default, or by shot date when chosen. Roll shot dates are optional. | 1.2.4, 1.3.4, 1b.6 |
+| D10 | A roll number can be changed only by an explicit rename, which moves the roll's folder. The ULID is unchanged. | 0.4.1, 1.3.15, 1c.2 |
 | D11 | The API has no import workflow. A roll is created first, then each frame is created and its lab scan uploaded as a version (D13); the UI drives the import. Frame numbers are optional on creation and can be set later. Creating a frame is an append that doesn't need `If-Match`; a scan whose hash is already in the roll returns 409, so retries are safe. Frames can be added to a roll that already has frames. | 1.3.6, 1.4.4, 1b.3–1b.5 |
 | D12 | Frames can be deleted, and rolls can be deleted when they have no frames, as explicit, confirmed actions. Nothing is permanently deleted: deleted items move into `deleted/` in the archive, one dated folder each with the files and their JSON, and only the user empties it. No restore in the UI in Phase 1. | 0.4.1, 1.2.3, 1.3.16, 1c.2, 1c.3 |
 | D13 | Image data and metadata have separate endpoints. Frames are JSON; images are uploaded as versions of a frame (`POST …/frames/{frameId}/versions?file=…`, raw body). Versions have ULIDs and no `kind`; `defaultVersion` and `parents` refer to version IDs, never paths. Phase 1 uploads lab scans only. A frame with no versions is valid. `defaultVersion` is optional; when unset the newest version is shown. A single version can be deleted into the holding area. Originals are read by version ID. | 1.1.1, 1.1.7, 1.3.6, 1.3.11, 1.3.16, 1.4.3–1.4.6, 1b.4, 1b.7, 1b.8 |
@@ -58,7 +58,7 @@ Settled on 2 November 2026 and recorded in `docs/design.md`. Tasks refer to them
 Every task starts with API tests in `apps/backend/test/api/`, run against a temp archive.
 
 - [x] **S1.1 Server runs.** A Hono app with `GET /api/health`. `composeLocal(config)` builds the app; `main.ts` reads the archive and cache directories and port from environment variables and serves on `127.0.0.1` with `@hono/node-server`, running the `.ts` source directly with Node. A temp archive helper for tests. API test: health returns 200.
-- [x] **S1.2 Create a roll.** `POST /api/rolls` with `{ roll: "2026-014" }` creates `rolls/2026/2026-014/roll.json` with a ULID and an empty `frames` list, and returns 201 with the roll. API tests: the response, the file on disk, a second create with the same roll ID returns 409.
+- [x] **S1.2 Create a roll.** `POST /api/rolls` with `{ roll: "2026-014" }` creates `rolls/2026/2026-014/roll.json` with a ULID and an empty `frames` list, and returns 201 with the roll. API tests: the response, the file on disk, a second create with the same roll number returns 409.
 - [x] **S1.3 List and get rolls.** `GET /api/rolls` reads every `roll.json` under `rolls/`; `GET /api/rolls/{rollId}` returns one by its ULID, or 404.
 - [x] **S1.3a Basic Zod parsing.** Request bodies and `roll.json` are parsed with Zod schemas in the route file; invalid requests, including malformed JSON, return 422 with each issue's path and message. *(Brought forward from S2.1 and H.8, which move the schemas to the contracts package and the filesystem adapter.)*
 - [x] **S1.4 Create a frame.** `POST /api/rolls/{rollId}/frames` with an optional frame number appends a frame with a ULID and no versions to `roll.json`, and returns 201.
@@ -73,7 +73,7 @@ Every task starts with API tests in `apps/backend/test/api/`, run against a temp
 - [x] **S2.1 Contracts and OpenAPI.** Define the S1 routes with `@hono/zod-openapi`, with request and response schemas in `@filmfile/contracts`. Serve `/api/openapi.json` and the docs page at `/api/docs` (assets served locally, D2). Snapshot test of the spec. Path parameters are validated as ULIDs (422). Malformed JSON is a 400 with the usual `{ error }` body, since 422 is for valid JSON that breaks the rules. The docs page is Swagger UI from `swagger-ui-dist`, with its telemetry dependency's install script blocked. *(Was 0.2.6, 0.3.1, 0.3.3.)*
 - [x] **S2.2 Typed client.** Generate types from the spec with `openapi-typescript` and export an `openapi-fetch` client from the contracts package. A check in `pnpm verify` fails if the generated files are out of date. The spec is committed as `packages/contracts/openapi.json` and the types as `src/api-types.ts`, each checked by a file snapshot test; `pnpm generate` updates both. *(Was 0.3.2.)*
 - [x] **S2.3 Web app shell.** Vite, React and TanStack Query in `apps/web`, calling the health endpoint through the typed client. The service serves the built UI; in development Vite proxies `/api` (D1). `pnpm dev` runs both against `.dev-archive/`; `pnpm build` builds the UI into `apps/web/dist`, which the backend serves, with `index.html` for any non-API path. UI tests use Testing Library with happy-dom. *(Was 0.3.4 and part of 1b.1.)*
-- [x] **S2.4 Rolls page.** List rolls and create one with a roll ID field (no suggestion yet).
+- [x] **S2.4 Rolls page.** List rolls and create one with a roll number field (no suggestion yet).
 - [x] **S2.5 Roll page.** Drop lab scans onto a roll: for each file, create a frame and upload the scan as its version, with progress. Upload one file at a time: until H.9 adds locking, two requests changing the same roll at once can lose one of the changes. Show a contact sheet of thumbnails. Scans already in the roll (by SHA-256, hashed in the browser) and file names the service would refuse are skipped before a frame is created, so they don't leave empty frames. New frames are numbered in upload order, on from the roll's highest plain number (1 for an empty roll): a first guess until 1.3.9 sets numbering from anchors. A dropped folder contributes the JPEGs directly inside it. Pages are routed by a few lines of our own (`routing.tsx`) until there are enough to justify a router.
 - [x] **S2.6 Checkpoint.** Create a real roll in the browser, drop its scans, reload, and see everything still there.
 
@@ -106,7 +106,7 @@ Built to the full standard from the start. Task IDs are the original ones; tasks
 
 ### Domain
 
-- [ ] **1.1.1 Domain types.** `Archive`, `Roll`, `Frame`, `Version`, `Meta`, `Equipment` (camera, lens, film as a union), with readonly fields. Roll IDs parsed as `YYYY-NNN` (D7). `Version` has no `kind` (D16), and every version has `width` and `height` (D13, D14). A helper for the version a frame shows (`defaultVersion`, else newest).
+- [ ] **1.1.1 Domain types.** `Archive`, `Roll`, `Frame`, `Version`, `Meta`, `Equipment` (camera, lens, film as a union), with readonly fields. Roll numbers parsed as `YYYY-NNN` (D7). `Version` has no `kind` (D16), and every version has `width` and `height` (D13, D14). A helper for the version a frame shows (`defaultVersion`, else newest).
 - [ ] **1.1.2 Frame numbers.** `FrameNumber` type with parse and format for `"00"`, `"0"`, integers, `"12A"` and `"14-15"`; arithmetic only for numeric values (`"00"` = −1). Table-driven tests, plus a property test that format(parse(x)) = x for valid input.
 - [ ] **1.1.3 Mapping engine.** Pure function from sorted scans and a `Mapping` (direction, anchors, overrides, skips) to a frame number per scan, following the rules in the plan. Rejects non-numeric anchors with `MappingInvalid`. Table-driven and property tests. *(Blocked: mapping location, for where it runs.)*
 - [ ] **1.1.4 Mapping warnings.** Duplicate numbers and below `00` (D3), as warnings alongside the result.
@@ -128,7 +128,7 @@ Built to the full standard from the start. Task IDs are the original ones; tasks
 - [ ] **1.3.1 Archive.** `InitialiseArchive`, `GetArchive`, `UpdateArchive` (meta and labs, validating lab patterns compile and have `batch` and `scan` groups). Then `AddVersion` checks file names against the lab's pattern and records batch and scan index.
 - [ ] **1.3.2 Equipment.** `ListEquipment`, `CreateEquipment` (slug from make and model, `AlreadyExists` on a clash).
 - [ ] **1.3.3 `UpdateRoll` and resolved rolls.** `UpdateRoll`; `GetRoll` returns resolved metadata with provenance.
-- [ ] **1.3.4 `ListRolls` filters.** Year, camera, film and tag filters, sorted by roll ID or shot date (D9), through the index.
+- [ ] **1.3.4 `ListRolls` filters.** Year, camera, film and tag filters, sorted by roll number or shot date (D9), through the index.
 - [ ] **1.3.5 Frames.** `UpdateFrame` and bulk `UpdateFrames`, with bulk as a single roll save.
 - [ ] **1.3.9 Numbering.** Setting frame numbers in bulk through `UpdateFrames`; confirming numbering through `UpdateRoll`. Any mapping use cases *(blocked: mapping location)*.
 - [ ] **1.3.10 `AttachSleevePhoto`.** Through the blob store, with the signature check.
@@ -155,7 +155,7 @@ Built to the full standard from the start. Task IDs are the original ones; tasks
 
 - [ ] **1b.1 Live updates.** An SSE hook that invalidates affected queries.
 - [ ] **1b.2 First-run setup.** Shown when the archive isn't initialised: name, author, copyright, first lab and its scan direction.
-- [ ] **1b.3 Roll creation in full.** Camera, lens and film pickers that can create equipment; roll ID suggestion (D8); clash shown before submitting.
+- [ ] **1b.3 Roll creation in full.** Camera, lens and film pickers that can create equipment; roll number suggestion (D8); clash shown before submitting.
 - [ ] **1b.4 Robust upload.** Files not matching the lab pattern are listed and skipped; parallel uploads with retries; a 409 for a duplicate counts as done, so re-dropping a folder completes an interrupted import; leftover frames with no versions can be deleted.
 - [ ] **1b.5 Numbering.** Thumbnails in scan order; anchor and direction, skips and overrides, proposed numbers and warnings; save with one bulk update. A reusable component for 1c.4. *(Blocked: mapping location.)*
 - [ ] **1b.6 Rolls grid.** Sleeve photo or first frame, filters, sort (D9), "numbering not confirmed" badge (D6).

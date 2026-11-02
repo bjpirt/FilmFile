@@ -44,7 +44,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List every roll, ordered by roll ID */
+        /** List every roll, ordered by roll number */
         get: {
             parameters: {
                 query?: never;
@@ -98,7 +98,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description A roll with that roll ID already exists. */
+                /** @description A roll with that roll number already exists. */
                 409: {
                     headers: {
                         [name: string]: unknown;

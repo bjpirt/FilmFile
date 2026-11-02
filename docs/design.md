@@ -55,10 +55,10 @@ Archive
                └─ Attachments   editor recipe sidecars (e.g. .negpy)
 ```
 
-- **Roll:** identified by my roll ID (written on the sleeve) in the form `YYYY-NNN`, e.g. `2026-014`. `YYYY` is the year the roll was shot; `NNN` is the next free number in that year when the roll is catalogued, so a roll catalogued late gets a later number than rolls shot after it. Rolls aren't numbered when the film is loaded. The roll's folder is `rolls/YYYY/YYYY-NNN/`. The lab batch is metadata.
-  - The API never invents a roll ID: creating a roll requires one. The UI suggests the next free number for the year but never fills it in for you.
-  - Lists sort by roll ID by default, or by shot date when chosen. Roll-level shot dates are optional and kept for reference; within a roll, frame-number order is shot order.
-  - A roll ID can be changed only by an explicit rename, which checks the new ID is free and moves the roll's folder. The roll's ULID doesn't change, so links survive. Files inside the folder never move relative to it.
+- **Roll:** identified by my roll number (written on the sleeve) in the form `YYYY-NNN`, e.g. `2026-014`. `YYYY` is the year the roll was shot; `NNN` is the next free number in that year when the roll is catalogued, so a roll catalogued late gets a later number than rolls shot after it. Rolls aren't numbered when the film is loaded. The roll's folder is `rolls/YYYY/YYYY-NNN/`. The lab batch is metadata.
+  - The API never invents a roll number: creating a roll requires one. The UI suggests the next free number for the year but never fills it in for you.
+  - Lists sort by roll number by default, or by shot date when chosen. Roll-level shot dates are optional and kept for reference; within a roll, frame-number order is shot order.
+  - A roll number can be changed only by an explicit rename, which checks the new number is free and moves the roll's folder. The roll's ULID doesn't change, so links survive. Files inside the folder never move relative to it.
 - **Frame:** identified by the **frame number printed on the film**, as a string: `"0"`, `"23"`, `"12A"`, or `"14-15"` for a panoramic frame spanning two numbers. `null` for a scan that's skipped or not yet identified. 120 film uses position on the roll. A frame holds metadata and zero or more versions; a frame with no versions is valid (e.g. a frame the lab skipped, catalogued from the sleeve). `defaultVersion` optionally names the version to show; when unset, the newest version is shown.
 - **Version:** a file with a ULID, a content hash, its pixel dimensions and parents. Versions have no `kind`: a version is a version, and the frame's `defaultVersion` decides which one is shown. Low-res display images are generated previews in the cache, never versions. `defaultVersion` and `parents` refer to version IDs, never paths. Phase 2 adds raws, masters (editor exports), edits and exports; how the service tells them apart where behaviour differs (e.g. never writing metadata into raws) is an open question (section 15). **`parents` is a list**, since a master may come from several raws (brackets, stitched sections, trichrome).
 - **Event:** a named happening with optional dates, location and parent event. Rolls and frames belong to events (section 7).
@@ -311,7 +311,7 @@ Outbound ports, defined in `application/ports/` and implemented by outbound adap
 | Port | Responsibility | Local adapter | Cloud adapter (later) |
 |---|---|---|---|
 | `ArchiveRepository` | Read and save `archive.json` (meta, labs) | JSON file | S3 object |
-| `RollRepository` | Get, list, create, save and rename rolls. Every read returns a **version token**; `save(roll, expectedVersion)` fails with `ConcurrencyConflict` if it changed; `create` and `rename` fail if the roll ID is taken | JSON files: lock, ETag check, temp file + rename | S3 `If-Match` / `If-None-Match` conditional writes |
+| `RollRepository` | Get, list, create, save and rename rolls. Every read returns a **version token**; `save(roll, expectedVersion)` fails with `ConcurrencyConflict` if it changed; `create` and `rename` fail if the roll number is taken | JSON files: lock, ETag check, temp file + rename | S3 `If-Match` / `If-None-Match` conditional writes |
 | `EquipmentRepository` | Cameras, lenses, films | JSON files | S3 objects |
 | `BlobStore` | Write-once storage of image files: `put` (streams, returns SHA-256 and size), `get`, `stat`. Never overwrites | A folder per version in the archive | S3 with Standard-IA / Deep Archive classes |
 | `HoldingArea` | Receives deleted versions and frames (their files plus their JSON) and deleted empty rolls (the whole folder), for me to empty by hand. Never deletes | `deleted/` in the archive | S3 prefix |
@@ -453,6 +453,7 @@ packages/
 
 ## 16. Glossary
 
+- **Roll number:** the roll's label, `YYYY-NNN` (e.g. `2026-014`), written on the sleeve: the year shot and the next free number that year. It can be changed by a rename; the roll's ULID (`RollId` in code) never changes.
 - **Frame number:** the number printed on the film rebate beside each frame (e.g. `23`, `12A`); a frame's identity.
 - **Lab batch:** the lab's order number, the `BBBB` in `BBBBNNNN.jpg`.
 - **Scan index:** the lab's or camera's sequence number for a scan; not the frame number.

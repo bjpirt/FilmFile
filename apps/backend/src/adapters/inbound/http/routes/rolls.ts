@@ -150,7 +150,7 @@ const requireJson = requireContentType('application/json');
 const listRolls = createRoute({
   method: 'get',
   path: '/',
-  summary: 'List every roll, ordered by roll ID',
+  summary: 'List every roll, ordered by roll number',
   responses: { 200: json(z.array(roll), 'The rolls.') },
 });
 
@@ -180,7 +180,7 @@ const createRoll = createRoute({
   responses: {
     201: json(roll, 'The new roll.'),
     400: malformed,
-    409: json(errorResponse, 'A roll with that roll ID already exists.'),
+    409: json(errorResponse, 'A roll with that roll number already exists.'),
     415: wrongType,
     422: invalid,
   },

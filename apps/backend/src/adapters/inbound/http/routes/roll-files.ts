@@ -5,10 +5,10 @@ import { safePath } from '../../../outbound/filesystem/safe-path.ts';
 
 // Reading and writing roll.json files, until the roll repository replaces this (task H.6).
 
-// Strict, because the roll ID becomes part of a folder path.
-export const rollId = z
+// Strict, because the roll number becomes part of a folder path.
+export const rollNumber = z
   .string()
-  .regex(/^\d{4}-\d{3}$/, 'must be a roll ID like 2026-014');
+  .regex(/^\d{4}-\d{3}$/, 'must be a roll number like 2026-014');
 
 const storedVersion = z.object({
   id: z.string(),
@@ -29,7 +29,7 @@ const storedFrame = z.object({
 const storedRoll = z.object({
   schema: z.literal(1),
   id: z.string(),
-  roll: rollId,
+  roll: rollNumber,
   frames: z.array(storedFrame),
 });
 
@@ -41,7 +41,7 @@ export interface RollFile {
   readonly stored: StoredRoll;
 }
 
-/** Every roll in the archive, ordered by roll ID. */
+/** Every roll in the archive, ordered by roll number. */
 export async function readRollFiles(archivePath: string): Promise<RollFile[]> {
   const rollFiles: RollFile[] = [];
   for await (const relative of glob('rolls/*/*/roll.json', {

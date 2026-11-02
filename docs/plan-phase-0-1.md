@@ -208,7 +208,7 @@ Everything works through the API and its docs page. No UI yet.
   - Anchors must be numeric. Warnings (not errors): duplicate numbers and below `00`.
 - **Remap:** applying a new mapping updates frame numbers only; frames keep IDs and metadata because they follow their scans.
 - **Resolver with provenance:** `archive.meta` → `roll.meta` → `frame.meta`, equipment slugs resolved to records. Scalars replace, maps merge, arrays replace, `{ add, remove }` modifies, `null` clears. Every resolved value records its source layer and ID.
-- **Invariants:** rating 0–5, roll IDs unique, frame and version IDs unique within a roll, no two versions in a roll with the same SHA-256, `defaultVersion` (if set) references a version of that frame.
+- **Invariants:** rating 0–5, roll numbers unique, frame and version IDs unique within a roll, no two versions in a roll with the same SHA-256, `defaultVersion` (if set) references a version of that frame.
 
 #### 1.2 Remaining ports and adapters (M)
 
@@ -227,8 +227,8 @@ All take `ArchiveContext` and return `Result`. Each one that writes also updates
 |---|---|
 | `InitialiseArchive`, `GetArchive`, `UpdateArchive` | First run creates `archive.json`; update covers meta and labs |
 | `ListEquipment`, `CreateEquipment` | |
-| `CreateRoll`, `UpdateRoll`, `GetResolvedRoll`, `ListRolls` | `CreateRoll` requires an explicit roll ID. `ListRolls` queries the index with filters (year, camera, film, tag) and sorts by roll ID (default) or shot date |
-| `RenameRoll` | Changes the roll ID: checks it's free, moves the folder, re-indexes. The ULID is unchanged |
+| `CreateRoll`, `UpdateRoll`, `GetResolvedRoll`, `ListRolls` | `CreateRoll` requires an explicit roll number. `ListRolls` queries the index with filters (year, camera, film, tag) and sorts by roll number (default) or shot date |
+| `RenameRoll` | Changes the roll number: checks it's free, moves the folder, re-indexes. The ULID is unchanged |
 | `CreateFrame` | Appends a frame (JSON: frame number and other fields optional) to an existing roll. No version token needed: the service locks the roll and appends |
 | `AddVersion` | Uploads one file as a version of a frame and records its pixel dimensions. Phase 1 takes lab scans only, with the lab and file name; rejects names not matching the lab pattern, files over 200 MB, and files whose signature isn't an allowed image type. Appends under the roll's lock, without a version token. A file whose hash is already in the roll returns `AlreadyExists` with the existing frame and version, so retries are safe |
 | `UpdateFrame`, `UpdateFrames` | Single and bulk edits, including frame numbers; bulk is one roll save |
@@ -289,10 +289,10 @@ React + Vite + TanStack Query, using only the generated client from `@filmfile/c
 
 - **First run:** a setup screen when the archive isn't initialised (name, author, copyright, first lab and its scan direction).
 - **Import:**
-  1. Choose an existing roll, or create one first (roll ID, camera, lens and film pickers). The roll ID field starts empty; the UI offers the next free number in a year as a one-click suggestion, worked out from the roll list.
+  1. Choose an existing roll, or create one first (roll number, camera, lens and film pickers). The roll number field starts empty; the UI offers the next free number in a year as a one-click suggestion, worked out from the roll list.
   2. Drag the lab's folder (or files) onto the page. For each scan, a frame is created and the scan uploaded as its version, with progress; files not matching the lab pattern are listed. Dropping the folder again after an interruption completes the import, since duplicates are recognised by hash.
   3. **Numbering:** thumbnails in scan order with proposed frame numbers. Set the starting anchor and direction, mark skips and overrides, see warnings live, and save the numbers with one bulk update.
-- **Rolls:** a grid of rolls (sleeve photo or first frame), filterable by year, camera, film and tag, sortable by roll ID or shot date, with a "numbering not confirmed" badge.
+- **Rolls:** a grid of rolls (sleeve photo or first frame), filterable by year, camera, film and tag, sortable by roll number or shot date, with a "numbering not confirmed" badge.
 - **Roll:** a contact sheet in frame-number order, with roll details and the sleeve photo alongside.
 - **Frame:** a large preview of the default version with previous/next, the frame's versions with "Set as default", and resolved metadata where every value shows its source (frame, roll, archive). Keyboard: arrows to move, Esc back.
 
@@ -303,7 +303,7 @@ React + Vite + TanStack Query, using only the generated client from `@filmfile/c
 ### Milestone 1c: Editing and maintenance in the UI
 
 - **Frame editing:** title, rating (keys 0–5), tags, notes, location, lens override. Inherited values show greyed with their source; editing creates an override, with "set on roll instead" and "clear override" actions.
-- **Roll editing:** all roll fields and roll `meta`, with equipment pickers that can create new items; upload a sleeve photo; rename the roll ID as a separate, confirmed action.
+- **Roll editing:** all roll fields and roll `meta`, with equipment pickers that can create new items; upload a sleeve photo; rename the roll number as a separate, confirmed action.
 - **Bulk edit:** select frames on the contact sheet and set tags, location or lens in one save.
 - **Fix numbering:** the same mapping screen as import, on an existing roll, then confirm.
 - **Conflict handling:** on a 409, reload the roll, re-apply the change if it doesn't clash, otherwise show what changed.
