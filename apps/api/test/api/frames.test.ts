@@ -13,7 +13,7 @@ async function aRoll(): Promise<string> {
 }
 
 describe('POST /api/rolls/{id}/frames', () => {
-  test('creates a frame with an ID, no edge number and no versions', async () => {
+  test('creates a frame with an ID, no frame number and no versions', async () => {
     const rollId = await aRoll();
 
     const response = await post(`/api/rolls/${rollId}/frames`, {});
@@ -24,7 +24,7 @@ describe('POST /api/rolls/{id}/frames', () => {
     expect(idOf(frame)).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
   });
 
-  test('records the edge number when one is given', async () => {
+  test('records the frame number when one is given', async () => {
     const rollId = await aRoll();
 
     const response = await post(`/api/rolls/${rollId}/frames`, {
@@ -58,7 +58,7 @@ describe('POST /api/rolls/{id}/frames', () => {
   });
 
   test.each([{ number: 23 }, { number: '' }])(
-    'rejects %j, which is not an edge number',
+    'rejects %j, which is not a frame number',
     async (body) => {
       const rollId = await aRoll();
 

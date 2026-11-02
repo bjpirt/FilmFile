@@ -34,7 +34,7 @@ export const frame = z
   .object({
     id: ulid,
     number: z.string().nullable().meta({
-      description: 'The edge number, or null if not known yet.',
+      description: 'The frame number, or null if not known yet.',
       example: '12A',
     }),
     versions: z.array(version),
@@ -59,7 +59,7 @@ export const createFrameRequest = z
   .object({
     number: z
       .string()
-      .min(1, 'must be an edge number like 23 or 12A')
+      .min(1, 'must be a frame number like 23 or 12A')
       .optional(),
   })
   .meta({ id: 'CreateFrameRequest' });

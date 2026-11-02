@@ -37,7 +37,7 @@ export interface ValidationFailed {
   readonly issues: readonly Issue[];
 }
 
-/** A mapping from scans to edge numbers that can't be applied, e.g. a non-numeric anchor. */
+/** A mapping from scans to frame numbers that can't be applied, e.g. a non-numeric anchor. */
 export interface MappingInvalid {
   readonly kind: 'mapping-invalid';
   readonly issues: readonly Issue[];

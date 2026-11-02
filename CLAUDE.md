@@ -64,7 +64,7 @@ Before adding a dependency, check whether a few lines of our own code would do. 
 - **Prefer plain functions and data.** Use classes for use cases and adapters, where constructor injection is the point.
 - **Small functions** that do one thing; extract when a block needs a comment to explain *what* it does. Early returns over nested conditionals.
 - **Comments explain why**, not what. TSDoc on port interfaces and on non-obvious domain functions (the mapping engine, the resolver).
-- **Name things in the domain's language:** roll, frame, edge number, anchor, version, lab scan. See the glossary in the design doc.
+- **Name things in the domain's language:** roll, frame, frame number, anchor, version, lab scan. See the glossary in the design doc.
 
 ## TypeScript rules
 
@@ -72,7 +72,7 @@ Before adding a dependency, check whether a few lines of our own code would do. 
 - **No `any`.** External data enters as `unknown` and is parsed with Zod at the boundary (HTTP request, file read, config). Inside the core, types are trusted.
 - **No non-null assertions (`!`)**, and no type assertions (`as`) outside tested boundary code.
 - **Model states with discriminated unions** and handle them with exhaustive `switch` statements ending in an `assertNever`.
-- **Branded IDs** (`RollId`, `FrameId`, `VersionId`, `ArchiveId`) so they can't be mixed up. Edge numbers are a domain type, not raw strings.
+- **Branded IDs** (`RollId`, `FrameId`, `VersionId`, `ArchiveId`) so they can't be mixed up. Frame numbers are a domain type, not raw strings.
 - **No enums**; use string literal unions or `as const` objects.
 - **`readonly` by default** for domain data; return new values rather than mutating arguments.
 - **Expected failures return `Result`; bugs throw.** Never use exceptions for control flow, never swallow errors, never `catch` without handling or rethrowing.
@@ -85,7 +85,7 @@ Write tests alongside the code, not afterwards. Every bug fix starts with a fail
 
 | Level | What | How |
 |---|---|---|
-| **Unit** | Domain logic: edge numbers, mapping engine, resolver, invariants | Pure functions, table-driven. Property-based tests (`fast-check`) for the mapping engine and resolver, where they earn their keep. |
+| **Unit** | Domain logic: frame numbers, mapping engine, resolver, invariants | Pure functions, table-driven. Property-based tests (`fast-check`) for the mapping engine and resolver, where they earn their keep. |
 | **Integration** | Use cases through `composeInMemory`; real adapters against their **port contract suites** | Use cases: in-memory adapters, fixed clock, sequential IDs. Adapters: real filesystem and SQLite in a temp directory per test. Every port has one shared contract suite run against every adapter. |
 | **API** | HTTP behaviour | Hono `app.request` against an in-memory composition: status codes, validation errors, ETag/If-Match, uploads, security checks. A snapshot of the generated OpenAPI spec catches accidental contract changes. |
 | **End to end** | Critical user journeys only | Playwright against `composeLocal` with a temp archive and generated fixture scans: first-run setup, import, fix numbering, edit, reload. |

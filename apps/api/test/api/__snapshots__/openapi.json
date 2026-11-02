@@ -60,7 +60,7 @@
               "string",
               "null"
             ],
-            "description": "The edge number, or null if not known yet.",
+            "description": "The frame number, or null if not known yet.",
             "example": "12A"
           },
           "versions": {

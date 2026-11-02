@@ -71,7 +71,7 @@ Change them here if they're wrong.
 
 ### 0.5 Fixtures (S)
 
-- A generator that creates small lab-style JPEGs with sharp, each with its edge number drawn on it, named `BBBBNNNN.jpg`.
+- A generator that creates small lab-style JPEGs with sharp, each with its frame number drawn on it, named `BBBBNNNN.jpg`.
 - Fixture sets: scanned head to tail, tail to head, a lab-skipped frame, starting at `00`, and one containing a `12A`.
 - Helpers that create a temp archive per test, and small test-data builders (`aRoll()`, `aFrame()`).
 
@@ -199,8 +199,8 @@ Everything works through the API and its docs page. No UI yet.
 
 #### 1.1 Domain (M)
 
-- Types: `Archive`, `Roll`, `Frame`, `Version`, `EdgeNumber`, `Meta`, `Mapping`, `Equipment`.
-- **Edge numbers:** parse and format `"00"`, `"0"`, integers, `"12A"`, `"14-15"`. Numeric arithmetic is only defined for `00`, `0` and integers (`"00"` = −1).
+- Types: `Archive`, `Roll`, `Frame`, `Version`, `FrameNumber`, `Meta`, `Mapping`, `Equipment`.
+- **Frame numbers:** parse and format `"00"`, `"0"`, integers, `"12A"`, `"14-15"`. Numeric arithmetic is only defined for `00`, `0` and integers (`"00"` = −1).
 - **Mapping engine** (pure). Given scans sorted by scan index and a mapping:
   - A scan in `skips` gets `null`.
   - A scan in `overrides` gets that number exactly; overrides don't affect counting.
@@ -229,9 +229,9 @@ All take `ArchiveContext` and return `Result`. Each one that writes also updates
 | `ListEquipment`, `CreateEquipment` | |
 | `CreateRoll`, `UpdateRoll`, `GetResolvedRoll`, `ListRolls` | `CreateRoll` requires an explicit roll ID. `ListRolls` queries the index with filters (year, camera, film, tag) and sorts by roll ID (default) or shot date |
 | `RenameRoll` | Changes the roll ID: checks it's free, moves the folder, re-indexes. The ULID is unchanged |
-| `CreateFrame` | Appends a frame (JSON: edge number and other fields optional) to an existing roll. No version token needed: the service locks the roll and appends |
+| `CreateFrame` | Appends a frame (JSON: frame number and other fields optional) to an existing roll. No version token needed: the service locks the roll and appends |
 | `AddVersion` | Uploads one file as a version of a frame and records its pixel dimensions. Phase 1 takes lab scans only, with the lab and file name; rejects names not matching the lab pattern, files over 200 MB, and files whose signature isn't an allowed image type. Appends under the roll's lock, without a version token. A file whose hash is already in the roll returns `AlreadyExists` with the existing frame and version, so retries are safe |
-| `UpdateFrame`, `UpdateFrames` | Single and bulk edits, including edge numbers; bulk is one roll save |
+| `UpdateFrame`, `UpdateFrames` | Single and bulk edits, including frame numbers; bulk is one roll save |
 | `DeleteVersion`, `DeleteFrame`, `DeleteRoll` | Explicit deletes into the holding area; nothing is permanently deleted. Each saves the roll first, then moves the JSON and files to `deleted/`. Deleting the default version unsets `defaultVersion`. A roll can be deleted only when it has no frames |
 | Mapping use cases | Depend on where the mapping engine lives (open question). Confirming numbering is an `UpdateRoll` |
 | `AttachSleevePhoto` | Stores the sleeve photo through the blob store |
@@ -291,9 +291,9 @@ React + Vite + TanStack Query, using only the generated client from `@filmfile/c
 - **Import:**
   1. Choose an existing roll, or create one first (roll ID, camera, lens and film pickers). The roll ID field starts empty; the UI offers the next free number in a year as a one-click suggestion, worked out from the roll list.
   2. Drag the lab's folder (or files) onto the page. For each scan, a frame is created and the scan uploaded as its version, with progress; files not matching the lab pattern are listed. Dropping the folder again after an interruption completes the import, since duplicates are recognised by hash.
-  3. **Numbering:** thumbnails in scan order with proposed edge numbers. Set the starting anchor and direction, mark skips and overrides, see warnings live, and save the numbers with one bulk update.
+  3. **Numbering:** thumbnails in scan order with proposed frame numbers. Set the starting anchor and direction, mark skips and overrides, see warnings live, and save the numbers with one bulk update.
 - **Rolls:** a grid of rolls (sleeve photo or first frame), filterable by year, camera, film and tag, sortable by roll ID or shot date, with a "numbering not confirmed" badge.
-- **Roll:** a contact sheet in edge-number order, with roll details and the sleeve photo alongside.
+- **Roll:** a contact sheet in frame-number order, with roll details and the sleeve photo alongside.
 - **Frame:** a large preview of the default version with previous/next, the frame's versions with "Set as default", and resolved metadata where every value shows its source (frame, roll, archive). Keyboard: arrows to move, Esc back.
 
 **Milestone 1b is done when** I've imported at least five real rolls through the browser, including one the lab scanned in reverse, and can browse them all.
@@ -315,7 +315,7 @@ React + Vite + TanStack Query, using only the generated client from `@filmfile/c
 
 ## Testing approach
 
-- **Domain:** table-driven unit tests for edge numbers, the mapping engine (up, down, `00`, anchors, overrides, skips, warnings), and the resolver (every merge rule, provenance).
+- **Domain:** table-driven unit tests for frame numbers, the mapping engine (up, down, `00`, anchors, overrides, skips, warnings), and the resolver (every merge rule, provenance).
 - **Use cases:** through `composeInMemory`, covering every use case's success and error paths. This is the bulk of the behaviour tests.
 - **Port contracts:** shared suites run against in-memory and real adapters for every port.
 - **HTTP:** `app.request` tests against an in-memory composition: status codes, ETag / If-Match, validation errors, frame uploads and duplicates.
@@ -336,5 +336,5 @@ A CLI, raws and hi-res masters, multiple versions per frame, the NegPy integrati
 ## Open questions
 
 - Where the mapping engine lives: in the service behind a stateless endpoint, in a shared package, or in the UI. To be decided once more of the app is built.
-- Whether `roll.json` records the mapping used to number a roll, so it can be adjusted later, or only the resulting edge numbers.
+- Whether `roll.json` records the mapping used to number a roll, so it can be adjusted later, or only the resulting frame numbers.
 - Upload limits for raws and 16-bit TIFF masters (Phase 2). Lab scans are limited to 200 MB per file.

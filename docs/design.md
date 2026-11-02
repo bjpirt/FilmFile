@@ -12,7 +12,7 @@ The phased roadmap is in section 14, and the detailed plan for the first phases 
 
 **Goals**
 
-- Catalogue every frame and link it back to the physical negative (roll, sleeve, edge number).
+- Catalogue every frame and link it back to the physical negative (roll, sleeve, frame number).
 - Organise by **roll** (physical) and by **event** (what happened), with events that can nest.
 - Keep **multiple versions** of each photograph (lab scan, raw camera scans, edits, exports) with their lineage.
 - Store all metadata as **JSON on the filesystem**, with layered overrides.
@@ -50,16 +50,16 @@ Archive
  ├─ Equipment   cameras, lenses, films (referenced by slug)
  ├─ Event       what happened: name, dates, place; nests via parent
  └─ Roll        the physical roll: development, sleeve location, numbering
-     └─ Frame   one photograph: edge number, title, rating, events
+     └─ Frame   one photograph: frame number, title, rating, events
          └─ Version   one file: lab scan, raw, master, edit or export, with lineage
                └─ Attachments   editor recipe sidecars (e.g. .negpy)
 ```
 
 - **Roll:** identified by my roll ID (written on the sleeve) in the form `YYYY-NNN`, e.g. `2026-014`. `YYYY` is the year the roll was shot; `NNN` is the next free number in that year when the roll is catalogued, so a roll catalogued late gets a later number than rolls shot after it. Rolls aren't numbered when the film is loaded. The roll's folder is `rolls/YYYY/YYYY-NNN/`. The lab batch is metadata.
   - The API never invents a roll ID: creating a roll requires one. The UI suggests the next free number for the year but never fills it in for you.
-  - Lists sort by roll ID by default, or by shot date when chosen. Roll-level shot dates are optional and kept for reference; within a roll, edge-number order is shot order.
+  - Lists sort by roll ID by default, or by shot date when chosen. Roll-level shot dates are optional and kept for reference; within a roll, frame-number order is shot order.
   - A roll ID can be changed only by an explicit rename, which checks the new ID is free and moves the roll's folder. The roll's ULID doesn't change, so links survive. Files inside the folder never move relative to it.
-- **Frame:** identified by the **edge number printed on the film**, as a string: `"0"`, `"23"`, `"12A"`, or `"14-15"` for a panoramic frame spanning two numbers. `null` for a scan that's skipped or not yet identified. 120 film uses position on the roll. A frame holds metadata and zero or more versions; a frame with no versions is valid (e.g. a frame the lab skipped, catalogued from the sleeve). `defaultVersion` optionally names the version to show; when unset, the newest version is shown.
+- **Frame:** identified by the **frame number printed on the film**, as a string: `"0"`, `"23"`, `"12A"`, or `"14-15"` for a panoramic frame spanning two numbers. `null` for a scan that's skipped or not yet identified. 120 film uses position on the roll. A frame holds metadata and zero or more versions; a frame with no versions is valid (e.g. a frame the lab skipped, catalogued from the sleeve). `defaultVersion` optionally names the version to show; when unset, the newest version is shown.
 - **Version:** a file with a ULID, a content hash, its pixel dimensions and parents. Versions have no `kind`: a version is a version, and the frame's `defaultVersion` decides which one is shown. Low-res display images are generated previews in the cache, never versions. `defaultVersion` and `parents` refer to version IDs, never paths. Phase 2 adds raws, masters (editor exports), edits and exports; how the service tells them apart where behaviour differs (e.g. never writing metadata into raws) is an open question (section 15). **`parents` is a list**, since a master may come from several raws (brackets, stitched sections, trichrome).
 - **Event:** a named happening with optional dates, location and parent event. Rolls and frames belong to events (section 7).
 
@@ -176,11 +176,11 @@ Equipment slugs resolve to their records, whose fields can be overridden by more
 
 ### 8.1 Lab scans
 
-Lab scans are low-res JPEGs of every frame named `BBBBNNNN.jpg` (batch, scan index). They're **cropped**, so edge numbers aren't visible, and the lab **sometimes scans from the tail of the roll**.
+Lab scans are low-res JPEGs of every frame named `BBBBNNNN.jpg` (batch, scan index). They're **cropped**, so frame numbers aren't visible, and the lab **sometimes scans from the tail of the roll**.
 
 - The file pattern and default direction are configured per lab in `archive.json`.
-- **Mapping** from scan index to edge number uses **anchors** (`scan → frame`, counting up or down from each anchor), **overrides** (one-off numbers such as `25A`, not affecting counting), and **skips** (scans with no frame). Algorithm details are in the Phase 0–1 plan.
-- **The API has no import workflow.** A roll is created first; then each frame is created (JSON, edge number optional), and its lab scan is uploaded (at most 200 MB) as a version of that frame, stored unchanged in the version's own folder. Frames can be added to a roll that already has frames.
+- **Mapping** from scan index to frame number uses **anchors** (`scan → frame`, counting up or down from each anchor), **overrides** (one-off numbers such as `25A`, not affecting counting), and **skips** (scans with no frame). Algorithm details are in the Phase 0–1 plan.
+- **The API has no import workflow.** A roll is created first; then each frame is created (JSON, frame number optional), and its lab scan is uploaded (at most 200 MB) as a version of that frame, stored unchanged in the version's own folder. Frames can be added to a roll that already has frames.
 - **The UI drives the import:** drag the lab's download folder onto the import page, create a frame and upload its scan for each file, then set the numbering.
 - Upload is idempotent: a file whose hash is already in the roll is refused with a reference to the existing frame and version, so an interrupted import is completed by uploading again. An interruption between creating a frame and uploading its scan leaves a frame with no versions, which is valid and can be uploaded into or deleted.
 - Where the mapping engine runs is open (section 15).
@@ -192,7 +192,7 @@ Lab scans are low-res JPEGs of every frame named `BBBBNNNN.jpg` (batch, scan ind
 1. Frames are marked **needs hi-res** while browsing lab scans.
 2. The tool produces an ordered **scan list** (e.g. `2026-014: 3, 7, 12A, 23`).
 3. Raws are shot in that order and imported as versions of their frames, matched to frames by capture time against the list, using the same anchors-and-exceptions approach.
-4. Including the film border is encouraged, so the edge number is visible.
+4. Including the film border is encouraged, so the frame number is visible.
 5. A frame may have several raws.
 
 ---
@@ -286,7 +286,7 @@ The layers are **folders within the service package**, with a lint rule (`eslint
 
 | Layer | Contains | May import |
 |---|---|---|
-| `domain/` | Entities and value objects (Roll, Frame, Version, EdgeNumber, Mapping, Meta), the mapping engine, metadata resolution and provenance, invariants and domain errors. Pure: no I/O, no time, no randomness. | Nothing outside `domain/` |
+| `domain/` | Entities and value objects (Roll, Frame, Version, FrameNumber, Mapping, Meta), the mapping engine, metadata resolution and provenance, invariants and domain errors. Pure: no I/O, no time, no randomness. | Nothing outside `domain/` |
 | `application/` | Use cases, and the **port interfaces** they depend on (`application/ports/`). Orchestrates domain + ports. | `domain/` |
 | `adapters/` | Inbound adapters (HTTP, file watcher), which call the application, and outbound adapters (filesystem, SQLite, sharp, node clock and IDs, in-memory). | `application/`, `domain/`, libraries |
 | `composition/` | Composition roots that build the object graph for each runtime. | Everything |
@@ -442,7 +442,7 @@ packages/
 
 - **Telling versions apart (Phase 2):** versions have no `kind`. When raws and masters arrive, decide how the service knows a version is a raw (never write metadata into it), a master (has parents and a recipe) or a lab scan (has a batch and scan index): an explicit field, or inferred from the file type and fields present (the folder no longer says). The likely answer is an optional `source` attribute recording where the file came from (e.g. lab scan, camera scan, editor export), added when it's first needed.
 - **Mapping engine location:** in the service behind a stateless endpoint, in a shared package, or in the UI. Decide once more of the app is built.
-- **Stored mapping:** whether `roll.json` records the mapping used to number a roll, or only the resulting edge numbers.
+- **Stored mapping:** whether `roll.json` records the mapping used to number a roll, or only the resulting frame numbers.
 - **Name clearance:** check the domain, GitHub organisation and UK IPO register for FilmFile, noting the Print File sleeve brand.
 - **NegPy sidecars:** confirm the `.negpy` file name and where it's written.
 - **Masters in Standard-IA too?** Whether hi-res files should be fetchable from other devices.
@@ -453,9 +453,9 @@ packages/
 
 ## 16. Glossary
 
-- **Edge number:** the frame number printed on the film rebate; a frame's identity.
+- **Frame number:** the number printed on the film rebate beside each frame (e.g. `23`, `12A`); a frame's identity.
 - **Lab batch:** the lab's order number, the `BBBB` in `BBBBNNNN.jpg`.
-- **Scan index:** the lab's or camera's sequence number for a scan; not the edge number.
+- **Scan index:** the lab's or camera's sequence number for a scan; not the frame number.
 - **Anchor:** a mapping point saying "this scan is this frame", from which numbering counts up or down.
 - **Master:** a hi-res file exported from the editor.
 - **Recipe / sidecar:** the editor's edit settings stored as a file next to the raw.

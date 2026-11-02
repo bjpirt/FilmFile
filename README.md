@@ -1,6 +1,6 @@
 # FilmFile
 
-A local-first tool for cataloguing film photographs. It links every frame back to its physical negative (roll, sleeve, edge number), organises frames by roll and by nested events, and keeps every version of each image: lab scan, raw camera scans, edits and exports.
+A local-first tool for cataloguing film photographs. It links every frame back to its physical negative (roll, sleeve, frame number), organises frames by roll and by nested events, and keeps every version of each image: lab scan, raw camera scans, edits and exports.
 
 Status: design agreed, not yet built.
 

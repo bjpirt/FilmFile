@@ -33,7 +33,7 @@ Settled on 2 November 2026 and recorded in `docs/design.md`. Tasks refer to them
 | D8 | The API never invents a roll ID; `CreateRoll` requires one. The UI suggests the next free number for a year, worked out from the roll list, but the field starts empty. | 1.3.3, 1b.3 |
 | D9 | Roll lists sort by roll ID by default, or by shot date when chosen. Roll shot dates are optional. | 1.2.4, 1.3.4, 1b.6 |
 | D10 | A roll ID can be changed only by an explicit rename, which moves the roll's folder. The ULID is unchanged. | 0.4.1, 1.3.15, 1c.2 |
-| D11 | The API has no import workflow. A roll is created first, then each frame is created and its lab scan uploaded as a version (D13); the UI drives the import. Edge numbers are optional on creation and can be set later. Creating a frame is an append that doesn't need `If-Match`; a scan whose hash is already in the roll returns 409, so retries are safe. Frames can be added to a roll that already has frames. | 1.3.6, 1.4.4, 1b.3–1b.5 |
+| D11 | The API has no import workflow. A roll is created first, then each frame is created and its lab scan uploaded as a version (D13); the UI drives the import. Frame numbers are optional on creation and can be set later. Creating a frame is an append that doesn't need `If-Match`; a scan whose hash is already in the roll returns 409, so retries are safe. Frames can be added to a roll that already has frames. | 1.3.6, 1.4.4, 1b.3–1b.5 |
 | D12 | Frames can be deleted, and rolls can be deleted when they have no frames, as explicit, confirmed actions. Nothing is permanently deleted: deleted items move into `deleted/` in the archive, one dated folder each with the files and their JSON, and only the user empties it. No restore in the UI in Phase 1. | 0.4.1, 1.2.3, 1.3.16, 1c.2, 1c.3 |
 | D13 | Image data and metadata have separate endpoints. Frames are JSON; images are uploaded as versions of a frame (`POST …/frames/{frameId}/versions?file=…`, raw body). Versions have ULIDs and no `kind`; `defaultVersion` and `parents` refer to version IDs, never paths. Phase 1 uploads lab scans only. A frame with no versions is valid. `defaultVersion` is optional; when unset the newest version is shown. A single version can be deleted into the holding area. Originals are read by version ID. | 1.1.1, 1.1.7, 1.3.6, 1.3.11, 1.3.16, 1.4.3–1.4.6, 1b.4, 1b.7, 1b.8 |
 | D14 | No "preview" versions: on-screen images are generated previews of the frame's shown version, cached outside the archive. Every version records `width` and `height`, read by the `ImageInspector` port at upload. | 1.1.1, 1.2.7, 1.3.6 |
@@ -61,7 +61,7 @@ Every task starts with API tests in `apps/api/test/api/`, run against a temp arc
 - [x] **S1.2 Create a roll.** `POST /api/rolls` with `{ roll: "2026-014" }` creates `rolls/2026/2026-014/roll.json` with a ULID and an empty `frames` list, and returns 201 with the roll. API tests: the response, the file on disk, a second create with the same roll ID returns 409.
 - [x] **S1.3 List and get rolls.** `GET /api/rolls` reads every `roll.json` under `rolls/`; `GET /api/rolls/{rollId}` returns one by its ULID, or 404.
 - [x] **S1.3a Basic Zod parsing.** Request bodies and `roll.json` are parsed with Zod schemas in the route file; invalid requests, including malformed JSON, return 422 with each issue's path and message. *(Brought forward from S2.1 and H.8, which move the schemas to the contracts package and the filesystem adapter.)*
-- [x] **S1.4 Create a frame.** `POST /api/rolls/{rollId}/frames` with an optional edge number appends a frame with a ULID and no versions to `roll.json`, and returns 201.
+- [x] **S1.4 Create a frame.** `POST /api/rolls/{rollId}/frames` with an optional frame number appends a frame with a ULID and no versions to `roll.json`, and returns 201.
 - [x] **S1.5 Upload a lab scan.** `POST /api/rolls/{rollId}/frames/{frameId}/versions?file=12340014.jpg` with the image as the raw body writes it unchanged to the version's own folder, `frames/<frame>/<version>/` (D17), and appends a version with its ULID, SHA-256, size, width and height (read with sharp). A second upload of the same bytes returns 409. Tests generate a small JPEG with sharp.
 - [x] **S1.6 Thumbnails and originals.** `GET /api/rolls/{rollId}/frames/{frameId}/versions/{versionId}/thumbnail?size=small|large` returns a 400 px or 2048 px WebP made with sharp and cached in the cache directory by content hash; `GET …/versions/{versionId}/file` returns the original.
 - [x] **S1.7 Checkpoint.** Create a roll and upload a real roll's scans with `curl`, then open thumbnails in the browser.
@@ -107,7 +107,7 @@ Built to the full standard from the start. Task IDs are the original ones; tasks
 ### Domain
 
 - [ ] **1.1.1 Domain types.** `Archive`, `Roll`, `Frame`, `Version`, `Meta`, `Equipment` (camera, lens, film as a union), with readonly fields. Roll IDs parsed as `YYYY-NNN` (D7). `Version` has no `kind` (D16), and every version has `width` and `height` (D13, D14). A helper for the version a frame shows (`defaultVersion`, else newest).
-- [ ] **1.1.2 Edge numbers.** `EdgeNumber` type with parse and format for `"00"`, `"0"`, integers, `"12A"` and `"14-15"`; arithmetic only for numeric values (`"00"` = −1). Table-driven tests, plus a property test that format(parse(x)) = x for valid input.
+- [ ] **1.1.2 Frame numbers.** `FrameNumber` type with parse and format for `"00"`, `"0"`, integers, `"12A"` and `"14-15"`; arithmetic only for numeric values (`"00"` = −1). Table-driven tests, plus a property test that format(parse(x)) = x for valid input.
 - [ ] **1.1.3 Mapping engine.** Pure function from sorted scans and a `Mapping` (direction, anchors, overrides, skips) to a frame number per scan, following the rules in the plan. Rejects non-numeric anchors with `MappingInvalid`. Table-driven and property tests. *(Blocked: mapping location, for where it runs.)*
 - [ ] **1.1.4 Mapping warnings.** Duplicate numbers and below `00` (D3), as warnings alongside the result.
 - [ ] **1.1.5 Remap.** Applying a new mapping to a roll updates frame numbers only; IDs, metadata and versions stay with their scans.
@@ -130,7 +130,7 @@ Built to the full standard from the start. Task IDs are the original ones; tasks
 - [ ] **1.3.3 `UpdateRoll` and resolved rolls.** `UpdateRoll`; `GetRoll` returns resolved metadata with provenance.
 - [ ] **1.3.4 `ListRolls` filters.** Year, camera, film and tag filters, sorted by roll ID or shot date (D9), through the index.
 - [ ] **1.3.5 Frames.** `UpdateFrame` and bulk `UpdateFrames`, with bulk as a single roll save.
-- [ ] **1.3.9 Numbering.** Setting edge numbers in bulk through `UpdateFrames`; confirming numbering through `UpdateRoll`. Any mapping use cases *(blocked: mapping location)*.
+- [ ] **1.3.9 Numbering.** Setting frame numbers in bulk through `UpdateFrames`; confirming numbering through `UpdateRoll`. Any mapping use cases *(blocked: mapping location)*.
 - [ ] **1.3.10 `AttachSleevePhoto`.** Through the blob store, with the signature check.
 - [ ] **1.3.12 `CheckIntegrity`.** Validate files, check every version's file exists with the right size, optional full re-hash; report dangling equipment references, unreferenced files and duplicate numbers. `deleted/` is skipped.
 - [ ] **1.3.13 `RebuildIndex`.**
@@ -159,7 +159,7 @@ Built to the full standard from the start. Task IDs are the original ones; tasks
 - [ ] **1b.4 Robust upload.** Files not matching the lab pattern are listed and skipped; parallel uploads with retries; a 409 for a duplicate counts as done, so re-dropping a folder completes an interrupted import; leftover frames with no versions can be deleted.
 - [ ] **1b.5 Numbering.** Thumbnails in scan order; anchor and direction, skips and overrides, proposed numbers and warnings; save with one bulk update. A reusable component for 1c.4. *(Blocked: mapping location.)*
 - [ ] **1b.6 Rolls grid.** Sleeve photo or first frame, filters, sort (D9), "numbering not confirmed" badge (D6).
-- [ ] **1b.7 Roll view.** Contact sheet in edge-number order, roll details and sleeve photo; frames with no versions show a placeholder.
+- [ ] **1b.7 Roll view.** Contact sheet in frame-number order, roll details and sleeve photo; frames with no versions show a placeholder.
 - [ ] **1b.8 Frame view.** Large preview, previous/next, resolved metadata with sources, the frame's versions with "Set as default" and delete; arrow keys and Esc.
 - [ ] **1b.9 Checkpoint.** Import at least five real rolls, including one scanned in reverse, and browse them.
 - [ ] **1c.1 Frame editing.** Title, rating (keys 0–5), tags, notes, location, lens override; inherited values greyed with their source; "set on roll instead" and "clear override".
