@@ -2,6 +2,8 @@
 
 *Last updated 2 November 2026. Read alongside `docs/design.md`, especially section 13 (Architecture).*
 
+**Delivery order:** this plan describes what Phases 0 and 1 contain. The work is delivered slice first, as set out in `docs/tasks-phase-0-1.md`: rolls and scans through the API (S1), then a basic UI (S2), then hardening to the standards below (H), then the rest of Phase 1 (P). The "done when" criteria here still apply by the end.
+
 ## Outcome
 
 At the end of Phase 1 I can drag a lab's scans into the browser, fix the frame numbering against the negatives, catalogue rolls and frames (camera, lens, film, title, tags, rating, location), and browse everything, with the archive stored as plain JSON and image files on disk and all access going through the FilmFile API service.

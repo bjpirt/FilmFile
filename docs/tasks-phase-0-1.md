@@ -1,16 +1,25 @@
 # FilmFile tasks: Phase 0 and Phase 1
 
-*Created 2 November 2026 from `docs/plan-phase-0-1.md`. The plan says what and why; this file is the ordered list of work. Tick tasks off here as they're done.*
+*Created 2 November 2026 from `docs/plan-phase-0-1.md`; restructured the same day to deliver a working slice first. The plan says what and why; this file is the ordered list of work. Tick tasks off here as they're done.*
 
-Each task is about one commit: small enough to review in one sitting, with its tests in the same commit. `pnpm verify` passes at the end of every task (from task 0.1.4 onwards). Task IDs follow the plan's step numbers, so `0.4.3` is the third task of plan step 0.4.
+Each task is about one commit: small enough to review in one sitting, with its tests in the same commit. `pnpm verify` passes at the end of every task. Persistence formats, field rules and the route list are in the plan and not repeated here.
 
-Where this list orders things differently from the plan, it says why. Persistence formats, field rules and the route list are not repeated here; see the plan.
+## How we're delivering
+
+1. **S1, API slice:** rolls and scans working through the API, end to end to files on disk.
+2. **S2, contracts and a basic UI:** the same slice in the browser.
+3. **H, hardening:** bring the slice up to the standards in `CLAUDE.md`: security, the hexagonal layers, error handling, atomic writes, contract suites.
+4. **P, the rest of Phase 1:** numbering, metadata, equipment, the index, and so on, built to the full standard from the start.
+
+For each endpoint in S1 and S2: **write the API test first**, then the simplest code that passes it, then improve. API tests use Hono's `app.request` against a temp archive on the real filesystem. In S1 and S2, routes may read and write files directly; milestone H moves that logic into use cases and ports.
+
+**Until H.1–H.3 are done, the service has no Host or Origin checks**, so any web page could call it while it runs. Only run it while you're using it.
 
 ---
 
 ## Decisions
 
-Settled on 2 November 2026 and recorded in `docs/design.md`. Tasks refer to them by number.
+Settled on 2 November 2026 and recorded in `docs/design.md`. Tasks refer to them by number. The "Affects" column uses the original task IDs; tasks that moved into the slice or hardening say where they went.
 
 | # | Decision | Affects |
 | --- | --- | --- |
@@ -34,171 +43,128 @@ Settled on 2 November 2026 and recorded in `docs/design.md`. Tasks refer to them
 
 ---
 
-## Phase 0: Foundations
+## Done
 
-### 0.1 Repository and tooling
-
-- [x] **0.1.1 Initialise the repository.** `git init`, `.gitignore` (node_modules, build output, coverage, local config), `.editorconfig`, `.nvmrc` with the current Node LTS.
-- [x] **0.1.2 pnpm workspace.** Root `package.json` (`engines`, `packageManager`), `pnpm-workspace.yaml` listing `apps/*` and `packages/*`, with the supply-chain settings from CLAUDE.md (`minimumReleaseAge`, `allowBuilds`, `strictDepBuilds`, `blockExoticSubdeps`) from the start rather than in 0.6, so no dependency is ever installed without them. Empty packages `@filmfile/service`, `@filmfile/web` and `@filmfile/contracts`.
-- [x] **0.1.3 TypeScript.** `tsconfig.base.json` with strict plus the extra flags in CLAUDE.md; a `tsconfig.json` per package extending it; a root `typecheck` script running `tsc --noEmit` in every package.
-- [x] **0.1.4 Prettier, ESLint and Vitest.** Prettier config and `format:check`. ESLint flat config with `strictTypeChecked` and `stylisticTypeChecked`, plus rules for: no default exports, no enums (`no-restricted-syntax`), no non-null assertions, no floating promises. Vitest workspace config with coverage thresholds (90% lines and branches for `domain/` and `application/`, 80% overall). Root `pnpm verify` runs format check, lint, typecheck and tests.
-- [x] **0.1.5 Layer boundaries.** `eslint-plugin-boundaries` with the element types `domain`, `application`, `adapters`, `composition`, `main` and the rules from the plan. Add a lint fixture or test proving that a `domain` file importing an adapter fails lint, and that `apps/web` importing from `apps/service` fails.
-- [x] **0.1.6 Minimal CI.** A GitHub Actions workflow with actions pinned to commit SHAs and `permissions: contents: read`: frozen-lockfile install and `pnpm verify`. (The plan's 0.1 is only done when CI passes, so a basic pipeline belongs here; 0.6 adds the rest.)
-
-**Done when:** CI passes on the skeleton, and the wrong-way import in 0.1.5 fails the build.
-
-### 0.2 Service skeleton and composition
-
-- [x] **0.2.1 `Result`.** `domain/shared/result.ts`: the `Result<T, E>` type, `ok`, `err`, and only the helpers the next tasks actually use. Plus `assertNever`.
-- [ ] **0.2.2 Domain errors.** A discriminated union of `NotFound`, `ValidationFailed`, `ConcurrencyConflict`, `AlreadyExists` and `MappingInvalid`, each with the fields the HTTP layer needs to build a safe message.
-- [ ] **0.2.3 IDs and context.** Branded `ArchiveId`, `RollId`, `FrameId` and `VersionId` with parse functions; `ArchiveContext`.
-- [ ] **0.2.4 `Clock` and `IdGenerator` ports.** Port interfaces with TSDoc; node adapters (system time, ULID); a fixed clock and a sequential ID generator for tests. A shared contract suite for each port (for example, IDs are unique and valid ULIDs).
-- [ ] **0.2.5 Composition roots.** `composeInMemory()` and `composeLocal(config)` returning `{ application, httpApp }`. A config schema (Zod) for archive path, cache directory, host and port; `main.ts` parses config from the environment and starts the server on `127.0.0.1`.
-- [ ] **0.2.6 Health and OpenAPI.** `GET /api/health`, `GET /api/openapi.json`, and the docs page at `/api/docs` (assets served locally, per D2). API tests against `composeInMemory`, and one test that starts `composeLocal` against a temp directory.
-
-**Done when:** `GET /api/health` responds from both compositions, and the docs page loads.
-
-### 0.3 Contracts package
-
-- [ ] **0.3.1 Schemas.** `@filmfile/contracts` with Zod schemas for health and archive DTOs, which the service's routes use.
-- [ ] **0.3.2 Spec and client generation.** A script that writes the OpenAPI spec from the service's route definitions into the contracts package, runs `openapi-typescript`, and exports an `openapi-fetch` client factory. A check in `pnpm verify` that fails if the committed spec or generated types are out of date.
-- [ ] **0.3.3 OpenAPI snapshot test.** Snapshot the generated spec, so any contract change shows up in review.
-- [ ] **0.3.4 Web app shell.** A Vite + React app in `apps/web` that calls the health endpoint through the generated client and shows the result. A test that it renders the health status.
-
-**Done when:** the web app makes a typed call to the health endpoint.
-
-### 0.6a Safe paths and HTTP security (brought forward)
-
-The plan puts this in 0.6. The safe path helper is needed before the filesystem adapters in 0.4, and the security middleware is cheapest to add before more routes exist, so both move up.
-
-- [ ] **0.6.1 Safe path helper.** `adapters/driven/filesystem/safe-path.ts`: resolves a relative path against a root, rejecting absolute paths, `..` segments, separators inside a single name, null bytes, and anything that resolves outside the root, including through symlinks. Table-driven tests with traversal attempts.
-- [ ] **0.6.2 Host and Origin checks.** Middleware rejecting (403) a `Host` that isn't `localhost`, `127.0.0.1` or `[::1]` on the configured port, and any `Origin` other than the configured UI origin (D1). State-changing methods require a matching `Origin`. API tests for each case.
-- [ ] **0.6.3 Content type and security headers.** Requests with a JSON body require `Content-Type: application/json` (415 otherwise). Every response gets the CSP, `X-Content-Type-Options`, `frame-ancestors 'none'` and `Referrer-Policy` headers. API tests.
-- [ ] **0.6.4 Error handler.** Unexpected errors return a generic 500 with a correlation ID and are logged server-side with that ID. A test proving that no stack trace or path appears in the response body.
-
-### 0.4 Repository ports and adapters
-
-- [ ] **0.4.1 Repository port interfaces.** `ArchiveRepository`, `RollRepository` and `EquipmentRepository` in `application/ports/`, with the `{ value, version }` read shape, `create` returning `AlreadyExists`, and `save(ctx, value, expectedVersion)` returning `ConcurrencyConflict`. `RollRepository.rename(ctx, id, newRollId, expectedVersion)` returns `AlreadyExists` or `ConcurrencyConflict` (D10). `RollRepository.delete(ctx, id, expectedVersion)` for empty rolls, which hands the folder to the holding area (D12). TSDoc on each. Only the minimum domain types needed to compile (fleshed out in 1.1).
-- [ ] **0.4.2 Contract suites.** One shared suite per port in `test/contracts/`, taking a factory for the adapter under test: create, read, not found, already exists, save with the current version, save with a stale version, rename to a free ID, rename to a taken ID.
-- [ ] **0.4.3 In-memory adapters.** All three, passing the contract suites.
-- [ ] **0.4.4 Persistence schemas.** Zod schemas for `archive.json`, `roll.json` and the equipment files (formats in the plan), with `schema: 1` and an empty migration registry. Explicit mapping functions between persistence and domain types.
-- [ ] **0.4.5 Stable serialisation.** A serialiser with fixed key order, 2-space indent and a trailing newline. A property test that serialise → parse → serialise is byte-identical.
-- [ ] **0.4.6 Atomic writer.** A per-file lock (lock files in the cache directory), a version check (version = SHA-256 of the file bytes), and a write to a temp file in the same directory, fsync, then rename. Tests: concurrent saves serialise; a simulated crash between the temp write and the rename leaves the original intact.
-- [ ] **0.4.7 Filesystem adapters.** The three repositories on top of 0.4.4 to 0.4.6, every path going through the safe path helper. Invalid files return a typed error naming the file and field. Rename moves the roll folder with a single directory rename, creating the year folder if needed. Run the contract suites against them in a temp directory per test, plus a test that a failed rename leaves the original folder intact.
-
-**Done when:** the contract suites pass for both adapters, including stale versions, serialised concurrent saves, crash safety and byte-stable round trips.
-
-### 0.5 Fixtures
-
-- [ ] **0.5.1 Test-data builders.** `aRoll()`, `aFrame()` and `anArchive()` with fluent `with…` methods, in the test folder of `apps/service`.
-- [ ] **0.5.2 Temp archive helper.** Creates a temp archive and cache directory per test and removes them afterwards.
-- [ ] **0.5.3 Lab scan generator.** A sharp script that creates small JPEGs named `BBBBNNNN.jpg`, each with its edge number drawn on it.
-- [ ] **0.5.4 Fixture sets.** Head to tail, tail to head, a lab-skipped frame, starting at `00`, and one containing `12A`. Generated deterministically, so they can be rebuilt rather than committed if preferred.
-
-### 0.6b Quality baseline (rest of 0.6)
-
-- [ ] **0.6.5 Full CI pipeline.** Add the build, Playwright (an empty smoke test for now), `pnpm audit --audit-level high`, gitleaks, and CodeQL or Semgrep depending on whether the repository is public. Add a macOS job, because `sharp` is a known install risk.
-- [ ] **0.6.6 Dependency updates.** Dependabot or Renovate, including GitHub Actions SHAs.
-- [ ] **0.6.7 Pre-commit hook.** lint-staged formats and lints staged files only.
-
-**Done when:** API tests prove that a wrong `Host`, a foreign `Origin` and a missing content type are rejected with 403/415, the path traversal tests pass, and the full CI pipeline is green.
+- [x] **0.1.1–0.1.6 Repository and tooling.** Git, editor and Node config; pnpm workspace with supply-chain settings; strict TypeScript; Prettier, ESLint and Vitest with `pnpm verify`; layer boundaries enforced by lint and tested; CI running `pnpm verify`.
+- [x] **0.2.1 `Result`.** `Result<T, E>`, `ok`, `err` and `assertNever` in `domain/shared/`.
+- [x] **0.2.2 Domain errors.** `DomainError`: `NotFound`, `AlreadyExists`, `ConcurrencyConflict`, `ValidationFailed`, `MappingInvalid`. Used from H.6.
 
 ---
 
-## Phase 1, milestone 1a: Domain, use cases and API
+## S1: API slice — rolls and scans
 
-### 1.1 Domain
+Every task starts with API tests in `apps/service/test/api/`, run against a temp archive.
 
-- [ ] **1.1.1 Domain types.** `Archive`, `Roll`, `Frame`, `Version`, `Meta`, `Equipment` (camera, lens, film as a union), with readonly fields. Roll IDs parsed as `YYYY-NNN` (D7). `VersionId` branded like the other IDs; `Version` is a discriminated union by `kind` with only `lab-scan` in Phase 1, and every version has `width` and `height` (D13, D14). A helper for the version a frame shows (`defaultVersion`, else newest).
+- [ ] **S1.1 Server runs.** A Hono app with `GET /api/health`. `composeLocal(config)` builds the app; `main.ts` reads the archive and cache directories and port from environment variables and serves on `127.0.0.1` with `@hono/node-server`, running the `.ts` source directly with Node. A temp archive helper for tests. API test: health returns 200.
+- [ ] **S1.2 Create a roll.** `POST /api/rolls` with `{ roll: "2026-014" }` creates `rolls/2026/2026-014/roll.json` with a ULID and an empty `frames` list, and returns 201 with the roll. API tests: the response, the file on disk, a second create with the same roll ID returns 409.
+- [ ] **S1.3 List and get rolls.** `GET /api/rolls` reads every `roll.json` under `rolls/`; `GET /api/rolls/{rollId}` returns one by its ULID, or 404.
+- [ ] **S1.4 Create a frame.** `POST /api/rolls/{rollId}/frames` with an optional edge number appends a frame with a ULID and no versions to `roll.json`, and returns 201.
+- [ ] **S1.5 Upload a lab scan.** `POST /api/rolls/{rollId}/frames/{frameId}/versions?kind=lab-scan&file=12340014.jpg` with the image as the raw body writes it unchanged to the roll's `lab/` folder and appends a version with its ULID, SHA-256, size, width and height (read with sharp). A second upload of the same bytes returns 409. Tests generate a small JPEG with sharp.
+- [ ] **S1.6 Thumbnails and originals.** `GET /api/previews/{sha256}?size=thumb|preview` returns a 400 px or 2048 px WebP made with sharp and cached in the cache directory; `GET …/versions/{versionId}/file` returns the original.
+- [ ] **S1.7 Checkpoint.** Create a roll and upload a real roll's scans with `curl`, then open thumbnails in the browser.
+
+**Done when:** API tests pass for every endpoint, and S1.7 works with real scans.
+
+## S2: Contracts and a basic UI
+
+- [ ] **S2.1 Contracts and OpenAPI.** Define the S1 routes with `@hono/zod-openapi`, with request and response schemas in `@filmfile/contracts`. Serve `/api/openapi.json` and the docs page at `/api/docs` (assets served locally, D2). Snapshot test of the spec. *(Was 0.2.6, 0.3.1, 0.3.3.)*
+- [ ] **S2.2 Typed client.** Generate types from the spec with `openapi-typescript` and export an `openapi-fetch` client from the contracts package. A check in `pnpm verify` fails if the generated files are out of date. *(Was 0.3.2.)*
+- [ ] **S2.3 Web app shell.** Vite, React and TanStack Query in `apps/web`, calling the health endpoint through the typed client. The service serves the built UI; in development Vite proxies `/api` (D1). *(Was 0.3.4 and part of 1b.1.)*
+- [ ] **S2.4 Rolls page.** List rolls and create one with a roll ID field (no suggestion yet).
+- [ ] **S2.5 Roll page.** Drop lab scans onto a roll: for each file, create a frame and upload the scan as its version, with progress. Show a contact sheet of thumbnails.
+- [ ] **S2.6 Checkpoint.** Create a real roll in the browser, drop its scans, reload, and see everything still there.
+
+**Done when:** S2.6 works with a real roll.
+
+## H: Hardening the slice
+
+Brings S1 and S2 up to the standards in `CLAUDE.md`. Security comes first.
+
+- [ ] **H.1 Host and Origin checks.** Middleware rejecting (403) a `Host` that isn't `localhost`, `127.0.0.1` or `[::1]` on the configured port, and any `Origin` other than the configured UI origin (D1). State-changing methods require a matching `Origin`. API tests for each case. *(Was 0.6.2.)*
+- [ ] **H.2 Content type and security headers.** JSON bodies require `Content-Type: application/json` (415 otherwise). Every response gets the CSP, `X-Content-Type-Options`, `frame-ancestors 'none'` and `Referrer-Policy` headers. *(Was 0.6.3.)*
+- [ ] **H.3 Error handler.** Unexpected errors return a generic 500 with a correlation ID, logged server-side; no stack trace or path in the response. *(Was 0.6.4.)*
+- [ ] **H.4 Safe paths and upload checks.** A safe path helper that every filesystem path goes through, rejecting absolute paths, `..`, separators in names, null bytes and anything resolving outside the root (table-driven traversal tests). Uploads: the 200 MB limit enforced while streaming (D4), a JPEG signature check, and sharp's input pixel limit; tests for oversized (413) and disguised (415) uploads. *(Was 0.6.1, 1.2.2 and part of 1.4.4.)*
+- [ ] **H.5 IDs, clock and ID generator.** Branded `RollId`, `FrameId`, `VersionId` and `ArchiveId` with parse functions, and `ArchiveContext`. `Clock` and `IdGenerator` ports with node adapters, a fixed clock and a sequential generator for tests. *(Was 0.2.3, 0.2.4.)*
+- [ ] **H.6 Roll use cases and repository.** Move roll logic out of the routes into `CreateRoll`, `ListRolls` and `GetRoll` use cases (`execute(ctx, input)` returning `Result`) behind a `RollRepository` port with a filesystem adapter. Routes map `DomainError` to status codes in one place. *(Was part of 0.4.1, 1.3.3, 1.4.1.)*
+- [ ] **H.7 Frame and version use cases.** `CreateFrame`, `AddVersion`, `GetPreview` and `GetOriginal` behind `BlobStore`, `ImageInspector` and `PreviewProvider` ports with their adapters. *(Was 1.2.1, 1.2.5, 1.2.7, 1.3.6, 1.3.11.)*
+- [ ] **H.8 Persistence schemas and stable serialisation.** Zod schemas for `roll.json` (and `archive.json` and equipment files when they arrive), `schema: 1`, an empty migration registry, explicit mapping to domain types; fixed key order, 2-space indent and trailing newline, with a property test that a round trip is byte-identical. *(Was 0.4.4, 0.4.5.)*
+- [ ] **H.9 Atomic writes and version tokens.** Per-file locks in the cache directory, version = SHA-256 of the file bytes, temp file + fsync + rename. Reads return `{ value, version }`; saves take the expected version. `ETag` on reads and `If-Match` on writes (428 when missing, 409 when stale); appends lock without needing a token (D11). Tests: concurrent saves serialise, parallel appends all land, a crash between write and rename leaves the original intact. *(Was 0.4.6 and the ETag part of 1.4.1.)*
+- [ ] **H.10 In-memory adapters and contract suites.** One shared contract suite per port, run against the in-memory and filesystem adapters; `composeInMemory` for fast use-case tests. *(Was 0.4.2, 0.4.3 and the in-memory halves of 1.2.)*
+- [ ] **H.11 Test data and fixtures.** Builders (`aRoll()`, `aFrame()`), and the lab scan generator with the fixture sets (head to tail, tail to head, a skipped frame, starting at `00`, a `12A`). *(Was 0.5.)*
+- [ ] **H.12 Full CI and dependency updates.** Build, Playwright smoke test, `pnpm audit --audit-level high`, gitleaks, CodeQL (the repository is public), a macOS job for sharp; Dependabot including Actions SHAs; a lint-staged pre-commit hook. *(Was 0.6.5–0.6.7.)*
+
+**Done when:** the security API tests pass (wrong `Host`, foreign `Origin`, missing content type, traversal, oversized and disguised uploads), the slice runs through use cases and ports with contract suites for every port, and the full CI pipeline is green.
+
+---
+
+## P: The rest of Phase 1
+
+Built to the full standard from the start. Task IDs are the original ones; tasks absorbed into S or H are listed as such.
+
+### Domain
+
+- [ ] **1.1.1 Domain types.** `Archive`, `Roll`, `Frame`, `Version`, `Meta`, `Equipment` (camera, lens, film as a union), with readonly fields. Roll IDs parsed as `YYYY-NNN` (D7). `Version` is a discriminated union by `kind` with only `lab-scan` in Phase 1, and every version has `width` and `height` (D13, D14). A helper for the version a frame shows (`defaultVersion`, else newest).
 - [ ] **1.1.2 Edge numbers.** `EdgeNumber` type with parse and format for `"00"`, `"0"`, integers, `"12A"` and `"14-15"`; arithmetic only for numeric values (`"00"` = −1). Table-driven tests, plus a property test that format(parse(x)) = x for valid input.
-- [ ] **1.1.3 Mapping engine.** Pure function from sorted scans and a `Mapping` (direction, anchors, overrides, skips) to a frame number per scan, following the rules in the plan. Rejects non-numeric anchors with `MappingInvalid`. Table-driven tests for up, down, `00`, several anchors, overrides and skips, plus property tests (for example, with one anchor and no overrides, consecutive scans differ by exactly one).
+- [ ] **1.1.3 Mapping engine.** Pure function from sorted scans and a `Mapping` (direction, anchors, overrides, skips) to a frame number per scan, following the rules in the plan. Rejects non-numeric anchors with `MappingInvalid`. Table-driven and property tests. *(Blocked: mapping location, for where it runs.)*
 - [ ] **1.1.4 Mapping warnings.** Duplicate numbers and below `00` (D3), as warnings alongside the result.
-- [ ] **1.1.5 Remap.** Applying a new mapping to a roll updates frame numbers only; IDs, metadata and versions stay with their scans. Tests.
-- [ ] **1.1.6 Meta resolver.** `archive.meta` → `roll.meta` → `frame.meta`, with scalars replacing, maps merging, arrays replacing, `{ add, remove }` modifying and `null` clearing. Every value records its source layer and ID. Equipment slugs resolve to records, and dangling slugs are reported, not thrown. Table-driven tests for every rule, plus property tests.
-- [ ] **1.1.7 Invariants.** Rating 0–5, frame and version IDs unique within a roll, no two versions in a roll with the same SHA-256, `defaultVersion` (if set) references a version of that frame, as validation functions that return `ValidationFailed`. (Unique roll IDs are enforced by the repository's `create`.)
+- [ ] **1.1.5 Remap.** Applying a new mapping to a roll updates frame numbers only; IDs, metadata and versions stay with their scans.
+- [ ] **1.1.6 Meta resolver.** `archive.meta` → `roll.meta` → `frame.meta`, with scalars replacing, maps merging, arrays replacing, `{ add, remove }` modifying and `null` clearing. Every value records its source layer and ID. Equipment slugs resolve to records, and dangling slugs are reported, not thrown.
+- [ ] **1.1.7 Invariants.** Rating 0–5, frame and version IDs unique within a roll, no two versions in a roll with the same SHA-256, `defaultVersion` (if set) references a version of that frame.
 
-### 1.2 Remaining ports and adapters
+### Ports and adapters
 
-Each port gets: an interface with TSDoc, an in-memory adapter, the real adapter, and one contract suite run against both.
+- 1.2.1 `BlobStore`, 1.2.2 file signature check, 1.2.5 `PreviewProvider` and 1.2.7 `ImageInspector`: *in H.4 and H.7.*
+- [ ] **1.2.3 `HoldingArea`.** `holdVersion`, `holdFrame` and `holdRoll` move files and write their JSON into dated folders under `deleted/` (D12). Never deletes or overwrites.
+- [ ] **1.2.4 `CatalogueIndex`.** `better-sqlite3` in the cache directory: rolls, frames, frame tags and equipment; upsert a resolved roll, query with the `ListRolls` filters and sort orders (D9), rebuild. Replaces the S1 directory scan for listing.
+- [ ] **1.2.6 `Notifier`.** SSE adapter and a recording adapter for tests. Event types as a union in the contracts package.
+- [ ] **ArchiveRepository and EquipmentRepository.** Ports, filesystem and in-memory adapters, contract suites. *(The rest of 0.4.1.)*
 
-- [ ] **1.2.1 `BlobStore`.** Write-once streaming `put` returning SHA-256 and byte count, with a size limit enforced during the stream (D4); `get` and `stat`. No delete. The filesystem adapter writes into the roll's kind folder (`rolls/YYYY/YYYY-NNN/lab/`, D7) and refuses to overwrite. A failed or oversized `put` leaves no partial file.
-- [ ] **1.2.2 File signature check.** A small domain function recognising allowed image types (JPEG to start with, plus the sleeve photo types) from their first bytes. Table-driven tests including a renamed non-image.
-- [ ] **1.2.3 `HoldingArea`.** Replaces `ImportStaging` (removed by D11). `holdVersion` and `holdFrame` move the files and write the JSON (with the roll and frame they came from) into `deleted/<timestamp>-version-<versionId>/` or `deleted/<timestamp>-frame-<frameId>/`; `holdRoll` moves a roll's folder into `deleted/<timestamp>-roll-<rollId>/`. Timestamps from the `Clock`. Never deletes or overwrites. All paths through the safe path helper. Contract suite against in-memory and filesystem adapters.
-- [ ] **1.2.4 `CatalogueIndex`.** `better-sqlite3` in the cache directory, with tables for rolls, frames, frame tags and equipment. Upsert a resolved roll, query with the `ListRolls` filters and sort orders (D9), and rebuild. Schema created from scratch; the index is disposable, so no migrations.
-- [ ] **1.2.5 `PreviewProvider`.** sharp adapter producing a 400 px and a 2048 px WebP, keyed by SHA-256, cached in the cache directory, generated lazily, with sharp's input pixel limit set. Trivial in-memory adapter.
-- [ ] **1.2.6 `Notifier`.** SSE adapter and a recording adapter for tests. Event types defined as a union in the contracts package.
-- [ ] **1.2.7 `ImageInspector`.** Reads width and height from an image's header without decoding the whole image, with sharp's input pixel limit; a too-large or unreadable image is an error (D14). sharp adapter and a fake for tests, with a contract suite using the fixture scans.
-- [ ] **1.2.8 Wire everything into both compositions.**
+### Use cases
 
-### 1.3 Use cases
-
-Every use case has one `execute(ctx, input)`, returns `Result`, and is tested through `composeInMemory` with a fixed clock and sequential IDs, covering success and every error path. Writing use cases also update the index and notify, and their tests assert on both.
-
-- [ ] **1.3.1 Archive.** `InitialiseArchive`, `GetArchive`, `UpdateArchive` (meta and labs, validating lab patterns compile and have `batch` and `scan` groups).
+- 1.3.3 `CreateRoll` and `GetRoll`, 1.3.6 `CreateFrame` and `AddVersion`, 1.3.11 `GetPreview` and `GetOriginal`: *in H.6 and H.7.*
+- [ ] **1.3.1 Archive.** `InitialiseArchive`, `GetArchive`, `UpdateArchive` (meta and labs, validating lab patterns compile and have `batch` and `scan` groups). Then `AddVersion` checks file names against the lab's pattern and records batch and scan index.
 - [ ] **1.3.2 Equipment.** `ListEquipment`, `CreateEquipment` (slug from make and model, `AlreadyExists` on a clash).
-- [ ] **1.3.3 Rolls.** `CreateRoll` (roll ID required, D8), `UpdateRoll`, `GetResolvedRoll`.
-- [ ] **1.3.4 `ListRolls`.** Index query with year, camera, film and tag filters, sorted by roll ID or shot date (D9).
+- [ ] **1.3.3 `UpdateRoll` and resolved rolls.** `UpdateRoll`; `GetRoll` returns resolved metadata with provenance.
+- [ ] **1.3.4 `ListRolls` filters.** Year, camera, film and tag filters, sorted by roll ID or shot date (D9), through the index.
 - [ ] **1.3.5 Frames.** `UpdateFrame` and bulk `UpdateFrames`, with bulk as a single roll save.
-- [ ] **1.3.6 `CreateFrame` and `AddVersion`.** `CreateFrame` appends a frame (JSON, edge number optional) to an existing roll (404 otherwise). `AddVersion` takes a frame, `kind=lab-scan`, the lab, the file name and the file stream (D13); rejects a name not matching the lab pattern, an oversized file (D4), a wrong file signature, or another kind. It reads the pixel dimensions through `ImageInspector` (D14), stores the file through the blob store, then appends the version (batch and scan index from the file name) under the roll's lock. Neither needs a version token. A file whose hash is already in the roll returns `AlreadyExists` with the existing frame and version. Tests: parallel appends on one roll all land; a failed save leaves no orphaned file; adding to a roll that already has frames; a frame with no versions is valid.
-- [ ] ~~**1.3.7, 1.3.8 Import use cases.**~~ Removed by D11.
-- [ ] **1.3.9 Numbering.** Setting edge numbers in bulk goes through `UpdateFrames`; confirming numbering through `UpdateRoll`. Any mapping use cases *(blocked: mapping location)*.
+- [ ] **1.3.9 Numbering.** Setting edge numbers in bulk through `UpdateFrames`; confirming numbering through `UpdateRoll`. Any mapping use cases *(blocked: mapping location)*.
 - [ ] **1.3.10 `AttachSleevePhoto`.** Through the blob store, with the signature check.
-- [ ] **1.3.11 `GetPreview` and `GetOriginal`.** Stream previews by hash, and originals by roll, frame and version ID; no path ever comes from the request (D13).
-- [ ] **1.3.12 `CheckIntegrity`.** Validate files, check every version's file exists with the right size, optional full re-hash, and report dangling equipment references, unreferenced files and duplicate numbers. `deleted/` is skipped. Tests against the filesystem composition with deliberately broken fixtures.
+- [ ] **1.3.12 `CheckIntegrity`.** Validate files, check every version's file exists with the right size, optional full re-hash; report dangling equipment references, unreferenced files and duplicate numbers. `deleted/` is skipped.
 - [ ] **1.3.13 `RebuildIndex`.**
 - [ ] **1.3.14 `ReconcileExternalChange`.** Re-read the roll, validate, re-index and notify; invalid files are reported, not loaded.
 - [ ] **1.3.15 `RenameRoll`.** Checks the new ID is free, renames through the repository, re-indexes and notifies (D10).
-- [ ] **1.3.16 `DeleteVersion`, `DeleteFrame` and `DeleteRoll`.** Each saves the roll first, then hands the JSON and files to the holding area; a crash in between leaves only an unreferenced file, which the integrity check reports. Deleting the default version unsets `defaultVersion`. `DeleteRoll` works only when the roll has no frames (`ValidationFailed` otherwise). All require the roll's version (D12, D13).
+- [ ] **1.3.16 `DeleteVersion`, `DeleteFrame` and `DeleteRoll`.** Each saves the roll first, then hands the JSON and files to the holding area. Deleting the default version unsets `defaultVersion`. `DeleteRoll` only when the roll has no frames. All require the roll's version (D12, D13).
 
-### 1.4 HTTP API
+### HTTP API
 
-Each route parses with the contracts schemas, calls one use case and maps errors (404, 422, 409). API tests cover status codes, validation errors and, where relevant, ETag and `If-Match`. The OpenAPI snapshot is updated in the same commit.
-
-- [ ] **1.4.1 Error mapping and ETags.** A single function mapping domain errors to responses, and helpers for ETag (from the version token) and required `If-Match` (428 when missing, 409 when stale).
 - [ ] **1.4.2 Archive and equipment routes.**
-- [ ] **1.4.3 Roll and frame routes**, including `POST /api/rolls/{rollId}/frames` (JSON), bulk frame edits, the `sort` query parameter, `POST /api/rolls/{rollId}/rename`, and `DELETE` for frames and rolls (`If-Match` required).
-- [ ] **1.4.4 Version routes.** `POST /api/rolls/{rollId}/frames/{frameId}/versions?kind=lab-scan&lab=&file=` with the image as the raw request body (`Content-Type: image/jpeg`), returning 201 with the version, or 409 with the existing frame and version IDs for a duplicate; query parameters validated as a union by `kind`. `DELETE …/versions/{versionId}` with `If-Match`. A raw image body can't be sent by a cross-site form, unlike multipart. Tests for oversized (413) and disguised (415) uploads, a bad file name or unsupported kind (422), and an unknown roll or frame (404).
+- [ ] **1.4.3 Remaining roll and frame routes.** Bulk frame edits, `sort` and filter query parameters, `POST /api/rolls/{rollId}/rename`, `DELETE` for frames, versions and rolls (`If-Match` required).
 - [ ] **1.4.5 Mapping routes** *(blocked: mapping location)*.
-- [ ] **1.4.6 Sleeve, preview and original file routes.** Originals at `…/versions/{versionId}/file`; tests that malformed IDs are rejected and no route accepts a path.
+- [ ] **1.4.6 Sleeve route.**
 - [ ] **1.4.7 SSE route** (`/api/events`).
 - [ ] **1.4.8 Maintenance routes.**
 
-### 1.5 File watcher
+### File watcher
 
-- [ ] **1.5.1 Watcher adapter.** chokidar on the archive folder, ignoring `deleted/`, calling `ReconcileExternalChange` for changed `roll.json` files and ignoring changes whose version token matches the service's own last write, and the folder move from its own renames. Integration test against a temp archive.
+- [ ] **1.5.1 Watcher adapter.** chokidar on the archive folder, ignoring `deleted/` and the service's own writes and renames, calling `ReconcileExternalChange` for changed `roll.json` files. Integration test against a temp archive.
 
-### 1a checkpoint
+### Web UI
 
-- [ ] **1a.1 Manual run.** Initialise an archive, create a roll and upload a few real scans as frames through the docs page, renumber them, and run the integrity check.
-
-**Done when:** use-case and HTTP tests pass, and the manual run in 1a.1 succeeds.
-
----
-
-## Phase 1, milestone 1b: Web UI, import and browse
-
-UI tests use the generated client against a stubbed fetch, or the in-memory composition where practical; Playwright covers the full journey in 1c.
-
-- [ ] **1b.1 App foundations.** Routing, TanStack Query provider, the generated client, and an SSE hook that invalidates affected queries. The service serves the built UI (D1).
+- [ ] **1b.1 Live updates.** An SSE hook that invalidates affected queries.
 - [ ] **1b.2 First-run setup.** Shown when the archive isn't initialised: name, author, copyright, first lab and its scan direction.
-- [ ] **1b.3 Import step 1: roll.** Choose an existing roll, or create one first (D11), with camera, lens and film pickers that can create new equipment. The roll ID field starts empty, with a one-click suggestion of the next free number for the year being typed (current year until one is typed), from the roll list (D8). Shows a clash before submitting.
-- [ ] **1b.4 Import step 2: upload.** Drag a folder or files; files not matching the lab pattern are listed and skipped. For each scan, create a frame and upload the scan as its version, a few in parallel, with progress and retries; a failed upload retries into the same frame. A 409 for a duplicate counts as done, so re-dropping the folder after an interruption simply completes the import. Leftover frames with no versions are shown and can be deleted.
-- [ ] **1b.5 Import step 3: numbering.** Thumbnails in scan order; set anchor and direction, mark skips and overrides, see proposed numbers and warnings; save with one bulk frame update. Build this as a reusable numbering component, because 1c.4 uses it again. *(Blocked: mapping location, for where the proposed numbers are computed.)*
-- [ ] **1b.6 Rolls grid.** Sleeve photo or first frame, filters, sort by roll ID or shot date (D9), "numbering not confirmed" badge (D6).
-- [ ] **1b.7 Roll view.** Contact sheet in edge-number order, with roll details and the sleeve photo; frames with no versions show a placeholder.
-- [ ] **1b.8 Frame view.** Large preview of the shown version, previous/next, resolved metadata with each value's source; the frame's versions listed, with "Set as default" and delete (D13); arrow keys and Esc.
+- [ ] **1b.3 Roll creation in full.** Camera, lens and film pickers that can create equipment; roll ID suggestion (D8); clash shown before submitting.
+- [ ] **1b.4 Robust upload.** Files not matching the lab pattern are listed and skipped; parallel uploads with retries; a 409 for a duplicate counts as done, so re-dropping a folder completes an interrupted import; leftover frames with no versions can be deleted.
+- [ ] **1b.5 Numbering.** Thumbnails in scan order; anchor and direction, skips and overrides, proposed numbers and warnings; save with one bulk update. A reusable component for 1c.4. *(Blocked: mapping location.)*
+- [ ] **1b.6 Rolls grid.** Sleeve photo or first frame, filters, sort (D9), "numbering not confirmed" badge (D6).
+- [ ] **1b.7 Roll view.** Contact sheet in edge-number order, roll details and sleeve photo; frames with no versions show a placeholder.
+- [ ] **1b.8 Frame view.** Large preview, previous/next, resolved metadata with sources, the frame's versions with "Set as default" and delete; arrow keys and Esc.
 - [ ] **1b.9 Checkpoint.** Import at least five real rolls, including one scanned in reverse, and browse them.
-
----
-
-## Phase 1, milestone 1c: Editing and maintenance in the UI
-
-- [ ] **1c.1 Frame editing.** Title, rating (keys 0–5), tags, notes, location, lens override. Inherited values greyed with their source; editing creates an override; "set on roll instead" and "clear override".
-- [ ] **1c.2 Roll editing.** All roll fields and roll `meta`, equipment pickers, sleeve photo upload, rename as a separate, confirmed action (D10), and delete when the roll has no frames (D12).
-- [ ] **1c.3 Bulk edit and delete.** Select frames on the contact sheet; set tags, location or lens in one save, or delete them after confirmation (D12).
-- [ ] **1c.4 Fix numbering.** The numbering component from 1b.5 on an existing roll, then confirm.
-- [ ] **1c.5 Conflict handling.** On a 409, reload the roll and re-apply the change if it doesn't clash; otherwise show what changed. Test with two simulated clients.
-- [ ] **1c.6 Maintenance page.** Run the integrity check (quick or full) and rebuild the index.
+- [ ] **1c.1 Frame editing.** Title, rating (keys 0–5), tags, notes, location, lens override; inherited values greyed with their source; "set on roll instead" and "clear override".
+- [ ] **1c.2 Roll editing.** All roll fields and `meta`, equipment pickers, sleeve photo upload, rename (D10), delete when empty (D12).
+- [ ] **1c.3 Bulk edit and delete.** Select frames; set tags, location or lens in one save, or delete after confirmation.
+- [ ] **1c.4 Fix numbering.** The numbering component on an existing roll, then confirm.
+- [ ] **1c.5 Conflict handling.** On a 409, reload and re-apply if it doesn't clash; otherwise show what changed.
+- [ ] **1c.6 Maintenance page.** Integrity check (quick or full) and index rebuild.
 - [ ] **1c.7 End-to-end test.** Playwright against `composeLocal` with a temp archive and fixture scans: first-run setup → import → fix numbering → edit a frame → reload and see it saved. Runs in CI.
 - [ ] **1c.8 Checkpoint.** Catalogue a newly arrived roll end to end in the browser without opening a JSON file.
 
