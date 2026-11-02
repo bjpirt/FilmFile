@@ -3,10 +3,12 @@ import type { Frame } from '@filmfile/contracts/rolls';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from '../routing.tsx';
+import { droppedFiles } from './dropped-files.ts';
 import { uploadScans, type UploadReport } from './upload-scans.ts';
 
 type Upload =
   | { readonly kind: 'idle' }
+  | { readonly kind: 'nothing-to-upload' }
   | {
       readonly kind: 'uploading';
       readonly done: number;
@@ -80,7 +82,11 @@ export function RollPage({
   });
 
   async function addScans(files: readonly File[]) {
-    if (roll.data === undefined || files.length === 0) {
+    if (roll.data === undefined) {
+      return;
+    }
+    if (files.length === 0) {
+      setUpload({ kind: 'nothing-to-upload' });
       return;
     }
     const total = files.length;
@@ -120,10 +126,10 @@ export function RollPage({
         }}
         onDrop={(event) => {
           event.preventDefault();
-          void addScans(Array.from(event.dataTransfer.files));
+          void droppedFiles(event.dataTransfer).then(addScans);
         }}
       >
-        <p>Drop lab scans here, or choose them:</p>
+        <p>Drop lab scans or a folder of them here, or choose them:</p>
         <label>
           Choose lab scans
           <input
@@ -141,6 +147,12 @@ export function RollPage({
           <p role="status">
             Uploading {Math.min(upload.done + 1, upload.total)} of{' '}
             {upload.total}…
+          </p>
+        )}
+        {upload.kind === 'nothing-to-upload' && (
+          <p role="status">
+            No JPEG scans found. In a folder, only scans directly inside it are
+            picked up, not those in folders within it.
           </p>
         )}
         {upload.kind === 'finished' && (

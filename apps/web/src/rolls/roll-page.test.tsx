@@ -31,7 +31,12 @@ function fakeRollService(frames: Frame[] = []) {
       return Response.json(roll);
     }
     if (request.method === 'POST' && url.pathname.endsWith('/frames')) {
-      const frame: Frame = { id: newId(), number: null, versions: [] };
+      const body: unknown = await request.json();
+      const number =
+        typeof body === 'object' && body !== null && 'number' in body
+          ? String(body.number)
+          : null;
+      const frame: Frame = { id: newId(), number, versions: [] };
       frames.push(frame);
       return Response.json(frame, { status: 201 });
     }
@@ -153,16 +158,107 @@ test('uploads each scan as a new frame, one at a time, in file name order', asyn
   ).toEqual(['12340001.jpg', '12340002.jpg']);
 });
 
+test('numbers new frames in upload order, from 1 in an empty roll', async () => {
+  const service = fakeRollService();
+  renderPage(service);
+  await screen.findByText('No frames yet.');
+
+  chooseScans(aScan('12340002.jpg'), aScan('12340001.jpg'));
+  await screen.findByText('Uploaded 2 scans.');
+
+  expect(service.frames.map((f) => f.number)).toEqual(['1', '2']);
+});
+
+test('numbers new frames on from the highest number in the roll', async () => {
+  const service = fakeRollService([
+    aFrameWithScan('12A', '12340012.jpg'),
+    aFrameWithScan('36', '12340036.jpg'),
+    aFrameWithScan(null, '12340037.jpg'),
+  ]);
+  renderPage(service);
+  await screen.findAllByRole('img');
+
+  chooseScans(aScan('12340040.jpg'), aScan('12340041.jpg'));
+  await screen.findByText('Uploaded 2 scans.');
+
+  expect(service.frames.map((f) => f.number)).toEqual([
+    '12A',
+    '36',
+    null,
+    '37',
+    '38',
+  ]);
+});
+
+test('does not use up a number for a scan already in the roll', async () => {
+  const service = fakeRollService();
+  renderPage(service);
+  await screen.findByText('No frames yet.');
+  chooseScans(aScan('12340001.jpg', 'same'));
+  await screen.findByText('Uploaded 1 scan.');
+
+  chooseScans(aScan('12340001.jpg', 'same'), aScan('12340002.jpg'));
+  await screen.findByText('Uploaded 1 scan. 1 was already in the roll.');
+
+  expect(service.frames.map((f) => f.number)).toEqual(['1', '2']);
+});
+
 test('accepts scans dropped onto the page', async () => {
   const service = fakeRollService();
   renderPage(service);
   await screen.findByText('No frames yet.');
 
-  fireEvent.drop(screen.getByText(/Drop lab scans here/), {
+  fireEvent.drop(screen.getByText(/Drop lab scans/), {
     dataTransfer: { files: [aScan('12340001.jpg')] },
   });
 
   expect(await screen.findByText('Uploaded 1 scan.')).toBeDefined();
+});
+
+test('uploads the scans in a folder dropped onto the page', async () => {
+  const service = fakeRollService();
+  renderPage(service);
+  await screen.findByText('No frames yet.');
+  const scans = [aScan('12340001.jpg'), aScan('12340002.jpg')];
+  const folder = {
+    name: 'lab-download',
+    createReader: () => {
+      const batches = [
+        scans.map((scan) => ({
+          name: scan.name,
+          file: (success: (file: File) => void) => {
+            success(scan);
+          },
+        })),
+        [],
+      ];
+      return {
+        readEntries: (success: (entries: unknown[]) => void) => {
+          success(batches.shift() ?? []);
+        },
+      };
+    },
+  };
+
+  fireEvent.drop(screen.getByText(/Drop lab scans/), {
+    dataTransfer: {
+      files: [],
+      items: [{ kind: 'file', webkitGetAsEntry: () => folder }],
+    },
+  });
+
+  expect(await screen.findByText('Uploaded 2 scans.')).toBeDefined();
+});
+
+test('says when a drop holds no scans', async () => {
+  renderPage(fakeRollService());
+  await screen.findByText('No frames yet.');
+
+  fireEvent.drop(screen.getByText(/Drop lab scans/), {
+    dataTransfer: { files: [] },
+  });
+
+  expect(await screen.findByText(/No JPEG scans found/)).toBeDefined();
 });
 
 test('skips a scan that is already in the roll, without creating a frame', async () => {
