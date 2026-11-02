@@ -1,6 +1,10 @@
 import { createRoute, OpenAPIHono } from '@hono/zod-openapi';
 import { health } from '@filmfile/contracts/health';
-import { HTTPException } from 'hono/http-exception';
+import {
+  errorHandler,
+  reportToConsole,
+  type ReportError,
+} from './middleware/error-handler.ts';
 import { requestGuard } from './middleware/request-guard.ts';
 import { securityHeaders } from './middleware/security-headers.ts';
 import { docsRoutes } from './routes/docs.ts';
@@ -25,6 +29,7 @@ export function createApp(config: {
   readonly uiPath?: string;
   readonly port: number;
   readonly uiOrigin?: string;
+  readonly reportError?: ReportError;
 }): OpenAPIHono {
   const app = new OpenAPIHono();
 
@@ -42,14 +47,7 @@ export function createApp(config: {
   if (config.uiPath !== undefined) {
     app.route('/', uiRoutes(config.uiPath));
   }
-  // Hono raises these itself, e.g. for malformed JSON; give them our error shape.
-  app.onError((error, c) => {
-    if (error instanceof HTTPException) {
-      return c.json({ error: error.message }, error.status);
-    }
-    console.error(error);
-    return c.json({ error: 'internal error' }, 500);
-  });
+  app.onError(errorHandler(config.reportError ?? reportToConsole));
 
   return app;
 }
