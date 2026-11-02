@@ -25,7 +25,7 @@ Settled on 2 November 2026 and recorded in `docs/design.md`. Tasks refer to them
 | --- | --- | --- |
 | D1 | The service serves the built UI at `/`, so UI and API share one origin. In development, Vite proxies `/api` to the service, and the allowed UI origin is set to the Vite dev server's through configuration. | 0.6.2, 1b.1 |
 | D2 | The API docs page's assets are served by the service itself, not a CDN, so the CSP needs no exceptions. | 0.2.6 |
-| D3 | No per-format "above the last frame" warning. Mapping warnings are duplicate numbers and below `00` only. | 1.1.4 |
+| D3 | ~~Mapping warnings~~: superseded by D19, which has no numbering warnings. | — |
 | D4 | Lab scan uploads are limited to 200 MB per file, checked while streaming. | 1.3.6, 1.4.4 |
 | D5 | *Superseded by D11:* there are no import sessions or staging. | |
 | D6 | Unconfirmed numbering is shown with a badge on the roll only; frame numbers look normal. | 1b.6 |
@@ -41,8 +41,9 @@ Settled on 2 November 2026 and recorded in `docs/design.md`. Tasks refer to them
 | D16 | Versions have no `kind`: a version is a version, and `defaultVersion` decides what's shown. How Phase 2 tells raws, masters and lab scans apart where behaviour differs is an open question; a `source` attribute recording where a file came from may be added then. | 1.1.1, S1.5 |
 | D17 | Files are stored by version, not by kind: `frames/<frame>/<version>/<original name>`, each folder named by the last 8 characters of the ULID and unique within its parent. Same-named files never clash, sidecars sit beside their file, and deletes move one folder. NegPy can build a virtual roll from frames anywhere, so it doesn't need a `raw/` folder. | S1.5, 1.2 |
 | D18 | A `roll.json` that can't be read (invalid JSON, not matching the schema, or from a newer FilmFile) doesn't fail the roll list: it's listed under `unreadable` with the problem, and shown in the UI. It's never changed or deleted, and a new roll can't be created over it. | H.8 |
+| D19 | Frame numbering is driven from the UI. A frame number is free text of up to 9 characters, sorted naturally (leading number, negatives first, then text). Upload keeps numbering new frames in file-name order. Renumbering is a first number and a direction (plain integers, below zero if need be), worked out in the UI with a preview; the API stores only the numbers, in one save guarded by the roll's version. No anchors, overrides, skips or warnings; `00` is typed by hand. | N1–N8 |
 
-**Still open** (in `docs/design.md`, section 15): where the mapping engine lives (service endpoint, shared package or UI), whether `roll.json` keeps the mapping used, and how Phase 2 tells versions apart without a `kind` (D16). Tasks that depend on it are marked *(blocked: mapping location)*.
+**Still open** (in `docs/design.md`, section 15): how Phase 2 tells versions apart without a `kind` (D16).
 
 ---
 
@@ -101,6 +102,21 @@ Brings S1 and S2 up to the standards in `CLAUDE.md`. Security comes first.
 
 ---
 
+## N: Frame numbering
+
+Driven from the UI (D19). Each task is a change you can see in the browser, with its tests at every level it touches.
+
+- [ ] **N1 Frame order.** The roll's contact sheet is sorted by frame number, with a toggle back to scan order (the order frames were added). Natural sort: leading number first, negatives before positives, then the rest as text; frames with no number last. UI only.
+- [ ] **N2 Number labels.** Each thumbnail is captioned with its frame number in large type; a frame with no number shows a muted dash. UI only.
+- [ ] **N3 Edit one number.** Click a frame's number to edit it in place; Enter saves, Esc cancels. Any text up to 9 characters; empty clears the number. API: `PATCH /api/rolls/{rollId}/frames/{frameId}` with the number, `If-Match` required (428 when missing, 409 when stale).
+- [ ] **N4 Changed elsewhere.** When a save is refused because the roll changed since the page loaded, the page says "This roll changed since you opened it" with a Reload button. Nothing is overwritten.
+- [ ] **N5 Renumber preview.** A Renumber panel on the roll page: "first scan is frame [N]" and up or down. The contact sheet shows the proposed numbers in scan order, changed ones highlighted. Plain integers, going below zero if need be. Nothing is saved. UI only.
+- [ ] **N6 Save a renumber.** Save writes every proposed number in one bulk update with `If-Match`; Cancel discards the draft. API: bulk update of frame numbers.
+- [ ] **N7 Confirm numbering.** A "Numbering checked" button marks the roll's numbering confirmed; until then the rolls list and roll page show a small "numbering not confirmed" badge (D6). API: a confirmed flag on the roll.
+- [ ] **N8 Changing confirmed numbering.** Renumbering or editing a number on a confirmed roll clears the confirmation, with a note saying so.
+
+**Done when:** a real roll scanned tail to head can be renumbered, a frame's number corrected, and the numbering confirmed, all in the browser.
+
 ## P: The rest of Phase 1
 
 Built to the full standard from the start. Task IDs are the original ones; tasks absorbed into S or H are listed as such.
@@ -108,10 +124,10 @@ Built to the full standard from the start. Task IDs are the original ones; tasks
 ### Domain
 
 - [ ] **1.1.1 Domain types.** `Archive`, `Roll`, `Frame`, `Version`, `Meta`, `Equipment` (camera, lens, film as a union), with readonly fields. Roll numbers parsed as `YYYY-NNN` (D7). `Version` has no `kind` (D16), and every version has `width` and `height` (D13, D14). A helper for the version a frame shows (`defaultVersion`, else newest).
-- [ ] **1.1.2 Frame numbers.** `FrameNumber` type with parse and format for `"00"`, `"0"`, integers, `"12A"` and `"14-15"`; arithmetic only for numeric values (`"00"` = −1). Table-driven tests, plus a property test that format(parse(x)) = x for valid input.
-- [ ] **1.1.3 Mapping engine.** Pure function from sorted scans and a `Mapping` (direction, anchors, overrides, skips) to a frame number per scan, following the rules in the plan. Rejects non-numeric anchors with `MappingInvalid`. Table-driven and property tests. *(Blocked: mapping location, for where it runs.)*
-- [ ] **1.1.4 Mapping warnings.** Duplicate numbers and below `00` (D3), as warnings alongside the result.
-- [ ] **1.1.5 Remap.** Applying a new mapping to a roll updates frame numbers only; IDs, metadata and versions stay with their scans.
+- [-] **1.1.2 Frame numbers.** *(Replaced by free-text numbers sorted naturally, N1 and D19.)* `FrameNumber` type with parse and format for `"00"`, `"0"`, integers, `"12A"` and `"14-15"`; arithmetic only for numeric values (`"00"` = −1). Table-driven tests, plus a property test that format(parse(x)) = x for valid input.
+- [-] **1.1.3 Mapping engine.** *(Replaced by the renumber in N5, D19.)* Pure function from sorted scans and a `Mapping` (direction, anchors, overrides, skips) to a frame number per scan, following the rules in the plan. Rejects non-numeric anchors with `MappingInvalid`. Table-driven and property tests. *(Blocked: mapping location, for where it runs.)*
+- [-] **1.1.4 Mapping warnings.** *(Dropped, D19.)* Duplicate numbers and below `00` (D3), as warnings alongside the result.
+- [-] **1.1.5 Remap.** *(Replaced by N5 and N6.)* Applying a new mapping to a roll updates frame numbers only; IDs, metadata and versions stay with their scans.
 - [ ] **1.1.6 Meta resolver.** `archive.meta` → `roll.meta` → `frame.meta`, with scalars replacing, maps merging, arrays replacing, `{ add, remove }` modifying and `null` clearing. Every value records its source layer and ID. Equipment slugs resolve to records, and dangling slugs are reported, not thrown.
 - [ ] **1.1.7 Invariants.** Rating 0–5, frame and version IDs unique within a roll, no two versions in a roll with the same SHA-256, `defaultVersion` (if set) references a version of that frame.
 
@@ -131,7 +147,7 @@ Built to the full standard from the start. Task IDs are the original ones; tasks
 - [ ] **1.3.3 `UpdateRoll` and resolved rolls.** `UpdateRoll`; `GetRoll` returns resolved metadata with provenance.
 - [ ] **1.3.4 `ListRolls` filters.** Year, camera, film and tag filters, sorted by roll number or shot date (D9), through the index.
 - [ ] **1.3.5 Frames.** `UpdateFrame` and bulk `UpdateFrames`, with bulk as a single roll save.
-- [ ] **1.3.9 Numbering.** Setting frame numbers in bulk through `UpdateFrames`; confirming numbering through `UpdateRoll`. Any mapping use cases *(blocked: mapping location)*.
+- [-] **1.3.9 Numbering.** *(Replaced by N3, N6 and N7.)* Setting frame numbers in bulk through `UpdateFrames`; confirming numbering through `UpdateRoll`. Any mapping use cases *(blocked: mapping location)*.
 - [ ] **1.3.10 `AttachSleevePhoto`.** Through the blob store, with the signature check.
 - [ ] **1.3.12 `CheckIntegrity`.** Validate files, check every version's file exists with the right size, optional full re-hash; report dangling equipment references, unreferenced files and duplicate numbers. `deleted/` is skipped.
 - [ ] **1.3.13 `RebuildIndex`.**
@@ -143,7 +159,7 @@ Built to the full standard from the start. Task IDs are the original ones; tasks
 
 - [ ] **1.4.2 Archive and equipment routes.**
 - [ ] **1.4.3 Remaining roll and frame routes.** Bulk frame edits, `sort` and filter query parameters, `POST /api/rolls/{rollId}/rename`, `DELETE` for frames, versions and rolls (`If-Match` required).
-- [ ] **1.4.5 Mapping routes** *(blocked: mapping location)*.
+- [-] **1.4.5 Mapping routes** *(Dropped: the UI works numbers out, D19.)* *(blocked: mapping location)*.
 - [ ] **1.4.6 Sleeve route.**
 - [ ] **1.4.7 SSE route** (`/api/events`).
 - [ ] **1.4.8 Maintenance routes.**
@@ -158,7 +174,7 @@ Built to the full standard from the start. Task IDs are the original ones; tasks
 - [ ] **1b.2 First-run setup.** Shown when the archive isn't initialised: name, author, copyright, first lab and its scan direction.
 - [ ] **1b.3 Roll creation in full.** Camera, lens and film pickers that can create equipment; roll number suggestion (D8); clash shown before submitting.
 - [ ] **1b.4 Robust upload.** Files not matching the lab pattern are listed and skipped; parallel uploads with retries; a 409 for a duplicate counts as done, so re-dropping a folder completes an interrupted import; leftover frames with no versions can be deleted.
-- [ ] **1b.5 Numbering.** Thumbnails in scan order; anchor and direction, skips and overrides, proposed numbers and warnings; save with one bulk update. A reusable component for 1c.4. *(Blocked: mapping location.)*
+- [-] **1b.5 Numbering.** *(Replaced by N1–N8.)* Thumbnails in scan order; anchor and direction, skips and overrides, proposed numbers and warnings; save with one bulk update. A reusable component for 1c.4. *(Blocked: mapping location.)*
 - [ ] **1b.6 Rolls grid.** Sleeve photo or first frame, filters, sort (D9), "numbering not confirmed" badge (D6).
 - [ ] **1b.7 Roll view.** Contact sheet in frame-number order, roll details and sleeve photo; frames with no versions show a placeholder.
 - [ ] **1b.8 Frame view.** Large preview, previous/next, resolved metadata with sources, the frame's versions with "Set as default" and delete; arrow keys and Esc.
@@ -166,7 +182,7 @@ Built to the full standard from the start. Task IDs are the original ones; tasks
 - [ ] **1c.1 Frame editing.** Title, rating (keys 0–5), tags, notes, location, lens override; inherited values greyed with their source; "set on roll instead" and "clear override".
 - [ ] **1c.2 Roll editing.** All roll fields and `meta`, equipment pickers, sleeve photo upload, rename (D10), delete when empty (D12).
 - [ ] **1c.3 Bulk edit and delete.** Select frames; set tags, location or lens in one save, or delete after confirmation.
-- [ ] **1c.4 Fix numbering.** The numbering component on an existing roll, then confirm.
+- [-] **1c.4 Fix numbering.** *(Replaced by N3–N8.)* The numbering component on an existing roll, then confirm.
 - [ ] **1c.5 Conflict handling.** On a 409, reload and re-apply if it doesn't clash; otherwise show what changed.
 - [ ] **1c.6 Maintenance page.** Integrity check (quick or full) and index rebuild.
 - [ ] **1c.7 End-to-end test.** Playwright against `composeLocal` with a temp archive and fixture scans: first-run setup → import → fix numbering → edit a frame → reload and see it saved. Runs in CI.

@@ -59,7 +59,7 @@ Archive
   - The API never invents a roll number: creating a roll requires one. The UI suggests the next free number for the year but never fills it in for you.
   - Lists sort by roll number by default, or by shot date when chosen. Roll-level shot dates are optional and kept for reference; within a roll, frame-number order is shot order.
   - A roll number can be changed only by an explicit rename, which checks the new number is free and moves the roll's folder. The roll's ULID doesn't change, so links survive. Files inside the folder never move relative to it.
-- **Frame:** identified by the **frame number printed on the film**, as a string: `"0"`, `"23"`, `"12A"`, or `"14-15"` for a panoramic frame spanning two numbers. `null` for a scan that's skipped or not yet identified. 120 film uses position on the roll. A frame holds metadata and zero or more versions; a frame with no versions is valid (e.g. a frame the lab skipped, catalogued from the sleeve). `defaultVersion` optionally names the version to show; when unset, the newest version is shown.
+- **Frame:** identified by the **frame number printed on the film**, as free text of up to 9 characters: `"0"`, `"23"`, `"00"`, `"-1"`, `"12A"`, or `"14-15"` for a panoramic frame spanning two numbers. `null` for a scan that's not yet identified. Frames sort naturally: by leading number (negatives first), then as text. 120 film uses position on the roll. A frame holds metadata and zero or more versions; a frame with no versions is valid (e.g. a frame the lab skipped, catalogued from the sleeve). `defaultVersion` optionally names the version to show; when unset, the newest version is shown.
 - **Version:** a file with a ULID, a content hash, its pixel dimensions and parents. Versions have no `kind`: a version is a version, and the frame's `defaultVersion` decides which one is shown. Low-res display images are generated previews in the cache, never versions. `defaultVersion` and `parents` refer to version IDs, never paths. Phase 2 adds raws, masters (editor exports), edits and exports; how the service tells them apart where behaviour differs (e.g. never writing metadata into raws) is an open question (section 15). **`parents` is a list**, since a master may come from several raws (brackets, stitched sections, trichrome).
 - **Event:** a named happening with optional dates, location and parent event. Rolls and frames belong to events (section 7).
 
@@ -179,13 +179,11 @@ Equipment slugs resolve to their records, whose fields can be overridden by more
 Lab scans are low-res JPEGs of every frame named `BBBBNNNN.jpg` (batch, scan index). They're **cropped**, so frame numbers aren't visible, and the lab **sometimes scans from the tail of the roll**.
 
 - The file pattern and default direction are configured per lab in `archive.json`.
-- **Mapping** from scan index to frame number uses **anchors** (`scan → frame`, counting up or down from each anchor), **overrides** (one-off numbers such as `25A`, not affecting counting), and **skips** (scans with no frame). Algorithm details are in the Phase 0–1 plan.
+- **Numbering is driven from the UI** (D19). Upload numbers new frames in file-name order, carrying on from the roll's highest number, which is right for rolls scanned head to tail. To fix the rest: **renumber** the roll (the first scan is frame N, counting up or down, in plain integers, below zero if need be) with a preview before saving, or **edit one frame's number** (any text, such as `00` or `12A`). The UI works the numbers out; the API stores only the resulting frame numbers, saved together and guarded by the roll's version token. There are no anchors, overrides or skips, and no numbering warnings.
 - **The API has no import workflow.** A roll is created first; then each frame is created (JSON, frame number optional), and its lab scan is uploaded (at most 200 MB) as a version of that frame, stored unchanged in the version's own folder. Frames can be added to a roll that already has frames.
 - **The UI drives the import:** drag the lab's download folder onto the import page, create a frame and upload its scan for each file, then set the numbering.
 - Upload is idempotent: a file whose hash is already in the roll is refused with a reference to the existing frame and version, so an interrupted import is completed by uploading again. An interruption between creating a frame and uploading its scan leaves a frame with no versions, which is valid and can be uploaded into or deleted.
-- Where the mapping engine runs is open (section 15).
-- The mapping preview warns about duplicate numbers and numbers below `00`. There is no per-format "above the last frame" warning; the thumbnail preview is enough to spot numbering that runs past the end of the roll.
-- **Remapping** after checking against the sleeve changes `roll.json` only. Frames keep their IDs and metadata. A roll is marked `confirmed` once checked; until then the UI shows a "numbering not confirmed" badge on the roll, and frame numbers look normal.
+- **Renumbering** changes frame numbers in `roll.json` only. Frames keep their IDs, metadata and versions. A roll is marked `confirmed` once its numbering is checked against the sleeve; until then the UI shows a "numbering not confirmed" badge on the roll, and frame numbers look normal. Changing a confirmed roll's numbering clears the confirmation.
 
 ### 8.2 Own hi-res scans (camera raws), Phase 2
 
@@ -441,8 +439,6 @@ packages/
 ## 15. Open questions
 
 - **Telling versions apart (Phase 2):** versions have no `kind`. When raws and masters arrive, decide how the service knows a version is a raw (never write metadata into it), a master (has parents and a recipe) or a lab scan (has a batch and scan index): an explicit field, or inferred from the file type and fields present (the folder no longer says). The likely answer is an optional `source` attribute recording where the file came from (e.g. lab scan, camera scan, editor export), added when it's first needed.
-- **Mapping engine location:** in the service behind a stateless endpoint, in a shared package, or in the UI. Decide once more of the app is built.
-- **Stored mapping:** whether `roll.json` records the mapping used to number a roll, or only the resulting frame numbers.
 - **Name clearance:** check the domain, GitHub organisation and UK IPO register for FilmFile, noting the Print File sleeve brand.
 - **NegPy sidecars:** confirm the `.negpy` file name and where it's written.
 - **Masters in Standard-IA too?** Whether hi-res files should be fetchable from other devices.
@@ -457,7 +453,6 @@ packages/
 - **Frame number:** the number printed on the film rebate beside each frame (e.g. `23`, `12A`); a frame's identity.
 - **Lab batch:** the lab's order number, the `BBBB` in `BBBBNNNN.jpg`.
 - **Scan index:** the lab's or camera's sequence number for a scan; not the frame number.
-- **Anchor:** a mapping point saying "this scan is this frame", from which numbering counts up or down.
 - **Master:** a hi-res file exported from the editor.
 - **Recipe / sidecar:** the editor's edit settings stored as a file next to the raw.
 - **Preview:** a low-res rendition of a version (thumbnail or screen size), generated from the version's file and cached outside the archive. Not a version.
