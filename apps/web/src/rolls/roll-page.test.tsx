@@ -125,8 +125,10 @@ test('shows a thumbnail of each frame, labelled with its frame number', async ()
   expect(thumbnails[0]?.getAttribute('src')).toBe(
     `/api/rolls/${rollId}/frames/01JC8Z7K3M0000000000000001/versions/01JC8Z7K3M0000000000000101/thumbnail?size=small`,
   );
-  expect(screen.getByText('1')).toBeDefined();
-  expect(screen.getByText('No number')).toBeDefined();
+  expect(screen.getByText('1').className).toBe('frame-number');
+  const noNumber = screen.getByLabelText('No number');
+  expect(noNumber.textContent).toBe('—');
+  expect(noNumber.className).toBe('frame-number none');
 });
 
 test('shows frames in frame order, or in scan order when chosen', async () => {

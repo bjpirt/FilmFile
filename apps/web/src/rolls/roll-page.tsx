@@ -198,7 +198,13 @@ export function RollPage({
             ).map((frame) => (
               <li key={frame.id}>
                 <Thumbnail rollId={rollId} frame={frame} />
-                <span>{frame.number ?? 'No number'}</span>
+                {frame.number === null ? (
+                  <span className="frame-number none" aria-label="No number">
+                    —
+                  </span>
+                ) : (
+                  <span className="frame-number">{frame.number}</span>
+                )}
               </li>
             ))}
           </ol>

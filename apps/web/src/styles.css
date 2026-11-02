@@ -55,3 +55,13 @@ body {
   float: left;
   margin-right: 0.5rem;
 }
+
+.frame-number {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.frame-number.none {
+  opacity: 0.4;
+}
