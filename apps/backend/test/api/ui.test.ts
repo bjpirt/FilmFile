@@ -38,6 +38,22 @@ describe('the built UI', () => {
     expect(await response.text()).toBe('<p>FilmFile</p>');
   });
 
+  test('is checked for changes on every visit, so a new build is picked up', async () => {
+    for (const url of ['/', '/rolls/01JC8Z7K3M0000000000000000']) {
+      const response = await request(url);
+
+      expect(response.headers.get('Cache-Control')).toBe('no-cache');
+    }
+  });
+
+  test('has its assets cached for good, since a new build gives them new names', async () => {
+    const response = await request('/assets/app.js');
+
+    expect(response.headers.get('Cache-Control')).toBe(
+      'public, max-age=31536000, immutable',
+    );
+  });
+
   test('has its assets served with their content types', async () => {
     const response = await request('/assets/app.js');
 
