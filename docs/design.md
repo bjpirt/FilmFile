@@ -106,7 +106,7 @@ archive/
 
 ## 5. File formats
 
-All files are JSON, carry `"schema": <n>`, and validate against Zod schemas owned by the filesystem adapter (which also generate JSON Schemas for reference). Readers migrate older schema versions. These persistence schemas are separate from the domain model and the API contracts (section 13.3).
+All files are JSON, carry `"schema": <n>`, and validate against Zod schemas owned by the filesystem adapter (which also generate JSON Schemas for reference). Readers migrate older schema versions in memory; files are rewritten in the current version the next time they're saved. A file that can't be read (not valid JSON, not matching its schema, or written by a newer version of FilmFile) is reported, not allowed to hide the rest: the roll list names the roll and the problem, and the file is never changed or deleted. These persistence schemas are separate from the domain model and the API contracts (section 13.3).
 
 - **archive.json:** `id`, `name`, `meta` (archive-wide defaults), `labs` (per lab: name, default scan `direction`, `filePattern`), `defaultLab`, and workflow settings.
 - **roll.json:** roll fields, roll `meta`, `numbering` (confirmed; whether it also records the mapping is open), and the `frames` array, each frame holding its own fields, `meta`, `events` and `versions`. A full example is in `docs/plan-phase-0-1.md`.

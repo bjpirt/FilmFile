@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { apiFor, idOf } from '../support/api.ts';
@@ -86,7 +86,7 @@ describe('GET /api/rolls', () => {
     const response = await request('/api/rolls');
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual([]);
+    expect(await response.json()).toEqual({ rolls: [], unreadable: [] });
   });
 
   test('lists every roll, ordered by roll number', async () => {
@@ -96,7 +96,25 @@ describe('GET /api/rolls', () => {
 
     const response = await request('/api/rolls');
 
-    expect(await response.json()).toEqual([roll003, roll002, roll014]);
+    expect(await response.json()).toEqual({
+      rolls: [roll003, roll002, roll014],
+      unreadable: [],
+    });
+  });
+
+  test('lists a roll whose roll.json cannot be read separately, with the problem', async () => {
+    const created: unknown = await (await createRoll('2026-014')).json();
+    const broken = path.join(archive.path(), 'rolls/2026/2026-015');
+    await mkdir(broken, { recursive: true });
+    await writeFile(path.join(broken, 'roll.json'), '{ not json');
+
+    const response = await request('/api/rolls');
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      rolls: [created],
+      unreadable: [{ folder: '2026-015', problem: 'it is not valid JSON' }],
+    });
   });
 });
 

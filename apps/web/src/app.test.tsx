@@ -18,7 +18,11 @@ function renderApp() {
     baseUrl: 'http://localhost',
     fetch: (request) =>
       Promise.resolve(
-        Response.json(request.url.endsWith('/api/rolls') ? [roll] : roll),
+        Response.json(
+          request.url.endsWith('/api/rolls')
+            ? { rolls: [roll], unreadable: [] }
+            : roll,
+        ),
       ),
   });
   render(

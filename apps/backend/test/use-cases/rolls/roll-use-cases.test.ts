@@ -55,7 +55,7 @@ describe('CreateRoll', () => {
       ok: false,
       error: { kind: 'validation-failed' },
     });
-    expect(await listRolls.execute(ctx)).toEqual([]);
+    expect(await listRolls.execute(ctx)).toEqual({ rolls: [], unreadable: [] });
   });
 });
 
@@ -68,7 +68,7 @@ describe('ListRolls', () => {
 
     const listed = await listRolls.execute(ctx);
 
-    expect(listed.map((r) => r.roll)).toEqual([
+    expect(listed.rolls.map((r) => r.roll)).toEqual([
       '2025-003',
       '2026-002',
       '2026-014',

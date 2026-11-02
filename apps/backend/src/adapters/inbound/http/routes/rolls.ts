@@ -10,6 +10,7 @@ import {
   frame,
   frameParams,
   roll,
+  rollList,
   rollParams,
   thumbnailQuery,
   version,
@@ -60,7 +61,9 @@ const listRolls = createRoute({
   method: 'get',
   path: '/',
   summary: 'List every roll, ordered by roll number',
-  responses: { 200: json(z.array(roll), 'The rolls.') },
+  description:
+    "A roll whose roll.json can't be read is listed under `unreadable`, with what's wrong, rather than failing the list.",
+  responses: { 200: json(rollList, 'The rolls.') },
 });
 
 const getRoll = createRoute({
@@ -206,8 +209,11 @@ export function rollRoutes({
   const notFound = { error: 'not found' };
 
   routes.openapi(listRolls, async (c) => {
-    const listed = await useCases.listRolls.execute(ctx);
-    return c.json(listed.map(rollDto), 200);
+    const { rolls, unreadable } = await useCases.listRolls.execute(ctx);
+    return c.json(
+      { rolls: rolls.map(rollDto), unreadable: [...unreadable] },
+      200,
+    );
   });
 
   routes.openapi(getRoll, async (c) => {

@@ -12,9 +12,19 @@ import {
   type RollId,
   type VersionId,
 } from '../../../domain/shared/ids.ts';
+import { err, ok, type Result } from '../../../domain/shared/result.ts';
 
 // The persistence model: what roll.json holds, parsed with Zod when read and
 // mapped explicitly to and from the domain types.
+
+const currentSchema = 1;
+
+/**
+ * Upgrades a roll.json from the schema version it's keyed by to the next one.
+ * Files are upgraded in memory when read, and written in the current schema
+ * the next time the roll is saved. None yet: schema 1 is the first.
+ */
+const migrations = new Map<number, (old: object) => object>();
 
 function branded<T extends string>(
   is: (value: string) => value is T,
@@ -43,7 +53,7 @@ const storedFrame = z.object({
 });
 
 const storedRoll = z.object({
-  schema: z.literal(1),
+  schema: z.literal(currentSchema),
   id: branded<RollId>(isRollId, 'must be a ULID'),
   roll: branded<RollNumber>(
     isRollNumber,
@@ -52,10 +62,49 @@ const storedRoll = z.object({
   frames: z.array(storedFrame),
 });
 
-/** The roll in a roll.json file's text. Throws if the file isn't a valid roll. */
-export function parseRollFile(text: string): Roll {
-  const { id, roll, frames } = storedRoll.parse(JSON.parse(text));
-  return {
+/** The file brought up to the current schema version, or why it can't be. */
+function upgraded(json: unknown): Result<unknown, string> {
+  const version = z.object({ schema: z.number().int() }).safeParse(json);
+  if (!version.success || typeof json !== 'object' || json === null) {
+    return err('it has no schema version');
+  }
+  if (version.data.schema > currentSchema) {
+    return err(
+      `it was written by a newer version of FilmFile (schema ${String(version.data.schema)})`,
+    );
+  }
+  let current: object = json;
+  for (let schema = version.data.schema; schema < currentSchema; schema += 1) {
+    const migrate = migrations.get(schema);
+    if (migrate === undefined) {
+      return err(`it uses schema ${String(schema)}, which can't be upgraded`);
+    }
+    current = migrate(current);
+  }
+  return ok(current);
+}
+
+/** The roll in a roll.json file's text, or what's wrong with it. */
+export function parseRollFile(text: string): Result<Roll, string> {
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return err('it is not valid JSON');
+  }
+  const current = upgraded(json);
+  if (!current.ok) {
+    return current;
+  }
+  const parsed = storedRoll.safeParse(current.value);
+  if (!parsed.success) {
+    const issues = parsed.error.issues.map(
+      (issue) => `${issue.path.join('.')}: ${issue.message}`,
+    );
+    return err(`it doesn't match the roll format (${issues.join('; ')})`);
+  }
+  const { id, roll, frames } = parsed.data;
+  return ok({
     id,
     roll,
     frames: frames.map((frame) => ({
@@ -65,13 +114,13 @@ export function parseRollFile(text: string): Roll {
         added: new Date(version.added),
       })),
     })),
-  };
+  });
 }
 
 /** A roll as roll.json text: keys in a fixed order, two-space indent, trailing newline. */
 export function rollFileContent(roll: Roll): string {
   const stored: z.input<typeof storedRoll> = {
-    schema: 1,
+    schema: currentSchema,
     id: roll.id,
     roll: roll.roll,
     frames: roll.frames.map((frame) => ({

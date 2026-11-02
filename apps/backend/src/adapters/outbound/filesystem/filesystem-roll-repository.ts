@@ -1,8 +1,12 @@
 import { glob, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { RollRepository } from '../../../application/ports/roll-repository.ts';
+import type {
+  RollListing,
+  RollRepository,
+} from '../../../application/ports/roll-repository.ts';
 import { yearOf, type RollNumber } from '../../../domain/rolls/roll-number.ts';
 import type { Roll } from '../../../domain/rolls/roll.ts';
+import type { UnreadableRoll } from '../../../domain/rolls/unreadable-roll.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type {
   AlreadyExists,
@@ -34,19 +38,29 @@ export class FilesystemRollRepository implements RollRepository {
     return safePath(rollFolder(this.#archivePath, roll), 'roll.json');
   }
 
-  async list(): Promise<readonly Roll[]> {
+  async list(): Promise<RollListing> {
     const rolls: Roll[] = [];
+    const unreadable: UnreadableRoll[] = [];
     for await (const relative of glob('rolls/*/*/roll.json', {
       cwd: this.#archivePath,
     })) {
-      const file = safePath(this.#archivePath, ...relative.split(path.sep));
-      rolls.push(parseRollFile(await readFile(file, 'utf8')));
+      const names = relative.split(path.sep);
+      const file = safePath(this.#archivePath, ...names);
+      const parsed = parseRollFile(await readFile(file, 'utf8'));
+      if (parsed.ok) {
+        rolls.push(parsed.value);
+      } else {
+        unreadable.push({ folder: names.at(-2) ?? '', problem: parsed.error });
+      }
     }
-    return rolls.sort((a, b) => a.roll.localeCompare(b.roll));
+    return {
+      rolls: rolls.sort((a, b) => a.roll.localeCompare(b.roll)),
+      unreadable: unreadable.sort((a, b) => a.folder.localeCompare(b.folder)),
+    };
   }
 
   async get(_ctx: ArchiveContext, id: RollId): Promise<Roll | undefined> {
-    return (await this.list()).find((roll) => roll.id === id);
+    return (await this.list()).rolls.find((roll) => roll.id === id);
   }
 
   async create(

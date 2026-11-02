@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
@@ -128,14 +128,44 @@ describe('FilesystemRollRepository', () => {
     await rolls.create(ctx, aRoll('2026-014', '00000000000000000000000001'));
     await rolls.create(ctx, aRoll('2025-003', '00000000000000000000000002'));
 
-    expect((await rolls.list(ctx)).map((r) => r.roll)).toEqual([
+    expect((await rolls.list(ctx)).rolls.map((r) => r.roll)).toEqual([
       '2025-003',
       '2026-014',
     ]);
   });
 
   test('lists nothing in an empty archive', async () => {
-    expect(await repository().list(ctx)).toEqual([]);
+    expect(await repository().list(ctx)).toEqual({ rolls: [], unreadable: [] });
+  });
+
+  test('reports a roll.json it cannot read, and still lists the rest', async () => {
+    const rolls = repository();
+    await rolls.create(ctx, aRoll('2026-014'));
+    const broken = path.join(archivePath, 'rolls/2026/2026-015');
+    await mkdir(broken, { recursive: true });
+    await writeFile(path.join(broken, 'roll.json'), '{ not json');
+
+    const listed = await rolls.list(ctx);
+
+    expect(listed.rolls.map((r) => r.roll)).toEqual(['2026-014']);
+    expect(listed.unreadable).toEqual([
+      { folder: '2026-015', problem: 'it is not valid JSON' },
+    ]);
+  });
+
+  test('never creates a roll over one it cannot read', async () => {
+    const rolls = repository();
+    const broken = path.join(archivePath, 'rolls/2026/2026-014');
+    await mkdir(broken, { recursive: true });
+    await writeFile(path.join(broken, 'roll.json'), '{ not json');
+
+    expect(await rolls.create(ctx, aRoll('2026-014'))).toMatchObject({
+      ok: false,
+      error: { kind: 'already-exists' },
+    });
+    expect(await readFile(path.join(broken, 'roll.json'), 'utf8')).toBe(
+      '{ not json',
+    );
   });
 
   test('gets nothing for an ID that no roll has', async () => {

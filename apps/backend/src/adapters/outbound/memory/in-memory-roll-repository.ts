@@ -1,4 +1,7 @@
-import type { RollRepository } from '../../../application/ports/roll-repository.ts';
+import type {
+  RollListing,
+  RollRepository,
+} from '../../../application/ports/roll-repository.ts';
 import type { Roll } from '../../../domain/rolls/roll.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type {
@@ -12,10 +15,11 @@ import { err, ok, type Result } from '../../../domain/shared/result.ts';
 export class InMemoryRollRepository implements RollRepository {
   readonly #rolls = new Map<RollId, Roll>();
 
-  list(): Promise<readonly Roll[]> {
-    return Promise.resolve(
-      [...this.#rolls.values()].sort((a, b) => a.roll.localeCompare(b.roll)),
+  list(): Promise<RollListing> {
+    const rolls = [...this.#rolls.values()].sort((a, b) =>
+      a.roll.localeCompare(b.roll),
     );
+    return Promise.resolve({ rolls, unreadable: [] });
   }
 
   get(_ctx: ArchiveContext, id: RollId): Promise<Roll | undefined> {

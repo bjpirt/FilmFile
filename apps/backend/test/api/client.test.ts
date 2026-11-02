@@ -28,7 +28,7 @@ test('the typed client creates and lists rolls', async () => {
   const listed = await api.GET('/api/rolls');
 
   expect(created.response.status).toBe(201);
-  expect(listed.data).toEqual([created.data]);
+  expect(listed.data).toEqual({ rolls: [created.data], unreadable: [] });
 });
 
 test('the typed client returns the error body for a failed request', async () => {

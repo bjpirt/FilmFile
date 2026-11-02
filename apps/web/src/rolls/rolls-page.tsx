@@ -74,10 +74,16 @@ export function RollsPage({ api }: { readonly api: ApiClient }) {
 
       {rolls.isPending && <p>Loading rolls…</p>}
       {rolls.isError && <p>Couldn't load the rolls. Is the service running?</p>}
-      {rolls.data?.length === 0 && <p>No rolls yet.</p>}
-      {rolls.data !== undefined && rolls.data.length > 0 && (
+      {rolls.data?.unreadable.map(({ folder, problem }) => (
+        <p key={folder} role="alert">
+          Roll {folder} can't be read: {problem}. Fix or replace its roll.json
+          in the archive.
+        </p>
+      ))}
+      {rolls.data?.rolls.length === 0 && <p>No rolls yet.</p>}
+      {rolls.data !== undefined && rolls.data.rolls.length > 0 && (
         <ul>
-          {rolls.data.map((roll) => (
+          {rolls.data.rolls.map((roll) => (
             <li key={roll.id}>
               <Link to={`/rolls/${roll.id}`}>{roll.roll}</Link>{' '}
               <span>{frameCount(roll.frames.length)}</span>

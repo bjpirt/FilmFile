@@ -20,6 +20,27 @@
           "status"
         ]
       },
+      "RollList": {
+        "type": "object",
+        "properties": {
+          "rolls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Roll"
+            }
+          },
+          "unreadable": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnreadableRoll"
+            }
+          }
+        },
+        "required": [
+          "rolls",
+          "unreadable"
+        ]
+      },
       "Roll": {
         "type": "object",
         "properties": {
@@ -116,6 +137,24 @@
           "added"
         ],
         "description": "One image file of a frame."
+      },
+      "UnreadableRoll": {
+        "type": "object",
+        "properties": {
+          "folder": {
+            "type": "string",
+            "description": "The roll's folder name, which should be its roll number.",
+            "example": "2026-014"
+          },
+          "problem": {
+            "type": "string",
+            "description": "What's wrong with its roll.json, for a person to fix."
+          }
+        },
+        "required": [
+          "folder",
+          "problem"
+        ]
       },
       "Error": {
         "type": "object",
@@ -220,16 +259,14 @@
     "/api/rolls": {
       "get": {
         "summary": "List every roll, ordered by roll number",
+        "description": "A roll whose roll.json can't be read is listed under `unreadable`, with what's wrong, rather than failing the list.",
         "responses": {
           "200": {
             "description": "The rolls.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Roll"
-                  }
+                  "$ref": "#/components/schemas/RollList"
                 }
               }
             }

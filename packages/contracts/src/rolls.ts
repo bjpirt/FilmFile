@@ -45,6 +45,22 @@ export const roll = z
   .object({ id: ulid, roll: rollNumber, frames: z.array(frame) })
   .meta({ id: 'Roll' });
 
+export const unreadableRoll = z
+  .object({
+    folder: z.string().meta({
+      description: "The roll's folder name, which should be its roll number.",
+      example: '2026-014',
+    }),
+    problem: z.string().meta({
+      description: "What's wrong with its roll.json, for a person to fix.",
+    }),
+  })
+  .meta({ id: 'UnreadableRoll' });
+
+export const rollList = z
+  .object({ rolls: z.array(roll), unreadable: z.array(unreadableRoll) })
+  .meta({ id: 'RollList' });
+
 export const rollParams = z.object({ rollId: ulid });
 
 export const frameParams = rollParams.extend({ frameId: ulid });
@@ -83,5 +99,7 @@ export const thumbnailQuery = z.object({
 export type Version = z.infer<typeof version>;
 export type Frame = z.infer<typeof frame>;
 export type Roll = z.infer<typeof roll>;
+export type UnreadableRoll = z.infer<typeof unreadableRoll>;
+export type RollList = z.infer<typeof rollList>;
 export type CreateRollRequest = z.infer<typeof createRollRequest>;
 export type CreateFrameRequest = z.infer<typeof createFrameRequest>;

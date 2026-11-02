@@ -44,7 +44,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List every roll, ordered by roll number */
+        /**
+         * List every roll, ordered by roll number
+         * @description A roll whose roll.json can't be read is listed under `unreadable`, with what's wrong, rather than failing the list.
+         */
         get: {
             parameters: {
                 query?: never;
@@ -60,7 +63,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Roll"][];
+                        "application/json": components["schemas"]["RollList"];
                     };
                 };
             };
@@ -492,6 +495,10 @@ export interface components {
             /** @enum {string} */
             status: "ok";
         };
+        RollList: {
+            rolls: components["schemas"]["Roll"][];
+            unreadable: components["schemas"]["UnreadableRoll"][];
+        };
         Roll: {
             /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
             id: string;
@@ -527,6 +534,15 @@ export interface components {
             height: number;
             /** Format: date-time */
             added: string;
+        };
+        UnreadableRoll: {
+            /**
+             * @description The roll's folder name, which should be its roll number.
+             * @example 2026-014
+             */
+            folder: string;
+            /** @description What's wrong with its roll.json, for a person to fix. */
+            problem: string;
         };
         /** @description What went wrong, for a person to read. */
         Error: {

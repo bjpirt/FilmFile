@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { createApiClient } from '@filmfile/contracts/client';
-import type { Roll } from '@filmfile/contracts/rolls';
+import type { Roll, UnreadableRoll } from '@filmfile/contracts/rolls';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, test } from 'vitest';
@@ -9,11 +9,14 @@ import { RollsPage } from './rolls-page.tsx';
 afterEach(cleanup);
 
 /** Answers the rolls endpoints the way the backend does, keeping rolls in memory. */
-function fakeRollsService(rolls: Roll[] = []) {
+function fakeRollsService(
+  rolls: Roll[] = [],
+  unreadable: UnreadableRoll[] = [],
+) {
   let nextId = 0;
   return async (request: Request): Promise<Response> => {
     if (request.method === 'GET') {
-      return Response.json(rolls);
+      return Response.json({ rolls, unreadable });
     }
     const body: unknown = await request.json();
     const roll =
@@ -86,6 +89,22 @@ test('lists each roll with its number of frames', async () => {
   expect(screen.getByText('1 frame')).toBeDefined();
   expect(screen.getByText('2026-014')).toBeDefined();
   expect(screen.getByText('36 frames')).toBeDefined();
+});
+
+test('names any roll whose file cannot be read, and what is wrong', async () => {
+  renderPage(
+    fakeRollsService(
+      [aRoll('2026-014')],
+      [{ folder: '2026-015', problem: 'it is not valid JSON' }],
+    ),
+  );
+
+  expect(
+    await screen.findByText(
+      "Roll 2026-015 can't be read: it is not valid JSON. Fix or replace its roll.json in the archive.",
+    ),
+  ).toBeDefined();
+  expect(screen.getByText('2026-014')).toBeDefined();
 });
 
 test('says when there are no rolls yet', async () => {
