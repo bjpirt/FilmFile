@@ -1,9 +1,13 @@
 import { composeLocal } from '../../src/composition/compose-local.ts';
+import type { TempArchive } from './temp-archive.ts';
 
 /** Sends requests to a service wired to the given archive, without a network. */
-export function apiFor(archive: { readonly path: () => string }) {
+export function apiFor(archive: TempArchive) {
   function request(url: string, init?: RequestInit): Promise<Response> {
-    const app = composeLocal({ archivePath: archive.path() });
+    const app = composeLocal({
+      archivePath: archive.path(),
+      cachePath: archive.cachePath(),
+    });
     return Promise.resolve(app.request(url, init));
   }
 

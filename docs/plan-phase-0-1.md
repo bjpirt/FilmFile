@@ -233,7 +233,7 @@ All take `ArchiveContext` and return `Result`. Each one that writes also updates
 | `DeleteVersion`, `DeleteFrame`, `DeleteRoll` | Explicit deletes into the holding area; nothing is permanently deleted. Each saves the roll first, then moves the JSON and files to `deleted/`. Deleting the default version unsets `defaultVersion`. A roll can be deleted only when it has no frames |
 | Mapping use cases | Depend on where the mapping engine lives (open question). Confirming numbering is an `UpdateRoll` |
 | `AttachSleevePhoto` | Stores the sleeve photo through the blob store |
-| `GetPreview`, `GetOriginal` | Stream previews (by hash) and originals (by version ID) |
+| `GetThumbnail`, `GetOriginal` | Stream a version's thumbnail (small or large, generated on first request and cached by content hash) and its original, both addressed by version ID |
 | `CheckIntegrity` | Validate all files, check every version's file exists with the right size; optional full re-hash; report dangling equipment references, unreferenced files and duplicate numbers |
 | `RebuildIndex` | Rebuild the index from the repositories |
 | `ReconcileExternalChange` | Called by the watcher: re-read the changed roll, validate, re-index, notify; invalid files are reported, not loaded |
@@ -261,12 +261,12 @@ DELETE /api/rolls/{rollId}/frames/{frameId}  If-Match required
 POST   /api/rolls/{rollId}/frames/{frameId}/versions?lab=&file=   raw image body → new version
 DELETE /api/rolls/{rollId}/frames/{frameId}/versions/{versionId}   If-Match required
 GET    /api/rolls/{rollId}/frames/{frameId}/versions/{versionId}/file   original, read-only
+GET    /api/rolls/{rollId}/frames/{frameId}/versions/{versionId}/thumbnail?size=small|large   400 px or 2048 px WebP
 PUT    /api/rolls/{rollId}/sleeve            upload sleeve photo
 POST   /api/rolls/{rollId}/rename            { roll }, If-Match required
 
 (mapping routes depend on where the mapping engine lives)
 
-GET    /api/previews/{sha256}?size=thumb|preview
 GET    /api/events                           server-sent events
 
 POST   /api/maintenance/check                { full?: boolean }

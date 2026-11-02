@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Hono, type Context } from 'hono';
 import sharp from 'sharp';
@@ -42,11 +42,68 @@ function invalidRequest(c: Context, error: z.ZodError): Response {
   return c.json({ error: 'invalid request', issues }, 422);
 }
 
-function isAlreadyExists(error: unknown): boolean {
-  return error instanceof Error && 'code' in error && error.code === 'EEXIST';
+const thumbnailQuery = z.object({ size: z.enum(['small', 'large']) });
+
+const thumbnailPixels = { small: 400, large: 2048 } as const;
+
+function hasErrorCode(error: unknown, code: string): boolean {
+  return error instanceof Error && 'code' in error && error.code === code;
 }
 
-export function rollRoutes(archivePath: string): Hono {
+function isAlreadyExists(error: unknown): boolean {
+  return hasErrorCode(error, 'EEXIST');
+}
+
+async function findVersion(
+  archivePath: string,
+  ids: { id: string; frameId: string; versionId: string },
+): Promise<{ rollFolder: string; version: StoredVersion } | undefined> {
+  const rollFile = await findRollFile(archivePath, ids.id);
+  const version = rollFile?.stored.frames
+    .find((f) => f.id === ids.frameId)
+    ?.versions.find((v) => v.id === ids.versionId);
+  if (rollFile === undefined || version === undefined) {
+    return undefined;
+  }
+  return { rollFolder: path.dirname(rollFile.file), version };
+}
+
+/** A WebP that fits within the size, made on first request and cached by content hash. */
+async function thumbnail(
+  cachePath: string,
+  original: string,
+  version: StoredVersion,
+  size: keyof typeof thumbnailPixels,
+): Promise<Buffer> {
+  const cached = path.join(
+    cachePath,
+    'thumbnails',
+    `${version.sha256}-${size}.webp`,
+  );
+  try {
+    return await readFile(cached);
+  } catch (error) {
+    if (!hasErrorCode(error, 'ENOENT')) {
+      throw error;
+    }
+  }
+  const pixels = thumbnailPixels[size];
+  const made = await sharp(original)
+    .resize(pixels, pixels, { fit: 'inside', withoutEnlargement: true })
+    .webp()
+    .toBuffer();
+  await mkdir(path.dirname(cached), { recursive: true });
+  await writeFile(cached, made);
+  return made;
+}
+
+export function rollRoutes({
+  archivePath,
+  cachePath,
+}: {
+  readonly archivePath: string;
+  readonly cachePath: string;
+}): Hono {
   const routes = new Hono();
 
   routes.get('/', async (c) =>
@@ -173,6 +230,40 @@ export function rollRoutes(archivePath: string): Hono {
 
     return c.json(version, 201);
   });
+
+  routes.get('/:id/frames/:frameId/versions/:versionId/file', async (c) => {
+    const found = await findVersion(archivePath, c.req.param());
+    if (found === undefined) {
+      return c.json({ error: 'no such version' }, 404);
+    }
+    const image = await readFile(
+      path.join(found.rollFolder, found.version.file),
+    );
+    return c.body(new Uint8Array(image), 200, { 'Content-Type': 'image/jpeg' });
+  });
+
+  routes.get(
+    '/:id/frames/:frameId/versions/:versionId/thumbnail',
+    async (c) => {
+      const found = await findVersion(archivePath, c.req.param());
+      if (found === undefined) {
+        return c.json({ error: 'no such version' }, 404);
+      }
+      const parsed = thumbnailQuery.safeParse(c.req.query());
+      if (!parsed.success) {
+        return invalidRequest(c, parsed.error);
+      }
+      const image = await thumbnail(
+        cachePath,
+        path.join(found.rollFolder, found.version.file),
+        found.version,
+        parsed.data.size,
+      );
+      return c.body(new Uint8Array(image), 200, {
+        'Content-Type': 'image/webp',
+      });
+    },
+  );
 
   return routes;
 }

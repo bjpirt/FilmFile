@@ -62,7 +62,7 @@ Every task starts with API tests in `apps/service/test/api/`, run against a temp
 - [x] **S1.3a Basic Zod parsing.** Request bodies and `roll.json` are parsed with Zod schemas in the route file; invalid requests, including malformed JSON, return 422 with each issue's path and message. *(Brought forward from S2.1 and H.8, which move the schemas to the contracts package and the filesystem adapter.)*
 - [x] **S1.4 Create a frame.** `POST /api/rolls/{rollId}/frames` with an optional edge number appends a frame with a ULID and no versions to `roll.json`, and returns 201.
 - [x] **S1.5 Upload a lab scan.** `POST /api/rolls/{rollId}/frames/{frameId}/versions?file=12340014.jpg` with the image as the raw body writes it unchanged to the roll's `lab/` folder and appends a version with its ULID, SHA-256, size, width and height (read with sharp). A second upload of the same bytes returns 409. Tests generate a small JPEG with sharp.
-- [ ] **S1.6 Thumbnails and originals.** `GET /api/previews/{sha256}?size=thumb|preview` returns a 400 px or 2048 px WebP made with sharp and cached in the cache directory; `GET …/versions/{versionId}/file` returns the original.
+- [x] **S1.6 Thumbnails and originals.** `GET /api/rolls/{rollId}/frames/{frameId}/versions/{versionId}/thumbnail?size=small|large` returns a 400 px or 2048 px WebP made with sharp and cached in the cache directory by content hash; `GET …/versions/{versionId}/file` returns the original.
 - [ ] **S1.7 Checkpoint.** Create a roll and upload a real roll's scans with `curl`, then open thumbnails in the browser.
 
 **Done when:** API tests pass for every endpoint, and S1.7 works with real scans.
@@ -88,7 +88,7 @@ Brings S1 and S2 up to the standards in `CLAUDE.md`. Security comes first.
 - [ ] **H.4 Safe paths and upload checks.** A safe path helper that every filesystem path goes through, rejecting absolute paths, `..`, separators in names, null bytes and anything resolving outside the root (table-driven traversal tests). Uploads: the 200 MB limit enforced while streaming (D4), a JPEG signature check, and sharp's input pixel limit; tests for oversized (413) and disguised (415) uploads. *(Was 0.6.1, 1.2.2 and part of 1.4.4.)*
 - [ ] **H.5 IDs, clock and ID generator.** Branded `RollId`, `FrameId`, `VersionId` and `ArchiveId` with parse functions, and `ArchiveContext`. `Clock` and `IdGenerator` ports with node adapters, a fixed clock and a sequential generator for tests. *(Was 0.2.3, 0.2.4.)*
 - [ ] **H.6 Roll use cases and repository.** Move roll logic out of the routes into `CreateRoll`, `ListRolls` and `GetRoll` use cases (`execute(ctx, input)` returning `Result`) behind a `RollRepository` port with a filesystem adapter. Routes map `DomainError` to status codes in one place. *(Was part of 0.4.1, 1.3.3, 1.4.1.)*
-- [ ] **H.7 Frame and version use cases.** `CreateFrame`, `AddVersion`, `GetPreview` and `GetOriginal` behind `BlobStore`, `ImageInspector` and `PreviewProvider` ports with their adapters. *(Was 1.2.1, 1.2.5, 1.2.7, 1.3.6, 1.3.11.)*
+- [ ] **H.7 Frame and version use cases.** `CreateFrame`, `AddVersion`, `GetThumbnail` and `GetOriginal` behind `BlobStore`, `ImageInspector` and `PreviewProvider` ports with their adapters. *(Was 1.2.1, 1.2.5, 1.2.7, 1.3.6, 1.3.11.)*
 - [ ] **H.8 Persistence schemas and stable serialisation.** Zod schemas for `roll.json` (and `archive.json` and equipment files when they arrive), `schema: 1`, an empty migration registry, explicit mapping to domain types; fixed key order, 2-space indent and trailing newline, with a property test that a round trip is byte-identical. *(Was 0.4.4, 0.4.5.)*
 - [ ] **H.9 Atomic writes and version tokens.** Per-file locks in the cache directory, version = SHA-256 of the file bytes, temp file + fsync + rename. Reads return `{ value, version }`; saves take the expected version. `ETag` on reads and `If-Match` on writes (428 when missing, 409 when stale); appends lock without needing a token (D11). Tests: concurrent saves serialise, parallel appends all land, a crash between write and rename leaves the original intact. *(Was 0.4.6 and the ETag part of 1.4.1.)*
 - [ ] **H.10 In-memory adapters and contract suites.** One shared contract suite per port, run against the in-memory and filesystem adapters; `composeInMemory` for fast use-case tests. *(Was 0.4.2, 0.4.3 and the in-memory halves of 1.2.)*
@@ -123,7 +123,7 @@ Built to the full standard from the start. Task IDs are the original ones; tasks
 
 ### Use cases
 
-- 1.3.3 `CreateRoll` and `GetRoll`, 1.3.6 `CreateFrame` and `AddVersion`, 1.3.11 `GetPreview` and `GetOriginal`: *in H.6 and H.7.*
+- 1.3.3 `CreateRoll` and `GetRoll`, 1.3.6 `CreateFrame` and `AddVersion`, 1.3.11 `GetThumbnail` and `GetOriginal`: *in H.6 and H.7.*
 - [ ] **1.3.1 Archive.** `InitialiseArchive`, `GetArchive`, `UpdateArchive` (meta and labs, validating lab patterns compile and have `batch` and `scan` groups). Then `AddVersion` checks file names against the lab's pattern and records batch and scan index.
 - [ ] **1.3.2 Equipment.** `ListEquipment`, `CreateEquipment` (slug from make and model, `AlreadyExists` on a clash).
 - [ ] **1.3.3 `UpdateRoll` and resolved rolls.** `UpdateRoll`; `GetRoll` returns resolved metadata with provenance.
