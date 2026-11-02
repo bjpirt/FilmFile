@@ -2,6 +2,7 @@ import { createRoute, OpenAPIHono } from '@hono/zod-openapi';
 import { health } from '@filmfile/contracts/health';
 import { HTTPException } from 'hono/http-exception';
 import { requestGuard } from './middleware/request-guard.ts';
+import { securityHeaders } from './middleware/security-headers.ts';
 import { docsRoutes } from './routes/docs.ts';
 import { rollRoutes } from './routes/rolls.ts';
 import { uiRoutes } from './routes/ui.ts';
@@ -27,6 +28,7 @@ export function createApp(config: {
 }): OpenAPIHono {
   const app = new OpenAPIHono();
 
+  app.use(securityHeaders());
   app.use(requestGuard(config));
 
   app.openapi(getHealth, (c) => c.json({ status: 'ok' } as const, 200));

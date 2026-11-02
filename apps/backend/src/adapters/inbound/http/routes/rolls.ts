@@ -20,6 +20,7 @@ import {
 } from '@filmfile/contracts/rolls';
 import sharp from 'sharp';
 import { newUlid } from '../../../outbound/node/new-ulid.ts';
+import { requireContentType } from '../middleware/require-content-type.ts';
 import { folderName, newIdWithUniqueFolder } from './folder-names.ts';
 import { invalidRequestHook } from './invalid-request-hook.ts';
 import {
@@ -103,6 +104,10 @@ const invalid = json(invalidRequestResponse, 'The request is invalid.');
 
 const malformed = json(errorResponse, 'The body is not valid JSON.');
 
+const wrongType = json(errorResponse, 'The body is not of the expected type.');
+
+const requireJson = requireContentType('application/json');
+
 const listRolls = createRoute({
   method: 'get',
   path: '/',
@@ -126,6 +131,7 @@ const createRoll = createRoute({
   method: 'post',
   path: '/',
   summary: 'Create an empty roll',
+  middleware: [requireJson] as const,
   request: {
     body: {
       required: true,
@@ -136,6 +142,7 @@ const createRoll = createRoute({
     201: json(roll, 'The new roll.'),
     400: malformed,
     409: json(errorResponse, 'A roll with that roll ID already exists.'),
+    415: wrongType,
     422: invalid,
   },
 });
@@ -144,6 +151,7 @@ const createFrame = createRoute({
   method: 'post',
   path: '/{rollId}/frames',
   summary: 'Add a frame with no versions to a roll',
+  middleware: [requireJson] as const,
   request: {
     params: rollParams,
     body: {
@@ -155,6 +163,7 @@ const createFrame = createRoute({
     201: json(frame, 'The new frame.'),
     400: malformed,
     404: json(errorResponse, 'No roll has that ID.'),
+    415: wrongType,
     422: invalid,
   },
 });
@@ -164,6 +173,7 @@ const addVersion = createRoute({
   path: '/{rollId}/frames/{frameId}/versions',
   summary: 'Upload a lab scan as a new version of a frame',
   description: 'The body is the JPEG itself. It is stored unchanged.',
+  middleware: [requireContentType('image/jpeg')] as const,
   request: {
     params: frameParams,
     query: addVersionQuery,
@@ -176,6 +186,7 @@ const addVersion = createRoute({
       errorResponse.extend({ frameId: z.string() }),
       'The same scan is already in the roll, in the frame given.',
     ),
+    415: wrongType,
     422: invalid,
   },
 });
