@@ -49,7 +49,7 @@ Settled on 2 November 2026 and recorded in `docs/design.md`. Tasks refer to them
 
 ### 0.2 Service skeleton and composition
 
-- [ ] **0.2.1 `Result`.** `domain/shared/result.ts`: the `Result<T, E>` type, `ok`, `err`, and only the helpers the next tasks actually use. Plus `assertNever`.
+- [x] **0.2.1 `Result`.** `domain/shared/result.ts`: the `Result<T, E>` type, `ok`, `err`, and only the helpers the next tasks actually use. Plus `assertNever`.
 - [ ] **0.2.2 Domain errors.** A discriminated union of `NotFound`, `ValidationFailed`, `ConcurrencyConflict`, `AlreadyExists` and `MappingInvalid`, each with the fields the HTTP layer needs to build a safe message.
 - [ ] **0.2.3 IDs and context.** Branded `ArchiveId`, `RollId`, `FrameId` and `VersionId` with parse functions; `ArchiveContext`.
 - [ ] **0.2.4 `Clock` and `IdGenerator` ports.** Port interfaces with TSDoc; node adapters (system time, ULID); a fixed clock and a sequential ID generator for tests. A shared contract suite for each port (for example, IDs are unique and valid ULIDs).
