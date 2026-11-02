@@ -263,7 +263,7 @@ FilmFile is a **core API service** that owns all archive data, plus a **browser 
 The service follows **hexagonal architecture (ports and adapters)** so the same core can run locally today and be hosted in the cloud later as **my own single-user instance**, by swapping adapters, not rewriting logic.
 
 ```
-           driving adapters                                driven adapters
+           inbound adapters                                outbound adapters
         ┌───────────────────┐                        ┌─────────────────────────┐
 browser │ HTTP (REST+OpenAPI)│──┐                  ┌──▶│ Catalogue repository    │ JSON files │ (S3)
         └───────────────────┘  │  ┌────────────┐  │   │ Blob store              │ disk       │ (S3)
@@ -284,7 +284,7 @@ The layers are **folders within the service package**, with a lint rule (`eslint
 |---|---|---|
 | `domain/` | Entities and value objects (Roll, Frame, Version, EdgeNumber, Mapping, Meta), the mapping engine, metadata resolution and provenance, invariants and domain errors. Pure: no I/O, no time, no randomness. | Nothing outside `domain/` |
 | `application/` | Use cases, and the **port interfaces** they depend on (`application/ports/`). Orchestrates domain + ports. | `domain/` |
-| `adapters/` | Driving adapters (HTTP, file watcher) and driven adapters (filesystem, SQLite, sharp, node clock and IDs, in-memory). | `application/`, `domain/`, libraries |
+| `adapters/` | Inbound adapters (HTTP, file watcher), which call the application, and outbound adapters (filesystem, SQLite, sharp, node clock and IDs, in-memory). | `application/`, `domain/`, libraries |
 | `composition/` | Composition roots that build the object graph for each runtime. | Everything |
 | `main.ts` | Reads config, calls a composition root, starts the server. | `composition/` |
 
@@ -302,7 +302,7 @@ In Phase 1 the persistence and domain shapes are deliberately close, so the mapp
 
 ### 13.4 Ports (Phase 1)
 
-Driven ports, defined in `application/ports/`:
+Outbound ports, defined in `application/ports/` and implemented by outbound adapters:
 
 | Port | Responsibility | Local adapter | Cloud adapter (later) |
 |---|---|---|---|
@@ -317,7 +317,7 @@ Driven ports, defined in `application/ports/`:
 | `Notifier` | Tell connected UIs something changed | Server-sent events | Server-sent events |
 | `Clock`, `IdGenerator` | Current time; ULIDs | Node | Node |
 
-Driving adapters in Phase 1:
+Inbound adapters in Phase 1:
 
 - **HTTP API**: Hono with `@hono/zod-openapi`. Parses requests with the contracts schemas, calls a use case, maps the result to a response.
 - **File watcher** (local only): `chokidar` on the archive; changes made outside the service (e.g. sync) call the *ReconcileExternalChange* use case. The cloud equivalent is S3 event notifications.
@@ -371,14 +371,14 @@ apps/
         ports/
         use-cases/
       adapters/
-        driving/http/      Hono routes, OpenAPI, DTO ↔ domain mapping
-        driving/watcher/   chokidar
-        driven/filesystem/ repositories, blob store, persistence schemas
-        driven/sqlite/     catalogue index
-        driven/sharp/      preview provider
-        driven/node/       clock, ULID generator
-        driven/sse/        notifier
-        driven/memory/     in-memory implementation of every port
+        inbound/http/        Hono routes, OpenAPI, DTO ↔ domain mapping
+        inbound/watcher/     chokidar
+        outbound/filesystem/ repositories, blob store, persistence schemas
+        outbound/sqlite/     catalogue index
+        outbound/sharp/      preview provider
+        outbound/node/       clock, ULID generator
+        outbound/sse/        notifier
+        outbound/memory/     in-memory implementation of every port
       composition/         composeLocal, composeInMemory
       main.ts
     test/

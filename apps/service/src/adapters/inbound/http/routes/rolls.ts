@@ -4,7 +4,7 @@ import path from 'node:path';
 import { Hono, type Context } from 'hono';
 import sharp from 'sharp';
 import { z } from 'zod';
-import { newUlid } from '../../../driven/node/new-ulid.ts';
+import { newUlid } from '../../../outbound/node/new-ulid.ts';
 import {
   findRollFile,
   readRollFiles,

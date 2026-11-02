@@ -34,7 +34,7 @@ Before adding a dependency, check whether a few lines of our own code would do. 
 ## Architecture in brief
 
 - A **core API service** (`apps/service`) owns all archive data. The browser UI (`apps/web`) is only a client of the API. There is no CLI.
-- **Hexagonal architecture.** Layers are folders in the service: `domain/` → `application/` (use cases + `ports/`) → `adapters/` (driving: HTTP, watcher; driven: filesystem, SQLite, sharp, node, SSE, memory) → `composition/`. `eslint-plugin-boundaries` enforces import direction:
+- **Hexagonal architecture.** Layers are folders in the service: `domain/` → `application/` (use cases + `ports/`) → `adapters/` (inbound: HTTP, watcher; outbound: filesystem, SQLite, sharp, node, SSE, memory) → `composition/`. `eslint-plugin-boundaries` enforces import direction:
   - `domain/` imports nothing outside itself. No I/O, time or randomness.
   - `application/` imports only `domain/`.
   - Only `main.ts` imports `composition/`.
@@ -58,7 +58,7 @@ Before adding a dependency, check whether a few lines of our own code would do. 
 
 ## Code organisation and style
 
-- **Organise by feature within each layer:** `domain/rolls/`, `domain/mapping/`, `application/use-cases/frames/`, `adapters/driving/http/routes/rolls.ts`. Related code sits together.
+- **Organise by feature within each layer:** `domain/rolls/`, `domain/mapping/`, `application/use-cases/frames/`, `adapters/inbound/http/routes/rolls.ts`. Related code sits together.
 - **One main export per file**, named after the file. Files `kebab-case.ts`; types and classes `PascalCase`; functions and variables `camelCase`. Use cases are named verb-first: `CreateFrame`, `UpdateFrame`.
 - **Named exports only**; no default exports, no barrel files that re-export everything.
 - **Prefer plain functions and data.** Use classes for use cases and adapters, where constructor injection is the point.
