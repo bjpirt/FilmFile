@@ -1,7 +1,5 @@
 import { createRoute, OpenAPIHono } from '@hono/zod-openapi';
 import { health } from '@filmfile/contracts/health';
-import type { Clock } from '../../../application/ports/clock.ts';
-import type { IdGenerator } from '../../../application/ports/id-generator.ts';
 import {
   errorHandler,
   reportToConsole,
@@ -25,16 +23,14 @@ const getHealth = createRoute({
   },
 });
 
-export function createApp(config: {
-  readonly archivePath: string;
-  readonly cachePath: string;
-  readonly uiPath?: string;
-  readonly port: number;
-  readonly uiOrigin?: string;
-  readonly reportError?: ReportError;
-  readonly clock: Clock;
-  readonly ids: IdGenerator;
-}): OpenAPIHono {
+export function createApp(
+  config: Parameters<typeof rollRoutes>[0] & {
+    readonly uiPath?: string;
+    readonly port: number;
+    readonly uiOrigin?: string;
+    readonly reportError?: ReportError;
+  },
+): OpenAPIHono {
   const app = new OpenAPIHono();
 
   app.use(securityHeaders());

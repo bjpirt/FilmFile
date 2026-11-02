@@ -20,24 +20,23 @@ import {
 } from '@filmfile/contracts/rolls';
 import { bodyLimit } from 'hono/body-limit';
 import sharp from 'sharp';
-import { safePath } from '../../../outbound/filesystem/safe-path.ts';
 import type { Clock } from '../../../../application/ports/clock.ts';
 import type { IdGenerator } from '../../../../application/ports/id-generator.ts';
+import type { RollRepository } from '../../../../application/ports/roll-repository.ts';
+import type { CreateRoll } from '../../../../application/use-cases/rolls/create-roll.ts';
+import type { GetRoll } from '../../../../application/use-cases/rolls/get-roll.ts';
+import type { ListRolls } from '../../../../application/use-cases/rolls/list-rolls.ts';
+import type { Frame, Roll, Version } from '../../../../domain/rolls/roll.ts';
+import type { ArchiveContext } from '../../../../domain/shared/archive-context.ts';
+import { isRollId } from '../../../../domain/shared/ids.ts';
+import { hasErrorCode } from '../../../outbound/filesystem/error-codes.ts';
+import { rollFolder } from '../../../outbound/filesystem/filesystem-roll-repository.ts';
+import { safePath } from '../../../outbound/filesystem/safe-path.ts';
+import { domainErrorResponse } from '../domain-error-response.ts';
 import { requireContentType } from '../middleware/require-content-type.ts';
 import { folderName, newIdWithUniqueFolder } from './folder-names.ts';
 import { invalidRequestHook } from './invalid-request-hook.ts';
-import {
-  findRollFile,
-  readRollFiles,
-  rollFileContent,
-  writeRollFile,
-  type StoredRoll,
-  type StoredVersion,
-} from './roll-files.ts';
-
-function toRoll({ id, roll, frames }: StoredRoll): Omit<StoredRoll, 'schema'> {
-  return { id, roll, frames };
-}
+import { rollDto, versionDto } from './roll-dto.ts';
 
 const thumbnailPixels = { small: 400, large: 2048 } as const;
 
@@ -73,37 +72,22 @@ async function inspectImage(
 }
 
 /** A version's file, from the path stored in roll.json, which must stay in the roll's folder. */
-function versionFile(rollFolder: string, version: StoredVersion): string {
-  return safePath(rollFolder, ...version.file.split('/'));
-}
-
-function hasErrorCode(error: unknown, code: string): boolean {
-  return error instanceof Error && 'code' in error && error.code === code;
-}
-
-function isAlreadyExists(error: unknown): boolean {
-  return hasErrorCode(error, 'EEXIST');
-}
-
-async function findVersion(
+function versionFile(
   archivePath: string,
-  ids: { rollId: string; frameId: string; versionId: string },
-): Promise<{ rollFolder: string; version: StoredVersion } | undefined> {
-  const rollFile = await findRollFile(archivePath, ids.rollId);
-  const version = rollFile?.stored.frames
-    .find((f) => f.id === ids.frameId)
-    ?.versions.find((v) => v.id === ids.versionId);
-  if (rollFile === undefined || version === undefined) {
-    return undefined;
-  }
-  return { rollFolder: path.dirname(rollFile.file), version };
+  roll: Roll,
+  version: Version,
+): string {
+  return safePath(
+    rollFolder(archivePath, roll.roll),
+    ...version.file.split('/'),
+  );
 }
 
 /** A WebP that fits within the size, made on first request and cached by content hash. */
 async function thumbnail(
   cachePath: string,
   original: string,
-  version: StoredVersion,
+  version: Version,
   size: keyof typeof thumbnailPixels,
 ): Promise<Buffer> {
   const cached = safePath(
@@ -273,88 +257,100 @@ const getThumbnail = createRoute({
 export function rollRoutes({
   archivePath,
   cachePath,
+  ctx,
   clock,
   ids,
+  rolls,
+  useCases,
 }: {
   readonly archivePath: string;
   readonly cachePath: string;
+  readonly ctx: ArchiveContext;
   readonly clock: Clock;
   readonly ids: IdGenerator;
+  // Frames and versions use the repository directly until their use cases (task H.7).
+  readonly rolls: RollRepository;
+  readonly useCases: {
+    readonly createRoll: CreateRoll;
+    readonly getRoll: GetRoll;
+    readonly listRolls: ListRolls;
+  };
 }): OpenAPIHono {
   const routes = new OpenAPIHono({ defaultHook: invalidRequestHook });
 
-  routes.openapi(listRolls, async (c) =>
-    c.json(
-      (await readRollFiles(archivePath)).map((r) => toRoll(r.stored)),
-      200,
-    ),
-  );
+  /** The roll with this ID; the route's schema has already checked it's a ULID. */
+  async function findRoll(rollId: string): Promise<Roll | undefined> {
+    return isRollId(rollId) ? rolls.get(ctx, rollId) : undefined;
+  }
+
+  async function findVersion(ids: {
+    rollId: string;
+    frameId: string;
+    versionId: string;
+  }): Promise<{ roll: Roll; version: Version } | undefined> {
+    const roll = await findRoll(ids.rollId);
+    const version = roll?.frames
+      .find((f) => f.id === ids.frameId)
+      ?.versions.find((v) => v.id === ids.versionId);
+    return roll === undefined || version === undefined
+      ? undefined
+      : { roll, version };
+  }
+
+  routes.openapi(listRolls, async (c) => {
+    const listed = await useCases.listRolls.execute(ctx);
+    return c.json(listed.map(rollDto), 200);
+  });
 
   routes.openapi(getRoll, async (c) => {
     const { rollId } = c.req.valid('param');
-    const rollFile = await findRollFile(archivePath, rollId);
-    if (rollFile === undefined) {
+    if (!isRollId(rollId)) {
       return c.json({ error: `no roll with ID ${rollId}` }, 404);
     }
-    return c.json(toRoll(rollFile.stored), 200);
+    const found = await useCases.getRoll.execute(ctx, { id: rollId });
+    return found.ok
+      ? c.json(rollDto(found.value), 200)
+      : domainErrorResponse(c, found.error);
   });
 
   routes.openapi(createRoll, async (c) => {
-    const { roll } = c.req.valid('json');
-    const created: StoredRoll = {
-      schema: 1,
-      id: ids.newRollId(),
-      roll,
-      frames: [],
-    };
-    const folder = safePath(archivePath, 'rolls', roll.slice(0, 4), roll);
-    await mkdir(folder, { recursive: true });
-    try {
-      // 'wx' fails if the file exists, so two rolls can't share an ID.
-      await writeFile(safePath(folder, 'roll.json'), rollFileContent(created), {
-        flag: 'wx',
-      });
-    } catch (error) {
-      if (isAlreadyExists(error)) {
-        return c.json({ error: `roll ${roll} already exists` }, 409);
-      }
-      throw error;
-    }
-
-    return c.json(toRoll(created), 201);
+    const created = await useCases.createRoll.execute(ctx, c.req.valid('json'));
+    return created.ok
+      ? c.json(rollDto(created.value), 201)
+      : domainErrorResponse(c, created.error);
   });
 
   routes.openapi(createFrame, async (c) => {
     const { rollId } = c.req.valid('param');
     const { number } = c.req.valid('json');
-    const rollFile = await findRollFile(archivePath, rollId);
-    if (rollFile === undefined) {
+    const found = await findRoll(rollId);
+    if (found === undefined) {
       return c.json({ error: `no roll with ID ${rollId}` }, 404);
     }
 
-    const { stored } = rollFile;
-    const frame = {
+    const frame: Frame = {
       id: newIdWithUniqueFolder(
-        stored.frames.map((f) => f.id),
+        found.frames.map((f) => f.id),
         () => ids.newFrameId(),
       ),
       number: number ?? null,
       versions: [],
     };
-    await writeRollFile(rollFile.file, {
-      ...stored,
-      frames: [...stored.frames, frame],
+    const saved = await rolls.save(ctx, {
+      ...found,
+      frames: [...found.frames, frame],
     });
-
-    return c.json(frame, 201);
+    return saved.ok
+      ? c.json({ ...frame, versions: [] }, 201)
+      : domainErrorResponse(c, saved.error);
   });
 
   routes.openapi(addVersion, async (c) => {
     const { rollId, frameId } = c.req.valid('param');
     const query = c.req.valid('query');
-    const rollFile = await findRollFile(archivePath, rollId);
-    const frame = rollFile?.stored.frames.find((f) => f.id === frameId);
-    if (rollFile === undefined || frame === undefined) {
+    const found = await findRoll(rollId);
+    const frame = found?.frames.find((f) => f.id === frameId);
+    if (found === undefined || frame === undefined) {
       return c.json({ error: `no frame ${frameId} in roll ${rollId}` }, 404);
     }
 
@@ -363,8 +359,7 @@ export function rollRoutes({
       return c.json({ error: 'The file is not a JPEG.' }, 415);
     }
     const sha256 = createHash('sha256').update(image).digest('hex');
-    const { stored } = rollFile;
-    const duplicate = stored.frames.find((f) =>
+    const duplicate = found.frames.find((f) =>
       f.versions.some((v) => v.sha256 === sha256),
     );
     if (duplicate !== undefined) {
@@ -386,64 +381,61 @@ export function rollRoutes({
         422,
       );
     }
-    const { width, height } = inspected;
+
     const versionId = newIdWithUniqueFolder(
       frame.versions.map((v) => v.id),
       () => ids.newVersionId(),
     );
-    const file = path.posix.join(
+    const names = [
       'frames',
       folderName(frame.id),
       folderName(versionId),
       query.file,
-    );
-    const target = safePath(
-      path.dirname(rollFile.file),
-      'frames',
-      folderName(frame.id),
-      folderName(versionId),
-      query.file,
-    );
+    ];
+    const target = safePath(rollFolder(archivePath, found.roll), ...names);
     await mkdir(path.dirname(target), { recursive: true });
     // 'wx' fails if the file exists: originals are never overwritten.
     await writeFile(target, image, { flag: 'wx' });
 
-    const version: StoredVersion = {
+    const version: Version = {
       id: versionId,
-      file,
+      file: names.join('/'),
       sha256,
       bytes: image.length,
-      width,
-      height,
-      added: clock.now().toISOString(),
+      width: inspected.width,
+      height: inspected.height,
+      added: clock.now(),
     };
-    await writeRollFile(rollFile.file, {
-      ...stored,
-      frames: stored.frames.map((f) =>
+    const saved = await rolls.save(ctx, {
+      ...found,
+      frames: found.frames.map((f) =>
         f.id === frame.id ? { ...f, versions: [...f.versions, version] } : f,
       ),
     });
-
-    return c.json(version, 201);
+    return saved.ok
+      ? c.json(versionDto(version), 201)
+      : domainErrorResponse(c, saved.error);
   });
 
   routes.openapi(getOriginal, async (c) => {
-    const found = await findVersion(archivePath, c.req.valid('param'));
+    const found = await findVersion(c.req.valid('param'));
     if (found === undefined) {
       return c.json({ error: 'no such version' }, 404);
     }
-    const image = await readFile(versionFile(found.rollFolder, found.version));
+    const image = await readFile(
+      versionFile(archivePath, found.roll, found.version),
+    );
     return c.body(new Uint8Array(image), 200, { 'Content-Type': 'image/jpeg' });
   });
 
   routes.openapi(getThumbnail, async (c) => {
-    const found = await findVersion(archivePath, c.req.valid('param'));
+    const found = await findVersion(c.req.valid('param'));
     if (found === undefined) {
       return c.json({ error: 'no such version' }, 404);
     }
     const image = await thumbnail(
       cachePath,
-      versionFile(found.rollFolder, found.version),
+      versionFile(archivePath, found.roll, found.version),
       found.version,
       c.req.valid('query').size,
     );
