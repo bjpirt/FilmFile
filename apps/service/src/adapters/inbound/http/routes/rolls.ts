@@ -5,6 +5,7 @@ import { Hono, type Context } from 'hono';
 import sharp from 'sharp';
 import { z } from 'zod';
 import { newUlid } from '../../../outbound/node/new-ulid.ts';
+import { folderName, newIdWithUniqueFolder } from './folder-names.ts';
 import {
   findRollFile,
   readRollFiles,
@@ -22,7 +23,7 @@ const createFrameRequest = z.object({
 });
 
 const addVersionQuery = z.object({
-  // A bare file name, because it's written into the roll's lab folder.
+  // A bare file name, because it's written into the version's folder.
   file: z
     .string()
     .regex(/^[\w-]+\.jpe?g$/i, 'must be a JPEG file name like 12340014.jpg'),
@@ -159,12 +160,12 @@ export function rollRoutes({
       return invalidRequest(c, parsed.error);
     }
 
+    const { stored } = rollFile;
     const frame = {
-      id: newUlid(),
+      id: newIdWithUniqueFolder(stored.frames.map((f) => f.id)),
       number: parsed.data.number ?? null,
       versions: [],
     };
-    const { stored } = rollFile;
     await writeRollFile(rollFile.file, {
       ...stored,
       frames: [...stored.frames, frame],
@@ -199,21 +200,20 @@ export function rollRoutes({
     }
 
     const { width, height } = await sharp(image).metadata();
-    const file = `lab/${parsed.data.file}`;
-    const rollFolder = path.dirname(rollFile.file);
-    await mkdir(path.join(rollFolder, 'lab'), { recursive: true });
-    try {
-      // 'wx' fails if the file exists: originals are never overwritten.
-      await writeFile(path.join(rollFolder, file), image, { flag: 'wx' });
-    } catch (error) {
-      if (isAlreadyExists(error)) {
-        return c.json({ error: `${file} already exists in the roll` }, 409);
-      }
-      throw error;
-    }
+    const versionId = newIdWithUniqueFolder(frame.versions.map((v) => v.id));
+    const file = path.posix.join(
+      'frames',
+      folderName(frame.id),
+      folderName(versionId),
+      parsed.data.file,
+    );
+    const target = path.join(path.dirname(rollFile.file), file);
+    await mkdir(path.dirname(target), { recursive: true });
+    // 'wx' fails if the file exists: originals are never overwritten.
+    await writeFile(target, image, { flag: 'wx' });
 
     const version: StoredVersion = {
-      id: newUlid(),
+      id: versionId,
       file,
       sha256,
       bytes: image.length,

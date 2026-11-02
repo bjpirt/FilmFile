@@ -34,13 +34,19 @@ function upload(
 }
 
 describe('POST /api/rolls/{id}/frames/{frameId}/versions', () => {
-  test('stores the scan unchanged in the roll’s lab folder', async () => {
+  test('stores the scan unchanged in a folder for the version, inside a folder for the frame', async () => {
     const image = await aJpeg();
 
-    await upload(image);
+    const versionId = String(idOf(await (await upload(image)).json()));
 
     const stored = await readFile(
-      path.join(archive.path(), 'rolls/2026/2026-014/lab/12340014.jpg'),
+      path.join(
+        archive.path(),
+        'rolls/2026/2026-014/frames',
+        frameId.slice(-8),
+        versionId.slice(-8),
+        '12340014.jpg',
+      ),
     );
     expect(stored.equals(image)).toBe(true);
   });
@@ -53,7 +59,7 @@ describe('POST /api/rolls/{id}/frames/{frameId}/versions', () => {
 
     expect(response.status).toBe(201);
     expect(version).toMatchObject({
-      file: 'lab/12340014.jpg',
+      file: `frames/${frameId.slice(-8)}/${String(idOf(version)).slice(-8)}/12340014.jpg`,
       sha256: createHash('sha256').update(image).digest('hex'),
       bytes: image.length,
       width: 30,
@@ -84,17 +90,32 @@ describe('POST /api/rolls/{id}/frames/{frameId}/versions', () => {
     expect(response.status).toBe(409);
   });
 
-  test('never overwrites a scan with a different one of the same name', async () => {
-    const original = await aJpeg({ shade: 50 });
-    await upload(original);
+  test('keeps both of two different scans with the same name', async () => {
+    const first = await aJpeg({ shade: 50 });
+    const second = await aJpeg({ shade: 200 });
 
-    const response = await upload(await aJpeg({ shade: 200 }));
+    const versions: unknown[] = [
+      await (await upload(first)).json(),
+      await (await upload(second)).json(),
+    ];
 
-    expect(response.status).toBe(409);
-    const stored = await readFile(
-      path.join(archive.path(), 'rolls/2026/2026-014/lab/12340014.jpg'),
+    const roll: unknown = await (await request(`/api/rolls/${rollId}`)).json();
+    expect(roll).toMatchObject({ frames: [{ versions }] });
+    const files = await Promise.all(
+      versions.map((version) =>
+        readFile(
+          path.join(
+            archive.path(),
+            'rolls/2026/2026-014/frames',
+            frameId.slice(-8),
+            String(idOf(version)).slice(-8),
+            '12340014.jpg',
+          ),
+        ),
+      ),
     );
-    expect(stored.equals(original)).toBe(true);
+    expect(files.map((file) => file.equals(first))).toEqual([true, false]);
+    expect(files.map((file) => file.equals(second))).toEqual([false, true]);
   });
 
   test('returns 404 for a frame that is not in the roll', async () => {
@@ -109,7 +130,7 @@ describe('POST /api/rolls/{id}/frames/{frameId}/versions', () => {
 
   test.each([
     ['an unsafe file name', 'file=../12340014.jpg'],
-    ['a file name with a folder', 'file=lab/12340014.jpg'],
+    ['a file name with a folder', 'file=scans/12340014.jpg'],
     ['a file that is not a JPEG', 'file=12340014.png'],
     ['no file name', ''],
   ])('rejects %s', async (_case, query) => {

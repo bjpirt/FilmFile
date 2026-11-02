@@ -50,7 +50,7 @@ Before adding a dependency, check whether a few lines of our own code would do. 
 - The service is the only writer. Repository saves require the expected version token and are atomic, with stable key order so unchanged data is byte-identical.
 - Never modify or permanently delete original files (lab scans, raws, editor exports). Versions are only ever added; the blob store is write-once. Deleting a frame or roll moves its files into the archive's `deleted/` holding area, which only the user empties.
 - Never write metadata into raws. Stamp catalogue metadata into exports only.
-- Frame identity lives in `roll.json`. Files are grouped by kind (`lab/`, `raw/`, `masters/`) and keep their original names. Renumbering never moves files.
+- Frame identity lives in `roll.json`. Each version's files sit in its own folder, `frames/<frame>/<version>/`, named by the last 8 characters of the ULIDs, and keep their original names. Renumbering never moves files.
 - IDs are ULIDs. Never use paths or file names as identity.
 - Caches (index, previews, lock files) live in the OS cache directory, never in the archive.
 - No destructive operation without an explicit request.

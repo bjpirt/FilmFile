@@ -105,8 +105,10 @@ archive/
       2026-014/
         roll.json
         sleeve.jpg            # optional
-        lab/
-          12340001.jpg … 12340036.jpg
+        frames/
+          Q2P7RM4K/           # a frame: the last 8 characters of its ULID
+            8F3WXB1C/         # a version, likewise
+              12340014.jpg    # the lab scan, original name
 ```
 
 **archive.json**
@@ -164,7 +166,7 @@ archive/
       "versions": [
         {
           "id": "01JC8ZB7TQ…",
-          "file": "lab/12340014.jpg",
+          "file": "frames/Q2P7RM4K/8F3WXB1C/12340014.jpg",
           "lab": { "lab": "local-lab", "batch": "1234", "scan": 14 },
           "sha256": "9f2c…",
           "bytes": 1843021,
@@ -210,8 +212,8 @@ Everything works through the API and its docs page. No UI yet.
 
 #### 1.2 Remaining ports and adapters (M)
 
-- `BlobStore`: write-once `put` (streaming, size-limited, returns SHA-256 and bytes), `get`, `stat`. Filesystem adapter writes into the roll's kind folder (`lab/`), refusing to overwrite. In-memory adapter for tests. Contract suite for both.
-- `HoldingArea`: receives a deleted frame (moves its files and writes its JSON, with the roll it came from, into a dated folder under `deleted/`) and a deleted roll (moves the whole folder). Never deletes. In-memory adapter for tests. Contract suite.
+- `BlobStore`: write-once `put` (streaming, size-limited, returns SHA-256 and bytes), `get`, `stat`. Filesystem adapter writes into the version's own folder (`frames/<frame>/<version>/`), refusing to overwrite. In-memory adapter for tests. Contract suite for both.
+- `HoldingArea`: receives a deleted frame (moves its frame folder and writes its JSON, with the roll it came from, into a dated folder under `deleted/`) and a deleted roll (moves the whole folder). Never deletes. In-memory adapter for tests. Contract suite.
 - `CatalogueIndex`: SQLite adapter (`better-sqlite3`, in the cache directory) with tables for rolls, frames, frame tags and equipment; upsert a resolved roll, query, rebuild. In-memory adapter. Contract suite.
 - `ImageInspector`: reads pixel dimensions from an image's header, with sharp's input pixel limit. sharp adapter and a fake for tests. Contract suite.
 - `PreviewProvider`: sharp adapter producing a 400 px thumbnail and a 2048 px preview as WebP, keyed by SHA-256 and cached; generated lazily. A trivial in-memory adapter for tests.

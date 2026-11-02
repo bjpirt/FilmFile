@@ -34,7 +34,7 @@ The phased roadmap is in section 14, and the detailed plan for the first phases 
 2. **The API service is the only writer.** Every write goes through a use case and a repository port: it's validated, saved only if the record hasn't changed since it was read (version token), atomic, and serialised with a stable key order so unchanged data produces byte-identical files.
 3. **Originals are never modified or permanently deleted.** Lab scans, raws and editor exports are only ever added. An edit creates a new version, never an overwrite. Deleting a frame or roll moves its files into the archive's `deleted/` holding area; only I empty it.
 4. **Never write metadata into raws.** NegPy identifies files by content hash, so changing EXIF changes the hash. Catalogue metadata is stamped into exports only.
-5. **Frame identity lives in `roll.json`, not in paths.** Files are grouped by kind and keep their original names. Renumbering frames changes metadata only; files never move.
+5. **Frame identity lives in `roll.json`, not in paths.** Each frame has a folder, and each version a folder inside it, named by the end of their ULIDs; files keep their original names. Renumbering frames changes metadata only; files never move.
 6. **Stable IDs.** Archives, rolls, frames, versions and events have ULIDs, so renaming a roll or event doesn't break links, sync or published URLs.
 7. **Catalogue and operational state are separate.** `roll.json` holds the catalogue; `.state.json` holds workflow state, which changes far more often.
 8. **Nothing destructive by default.** Deleting, unpublishing and similar actions are explicit, separate operations. Deletes are recoverable by hand from `deleted/`.
@@ -77,7 +77,7 @@ archive/
   deleted/                         # holding area for deleted frames and rolls; emptied by hand
     2026-11-02T101500Z-frame-01JC8Z9Q2P…/
       frame.json                   # the frame entry and which roll it came from
-      12340014.jpg
+      Q2P7RM4K/…                   # the frame's folder, moved as it was
   events/
     iceland-2026.json
     jokulsarlon-day.json           # parent: iceland-2026
@@ -88,15 +88,19 @@ archive/
         roll.json                  # roll, frames and versions
         .state.json                # tool-owned workflow state
         sleeve.jpg                 # sleeve on a lightbox: the contact sheet
-        lab/       12340001.jpg …  # lab scans, original names
-        raw/       DSC_4821.NEF, DSC_4821.negpy …
-        masters/   DSC_4821.tif …
-        .recipes/  3f9a….negpy     # recipe snapshot per ingested export
+        frames/
+          Q2P7RM4K/                # one folder per frame: the end of its ULID
+            8F3WXB1C/  12340001.jpg               # one folder per version, original names
+            K0D9TZ6E/  DSC_4821.NEF, DSC_4821.negpy
+            V5M2QH8A/  DSC_4821.tif, 3f9a….negpy  # an export and its recipe snapshot
 ```
 
-- Grouping files by kind means renumbering never moves files, and `raw/` can be opened in NegPy as a roll without lab scans or exports mixed in.
+- A folder per version means a file never needs a kind to decide where it goes, files with the same name (such as a re-exported master) never clash, and a file's sidecars sit beside it. Deleting a frame or version moves one folder.
+- Folder names are the last 8 characters of the ULID (its random part), unique within their parent folder. They are never used to find anything: `roll.json` records each version's path.
+- Folders are named by ID, not frame number, so renumbering never moves files.
+- NegPy doesn't need the raws in one folder: it can build a virtual roll from frames anywhere, and keys its edits by file content, so files can move.
 - Every file is listed in `roll.json` with its SHA-256 and size, so corruption, outside edits and stray files are detectable.
-- If browsing by frame in Finder is ever wanted, the tool can generate a read-only folder of symlinks.
+- If browsing by frame number or by kind in Finder is ever wanted, the tool can generate a read-only folder of symlinks.
 
 ---
 
@@ -115,10 +119,10 @@ Version entries (from Phase 2) look like:
 ```json
 {
   "id": "01JD2K4F8R…",
-  "file": "masters/DSC_4821.tif",
+  "file": "frames/Q2P7RM4K/V5M2QH8A/DSC_4821.tif",
   "parents": ["01JD2J9X1B…"],
   "editor": { "name": "NegPy", "version": "0.54" },
-  "recipe": ".recipes/3f9a….negpy",
+  "recipe": "frames/Q2P7RM4K/V5M2QH8A/3f9a….negpy",
   "transform": { "crop": [0.02, 0.01, 0.98, 0.99], "rotate": 0 },
   "sha256": "a41b…",
   "bytes": 182334021,
@@ -176,7 +180,7 @@ Lab scans are low-res JPEGs of every frame named `BBBBNNNN.jpg` (batch, scan ind
 
 - The file pattern and default direction are configured per lab in `archive.json`.
 - **Mapping** from scan index to edge number uses **anchors** (`scan → frame`, counting up or down from each anchor), **overrides** (one-off numbers such as `25A`, not affecting counting), and **skips** (scans with no frame). Algorithm details are in the Phase 0–1 plan.
-- **The API has no import workflow.** A roll is created first; then each frame is created (JSON, edge number optional), and its lab scan is uploaded (at most 200 MB) as a version of that frame, stored unchanged in `lab/`. Frames can be added to a roll that already has frames.
+- **The API has no import workflow.** A roll is created first; then each frame is created (JSON, edge number optional), and its lab scan is uploaded (at most 200 MB) as a version of that frame, stored unchanged in the version's own folder. Frames can be added to a roll that already has frames.
 - **The UI drives the import:** drag the lab's download folder onto the import page, create a frame and upload its scan for each file, then set the numbering.
 - Upload is idempotent: a file whose hash is already in the roll is refused with a reference to the existing frame and version, so an interrupted import is completed by uploading again. An interruption between creating a frame and uploading its scan leaves a frame with no versions, which is valid and can be uploaded into or deleted.
 - Where the mapping engine runs is open (section 15).
@@ -187,7 +191,7 @@ Lab scans are low-res JPEGs of every frame named `BBBBNNNN.jpg` (batch, scan ind
 
 1. Frames are marked **needs hi-res** while browsing lab scans.
 2. The tool produces an ordered **scan list** (e.g. `2026-014: 3, 7, 12A, 23`).
-3. Raws are shot in that order and imported into `raw/`, matched to frames by capture time against the list, using the same anchors-and-exceptions approach.
+3. Raws are shot in that order and imported as versions of their frames, matched to frames by capture time against the list, using the same anchors-and-exceptions approach.
 4. Including the film border is encouraged, so the edge number is visible.
 5. A frame may have several raws.
 
@@ -199,13 +203,13 @@ Lab scans are low-res JPEGs of every frame named `BBBBNNNN.jpg` (batch, scan ind
 
 **Editor adapters** declare how to open files, where exports land (a watched **inbox folder**), how to match an export to its source, and which sidecars are its recipes. A generic inbox adapter should cover most editors.
 
-**Round trip:** open the roll's `raw/` in the editor → export into the inbox, keeping the raw's name → ingest as a `master` version with `parents` and `editor`, then stamp resolved catalogue metadata into the exported file. Matching falls back from filename to EXIF capture time to asking.
+**Round trip:** open the roll's raws in the editor (in NegPy, as a virtual roll) → export into the inbox, keeping the raw's name → ingest as a `master` version with `parents` and `editor`, then stamp resolved catalogue metadata into the exported file. Matching falls back from filename to EXIF capture time to asking.
 
 **NegPy specifics**
 
 - Open source (GPL-3), Python + PyQt6. It never modifies source files and keeps edits in its own SQLite database keyed by file hash.
 - It writes per-frame **`.negpy` sidecars** on export ("Save on Export") or via "Export Sidecars", and reads them when opening a roll only for frames with no database entry ("Load Edit from Sidecar…" forces it).
-- **Recipes are stored twice:** the current sidecar next to the raw, and a hash-named snapshot in `.recipes/` per ingested export, so every export is reproducible.
+- **Recipes are stored twice:** the current sidecar next to the raw, and a hash-named snapshot in the export's version folder, so every export is reproducible.
 - **Do not import NegPy code.** Reading its file formats is fine.
 
 ---
@@ -309,7 +313,7 @@ Outbound ports, defined in `application/ports/` and implemented by outbound adap
 | `ArchiveRepository` | Read and save `archive.json` (meta, labs) | JSON file | S3 object |
 | `RollRepository` | Get, list, create, save and rename rolls. Every read returns a **version token**; `save(roll, expectedVersion)` fails with `ConcurrencyConflict` if it changed; `create` and `rename` fail if the roll ID is taken | JSON files: lock, ETag check, temp file + rename | S3 `If-Match` / `If-None-Match` conditional writes |
 | `EquipmentRepository` | Cameras, lenses, films | JSON files | S3 objects |
-| `BlobStore` | Write-once storage of image files: `put` (streams, returns SHA-256 and size), `get`, `stat`. Never overwrites | Archive folders by kind | S3 with Standard-IA / Deep Archive classes |
+| `BlobStore` | Write-once storage of image files: `put` (streams, returns SHA-256 and size), `get`, `stat`. Never overwrites | A folder per version in the archive | S3 with Standard-IA / Deep Archive classes |
 | `HoldingArea` | Receives deleted versions and frames (their files plus their JSON) and deleted empty rolls (the whole folder), for me to empty by hand. Never deletes | `deleted/` in the archive | S3 prefix |
 | `CatalogueIndex` | Read model for listing and filtering: upsert a resolved roll, remove, query, rebuild | SQLite in the cache directory | SQLite or Postgres |
 | `PreviewProvider` | Thumbnails and previews by content hash, generated lazily | sharp + cache folder | sharp + S3 cache |
@@ -436,7 +440,7 @@ packages/
 
 ## 15. Open questions
 
-- **Telling versions apart (Phase 2):** versions have no `kind`. When raws and masters arrive, decide how the service knows a version is a raw (never write metadata into it), a master (has parents and a recipe) or a lab scan (has a batch and scan index): an explicit field, or inferred from the folder and fields present. The likely answer is an optional `source` attribute recording where the file came from (e.g. lab scan, camera scan, editor export), added when it's first needed.
+- **Telling versions apart (Phase 2):** versions have no `kind`. When raws and masters arrive, decide how the service knows a version is a raw (never write metadata into it), a master (has parents and a recipe) or a lab scan (has a batch and scan index): an explicit field, or inferred from the file type and fields present (the folder no longer says). The likely answer is an optional `source` attribute recording where the file came from (e.g. lab scan, camera scan, editor export), added when it's first needed.
 - **Mapping engine location:** in the service behind a stateless endpoint, in a shared package, or in the UI. Decide once more of the app is built.
 - **Stored mapping:** whether `roll.json` records the mapping used to number a roll, or only the resulting edge numbers.
 - **Name clearance:** check the domain, GitHub organisation and UK IPO register for FilmFile, noting the Print File sleeve brand.
