@@ -55,7 +55,7 @@ Settled on 2 November 2026 and recorded in `docs/design.md`. Tasks refer to them
 
 Every task starts with API tests in `apps/service/test/api/`, run against a temp archive.
 
-- [ ] **S1.1 Server runs.** A Hono app with `GET /api/health`. `composeLocal(config)` builds the app; `main.ts` reads the archive and cache directories and port from environment variables and serves on `127.0.0.1` with `@hono/node-server`, running the `.ts` source directly with Node. A temp archive helper for tests. API test: health returns 200.
+- [x] **S1.1 Server runs.** A Hono app with `GET /api/health`. `composeLocal(config)` builds the app; `main.ts` reads the archive and cache directories and port from environment variables and serves on `127.0.0.1` with `@hono/node-server`, running the `.ts` source directly with Node. A temp archive helper for tests. API test: health returns 200.
 - [ ] **S1.2 Create a roll.** `POST /api/rolls` with `{ roll: "2026-014" }` creates `rolls/2026/2026-014/roll.json` with a ULID and an empty `frames` list, and returns 201 with the roll. API tests: the response, the file on disk, a second create with the same roll ID returns 409.
 - [ ] **S1.3 List and get rolls.** `GET /api/rolls` reads every `roll.json` under `rolls/`; `GET /api/rolls/{rollId}` returns one by its ULID, or 404.
 - [ ] **S1.4 Create a frame.** `POST /api/rolls/{rollId}/frames` with an optional edge number appends a frame with a ULID and no versions to `roll.json`, and returns 201.
