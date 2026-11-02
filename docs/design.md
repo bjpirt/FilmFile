@@ -368,7 +368,7 @@ Each use case is a class with its dependencies injected through the constructor 
 
 ```
 apps/
-  service/                 @filmfile/service — the core API service
+  api/                     @filmfile/api — the core API service
     src/
       domain/
       application/

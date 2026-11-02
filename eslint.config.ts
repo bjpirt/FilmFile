@@ -54,17 +54,17 @@ export default defineConfig(
     plugins: { boundaries },
     settings: {
       'boundaries/elements': [
-        { type: 'domain', pattern: 'apps/service/src/domain/**' },
-        { type: 'application', pattern: 'apps/service/src/application/**' },
-        { type: 'adapters', pattern: 'apps/service/src/adapters/**' },
-        { type: 'composition', pattern: 'apps/service/src/composition/**' },
-        { type: 'service-test', pattern: 'apps/service/test/**' },
+        { type: 'domain', pattern: 'apps/api/src/domain/**' },
+        { type: 'application', pattern: 'apps/api/src/application/**' },
+        { type: 'adapters', pattern: 'apps/api/src/adapters/**' },
+        { type: 'composition', pattern: 'apps/api/src/composition/**' },
+        { type: 'api-test', pattern: 'apps/api/test/**' },
         { type: 'web', pattern: 'apps/web/**' },
         { type: 'contracts', pattern: 'packages/contracts/**' },
       ].map((element) => ({ ...element, partialMatch: false })),
       // Element patterns match folders, so single files are classified here.
       'boundaries/files': [
-        { category: 'main', pattern: 'apps/service/src/main.ts' },
+        { category: 'main', pattern: 'apps/api/src/main.ts' },
         { category: 'test', pattern: '**/*.test.{ts,tsx}' },
       ],
     },
@@ -123,7 +123,7 @@ export default defineConfig(
               ],
             },
             {
-              from: { element: { type: 'service-test' } },
+              from: { element: { type: 'api-test' } },
               allow: [
                 {
                   to: {
@@ -133,7 +133,7 @@ export default defineConfig(
                         'application',
                         'adapters',
                         'composition',
-                        'service-test',
+                        'api-test',
                         'contracts',
                       ],
                     },

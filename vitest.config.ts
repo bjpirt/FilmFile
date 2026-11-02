@@ -10,13 +10,13 @@ export default defineConfig({
         '**/*.test.{ts,tsx}',
         // Runs in a child process in startup.test.ts. Coverage from child processes
         // (autoAttachSubprocess) corrupts the figures for files both processes load.
-        'apps/service/src/main.ts',
+        'apps/api/src/main.ts',
       ],
       thresholds: {
         lines: 80,
         branches: 80,
-        'apps/service/src/domain/**': { lines: 90, branches: 90 },
-        'apps/service/src/application/**': { lines: 90, branches: 90 },
+        'apps/api/src/domain/**': { lines: 90, branches: 90 },
+        'apps/api/src/application/**': { lines: 90, branches: 90 },
       },
     },
   },

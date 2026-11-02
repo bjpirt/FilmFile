@@ -197,7 +197,7 @@ importers:
         specifier: ^5.0.5
         version: 5.0.5(@types/node@26.6.6)(@vitest/coverage-v8@5.0.5)(vite@8.3.5(@types/node@26.6.6)(jiti@2.7.0))
 
-  apps/service:
+  apps/api:
     dependencies:
       '@hono/node-server':
         specifier: ^2.1.5

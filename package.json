@@ -7,7 +7,7 @@
   },
   "packageManager": "pnpm@12.16.1",
   "scripts": {
-    "start": "pnpm --filter @filmfile/service start",
+    "start": "pnpm --filter @filmfile/api start",
     "start:dev": "FILMFILE_ARCHIVE=\"$PWD/.dev-archive\" pnpm start",
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
     "format": "prettier --write .",

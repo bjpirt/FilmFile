@@ -33,7 +33,7 @@ Before adding a dependency, check whether a few lines of our own code would do. 
 
 ## Architecture in brief
 
-- A **core API service** (`apps/service`) owns all archive data. The browser UI (`apps/web`) is only a client of the API. There is no CLI.
+- A **core API service** (`apps/api`) owns all archive data. The browser UI (`apps/web`) is only a client of the API. There is no CLI.
 - **Hexagonal architecture.** Layers are folders in the service: `domain/` → `application/` (use cases + `ports/`) → `adapters/` (inbound: HTTP, watcher; outbound: filesystem, SQLite, sharp, node, SSE, memory) → `composition/`. `eslint-plugin-boundaries` enforces import direction:
   - `domain/` imports nothing outside itself. No I/O, time or randomness.
   - `application/` imports only `domain/`.
