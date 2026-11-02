@@ -14,7 +14,8 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit && pnpm -r typecheck",
-    "test": "vitest run --coverage"
+    "test": "vitest run --coverage",
+    "generate": "vitest run apps/api/test/api/openapi.test.ts -u && vitest run packages/contracts -u"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

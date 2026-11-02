@@ -5,14 +5,15 @@ import { useTempArchive } from '../support/temp-archive.ts';
 const { request } = apiFor(useTempArchive());
 
 describe('GET /api/openapi.json', () => {
-  // A change to the API shows up as a diff in this file; update it with `vitest -u` when intended.
+  // The committed spec lives in the contracts package, where the client's types are
+  // generated from it. A change to the API shows up as a diff; `pnpm generate` updates both.
   test('matches the committed spec', async () => {
     const response = await request('/api/openapi.json');
 
     expect(response.status).toBe(200);
     await expect(
       `${JSON.stringify(await response.json(), null, 2)}\n`,
-    ).toMatchFileSnapshot('./__snapshots__/openapi.json');
+    ).toMatchFileSnapshot('../../../../packages/contracts/openapi.json');
   });
 });
 
