@@ -43,7 +43,7 @@ Settled on 2 November 2026 and recorded in `docs/design.md`. Tasks refer to them
 - [x] **0.1.3 TypeScript.** `tsconfig.base.json` with strict plus the extra flags in CLAUDE.md; a `tsconfig.json` per package extending it; a root `typecheck` script running `tsc --noEmit` in every package.
 - [x] **0.1.4 Prettier, ESLint and Vitest.** Prettier config and `format:check`. ESLint flat config with `strictTypeChecked` and `stylisticTypeChecked`, plus rules for: no default exports, no enums (`no-restricted-syntax`), no non-null assertions, no floating promises. Vitest workspace config with coverage thresholds (90% lines and branches for `domain/` and `application/`, 80% overall). Root `pnpm verify` runs format check, lint, typecheck and tests.
 - [x] **0.1.5 Layer boundaries.** `eslint-plugin-boundaries` with the element types `domain`, `application`, `adapters`, `composition`, `main` and the rules from the plan. Add a lint fixture or test proving that a `domain` file importing an adapter fails lint, and that `apps/web` importing from `apps/service` fails.
-- [ ] **0.1.6 Minimal CI.** A GitHub Actions workflow with actions pinned to commit SHAs and `permissions: contents: read`: frozen-lockfile install and `pnpm verify`. (The plan's 0.1 is only done when CI passes, so a basic pipeline belongs here; 0.6 adds the rest.)
+- [x] **0.1.6 Minimal CI.** A GitHub Actions workflow with actions pinned to commit SHAs and `permissions: contents: read`: frozen-lockfile install and `pnpm verify`. (The plan's 0.1 is only done when CI passes, so a basic pipeline belongs here; 0.6 adds the rest.)
 
 **Done when:** CI passes on the skeleton, and the wrong-way import in 0.1.5 fails the build.
 
