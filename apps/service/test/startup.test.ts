@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 
@@ -16,7 +17,7 @@ afterEach(async () => {
 function startService(): ChildProcess {
   // Port 0 lets the OS pick a free port; the service logs the one it got.
   return spawn(process.execPath, [main], {
-    env: { ...process.env, FILMFILE_PORT: '0' },
+    env: { ...process.env, FILMFILE_ARCHIVE: tmpdir(), FILMFILE_PORT: '0' },
   });
 }
 

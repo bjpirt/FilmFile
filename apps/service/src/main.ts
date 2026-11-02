@@ -5,7 +5,11 @@ import { readLocalConfig } from './composition/read-local-config.ts';
 const config = readLocalConfig(process.env);
 
 const server = serve(
-  { fetch: composeLocal().fetch, hostname: '127.0.0.1', port: config.port },
+  {
+    fetch: composeLocal(config).fetch,
+    hostname: '127.0.0.1',
+    port: config.port,
+  },
   (info) => {
     console.log(
       `FilmFile service listening on http://127.0.0.1:${String(info.port)}`,
