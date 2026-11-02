@@ -33,7 +33,7 @@ export class GetThumbnail {
       readonly size: ThumbnailSize;
     },
   ): Promise<Result<Uint8Array, NotFound>> {
-    const roll = await this.#rolls.get(ctx, input.rollId);
+    const roll = (await this.#rolls.get(ctx, input.rollId))?.roll;
     const version = roll && findVersion(roll, input.frameId, input.versionId);
     if (roll === undefined || version === undefined) {
       return err({ kind: 'not-found', entity: 'version', id: input.versionId });

@@ -77,16 +77,17 @@ describe('ListRolls', () => {
 });
 
 describe('GetRoll', () => {
-  test('gets a roll by its ID', async () => {
+  test('gets a roll by its ID, with its version token', async () => {
     const { ctx, createRoll, getRoll } = setUp();
     const created = await createRoll.execute(ctx, { roll: '2026-014' });
     if (!created.ok) {
       throw new Error('setup failed');
     }
 
-    expect(await getRoll.execute(ctx, { id: created.value.id })).toEqual(
-      created,
-    );
+    expect(await getRoll.execute(ctx, { id: created.value.id })).toEqual({
+      ok: true,
+      value: { roll: created.value, version: '1' },
+    });
   });
 
   test('says when no roll has the ID', async () => {

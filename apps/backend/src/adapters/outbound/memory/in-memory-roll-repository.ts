@@ -1,28 +1,41 @@
 import type {
+  RollChange,
   RollListing,
   RollRepository,
+  VersionedRoll,
 } from '../../../application/ports/roll-repository.ts';
 import type { Roll } from '../../../domain/rolls/roll.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type {
   AlreadyExists,
+  ConcurrencyConflict,
   NotFound,
 } from '../../../domain/shared/domain-error.ts';
 import type { RollId } from '../../../domain/shared/ids.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
+import { KeyedLock } from '../node/keyed-lock.ts';
 
-/** Rolls kept in memory, for tests. */
+/** Rolls kept in memory, for tests. Versions count up from 1 per save. */
 export class InMemoryRollRepository implements RollRepository {
-  readonly #rolls = new Map<RollId, Roll>();
+  readonly #rolls = new Map<RollId, VersionedRoll>();
+  readonly #lock = new KeyedLock();
+  #saves = 0;
+
+  #store(roll: Roll): string {
+    this.#saves += 1;
+    const version = String(this.#saves);
+    this.#rolls.set(roll.id, { roll, version });
+    return version;
+  }
 
   list(): Promise<RollListing> {
-    const rolls = [...this.#rolls.values()].sort((a, b) =>
-      a.roll.localeCompare(b.roll),
-    );
+    const rolls = [...this.#rolls.values()]
+      .map((r) => r.roll)
+      .sort((a, b) => a.roll.localeCompare(b.roll));
     return Promise.resolve({ rolls, unreadable: [] });
   }
 
-  get(_ctx: ArchiveContext, id: RollId): Promise<Roll | undefined> {
+  get(_ctx: ArchiveContext, id: RollId): Promise<VersionedRoll | undefined> {
     return Promise.resolve(this.#rolls.get(id));
   }
 
@@ -30,22 +43,54 @@ export class InMemoryRollRepository implements RollRepository {
     _ctx: ArchiveContext,
     roll: Roll,
   ): Promise<Result<void, AlreadyExists>> {
-    if ([...this.#rolls.values()].some((r) => r.roll === roll.roll)) {
+    if ([...this.#rolls.values()].some((r) => r.roll.roll === roll.roll)) {
       return Promise.resolve(
         err({ kind: 'already-exists', entity: 'roll', id: roll.roll }),
       );
     }
-    this.#rolls.set(roll.id, roll);
+    this.#store(roll);
     return Promise.resolve(ok(undefined));
   }
 
-  save(_ctx: ArchiveContext, roll: Roll): Promise<Result<void, NotFound>> {
-    if (!this.#rolls.has(roll.id)) {
-      return Promise.resolve(
-        err({ kind: 'not-found', entity: 'roll', id: roll.id }),
-      );
-    }
-    this.#rolls.set(roll.id, roll);
-    return Promise.resolve(ok(undefined));
+  save(
+    _ctx: ArchiveContext,
+    roll: Roll,
+    expectedVersion: string,
+  ): Promise<Result<string, NotFound | ConcurrencyConflict>> {
+    return this.#lock.run(roll.id, () => {
+      const current = this.#rolls.get(roll.id);
+      let result: Result<string, NotFound | ConcurrencyConflict>;
+      if (current === undefined) {
+        result = err({ kind: 'not-found', entity: 'roll', id: roll.id });
+      } else if (current.version !== expectedVersion) {
+        result = err({
+          kind: 'concurrency-conflict',
+          entity: 'roll',
+          id: roll.id,
+        });
+      } else {
+        result = ok(this.#store(roll));
+      }
+      return Promise.resolve(result);
+    });
+  }
+
+  change<T, E>(
+    _ctx: ArchiveContext,
+    id: RollId,
+    apply: (roll: Roll) => Promise<Result<RollChange<T>, E>>,
+  ): Promise<Result<T, E | NotFound>> {
+    return this.#lock.run(id, async () => {
+      const current = this.#rolls.get(id);
+      if (current === undefined) {
+        return err({ kind: 'not-found', entity: 'roll', id });
+      }
+      const changed = await apply(current.roll);
+      if (!changed.ok) {
+        return changed;
+      }
+      this.#store(changed.value.roll);
+      return ok(changed.value.value);
+    });
   }
 }

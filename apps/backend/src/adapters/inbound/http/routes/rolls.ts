@@ -222,9 +222,12 @@ export function rollRoutes({
       return c.json(notFound, 404);
     }
     const found = await useCases.getRoll.execute(ctx, { id: rollId });
-    return found.ok
-      ? c.json(rollDto(found.value), 200)
-      : domainErrorResponse(c, found.error);
+    if (!found.ok) {
+      return domainErrorResponse(c, found.error);
+    }
+    // The version token, for a later edit to send back as If-Match.
+    c.header('ETag', `"${found.value.version}"`);
+    return c.json(rollDto(found.value.roll), 200);
   });
 
   routes.openapi(createRoll, async (c) => {

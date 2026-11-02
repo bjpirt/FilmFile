@@ -1,5 +1,5 @@
 import { newIdWithUniqueFolder } from '../../../domain/rolls/folder-names.ts';
-import type { Version } from '../../../domain/rolls/roll.ts';
+import type { Roll, Version } from '../../../domain/rolls/roll.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type {
   ImageRejected,
@@ -11,8 +11,14 @@ import { err, ok, type Result } from '../../../domain/shared/result.ts';
 import type { BlobStore } from '../../ports/blob-store.ts';
 import type { Clock } from '../../ports/clock.ts';
 import type { IdGenerator } from '../../ports/id-generator.ts';
-import type { ImageInspector } from '../../ports/image-inspector.ts';
-import type { RollRepository } from '../../ports/roll-repository.ts';
+import type {
+  ImageFacts,
+  ImageInspector,
+} from '../../ports/image-inspector.ts';
+import type {
+  RollChange,
+  RollRepository,
+} from '../../ports/roll-repository.ts';
 
 /**
  * Adds an image file, such as a lab scan, as a new version of a frame. The
@@ -49,20 +55,30 @@ export class AddVersion {
       readonly bytes: Uint8Array;
     },
   ): Promise<Result<Version, NotFound | ImageRejected | ScanAlreadyInRoll>> {
-    const roll = await this.#rolls.get(ctx, input.rollId);
-    if (roll === undefined) {
-      return err({ kind: 'not-found', entity: 'roll', id: input.rollId });
-    }
-    const frame = roll.frames.find((f) => f.id === input.frameId);
-    if (frame === undefined) {
-      return err({ kind: 'not-found', entity: 'frame', id: input.frameId });
-    }
-
+    // Inspecting reads the whole file, so it's done before taking the roll's turn.
     const inspected = await this.#inspector.inspect(input.bytes);
     if (!inspected.ok) {
       return inspected;
     }
-    const facts = inspected.value;
+    return this.#rolls.change(ctx, input.rollId, (roll) =>
+      this.#addTo(ctx, roll, inspected.value, input),
+    );
+  }
+
+  async #addTo(
+    ctx: ArchiveContext,
+    roll: Roll,
+    facts: ImageFacts,
+    input: {
+      readonly frameId: FrameId;
+      readonly fileName: string;
+      readonly bytes: Uint8Array;
+    },
+  ): Promise<Result<RollChange<Version>, NotFound | ScanAlreadyInRoll>> {
+    const frame = roll.frames.find((f) => f.id === input.frameId);
+    if (frame === undefined) {
+      return err({ kind: 'not-found', entity: 'frame', id: input.frameId });
+    }
     const holder = roll.frames.find((f) =>
       f.versions.some((v) => v.sha256 === facts.sha256),
     );
@@ -90,12 +106,14 @@ export class AddVersion {
       ...facts,
       added: this.#clock.now(),
     };
-    const saved = await this.#rolls.save(ctx, {
-      ...roll,
-      frames: roll.frames.map((f) =>
-        f.id === frame.id ? { ...f, versions: [...f.versions, version] } : f,
-      ),
+    return ok({
+      roll: {
+        ...roll,
+        frames: roll.frames.map((f) =>
+          f.id === frame.id ? { ...f, versions: [...f.versions, version] } : f,
+        ),
+      },
+      value: version,
     });
-    return saved.ok ? ok(version) : saved;
   }
 }

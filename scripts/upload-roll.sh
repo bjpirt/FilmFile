@@ -28,7 +28,7 @@ roll_id=$(post_json rolls "{\"roll\":\"$roll\"}" | id_of)
 echo "Roll $roll: $api/rolls/$roll_id"
 
 shopt -s nullglob nocaseglob
-# One at a time: the service doesn't yet guard against concurrent changes to a roll.
+# One at a time, so frames are added in file name order.
 for scan in "$folder"/*.jpg "$folder"/*.jpeg; do
   name=$(basename "$scan")
   frame_id=$(post_json "rolls/$roll_id/frames" '{}' | id_of)

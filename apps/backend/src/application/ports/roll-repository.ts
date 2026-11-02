@@ -1,18 +1,14 @@
-import type {
-  AlreadyExists,
-  NotFound,
-} from '../../domain/shared/domain-error.ts';
-import type { ArchiveContext } from '../../domain/shared/archive-context.ts';
-import type { RollId } from '../../domain/shared/ids.ts';
 import type { Roll } from '../../domain/rolls/roll.ts';
 import type { UnreadableRoll } from '../../domain/rolls/unreadable-roll.ts';
+import type { ArchiveContext } from '../../domain/shared/archive-context.ts';
+import type {
+  AlreadyExists,
+  ConcurrencyConflict,
+  NotFound,
+} from '../../domain/shared/domain-error.ts';
+import type { RollId } from '../../domain/shared/ids.ts';
 import type { Result } from '../../domain/shared/result.ts';
 
-/**
- * Where rolls, with their frames and versions, are kept: `roll.json` files in
- * the archive, or memory in tests. Version tokens for safe concurrent saves
- * arrive in task H.9.
- */
 /** Every roll that can be read, and the ones that can't. */
 export interface RollListing {
   /** Ordered by roll number. */
@@ -20,15 +16,55 @@ export interface RollListing {
   readonly unreadable: readonly UnreadableRoll[];
 }
 
+/**
+ * A roll and its version token. The token changes whenever the roll is
+ * saved; passing it back to `save` refuses the save if the roll has changed
+ * since it was read.
+ */
+export interface VersionedRoll {
+  readonly roll: Roll;
+  readonly version: string;
+}
+
+/** The roll to save in place of the one read, and what to give the caller. */
+export interface RollChange<T> {
+  readonly roll: Roll;
+  readonly value: T;
+}
+
+/**
+ * Where rolls, with their frames and versions, are kept: roll.json files in
+ * the archive, or memory in tests. Every write replaces a roll whole and
+ * atomically: a reader sees the old roll or the new one, never part of each.
+ */
 export interface RollRepository {
   /** Every roll; one that can't be read is reported, not allowed to hide the rest. */
   list(ctx: ArchiveContext): Promise<RollListing>;
 
-  get(ctx: ArchiveContext, id: RollId): Promise<Roll | undefined>;
+  get(ctx: ArchiveContext, id: RollId): Promise<VersionedRoll | undefined>;
 
   /** Adds a new roll; fails if another roll has its roll number. */
   create(ctx: ArchiveContext, roll: Roll): Promise<Result<void, AlreadyExists>>;
 
-  /** Replaces an existing roll. */
-  save(ctx: ArchiveContext, roll: Roll): Promise<Result<void, NotFound>>;
+  /**
+   * Replaces a roll, if it hasn't changed since it was read as
+   * `expectedVersion`. Returns the new version.
+   */
+  save(
+    ctx: ArchiveContext,
+    roll: Roll,
+    expectedVersion: string,
+  ): Promise<Result<string, NotFound | ConcurrencyConflict>>;
+
+  /**
+   * Reads the roll, applies `apply` and saves what it returns, with no other
+   * change to the roll in between. For appends, such as adding a frame, which
+   * need no version token from the caller (D11). `apply` may fail, and then
+   * nothing is saved.
+   */
+  change<T, E>(
+    ctx: ArchiveContext,
+    id: RollId,
+    apply: (roll: Roll) => Promise<Result<RollChange<T>, E>>,
+  ): Promise<Result<T, E | NotFound>>;
 }

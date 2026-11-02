@@ -1,9 +1,11 @@
+import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import type { RollRepository } from '../../../application/ports/roll-repository.ts';
-import type { Roll } from '../../../domain/rolls/roll.ts';
+import type { Frame, Roll } from '../../../domain/rolls/roll.ts';
+import { err, ok } from '../../../domain/shared/result.ts';
 import { isRollNumber } from '../../../domain/rolls/roll-number.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import {
@@ -48,6 +50,10 @@ function aRoll(roll: string, id = '00000000000000000000000001'): Roll {
     roll: checked(roll, isRollNumber),
     frames: [],
   };
+}
+
+function aFrame(id: string): Frame {
+  return { id: checked(id, isFrameId), number: null, versions: [] };
 }
 
 const aVersion = {
@@ -115,12 +121,123 @@ describe('FilesystemRollRepository', () => {
       ],
     };
 
-    expect(await rolls.save(ctx, withFrame)).toEqual({
-      ok: true,
-      value: undefined,
-    });
+    const read = await rolls.get(ctx, roll.id);
 
-    expect(await rolls.get(ctx, roll.id)).toEqual(withFrame);
+    const saved = await rolls.save(ctx, withFrame, read?.version ?? '');
+
+    expect(saved.ok).toBe(true);
+    expect(await rolls.get(ctx, roll.id)).toEqual({
+      roll: withFrame,
+      version: saved.ok && saved.value,
+    });
+  });
+
+  test('versions a roll by the SHA-256 of its file', async () => {
+    const rolls = repository();
+    await rolls.create(ctx, aRoll('2026-014'));
+    const bytes = await readFile(
+      path.join(archivePath, 'rolls/2026/2026-014/roll.json'),
+    );
+
+    expect((await rolls.get(ctx, aRoll('2026-014').id))?.version).toBe(
+      createHash('sha256').update(bytes).digest('hex'),
+    );
+  });
+
+  test('refuses a save when the roll changed since it was read', async () => {
+    const rolls = repository();
+    const roll = aRoll('2026-014');
+    await rolls.create(ctx, roll);
+    const read = await rolls.get(ctx, roll.id);
+    const first = { ...roll, frames: [aFrame('00000000000000000000000002')] };
+    await rolls.save(ctx, first, read?.version ?? '');
+
+    const second = await rolls.save(ctx, roll, read?.version ?? '');
+
+    expect(second).toEqual({
+      ok: false,
+      error: { kind: 'concurrency-conflict', entity: 'roll', id: roll.id },
+    });
+    expect((await rolls.get(ctx, roll.id))?.roll).toEqual(first);
+  });
+
+  test('lets only one of two saves from the same read through', async () => {
+    const rolls = repository();
+    const roll = aRoll('2026-014');
+    await rolls.create(ctx, roll);
+    const read = await rolls.get(ctx, roll.id);
+
+    const results = await Promise.all(
+      ['00000000000000000000000002', '00000000000000000000000003'].map(
+        (frameId) =>
+          rolls.save(
+            ctx,
+            { ...roll, frames: [aFrame(frameId)] },
+            read?.version ?? '',
+          ),
+      ),
+    );
+
+    expect(results.map((r) => r.ok).sort()).toEqual([false, true]);
+  });
+
+  test('applies changes made at the same time one after another, so none is lost', async () => {
+    const rolls = repository();
+    const roll = aRoll('2026-014');
+    await rolls.create(ctx, roll);
+    const frameIds = Array.from(
+      { length: 20 },
+      (_, i) => `000000000000000000000001${String(i).padStart(2, '0')}`,
+    );
+
+    await Promise.all(
+      frameIds.map((frameId) =>
+        rolls.change(ctx, roll.id, (current) =>
+          Promise.resolve(
+            ok({
+              roll: {
+                ...current,
+                frames: [...current.frames, aFrame(frameId)],
+              },
+              value: frameId,
+            }),
+          ),
+        ),
+      ),
+    );
+
+    const frames = (await rolls.get(ctx, roll.id))?.roll.frames ?? [];
+    expect(frames.map((f) => f.id).sort()).toEqual(frameIds);
+  });
+
+  test('saves nothing when a change fails', async () => {
+    const rolls = repository();
+    const roll = aRoll('2026-014');
+    await rolls.create(ctx, roll);
+    const before = await rolls.get(ctx, roll.id);
+
+    const changed = await rolls.change(ctx, roll.id, () =>
+      Promise.resolve(err('no thanks')),
+    );
+
+    expect(changed).toEqual({ ok: false, error: 'no thanks' });
+    expect(await rolls.get(ctx, roll.id)).toEqual(before);
+  });
+
+  test('is unaffected by a half-written file a crash left behind', async () => {
+    const rolls = repository();
+    const roll = aRoll('2026-014');
+    await rolls.create(ctx, roll);
+    const before = await rolls.get(ctx, roll.id);
+    // A write goes to a temporary file first, renamed over roll.json once complete.
+    await writeFile(
+      path.join(archivePath, 'rolls/2026/2026-014/roll.json.0b7c.tmp'),
+      '{ "schema": 1, "id": "0',
+    );
+
+    expect(await rolls.get(ctx, roll.id)).toEqual(before);
+    expect((await rolls.list(ctx)).unreadable).toEqual([]);
+    expect((await rolls.save(ctx, roll, before?.version ?? '')).ok).toBe(true);
   });
 
   test('lists rolls in roll number order', async () => {
@@ -179,7 +296,7 @@ describe('FilesystemRollRepository', () => {
   test('refuses to save a roll that was never created', async () => {
     const rolls = repository();
 
-    expect(await rolls.save(ctx, aRoll('2026-014'))).toEqual({
+    expect(await rolls.save(ctx, aRoll('2026-014'), 'any')).toEqual({
       ok: false,
       error: {
         kind: 'not-found',

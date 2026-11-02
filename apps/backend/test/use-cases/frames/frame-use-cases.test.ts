@@ -83,7 +83,7 @@ describe('CreateFrame', () => {
       value: { id: '00000000000000000000000003', number: '2', versions: [] },
     });
     expect(
-      (await rolls.get(ctx, roll.id))?.frames.map((f) => f.number),
+      (await rolls.get(ctx, roll.id))?.roll.frames.map((f) => f.number),
     ).toEqual(['1', '2']);
   });
 
@@ -130,7 +130,7 @@ describe('AddVersion', () => {
       added: new Date('2026-11-02T12:00:00.000Z'),
     };
     expect(added).toEqual({ ok: true, value: version });
-    expect((await rolls.get(ctx, roll.id))?.frames[0]?.versions).toEqual([
+    expect((await rolls.get(ctx, roll.id))?.roll.frames[0]?.versions).toEqual([
       version,
     ]);
   });

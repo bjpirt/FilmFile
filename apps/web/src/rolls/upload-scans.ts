@@ -99,8 +99,8 @@ async function uploadScan(
 
 /**
  * Adds each scan to the roll as a new frame, in file name order, numbered on
- * from the roll's highest frame number. One at a time:
- * until the service locks rolls (task H.9), parallel changes to a roll can be lost.
+ * from the roll's highest frame number. One at a time, so frames are added
+ * to the roll in file name order.
  */
 export async function uploadScans(
   api: ApiClient,

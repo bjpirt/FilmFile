@@ -16,13 +16,26 @@ export function apiFor(
   archive: TempArchive,
   overrides: { readonly clock?: Clock; readonly ids?: IdGenerator } = {},
 ) {
+  // One app per test archive, as the real service has one app: requests to
+  // it share its repositories, and so the locks that make them take turns.
+  let app: ReturnType<typeof composeLocal> | undefined;
+  let appArchive = '';
+
+  function appForArchive() {
+    if (app === undefined || appArchive !== archive.path()) {
+      appArchive = archive.path();
+      app = composeLocal({
+        archivePath: archive.path(),
+        cachePath: archive.cachePath(),
+        port,
+        ...overrides,
+      });
+    }
+    return app;
+  }
+
   function request(url: string, init?: RequestInit): Promise<Response> {
-    const app = composeLocal({
-      archivePath: archive.path(),
-      cachePath: archive.cachePath(),
-      port,
-      ...overrides,
-    });
+    const app = appForArchive();
     const headers = new Headers(init?.headers);
     headers.set('Origin', origin);
     return Promise.resolve(
