@@ -1,43 +1,40 @@
 import { glob, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { newUlid } from '../../../driven/node/new-ulid.ts';
 
-// Also keeps request input from steering the folder path anywhere else.
-const rollIdPattern = /^(?<year>\d{4})-\d{3}$/;
+// Strict, because the roll ID becomes part of a folder path.
+const rollId = z
+  .string()
+  .regex(/^\d{4}-\d{3}$/, 'must be a roll ID like 2026-014');
 
-interface Roll {
-  readonly id: string;
-  readonly roll: string;
-  readonly frames: readonly unknown[];
-}
+const createRollRequest = z.object({ roll: rollId });
 
-// A stand-in for proper parsing until the persistence schemas arrive.
-function isRoll(value: unknown): value is Roll {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'id' in value &&
-    typeof value.id === 'string' &&
-    'roll' in value &&
-    typeof value.roll === 'string' &&
-    'frames' in value &&
-    Array.isArray(value.frames)
-  );
-}
+const storedRoll = z.object({
+  schema: z.literal(1),
+  id: z.string(),
+  roll: rollId,
+  frames: z.array(z.unknown()),
+});
+
+type Roll = Omit<z.infer<typeof storedRoll>, 'schema'>;
 
 async function readRolls(archivePath: string): Promise<Roll[]> {
   const rolls: Roll[] = [];
   for await (const file of glob('rolls/*/*/roll.json', { cwd: archivePath })) {
-    const stored: unknown = JSON.parse(
-      await readFile(path.join(archivePath, file), 'utf8'),
+    const { id, roll, frames } = storedRoll.parse(
+      JSON.parse(await readFile(path.join(archivePath, file), 'utf8')),
     );
-    if (!isRoll(stored)) {
-      throw new Error(`${file} is not a valid roll`);
-    }
-    rolls.push({ id: stored.id, roll: stored.roll, frames: stored.frames });
+    rolls.push({ id, roll, frames });
   }
   return rolls.sort((a, b) => a.roll.localeCompare(b.roll));
+}
+
+function issuesOf(
+  error: z.ZodError,
+): { path: PropertyKey[]; message: string }[] {
+  return error.issues.map(({ path, message }) => ({ path, message }));
 }
 
 export function rollRoutes(archivePath: string): Hono {
@@ -55,21 +52,19 @@ export function rollRoutes(archivePath: string): Hono {
   });
 
   routes.post('/', async (c) => {
-    const body: unknown = await c.req.json();
-    const roll =
-      typeof body === 'object' && body !== null && 'roll' in body
-        ? body.roll
-        : undefined;
-    const year =
-      typeof roll === 'string'
-        ? rollIdPattern.exec(roll)?.groups?.year
-        : undefined;
-    if (typeof roll !== 'string' || year === undefined) {
-      return c.json({ error: 'roll must be a roll ID like 2026-014' }, 422);
+    // Malformed JSON becomes undefined, so the schema reports it like any other bad input.
+    const body: unknown = await c.req.json().catch(() => undefined);
+    const parsed = createRollRequest.safeParse(body);
+    if (!parsed.success) {
+      return c.json(
+        { error: 'invalid request', issues: issuesOf(parsed.error) },
+        422,
+      );
     }
 
+    const { roll } = parsed.data;
     const created = { id: newUlid(), roll, frames: [] };
-    const folder = path.join(archivePath, 'rolls', year, roll);
+    const folder = path.join(archivePath, 'rolls', roll.slice(0, 4), roll);
     await mkdir(folder, { recursive: true });
     try {
       // 'wx' fails if the file exists, so two rolls can't share an ID.

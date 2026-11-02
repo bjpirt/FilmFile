@@ -63,6 +63,29 @@ describe('POST /api/rolls', () => {
     expect(response.status).toBe(409);
   });
 
+  test('says which field is wrong when the request is invalid', async () => {
+    const response = await request('/api/rolls', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roll: 2026 }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({
+      issues: [{ path: ['roll'] }],
+    });
+  });
+
+  test('rejects a body that is not valid JSON', async () => {
+    const response = await request('/api/rolls', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{"roll": ',
+    });
+
+    expect(response.status).toBe(422);
+  });
+
   test.each(['2026-14', '26-014', '2026-014a', '../../2026-014', ''])(
     'rejects %j, which is not a YYYY-NNN roll ID',
     async (roll) => {
