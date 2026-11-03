@@ -1,8 +1,9 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import { useQuery } from '@tanstack/react-query';
+import type { Camera } from '@filmfile/contracts/equipment';
 import type { Roll } from '@filmfile/contracts/rolls';
 import { useEffect } from 'react';
-import { useCameras } from '../equipment/use-cameras.ts';
+import { cameraName, useCameras } from '../equipment/use-cameras.ts';
 import { Link, navigate, useSearch } from '../routing.tsx';
 import { BrowsePanel } from './browse-panel.tsx';
 import { RollCard } from './roll-card.tsx';
@@ -40,21 +41,67 @@ function sorted(rolls: readonly Roll[], sort: Sorting): Roll[] {
   });
 }
 
-/** The rolls in groups, each with its heading; one untitled group when not grouping. */
+interface RollGroup {
+  readonly title: string | undefined;
+  readonly rolls: Roll[];
+}
+
+/** The rolls under each title, keeping their order, in the order titles first appear. */
+function groupedBy(
+  rolls: readonly Roll[],
+  titleOf: (roll: Roll) => string,
+): RollGroup[] {
+  const groups = new Map<string, Roll[]>();
+  for (const roll of rolls) {
+    const title = titleOf(roll);
+    groups.set(title, [...(groups.get(title) ?? []), roll]);
+  }
+  return [...groups].map(([title, members]) => ({ title, rolls: members }));
+}
+
+const noCamera = 'No camera';
+
+/**
+ * The rolls in groups, each with its heading; one untitled group when not
+ * grouping. Years go newest first; cameras by name, with rolls that have
+ * none last.
+ */
 function grouped(
   rolls: readonly Roll[],
   group: Grouping,
-): { title: string | undefined; rolls: Roll[] }[] {
-  if (group === 'none') {
-    return [{ title: undefined, rolls: [...rolls] }];
+  cameras: readonly Camera[],
+): RollGroup[] {
+  switch (group) {
+    case 'none':
+      return [{ title: undefined, rolls: [...rolls] }];
+    case 'year':
+      return groupedBy(rolls, (roll) => roll.roll.slice(0, 4)).sort((a, b) =>
+        (b.title ?? '').localeCompare(a.title ?? ''),
+      );
+    case 'camera':
+      return groupedBy(
+        rolls,
+        (roll) => cameraName(cameras, roll.camera) ?? noCamera,
+      ).sort((a, b) => {
+        if (a.title === noCamera || b.title === noCamera) {
+          return a.title === noCamera ? 1 : -1;
+        }
+        return (a.title ?? '').localeCompare(b.title ?? '', undefined, {
+          sensitivity: 'base',
+        });
+      });
   }
-  const years = [...new Set(rolls.map((roll) => roll.roll.slice(0, 4)))].sort(
-    (a, b) => b.localeCompare(a),
-  );
-  return years.map((year) => ({
-    title: year,
-    rolls: rolls.filter((roll) => roll.roll.startsWith(year)),
-  }));
+}
+
+/** The page's heading for the rolls chosen, e.g. "Rolls shot on Nikon FE in 2026". */
+function headingFor(year: string | undefined, camera: string | undefined) {
+  const shotOn = camera === undefined ? '' : ` shot on ${camera}`;
+  if (year === undefined) {
+    return `Rolls${shotOn}`;
+  }
+  return camera === undefined
+    ? `Rolls from ${year}`
+    : `Rolls${shotOn} in ${year}`;
 }
 
 export function RollsPage({
@@ -98,19 +145,21 @@ export function RollsPage({
   });
 
   const all = rolls.data?.rolls ?? [];
-  const shown =
-    address.year === undefined
-      ? all
-      : all.filter((roll) => roll.roll.startsWith(address.year ?? ''));
+  const shown = all.filter(
+    (roll) =>
+      (address.year === undefined || roll.roll.startsWith(address.year)) &&
+      (address.camera === undefined || roll.camera === address.camera),
+  );
 
   return (
     <div className="rolls-layout">
       {browseOpen && rolls.data !== undefined && (
         <BrowsePanel
           rolls={all}
-          year={address.year}
-          choose={(year) => {
-            go({ year });
+          cameras={cameras}
+          filter={address}
+          choose={(filter) => {
+            go(filter);
           }}
         />
       )}
@@ -118,9 +167,10 @@ export function RollsPage({
         <div className="page-heading">
           <div className="rolls-title">
             <h1>
-              {address.year === undefined
-                ? 'Rolls'
-                : `Rolls from ${address.year}`}
+              {headingFor(
+                address.year,
+                cameraName(cameras, address.camera ?? null),
+              )}
             </h1>
             {rolls.data !== undefined && (
               <span className="muted">{rollCount(shown.length)}</span>
@@ -131,11 +181,16 @@ export function RollsPage({
             <select
               value={address.group}
               onChange={(event) => {
-                go({ group: event.target.value === 'year' ? 'year' : 'none' });
+                const group = event.target.value;
+                go({
+                  group:
+                    group === 'year' || group === 'camera' ? group : 'none',
+                });
               }}
             >
               <option value="none">Nothing</option>
               <option value="year">Year</option>
+              <option value="camera">Camera</option>
             </select>
           </label>
           <label className="group-by">
@@ -180,26 +235,28 @@ export function RollsPage({
           </p>
         ))}
         {rolls.data !== undefined && all.length === 0 && <p>No rolls yet.</p>}
-        {grouped(sorted(shown, address.sort), address.group).map((group) => (
-          <section key={group.title ?? 'all'} className="roll-group">
-            {group.title !== undefined && (
-              <h2>
-                {group.title}{' '}
-                <span className="muted">{rollCount(group.rolls.length)}</span>
-              </h2>
-            )}
-            {group.rolls.length > 0 &&
-              (view === 'grid' ? (
-                <ul className="roll-grid">
-                  {group.rolls.map((roll) => (
-                    <RollCard key={roll.id} roll={roll} cameras={cameras} />
-                  ))}
-                </ul>
-              ) : (
-                <RollTable rolls={group.rolls} cameras={cameras} />
-              ))}
-          </section>
-        ))}
+        {grouped(sorted(shown, address.sort), address.group, cameras).map(
+          (group) => (
+            <section key={group.title ?? 'all'} className="roll-group">
+              {group.title !== undefined && (
+                <h2>
+                  {group.title}{' '}
+                  <span className="muted">{rollCount(group.rolls.length)}</span>
+                </h2>
+              )}
+              {group.rolls.length > 0 &&
+                (view === 'grid' ? (
+                  <ul className="roll-grid">
+                    {group.rolls.map((roll) => (
+                      <RollCard key={roll.id} roll={roll} cameras={cameras} />
+                    ))}
+                  </ul>
+                ) : (
+                  <RollTable rolls={group.rolls} cameras={cameras} />
+                ))}
+            </section>
+          ),
+        )}
       </section>
     </div>
   );

@@ -242,6 +242,101 @@ describe('grouping, browsing and the address', () => {
   });
 });
 
+describe('finding rolls by camera', () => {
+  const cameras = [
+    { slug: 'nikon-fe', name: 'Nikon FE' },
+    { slug: 'leica-m6', name: 'Leica M6' },
+    { slug: 'pentax-k1000', name: 'Pentax K1000' },
+  ];
+  const someRolls = () =>
+    fakeRollsService(
+      [
+        { ...aRoll('2025-003'), camera: 'nikon-fe' },
+        aRoll('2026-001'),
+        { ...aRoll('2026-014'), camera: 'leica-m6' },
+        { ...aRoll('2026-015'), camera: 'nikon-fe' },
+      ],
+      [],
+      cameras,
+    );
+
+  function rollsShown(): string[] {
+    return screen
+      .getAllByRole('link')
+      .map((link) => link.textContent)
+      .filter((text) => /^\d{4}-\d{3}$/.test(text));
+  }
+
+  test('groups rolls by camera, by name, with rolls that have none last', async () => {
+    renderPage(someRolls());
+    await screen.findByRole('region', { name: 'Cameras' });
+
+    fireEvent.change(screen.getByLabelText('Group by'), {
+      target: { value: 'camera' },
+    });
+
+    const groupHeadings = screen
+      .getAllByRole('heading', { level: 2 })
+      .filter((heading) => heading.closest('aside') === null);
+    expect(groupHeadings.map((h) => h.textContent)).toEqual([
+      'Leica M6 1 roll',
+      'Nikon FE 2 rolls',
+      'No camera 1 roll',
+    ]);
+    expect(rollsShown()).toEqual([
+      '2026-014',
+      '2025-003',
+      '2026-015',
+      '2026-001',
+    ]);
+    expect(window.location.search).toBe('?view=grid&group=camera');
+  });
+
+  test('lists the cameras rolls were shot on in the browse panel, with counts', async () => {
+    renderPage(someRolls());
+    const browse = await screen.findByRole('complementary', {
+      name: 'Browse rolls',
+    });
+    const section = await within(browse).findByRole('region', {
+      name: 'Cameras',
+    });
+
+    expect(
+      within(section)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Leica M61', 'Nikon FE2']);
+  });
+
+  test('filters by the camera chosen in the browse panel', async () => {
+    window.history.replaceState(null, '', '/?year=2026');
+    renderPage(someRolls());
+    const browse = await screen.findByRole('complementary', {
+      name: 'Browse rolls',
+    });
+
+    fireEvent.click(
+      await within(browse).findByRole('button', { name: /^Nikon FE/ }),
+    );
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Rolls shot on Nikon FE' }),
+    ).toBeDefined();
+    expect(rollsShown()).toEqual(['2025-003', '2026-015']);
+    expect(window.location.search).toBe('?view=grid&camera=nikon-fe');
+    expect(
+      within(browse)
+        .getByRole('button', { name: /^Nikon FE/ })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
+    expect(
+      within(browse)
+        .getByRole('button', { name: /^All rolls/ })
+        .getAttribute('aria-pressed'),
+    ).toBe('false');
+  });
+});
+
 describe('the list view', () => {
   function showList() {
     fireEvent.click(screen.getByRole('button', { name: 'List' }));
