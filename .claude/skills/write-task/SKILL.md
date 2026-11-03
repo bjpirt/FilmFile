@@ -20,6 +20,8 @@ what the user sees, and "make it work, then make it pretty" (CLAUDE.md).
 - **ID**: milestone letter and number. Split a task by suffixing letters
   (`U9a`, `U9b`); a task moved to later gets the next free number
   (sub-events became `U19`). Never reuse an ID for something else.
+- **Parked**: a task set aside moves, ID unchanged, to the Parked section
+  after the U milestone; when picked up it moves back to its milestone.
 - **Commit-sized**: one review's worth. Split when it spans backend and UI
   for a new kind of record and also adds browsing (record it first, find by
   it second), or when a choice would block half of it.

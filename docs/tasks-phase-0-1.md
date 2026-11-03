@@ -182,7 +182,6 @@ Each layer is one vertical slice: the field in the domain, `roll.json` (an optio
 - [x] **U12a Events.** Events with a name (`events/<slug>.json`), chosen for a roll on the new roll page and in Edit details from a dropdown whose Add new… asks for the new event's name, as for equipment; a roll belongs to at most one event (D24). Shown in the roll's details row, on cards and as a List column; Group by Event, with "No event" last; an Events section in the browse panel with counts, filtering the rolls by event (`?event=<slug>`). An Events page, from the header's Events link, lists the events with how many rolls each has, each linking to its rolls. Adds the "Organise by event" journey.
 - [x] **U12b Events page: create and edit.** The Events page gets a New event button and lets each event be edited: a name, and an optional date of the same precision as a roll's date shot (a year, then month and day). Events are listed newest first, by date, with their dates shown ("Iceland 2026 · Sep 2026") and undated events last; the browse panel and the Event dropdown follow the same order. Renaming keeps the event's slug, so rolls stay in it. The roll forms keep Add new… as a shortcut that asks only for the name (D32).
 - [x] **U12c An event's frames.** Choosing an event, on the Events page or in the browse panel's Events section, opens its page (`/events/<slug>`): the event's name, date and frame count, then one contact sheet of the frames from all its rolls, not the rolls themselves, in shot order (rolls by date shot, undated last, then roll number; frames in frame order), each labelled with its frame number and roll number. Group by Nothing, Roll, Camera, Lens or Film stock, kept in the address (`?group=roll`), each group headed by its name and frame count, a roll's heading linking to the roll, and frames with none last. Until frames have their own details (U15), a frame's camera, lens and film stock are its roll's. The rolls page's event filter is gone; Group by Event stays. The "Organise by event" journey sees an event's frames from two rolls, grouped by roll (D33).
-- [ ] **U13 Equipment page.** The Equipment link: cameras, lenses and film stocks with how many rolls use each, each linking to the rolls filtered by it.
 
 **Checkpoint:** a real roll can be catalogued in the browser with its name, description, date shot, camera, film stock, lens and event, found again by grouping and filtering on each.
 
@@ -195,9 +194,19 @@ Selecting frames on a roll and giving them all an event, camera, film stock or l
 - [ ] **U16 Assign to selected frames.** With frames selected, a bar offers "Set event", "Set camera", "Set film stock" and "Set lens" for them, or "Use the roll's" to clear their own; the change is one save with `If-Match`, so a roll changed elsewhere isn't overwritten. Adds the "Bulk edit" journey.
 - [ ] **U17 Events across rolls.** An event's page (U12c) also shows frames that are in the event themselves (U15), not only those of rolls in it, grouped as before; browsing by event includes a roll when any of its frames is in that event.
 - [ ] **U18 Locations.** A location (a place name, with latitude and longitude if known) can be set on an event, a roll or a frame, and is inherited down the design's layers: roll, then its events (parent before child), then the frame (D26). Set in Edit details for a roll, on an event's page, and with "Set location" for selected frames (U16's bar). Shown in the roll's details row and for each frame, with where it came from ("Jökulsárlón — event"). Coordinates are typed or pasted, e.g. from a maps app; picking on a map is an open question.
-- [ ] **U19 Sub-events.** An event can have a parent event, set on the Events page when it's added or edited, e.g. "Jökulsárlón day" inside "Iceland 2026". Cards, list and details row show "Parent › Event"; the Events page and browse panel show events nested under their parents, and choosing a parent includes its sub-events' rolls, and a parent's event page includes its sub-events' frames. Group by Event groups by the roll's own event. An event can't be its own ancestor. Extends the "Organise by event" journey with a sub-event.
 
 **Done when:** a real roll can be catalogued in the browser with its shot date, camera, film stock, lens, event and location, frames that differ can be selected and given their own, everything can be found again by grouping and filtering, and every key journey passes in CI.
+
+---
+
+## Parked
+
+Tasks set aside for later, in no particular order. They keep their IDs, so references to them still hold; when one is picked up, it moves back to its milestone in the order it'll be done.
+
+- [ ] **U13 Equipment page.** The Equipment link: cameras, lenses and film stocks with how many rolls use each, each linking to the rolls filtered by it.
+- [ ] **U19 Sub-events.** An event can have a parent event, set on the Events page when it's added or edited, e.g. "Jökulsárlón day" inside "Iceland 2026". Cards, list and details row show "Parent › Event"; the Events page and browse panel show events nested under their parents, and choosing a parent includes its sub-events' rolls, and a parent's event page includes its sub-events' frames. Group by Event groups by the roll's own event. An event can't be its own ancestor. Extends the "Organise by event" journey with a sub-event.
+
+---
 
 ## P: The rest of Phase 1
 
