@@ -1,3 +1,8 @@
+import {
+  createArchiveRequest,
+  updateArchiveRequest,
+  type Archive,
+} from '@filmfile/contracts/archive';
 import { createApiClient, type ApiClient } from '@filmfile/contracts/client';
 import {
   createCameraRequest,
@@ -41,7 +46,17 @@ export interface ArchiveContents {
   readonly films?: readonly FilmStock[];
   readonly lenses?: readonly Lens[];
   readonly events?: readonly Event[];
+  /** The archive's own details; set up by default, or null if it isn't yet. */
+  readonly settings?: Archive | null;
 }
+
+/** An archive that's been set up, as every page but first-run setup expects. */
+export const setUpArchive: Archive = {
+  id: '01JC8Y0000000000000000000A',
+  name: 'Test archive',
+  author: null,
+  copyright: null,
+};
 
 /** A roll with no details or frames, its ID made from its number: 2026-014 → 01JC8Z7K3M0000000002026014. */
 export function aRoll(roll: string, details: Partial<Roll> = {}): Roll {
@@ -155,6 +170,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   const films = [...(contents.films ?? [])];
   const lenses = [...(contents.lenses ?? [])];
   const events = [...(contents.events ?? [])];
+  let settings =
+    contents.settings === undefined ? setUpArchive : contents.settings;
   /** Every request, as "METHOD /path?query". */
   const requests: string[] = [];
   /** The If-Match header of every PATCH, in order. */
@@ -344,6 +361,50 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     return Response.json(roll, { status: 201 });
   }
 
+  async function archiveRoute(request: Request): Promise<Response> {
+    if (request.method === 'GET') {
+      return settings === null
+        ? notFound()
+        : Response.json(settings, { headers: { ETag: etagOf('archive') } });
+    }
+    if (request.method === 'POST') {
+      if (settings !== null) {
+        return Response.json({ error: 'already set up' }, { status: 409 });
+      }
+      const body = await bodyOf(request, createArchiveRequest);
+      if (!body.ok) {
+        return body.response;
+      }
+      settings = {
+        ...setUpArchive,
+        name: body.value.name,
+        author: body.value.author ?? null,
+        copyright: body.value.copyright ?? null,
+      };
+      return Response.json(settings, { status: 201 });
+    }
+    if (settings === null) {
+      return notFound();
+    }
+    const refused = checkIfMatch(request, 'archive');
+    if (refused !== undefined) {
+      return refused;
+    }
+    const body = await bodyOf(request, updateArchiveRequest);
+    if (!body.ok) {
+      return body.response;
+    }
+    // A detail left out stays as it is.
+    settings = {
+      ...settings,
+      ...Object.fromEntries(
+        Object.entries(body.value).filter(([, value]) => value !== undefined),
+      ),
+    };
+    change('archive');
+    return Response.json(settings, { headers: { ETag: etagOf('archive') } });
+  }
+
   async function rollRoute(
     request: Request,
     roll: Roll,
@@ -517,6 +578,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       return notFound();
     }
     switch (resource ?? '') {
+      case 'archive':
+        return archiveRoute(request);
       case 'equipment':
         return equipment(request, rest[0] ?? '');
       case 'events':
@@ -567,6 +630,12 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     /** Changes a roll elsewhere, as another tab would, so the page's version is stale. */
     changeRoll(id: string) {
       change(id);
+    },
+    /** The archive's own details as they are now, or null if it isn't set up. */
+    settings: () => settings,
+    /** Changes the archive's details elsewhere, as another tab would. */
+    changeArchive() {
+      change('archive');
     },
     /** Changes an event elsewhere, as another tab would. */
     changeEvent(slug: string) {

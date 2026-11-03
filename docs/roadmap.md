@@ -6,22 +6,13 @@ Each task is about one commit: small enough to review in one sitting, with its t
 
 `[x]` done, `[ ]` to do, `[-]` dropped or replaced (with where it went).
 
-**Next up:** 1. Archive settings.
+**Next up:** 1. Frames' own details, bulk editing and locations.
 
 ---
 
 ## To do
 
-### 1. Archive settings
-
-The archive's name, author and copyright, set on first run and changed later; no labs (D35), and no licence yet (D42).
-
-- [x] **ArchiveRepository.** *(`EquipmentRepository` and `EventRepository`: U9–U12b.)* Port, filesystem and in-memory adapters, contract suite: the archive's ID, name, author and copyright, kept in `archive.json` (author and copyright in its `meta`). *(The rest of 0.4.1.)*
-- [x] **1.3.1 Archive.** `InitialiseArchive`, `GetArchive` and `UpdateArchive`: the archive's name and its archive-wide `meta` (author, copyright). No labs are stored (D35), and no licence yet (D42).
-- [x] **1.4.2 Archive routes.** *(Equipment and events routes: U9–U12b.)* `GET /api/archive` (404 until it's set up), `POST /api/archive` to set it up, and `PATCH /api/archive` with `If-Match`.
-- [ ] **1b.2 First-run setup.** Until the archive is set up, every page shows "Set up your archive" instead: its name (required), author and copyright (D43). Afterwards a Settings page, linked from the header, changes them. Adds a journey.
-
-### 2. Frames' own details, bulk editing and locations
+### 1. Frames' own details, bulk editing and locations
 
 Selecting frames on a roll and giving them all an event, camera, film stock or lens at once. Frames inherit these from their roll and can have their own, as the design's metadata layering describes (section 6): a frame shot on a second camera, or the few frames of a roll that belong to a particular event (D25).
 
@@ -36,7 +27,7 @@ Selecting frames on a roll and giving them all an event, camera, film stock or l
 - [ ] **U18 Locations.** A location (a place name, with latitude and longitude if known) can be set on an event, a roll or a frame, and is inherited down the design's layers: roll, then its events (parent before child), then the frame (D26). Set in Edit details for a roll, on an event's page, and with "Set location" for selected frames (U16's bar). Shown in the roll's details row and for each frame, with where it came from ("Jökulsárlón — event"). Coordinates are typed or pasted, e.g. from a maps app; picking on a map is an open question.
 - [ ] **1c.1 Frame editing.** *(Title, rating and notes: U29; tags: U30, parked.)* What remains: a frame's own location and lens; inherited values greyed with their source; "set on roll instead" and "clear override".
 
-### 3. Multi-version frames
+### 2. Multi-version frames
 
 More than one version of a frame: other scans or edits of it, kept as further versions (design section 8.2). Web-native images first, then my own hi-res camera scans as raws, one frame at a time for now (D34).
 
@@ -45,7 +36,7 @@ More than one version of a frame: other scans or edits of it, kept as further ve
 - [ ] **U20 Raw files as versions.** A version can be a Sony ARW or Fujifilm RAF raw as well as a lab scan's JPEG, checked by file signature, not extension, within the upload size limit. Each version records where it came from (`source`: lab scan or camera scan), so raws are never written to. Thumbnails of a raw come from the preview JPEG it carries (`exiftool-vendored`; a new dependency, named in the design). API: the existing versions endpoint takes the raw as the body.
 - [ ] **U21 Add a raw to a frame.** "Add version…" (U34) takes raws too, and a raw can be dropped onto a frame on the roll page, adding it as another version of that frame. The contact sheet marks frames that have raws, and still shows the lab scan unless the raw is chosen to show; a frame's versions are listed with their source as well as their size and when they were added.
 
-### 4. Index and maintenance
+### 3. Index and maintenance
 
 - [ ] **1.2.4 `CatalogueIndex`.** `better-sqlite3` in the cache directory: rolls, frames, frame tags and equipment; upsert a resolved roll, query with the `ListRolls` filters and sort orders (D9), rebuild. Replaces the S1 directory scan for listing.
 - [ ] **1.3.13 `RebuildIndex`.**
@@ -84,8 +75,9 @@ Key journeys, each named by the task that adds it:
 | Catalogue a roll (exists) | Create a roll, add its scans, correct a frame number, reload and find it all there |
 | Renumber a roll (exists) | A tail-to-head roll renumbered as "last scan is frame 1, counting down", saved and reloaded |
 | Find rolls (U6) | Switch grid and list, group by year, filter by year, close and reopen the browse panel |
-| Describe a roll (U7 onwards) | Create a roll with its name, description, date, scans, camera, film stock and lens, then find it grouped and filtered by each |
+| Describe a roll (U7 onwards) | Create a roll with its name, notes, date, scans, camera, film stock and lens, then find it grouped and filtered by each |
 | Organise by event (U12a–U12c, U19) | Create an event, put rolls in it, and browse to them by event; give it a date on the Events page; open it to see its frames from every roll, grouped by roll; later, an event inside another, whose frames show under its parent too |
+| First run (1b.2) | On an archive never set up, any page asks for setup first; set it up, land on the page asked for, then change the settings and find them after a reload. Runs against a server of its own, since it needs an empty archive |
 | Bulk edit (U16) | Select some of a roll's frames, put them in an event and give them another camera, then find them under that event with the roll's other frames left as they were |
 
 ---
@@ -268,11 +260,20 @@ Deleting a frame or a roll into the archive's `deleted/` folder. Changing a roll
 ### Frame view and describing frames
 
 - [x] **U26 Open a frame.** Clicking a frame's thumbnail, on a roll's page or an event's page, opens it large, filling the screen, with its frame and roll numbers. Along the bottom, a filmstrip of thumbnails of every frame in the collection it was opened from (the roll in frame order, or the event's frames in their grouping and order), the current one highlighted and kept in view; clicking one goes straight to it. Previous and next arrows on screen, and the ← and → keys, step through the same collection; Esc, or the link back, returns to where it was opened from. Each frame has its own address (`/rolls/<roll>/frames/<frame>`, or `/events/<event>/frames/<frame>` with the event's grouping), so reload and back keep it. Stepping replaces the address, so Back leaves the frame view; the filmstrip's thumbnails are named by their links. Extends the "Catalogue a roll" journey. *(From 1b.8.)*
-- [x] **U27 A frame's details and versions.** An "i" in a circle at the top right, above the image, shows and hides "About this frame" beside it (closed until opened; the choice is remembered in the browser): the roll's camera, lens, film stock, event and date shot (with where each came from once frames have their own, group 2), then the frame's versions, each with its file name, size, pixel size and the day it was added. The one shown is marked "Shown"; any other has "Set as default", which makes it the version shown for the frame everywhere, on contact sheets, filmstrips and in the frame view (`defaultVersion` on the frame, D15, in roll.json and the API; set with `PATCH /api/rolls/{rollId}/frames/{frameId}` and `If-Match`); with none chosen, the newest is shown. *(From 1b.8 and 1.1.1's helper for the version a frame shows.)*
+- [x] **U27 A frame's details and versions.** An "i" in a circle at the top right, above the image, shows and hides "About this frame" beside it (closed until opened; the choice is remembered in the browser): the roll's camera, lens, film stock, event and date shot (with where each came from once frames have their own, U15), then the frame's versions, each with its file name, size, pixel size and the day it was added. The one shown is marked "Shown"; any other has "Set as default", which makes it the version shown for the frame everywhere, on contact sheets, filmstrips and in the frame view (`defaultVersion` on the frame, D15, in roll.json and the API; set with `PATCH /api/rolls/{rollId}/frames/{frameId}` and `If-Match`); with none chosen, the newest is shown. *(From 1b.8 and 1.1.1's helper for the version a frame shows.)*
 - [x] **U29 Describe a frame.** In the frame view's details panel, the frame's title and notes, edited in place and saved when you leave the field, and its rating, one to five stars (D39): clicked, or the 1–5 keys anywhere in the frame view, with 0 clearing it. The title shows under the frame's heading. Each change is saved with `If-Match`, so a roll changed elsewhere isn't overwritten. *(From 1c.1.)*
 - [x] **U32 A roll's notes.** A roll's description becomes its notes: "Notes" in place of "Description" on the new roll page, in Edit details and on the roll's page, and `notes` in the API and roll.json (schema 2; a schema 1 file's `description` is read as its notes). A roll's notes are its own: a frame doesn't inherit them, and its notes field stays its own (D40). Extends the "Describe a roll" journey.
 - [x] **U28a Delete a frame from the frame view.** A bin button in the frame view's bar, as on the roll page (U23), asking "Delete this frame?" in place; deleting it moves on to the next frame (or the previous, at the end, or back to where it was opened from when none is left), from a roll or an event. Extends the "Catalogue a roll" journey. *(From 1b.8.)*
 - [x] **U33 Rotate a frame.** In the frame view, "Rotate anticlockwise" and "Rotate clockwise" buttons turn the version shown a quarter turn each time. The turn is kept on the version (`transform.rotate`: 0, 90, 180 or 270), never by changing its file (D41), and saved with `If-Match`; the frame view, filmstrip and contact sheets all show it turned.
+
+### Archive settings
+
+The archive's name, author and copyright, set on first run and changed later; no labs (D35), and no licence yet (D42).
+
+- [x] **ArchiveRepository.** *(`EquipmentRepository` and `EventRepository`: U9–U12b.)* Port, filesystem and in-memory adapters, contract suite: the archive's ID, name, author and copyright, kept in `archive.json` (author and copyright in its `meta`). *(The rest of 0.4.1.)*
+- [x] **1.3.1 Archive.** `InitialiseArchive`, `GetArchive` and `UpdateArchive`: the archive's name and its archive-wide `meta` (author, copyright). No labs are stored (D35), and no licence yet (D42).
+- [x] **1.4.2 Archive routes.** *(Equipment and events routes: U9–U12b.)* `GET /api/archive` (404 until it's set up), `POST /api/archive` to set it up, and `PATCH /api/archive` with `If-Match`.
+- [x] **1b.2 First-run setup.** Until the archive is set up, every page shows "Set up your archive" instead: its name (required), author and copyright (D43). Afterwards a Settings page, linked from the header, changes them. Adds a journey.
 
 ### Replaced or dropped
 

@@ -15,11 +15,21 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  webServer: {
-    command: 'node test/e2e/serve.ts',
-    url: 'http://127.0.0.1:4311/api/health',
-    reuseExistingServer: false,
-    // Stop it as Ctrl+C would, so it removes its temporary archive.
-    gracefulShutdown: { signal: 'SIGTERM', timeout: 5000 },
-  },
+  // Stopped as Ctrl+C would stop them, so each removes its temporary archive.
+  webServer: [
+    {
+      // Set up already, for every journey but first-run setup.
+      command: 'node test/e2e/serve.ts 4311 set-up',
+      url: 'http://127.0.0.1:4311/api/health',
+      reuseExistingServer: false,
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 5000 },
+    },
+    {
+      // Never set up: first-run setup's own (first-run.e2e.ts).
+      command: 'node test/e2e/serve.ts 4312',
+      url: 'http://127.0.0.1:4312/api/health',
+      reuseExistingServer: false,
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 5000 },
+    },
+  ],
 });

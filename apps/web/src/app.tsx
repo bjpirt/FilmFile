@@ -1,4 +1,7 @@
 import type { ApiClient } from '@filmfile/contracts/client';
+import { SettingsPage } from './archive/settings-page.tsx';
+import { SetUpPage } from './archive/set-up-page.tsx';
+import { useArchive, type ReadArchive } from './archive/use-archive.ts';
 import { EventPage } from './events/event-page.tsx';
 import { EventsPage } from './events/events-page.tsx';
 import { EventFramePage } from './frames/event-frame-page.tsx';
@@ -24,11 +27,16 @@ function Page({
   api,
   path,
   browseOpen,
+  archive,
 }: {
   readonly api: ApiClient;
   readonly path: string;
   readonly browseOpen: boolean;
+  readonly archive: ReadArchive;
 }) {
+  if (path === '/settings') {
+    return <SettingsPage api={api} read={archive} />;
+  }
   if (path === '/') {
     return <RollsPage api={api} browseOpen={browseOpen} />;
   }
@@ -105,6 +113,30 @@ function BrowseToggle({
 export function App({ api }: { readonly api: ApiClient }) {
   const path = usePath();
   const [browseOpen, setBrowseOpen] = useState(rememberedBrowseOpen);
+  const archive = useArchive(api);
+
+  // Nothing but setting up until the archive is set up (D43).
+  if (archive.data === undefined || archive.data === null) {
+    return (
+      <>
+        <header className="app-header">
+          <div className="app-brand">
+            <span className="app-name">FilmFile</span>
+          </div>
+        </header>
+        <main className="page">
+          {archive.isPending ? (
+            <p>Loading…</p>
+          ) : archive.isError ? (
+            <p>Couldn't load the archive. Is the service running?</p>
+          ) : (
+            <SetUpPage api={api} />
+          )}
+        </main>
+      </>
+    );
+  }
+
   return (
     <>
       <header className="app-header">
@@ -129,10 +161,18 @@ export function App({ api }: { readonly api: ApiClient }) {
           <Link to="/events" current={path.startsWith('/events')}>
             Events
           </Link>
+          <Link to="/settings" current={path === '/settings'}>
+            Settings
+          </Link>
         </nav>
       </header>
       <main className="page">
-        <Page api={api} path={path} browseOpen={browseOpen} />
+        <Page
+          api={api}
+          path={path}
+          browseOpen={browseOpen}
+          archive={archive.data}
+        />
       </main>
     </>
   );

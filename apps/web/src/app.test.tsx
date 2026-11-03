@@ -79,7 +79,7 @@ test('hides and shows the browse panel from the header', async () => {
 test('lists the events from the header, with their rolls, and opens an event’s frames', async () => {
   renderApp();
 
-  fireEvent.click(screen.getByRole('link', { name: 'Events' }));
+  fireEvent.click(await screen.findByRole('link', { name: 'Events' }));
 
   expect(
     await screen.findByRole('heading', { level: 1, name: 'Events' }),
@@ -114,10 +114,10 @@ test('opens an event just edited, showing it as saved', async () => {
   ).toBeDefined();
 });
 
-test('says when a page does not exist', () => {
+test('says when a page does not exist', async () => {
   window.history.pushState(null, '', '/nowhere');
 
   renderApp();
 
-  expect(screen.getByText('There is no page here.')).toBeDefined();
+  expect(await screen.findByText('There is no page here.')).toBeDefined();
 });

@@ -1131,6 +1131,10 @@ textarea {
   gap: var(--space-4);
 }
 
+.form-actions p {
+  margin: 0;
+}
+
 .required {
   color: var(--accent);
 }
