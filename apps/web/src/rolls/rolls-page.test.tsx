@@ -3,10 +3,13 @@ import { createApiClient } from '@filmfile/contracts/client';
 import type { Roll, UnreadableRoll } from '@filmfile/contracts/rolls';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, expect, test } from 'vitest';
+import { afterEach, describe, expect, test } from 'vitest';
 import { RollsPage } from './rolls-page.tsx';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
 
 /** Answers the rolls endpoints the way the backend does, keeping rolls in memory. */
 function fakeRollsService(
@@ -127,6 +130,60 @@ test('shows each roll as a card with its first three scans', async () => {
     ),
   );
   expect(screen.getByText('5 frames')).toBeDefined();
+});
+
+describe('the list view', () => {
+  function showList() {
+    fireEvent.click(screen.getByRole('button', { name: 'List' }));
+  }
+
+  test('shows the rolls as a table: roll, a strip of scans and frames', async () => {
+    renderPage(
+      fakeRollsService([aRollWithScans('2026-014', 5), aRoll('2026-015')]),
+    );
+    await screen.findByText('2026-014');
+
+    showList();
+
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(rows.map((row) => row.textContent)).toEqual([
+      '2026-0145',
+      '2026-015—',
+    ]);
+    expect(rows[0]?.querySelectorAll('img')).toHaveLength(4);
+    expect(
+      screen.getAllByRole('columnheader').map((cell) => cell.textContent),
+    ).toEqual(['Roll', 'Strip', 'Frames']);
+  });
+
+  test('marks which view is showing', async () => {
+    renderPage(fakeRollsService([aRoll('2026-014')]));
+    await screen.findByText('2026-014');
+
+    expect(
+      screen.getByRole('button', { name: 'Grid' }).getAttribute('aria-pressed'),
+    ).toBe('true');
+
+    showList();
+
+    expect(
+      screen.getByRole('button', { name: 'List' }).getAttribute('aria-pressed'),
+    ).toBe('true');
+    expect(
+      screen.getByRole('button', { name: 'Grid' }).getAttribute('aria-pressed'),
+    ).toBe('false');
+  });
+
+  test('is remembered for next time', async () => {
+    renderPage(fakeRollsService([aRoll('2026-014')]));
+    await screen.findByText('2026-014');
+    showList();
+    cleanup();
+
+    renderPage(fakeRollsService([aRoll('2026-014')]));
+
+    expect(await screen.findByRole('table')).toBeDefined();
+  });
 });
 
 test('says when a roll has no frames yet', async () => {

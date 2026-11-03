@@ -2,11 +2,23 @@ import type { ApiClient } from '@filmfile/contracts/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type SubmitEvent } from 'react';
 import { RollCard } from './roll-card.tsx';
+import { RollTable } from './roll-table.tsx';
+import {
+  rememberedView,
+  rememberView,
+  type RollsView,
+} from './view-preference.ts';
 
 export function RollsPage({ api }: { readonly api: ApiClient }) {
   const queryClient = useQueryClient();
   // The roll number being typed, while New roll is open.
   const [newRoll, setNewRoll] = useState<string | undefined>(undefined);
+  const [view, setView] = useState<RollsView>(rememberedView);
+
+  function show(chosen: RollsView) {
+    setView(chosen);
+    rememberView(chosen);
+  }
 
   const rolls = useQuery({
     queryKey: ['rolls'],
@@ -53,6 +65,20 @@ export function RollsPage({ api }: { readonly api: ApiClient }) {
     <section>
       <div className="page-heading">
         <h1>Rolls</h1>
+        <div role="group" aria-label="View" className="segmented">
+          {(['grid', 'list'] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={view === option}
+              onClick={() => {
+                show(option);
+              }}
+            >
+              {option === 'grid' ? 'Grid' : 'List'}
+            </button>
+          ))}
+        </div>
         {newRoll === undefined && (
           <button
             type="button"
@@ -107,13 +133,17 @@ export function RollsPage({ api }: { readonly api: ApiClient }) {
         </p>
       ))}
       {rolls.data?.rolls.length === 0 && <p>No rolls yet.</p>}
-      {rolls.data !== undefined && rolls.data.rolls.length > 0 && (
-        <ul className="roll-grid">
-          {rolls.data.rolls.map((roll) => (
-            <RollCard key={roll.id} roll={roll} />
-          ))}
-        </ul>
-      )}
+      {rolls.data !== undefined &&
+        rolls.data.rolls.length > 0 &&
+        (view === 'grid' ? (
+          <ul className="roll-grid">
+            {rolls.data.rolls.map((roll) => (
+              <RollCard key={roll.id} roll={roll} />
+            ))}
+          </ul>
+        ) : (
+          <RollTable rolls={rolls.data.rolls} />
+        ))}
     </section>
   );
 }

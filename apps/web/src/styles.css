@@ -335,6 +335,7 @@ select {
 }
 
 .page-heading h1 {
+  flex-grow: 1;
   margin: 0;
 }
 
@@ -397,4 +398,73 @@ select {
   content: '';
   inset: 0;
   position: absolute;
+}
+
+.segmented {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  display: flex;
+  overflow: hidden;
+}
+
+.segmented button {
+  border: 0;
+  border-radius: 0;
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--text);
+  color: var(--bg);
+}
+
+.table-scroll {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-large);
+  overflow-x: auto;
+}
+
+.roll-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.roll-table th {
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.roll-table td {
+  border-bottom: 1px solid #22252a;
+  padding: var(--space-2) var(--space-4);
+}
+
+.roll-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.roll-table .number {
+  text-align: right;
+}
+
+.roll-table .roll-number {
+  font-size: 1rem;
+}
+
+.strip {
+  display: flex;
+  gap: 2px;
+  min-height: 24px;
+}
+
+.strip img {
+  background: var(--scan-placeholder);
+  height: 24px;
+  object-fit: cover;
+  width: 36px;
 }
