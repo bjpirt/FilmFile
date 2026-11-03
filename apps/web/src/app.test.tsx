@@ -1,22 +1,11 @@
 // @vitest-environment happy-dom
-import { createApiClient } from '@filmfile/contracts/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import { App } from './app.tsx';
+import { aRoll, fakeArchive } from './testing/fake-archive.ts';
 
-const roll = {
-  id: '01JC8Z7K3M0000000000000001',
-  roll: '2026-014',
-  name: null,
-  description: null,
-  shot: null,
-  event: null,
-  camera: null,
-  film: null,
-  lens: null,
-  frames: [],
-};
+const roll = aRoll('2026-014', { event: 'iceland-2026' });
 
 beforeEach(() => {
   window.history.pushState(null, '', '/');
@@ -26,30 +15,13 @@ beforeEach(() => {
 afterEach(cleanup);
 
 function renderApp() {
-  const api = createApiClient({
-    baseUrl: 'http://localhost',
-    fetch: (request) =>
-      Promise.resolve(
-        Response.json(
-          request.url.endsWith('/api/rolls')
-            ? { rolls: [{ ...roll, event: 'iceland-2026' }], unreadable: [] }
-            : request.url.endsWith('/api/events')
-              ? {
-                  events: [
-                    {
-                      slug: 'iceland-2026',
-                      name: 'Iceland 2026',
-                      date: '2026-09',
-                    },
-                  ],
-                }
-              : roll,
-        ),
-      ),
+  const archive = fakeArchive({
+    rolls: [roll],
+    events: [{ slug: 'iceland-2026', name: 'Iceland 2026', date: '2026-09' }],
   });
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <App api={api} />
+      <App api={archive.api} />
     </QueryClientProvider>,
   );
 }

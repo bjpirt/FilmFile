@@ -1,8 +1,7 @@
 // @vitest-environment happy-dom
-import { createApiClient } from '@filmfile/contracts/client';
-import type { Camera, FilmStock, Lens } from '@filmfile/contracts/equipment';
+import type { FilmStock, Lens } from '@filmfile/contracts/equipment';
 import type { Event } from '@filmfile/contracts/events';
-import type { Roll, UnreadableRoll } from '@filmfile/contracts/rolls';
+import type { Roll } from '@filmfile/contracts/rolls';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   cleanup,
@@ -12,6 +11,11 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
+import {
+  aRoll,
+  fakeArchive,
+  type FakeArchive,
+} from '../testing/fake-archive.ts';
 import { RollsPage } from './rolls-page.tsx';
 
 afterEach(() => {
@@ -20,110 +24,27 @@ afterEach(() => {
   window.history.replaceState(null, '', '/');
 });
 
-/** Answers the rolls endpoints the way the backend does, keeping rolls in memory. */
-function fakeRollsService(
-  rolls: Roll[] = [],
-  unreadable: UnreadableRoll[] = [],
-  {
-    events = [],
-    cameras = [],
-    films = [],
-    lenses = [],
-  }: {
-    events?: Event[];
-    cameras?: Camera[];
-    films?: FilmStock[];
-    lenses?: Lens[];
-  } = {},
-) {
-  let nextId = 0;
-  return async (request: Request): Promise<Response> => {
-    if (new URL(request.url).pathname === '/api/equipment/cameras') {
-      return Response.json({ cameras });
-    }
-    if (new URL(request.url).pathname === '/api/equipment/films') {
-      return Response.json({ films });
-    }
-    if (new URL(request.url).pathname === '/api/equipment/lenses') {
-      return Response.json({ lenses });
-    }
-    if (new URL(request.url).pathname === '/api/events') {
-      return Response.json({ events });
-    }
-    if (request.method === 'GET') {
-      return Response.json({ rolls, unreadable });
-    }
-    const body: unknown = await request.json();
-    const roll =
-      typeof body === 'object' && body !== null && 'roll' in body
-        ? String(body.roll)
-        : '';
-    if (!/^\d{4}-\d{3}$/.test(roll)) {
-      return Response.json(
-        {
-          error: 'invalid request',
-          issues: [
-            { path: ['roll'], message: 'must be a roll number like 2026-014' },
-          ],
-        },
-        { status: 422 },
-      );
-    }
-    if (rolls.some((r) => r.roll === roll)) {
-      return Response.json(
-        { error: `roll ${roll} already exists` },
-        { status: 409 },
-      );
-    }
-    nextId += 1;
-    const created = {
-      id: `01JC8Z7K3M00000000000000${String(nextId).padStart(2, '0')}`,
-      roll,
-      name: null,
-      description: null,
-      shot: null,
-      event: null,
-      camera: null,
-      film: null,
-      lens: null,
-      frames: [],
-    };
-    rolls.push(created);
-    return Response.json(created, { status: 201 });
-  };
-}
-
-function aRoll(roll: string, frames = 0): Roll {
-  return {
-    // Unique per roll number, e.g. 2026-014 → 01JC8Z7K3M0000000002026014.
-    id: `01JC8Z7K3M000000000${roll.replace('-', '')}`,
-    roll,
-    name: null,
-    description: null,
-    shot: null,
-    event: null,
-    camera: null,
-    film: null,
-    lens: null,
+/** A roll with the given number of frames, none of them scanned. */
+function aRollOf(roll: string, frames: number): Roll {
+  return aRoll(roll, {
     frames: Array.from({ length: frames }, (_, i) => ({
       id: `01JC8Z7K3M00000000000001${String(i).padStart(2, '0')}`,
       number: null,
       versions: [],
     })),
-  };
+  });
 }
 
 function renderPage(
-  service: (request: Request) => Promise<Response>,
+  archive: FakeArchive,
   { browseOpen = true }: { browseOpen?: boolean } = {},
 ) {
-  const api = createApiClient({ baseUrl: 'http://localhost', fetch: service });
   const queries = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   render(
     <QueryClientProvider client={queries}>
-      <RollsPage api={api} browseOpen={browseOpen} />
+      <RollsPage api={archive.api} browseOpen={browseOpen} />
     </QueryClientProvider>,
   );
 }
@@ -158,7 +79,7 @@ function aRollWithScans(roll: string, scans: number): Roll {
 }
 
 test('shows each roll as a card with its first three scans', async () => {
-  renderPage(fakeRollsService([aRollWithScans('2026-014', 5)]));
+  renderPage(fakeArchive({ rolls: [aRollWithScans('2026-014', 5)] }));
 
   const card = (await screen.findByText('2026-014')).closest('li');
   const peek = Array.from(card?.querySelectorAll('img') ?? [], (img) =>
@@ -176,11 +97,13 @@ test('shows each roll as a card with its first three scans', async () => {
 
 describe('grouping, browsing and the address', () => {
   const someRolls = () =>
-    fakeRollsService([
-      aRoll('2025-003', 1),
-      aRoll('2026-001', 2),
-      aRoll('2026-014', 3),
-    ]);
+    fakeArchive({
+      rolls: [
+        aRollOf('2025-003', 1),
+        aRollOf('2026-001', 2),
+        aRollOf('2026-014', 3),
+      ],
+    });
 
   /** The rolls shown, by roll number, in order. */
   function rollsShown(): string[] {
@@ -279,16 +202,15 @@ describe('finding rolls by camera', () => {
     { slug: 'pentax-k1000', make: 'Pentax', model: 'K1000' },
   ];
   const someRolls = () =>
-    fakeRollsService(
-      [
+    fakeArchive({
+      rolls: [
         { ...aRoll('2025-003'), camera: 'nikon-fe' },
         aRoll('2026-001'),
         { ...aRoll('2026-014'), camera: 'leica-m6' },
         { ...aRoll('2026-015'), camera: 'nikon-fe' },
       ],
-      [],
-      { cameras },
-    );
+      cameras,
+    });
 
   function rollsShown(): string[] {
     return screen
@@ -387,16 +309,15 @@ describe('finding rolls by film stock', () => {
     },
   ];
   const someRolls = () =>
-    fakeRollsService(
-      [
+    fakeArchive({
+      rolls: [
         { ...aRoll('2025-003'), film: 'kodak-portra-400' },
         aRoll('2026-001'),
         { ...aRoll('2026-014'), film: 'ilford-hp5-plus-400' },
         { ...aRoll('2026-015'), film: 'kodak-portra-400' },
       ],
-      [],
-      { films },
-    );
+      films,
+    });
 
   function rollsShown(): string[] {
     return screen
@@ -472,8 +393,8 @@ describe('finding rolls by film stock', () => {
       '/?year=2026&camera=nikon-fe&film=kodak-portra-400&lens=zeiss-planar-80mm-f-2-8',
     );
     renderPage(
-      fakeRollsService(
-        [
+      fakeArchive({
+        rolls: [
           {
             ...aRoll('2026-015'),
             camera: 'nikon-fe',
@@ -481,21 +402,18 @@ describe('finding rolls by film stock', () => {
             lens: 'zeiss-planar-80mm-f-2-8',
           },
         ],
-        [],
-        {
-          cameras: [{ slug: 'nikon-fe', make: 'Nikon', model: 'FE' }],
-          films,
-          lenses: [
-            {
-              slug: 'zeiss-planar-80mm-f-2-8',
-              make: 'Zeiss',
-              name: 'Planar',
-              focalLength: 80,
-              maxAperture: 2.8,
-            },
-          ],
-        },
-      ),
+        cameras: [{ slug: 'nikon-fe', make: 'Nikon', model: 'FE' }],
+        films,
+        lenses: [
+          {
+            slug: 'zeiss-planar-80mm-f-2-8',
+            make: 'Zeiss',
+            name: 'Planar',
+            focalLength: 80,
+            maxAperture: 2.8,
+          },
+        ],
+      }),
     );
 
     expect(
@@ -525,16 +443,15 @@ describe('finding rolls by lens', () => {
     },
   ];
   const someRolls = () =>
-    fakeRollsService(
-      [
+    fakeArchive({
+      rolls: [
         { ...aRoll('2025-003'), lens: 'zeiss-planar-80mm-f-2-8' },
         aRoll('2026-001'),
         { ...aRoll('2026-014'), lens: 'nikon-nikkor-ai-s-50mm-f-1-8' },
         { ...aRoll('2026-015'), lens: 'zeiss-planar-80mm-f-2-8' },
       ],
-      [],
-      { lenses },
-    );
+      lenses,
+    });
 
   function rollsShown(): string[] {
     return screen
@@ -596,16 +513,15 @@ describe('finding rolls by event', () => {
     { slug: 'westfjords', name: 'Westfjords', date: '2025-06' },
   ];
   const someRolls = () =>
-    fakeRollsService(
-      [
+    fakeArchive({
+      rolls: [
         { ...aRoll('2025-003'), event: 'westfjords' },
         aRoll('2026-001'),
         { ...aRoll('2026-014'), event: 'iceland-2026' },
         { ...aRoll('2026-015'), event: 'iceland-2026' },
       ],
-      [],
-      { events },
-    );
+      events,
+    });
 
   function rollsShown(): string[] {
     return screen
@@ -616,11 +532,10 @@ describe('finding rolls by event', () => {
 
   test('shows each roll’s event on its card and in the list', async () => {
     renderPage(
-      fakeRollsService(
-        [{ ...aRoll('2025-003'), event: 'westfjords', shot: '2025-06' }],
-        [],
-        { events },
-      ),
+      fakeArchive({
+        rolls: [{ ...aRoll('2025-003'), event: 'westfjords', shot: '2025-06' }],
+        events,
+      }),
     );
 
     expect(await screen.findByText('Westfjords · Jun 2025')).toBeDefined();
@@ -676,7 +591,9 @@ describe('finding rolls by event', () => {
 describe('the list view', () => {
   test('shows the rolls as a table: roll, a strip of scans and frames', async () => {
     renderPage(
-      fakeRollsService([aRollWithScans('2026-014', 5), aRoll('2026-015')]),
+      fakeArchive({
+        rolls: [aRollWithScans('2026-014', 5), aRoll('2026-015')],
+      }),
     );
     await screen.findByText('2026-014');
 
@@ -704,8 +621,8 @@ describe('the list view', () => {
 
   test('shows each roll’s camera and film stock, by name, on its card and in the list', async () => {
     renderPage(
-      fakeRollsService(
-        [
+      fakeArchive({
+        rolls: [
           {
             ...aRoll('2026-014'),
             camera: 'nikon-fe',
@@ -713,21 +630,18 @@ describe('the list view', () => {
             shot: '2026-09',
           },
         ],
-        [],
-        {
-          cameras: [{ slug: 'nikon-fe', make: 'Nikon', model: 'FE' }],
-          films: [
-            {
-              slug: 'kodak-portra-400',
-              make: 'Kodak',
-              name: 'Portra',
-              iso: 400,
-              type: 'colour-negative',
-              format: '35mm',
-            },
-          ],
-        },
-      ),
+        cameras: [{ slug: 'nikon-fe', make: 'Nikon', model: 'FE' }],
+        films: [
+          {
+            slug: 'kodak-portra-400',
+            make: 'Kodak',
+            name: 'Portra',
+            iso: 400,
+            type: 'colour-negative',
+            format: '35mm',
+          },
+        ],
+      }),
     );
 
     expect(
@@ -742,7 +656,7 @@ describe('the list view', () => {
   });
 
   test('marks which view is showing', async () => {
-    renderPage(fakeRollsService([aRoll('2026-014')]));
+    renderPage(fakeArchive({ rolls: [aRoll('2026-014')] }));
     await screen.findByText('2026-014');
 
     expect(
@@ -760,12 +674,12 @@ describe('the list view', () => {
   });
 
   test('is remembered for next time', async () => {
-    renderPage(fakeRollsService([aRoll('2026-014')]));
+    renderPage(fakeArchive({ rolls: [aRoll('2026-014')] }));
     await screen.findByText('2026-014');
     showList();
     cleanup();
 
-    renderPage(fakeRollsService([aRoll('2026-014')]));
+    renderPage(fakeArchive({ rolls: [aRoll('2026-014')] }));
 
     expect(await screen.findByRole('table')).toBeDefined();
   });
@@ -773,9 +687,15 @@ describe('the list view', () => {
 
 test('shows each roll’s name and when it was shot', async () => {
   renderPage(
-    fakeRollsService([
-      { ...aRoll('2026-014', 2), name: 'Iceland, first day', shot: '2026-09' },
-    ]),
+    fakeArchive({
+      rolls: [
+        {
+          ...aRollOf('2026-014', 2),
+          name: 'Iceland, first day',
+          shot: '2026-09',
+        },
+      ],
+    }),
   );
 
   expect(await screen.findByText('Iceland, first day')).toBeDefined();
@@ -784,11 +704,13 @@ test('shows each roll’s name and when it was shot', async () => {
 
 test('sorts by date shot when chosen, undated rolls last, kept in the address', async () => {
   renderPage(
-    fakeRollsService([
-      { ...aRoll('2026-001'), shot: '2026-10' },
-      { ...aRoll('2026-002') },
-      { ...aRoll('2026-003'), shot: '2026-03-14' },
-    ]),
+    fakeArchive({
+      rolls: [
+        { ...aRoll('2026-001'), shot: '2026-10' },
+        { ...aRoll('2026-002') },
+        { ...aRoll('2026-003'), shot: '2026-03-14' },
+      ],
+    }),
   );
   await screen.findByText('2026-001');
 
@@ -806,13 +728,15 @@ test('sorts by date shot when chosen, undated rolls last, kept in the address', 
 });
 
 test('says when a roll has no frames yet', async () => {
-  renderPage(fakeRollsService([aRoll('2026-014')]));
+  renderPage(fakeArchive({ rolls: [aRoll('2026-014')] }));
 
   expect(await screen.findByText('No frames yet')).toBeDefined();
 });
 
 test('lists each roll with its number of frames', async () => {
-  renderPage(fakeRollsService([aRoll('2025-003', 1), aRoll('2026-014', 36)]));
+  renderPage(
+    fakeArchive({ rolls: [aRollOf('2025-003', 1), aRollOf('2026-014', 36)] }),
+  );
 
   expect(await screen.findByText('2025-003')).toBeDefined();
   expect(screen.getByText('1 frame')).toBeDefined();
@@ -822,10 +746,10 @@ test('lists each roll with its number of frames', async () => {
 
 test('names any roll whose file cannot be read, and what is wrong', async () => {
   renderPage(
-    fakeRollsService(
-      [aRoll('2026-014')],
-      [{ folder: '2026-015', problem: 'it is not valid JSON' }],
-    ),
+    fakeArchive({
+      rolls: [aRoll('2026-014')],
+      unreadable: [{ folder: '2026-015', problem: 'it is not valid JSON' }],
+    }),
   );
 
   expect(
@@ -837,13 +761,15 @@ test('names any roll whose file cannot be read, and what is wrong', async () => 
 });
 
 test('says when there are no rolls yet', async () => {
-  renderPage(fakeRollsService());
+  renderPage(fakeArchive());
 
   expect(await screen.findByText('No rolls yet.')).toBeDefined();
 });
 
 test('says so when the rolls cannot be loaded', async () => {
-  renderPage(() => Promise.resolve(new Response('', { status: 502 })));
+  const archive = fakeArchive();
+  archive.stop();
+  renderPage(archive);
 
   expect(
     await screen.findByText("Couldn't load the rolls. Is the service running?"),
@@ -851,7 +777,7 @@ test('says so when the rolls cannot be loaded', async () => {
 });
 
 test('opens the new roll page from New roll', async () => {
-  renderPage(fakeRollsService());
+  renderPage(fakeArchive());
   await screen.findByText('No rolls yet.');
 
   expect(

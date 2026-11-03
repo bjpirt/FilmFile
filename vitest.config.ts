@@ -8,6 +8,8 @@ export default defineConfig({
       include: ['apps/*/src/**/*.{ts,tsx}', 'packages/*/src/**/*.ts'],
       exclude: [
         '**/*.test.{ts,tsx}',
+        // Stand-ins for the service in the web app's tests, not app code.
+        'apps/web/src/testing/**',
         // Runs in a child process in startup.test.ts. Coverage from child processes
         // (autoAttachSubprocess) corrupts the figures for files both processes load.
         'apps/backend/src/main.ts',

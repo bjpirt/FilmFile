@@ -68,10 +68,11 @@ Names below use `thing` / `Thing`; `<kind>` is the plural folder or route.
 13. **Finding rolls**, if wanted: `rolls-address.ts` (grouping and `?thing=`),
     `browse-panel.tsx` section, `rolls-page.tsx` (`Names`, `grouped`,
     filter, `headingFor`, Group by option).
-14. **Web tests**: every fake service answers the new endpoint
-    (`new-roll-page.test.tsx`, `roll-page.test.tsx`, `rolls-page.test.tsx`
-    options object, `app.test.tsx`) and rolls in fakes gain `thing: null`.
-    Choose options by visible text with the `choose(label, text)` helpers.
+14. **Web tests**: teach the shared fake service
+    (`apps/web/src/testing/fake-archive.ts`) the new endpoints and the roll's
+    field (and `aRoll`), then test the forms, display and browsing through the
+    pages with `fakeArchive({ ... })`. Choose options by visible text with the
+    `choose(label, text)` helpers.
 15. **Journeys** `test/e2e/support/journeys.ts`: a `thing` / `newThing`
     option on `createRoll`; extend the journey it belongs in, with names no
     other journey uses.

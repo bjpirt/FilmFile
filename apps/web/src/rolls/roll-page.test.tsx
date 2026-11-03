@@ -1,20 +1,6 @@
 // @vitest-environment happy-dom
-import { createApiClient } from '@filmfile/contracts/client';
-import {
-  createCameraRequest,
-  createFilmStockRequest,
-  createLensRequest,
-  type Camera,
-  type FilmStock,
-  type Lens,
-} from '@filmfile/contracts/equipment';
-import {
-  updateFrameNumbersRequest,
-  updateRollRequest,
-  type Frame,
-  type Roll,
-} from '@filmfile/contracts/rolls';
-import { createEventRequest, type Event } from '@filmfile/contracts/events';
+import type { Camera, FilmStock, Lens } from '@filmfile/contracts/equipment';
+import type { Frame, Roll } from '@filmfile/contracts/rolls';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   cleanup,
@@ -25,23 +11,17 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
+import {
+  aRoll,
+  fakeArchive,
+  type ArchiveContents,
+  type FakeArchive,
+} from '../testing/fake-archive.ts';
 import { RollPage } from './roll-page.tsx';
 
 afterEach(cleanup);
 
-const rollId = '01JC8Z7K3M0000000000000001';
-
-const rollDetails: Omit<Roll, 'frames'> = {
-  id: rollId,
-  roll: '2026-014',
-  name: null,
-  description: null,
-  shot: null,
-  event: null,
-  camera: null,
-  film: null,
-  lens: null,
-};
+const rollId = aRoll('2026-014').id;
 
 const planar: Lens = {
   slug: 'zeiss-planar-80mm-f-2-8',
@@ -62,214 +42,21 @@ const portra: FilmStock = {
   format: '35mm',
 };
 
-async function sha256(bytes: ArrayBuffer): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
-  return Array.from(new Uint8Array(digest), (b) =>
-    b.toString(16).padStart(2, '0'),
-  ).join('');
-}
-
-/** Answers the roll's endpoints the way the backend does, keeping the roll in memory. */
-function fakeRollService(
+/** The archive the page is tested against: the one roll, with these frames and details, and any other contents. */
+function archiveWith(
   frames: Frame[] = [],
   details: Partial<Roll> = {},
-  cameras: Camera[] = [],
-  films: FilmStock[] = [],
-  lenses: Lens[] = [],
-  events: Event[] = [],
-) {
-  let roll = { ...rollDetails, ...details };
-  const requests: string[] = [];
-  const ifMatches: (string | null)[] = [];
-  let nextId = 100;
-  // The roll's version, sent as its ETag, which changes whenever the roll does.
-  let version = 1;
-  const etag = () => `"v${String(version)}"`;
-  const changed = () => {
-    version += 1;
-  };
-  const newId = () => `01JC8Z7K3M0000000000000${String((nextId += 1))}`;
+  contents: ArchiveContents = {},
+): FakeArchive {
+  return fakeArchive({
+    ...contents,
+    rolls: [aRoll('2026-014', { ...details, frames })],
+  });
+}
 
-  async function answer(request: Request): Promise<Response> {
-    const url = new URL(request.url);
-    requests.push(`${request.method} ${url.pathname}${url.search}`);
-    if (url.pathname === '/api/equipment/cameras') {
-      if (request.method === 'GET') {
-        return Response.json({ cameras });
-      }
-      const { make, model } = createCameraRequest.parse(await request.json());
-      const camera = {
-        slug: `${make} ${model}`.toLowerCase().replace(/\W+/g, '-'),
-        make,
-        model,
-      };
-      cameras.push(camera);
-      return Response.json(camera, { status: 201 });
-    }
-    if (url.pathname === '/api/events') {
-      if (request.method === 'GET') {
-        return Response.json({ events });
-      }
-      const { name, date } = createEventRequest.parse(await request.json());
-      const event = {
-        slug: name.toLowerCase().replace(/\W+/g, '-'),
-        name,
-        date: date ?? null,
-      };
-      events.push(event);
-      return Response.json(event, { status: 201 });
-    }
-    if (url.pathname === '/api/equipment/lenses') {
-      if (request.method === 'GET') {
-        return Response.json({ lenses });
-      }
-      const body = createLensRequest.parse(await request.json());
-      const lens: Lens = {
-        slug: [
-          body.make,
-          body.name,
-          body.focalLength == null ? '' : `${String(body.focalLength)}mm`,
-          body.maxAperture == null ? '' : `f/${String(body.maxAperture)}`,
-        ]
-          .join(' ')
-          .trim()
-          .toLowerCase()
-          .replace(/\W+/g, '-'),
-        make: body.make,
-        name: body.name,
-        focalLength: body.focalLength ?? null,
-        maxAperture: body.maxAperture ?? null,
-      };
-      lenses.push(lens);
-      return Response.json(lens, { status: 201 });
-    }
-    if (url.pathname === '/api/equipment/films') {
-      if (request.method === 'GET') {
-        return Response.json({ films });
-      }
-      const body = createFilmStockRequest.parse(await request.json());
-      const film: FilmStock = {
-        slug: [body.make, body.name, body.iso ?? '']
-          .join(' ')
-          .trim()
-          .toLowerCase()
-          .replace(/\W+/g, '-'),
-        make: body.make,
-        name: body.name,
-        iso: body.iso ?? null,
-        type: body.type ?? null,
-        format: body.format ?? null,
-      };
-      films.push(film);
-      return Response.json(film, { status: 201 });
-    }
-    if (request.method === 'GET' && url.pathname === `/api/rolls/${rollId}`) {
-      const body: Roll = { ...roll, frames };
-      return Response.json(body, { headers: { ETag: etag() } });
-    }
-    if (request.method === 'PATCH') {
-      const ifMatch = request.headers.get('If-Match');
-      ifMatches.push(ifMatch);
-      if (ifMatch === null) {
-        return Response.json({ error: 'no If-Match' }, { status: 428 });
-      }
-      if (ifMatch !== etag()) {
-        return Response.json({ error: 'changed' }, { status: 409 });
-      }
-      const body: unknown = await request.json();
-      if (url.pathname === `/api/rolls/${rollId}`) {
-        // The page always sends every detail.
-        const { name, description, shot, event, camera, film, lens } =
-          updateRollRequest.parse(body);
-        roll = {
-          ...roll,
-          name: name ?? null,
-          description: description ?? null,
-          shot: shot ?? null,
-          event: event ?? null,
-          camera: camera ?? null,
-          film: film ?? null,
-          lens: lens ?? null,
-        };
-        changed();
-        const updated: Roll = { ...roll, frames };
-        return Response.json(updated, { headers: { ETag: etag() } });
-      }
-      if (url.pathname.endsWith('/frames')) {
-        const { numbers } = updateFrameNumbersRequest.parse(body);
-        for (const { frameId, number } of numbers) {
-          const index = frames.findIndex((f) => f.id === frameId);
-          const current = frames[index];
-          if (current !== undefined) {
-            frames[index] = { ...current, number };
-          }
-        }
-        changed();
-        const updated: Roll = { ...roll, frames };
-        return Response.json(updated, { headers: { ETag: etag() } });
-      }
-      const number =
-        typeof body === 'object' &&
-        body !== null &&
-        'number' in body &&
-        typeof body.number === 'string'
-          ? body.number
-          : null;
-      const index = frames.findIndex((f) => url.pathname.endsWith(f.id));
-      const current = frames[index];
-      if (current === undefined) {
-        return Response.json({ error: 'not found' }, { status: 404 });
-      }
-      const updated: Frame = { ...current, number };
-      frames[index] = updated;
-      changed();
-      return Response.json(updated, { headers: { ETag: etag() } });
-    }
-    if (request.method === 'POST' && url.pathname.endsWith('/frames')) {
-      const body: unknown = await request.json();
-      const number =
-        typeof body === 'object' && body !== null && 'number' in body
-          ? String(body.number)
-          : null;
-      const frame: Frame = { id: newId(), number, versions: [] };
-      frames.push(frame);
-      changed();
-      return Response.json(frame, { status: 201 });
-    }
-    const frame = frames.find((f) => url.pathname.includes(f.id));
-    if (request.method === 'POST' && frame !== undefined) {
-      const hash = await sha256(await request.arrayBuffer());
-      if (frames.some((f) => f.versions.some((v) => v.sha256 === hash))) {
-        return Response.json({ error: 'already in the roll' }, { status: 409 });
-      }
-      const file = url.searchParams.get('file') ?? '';
-      const version = {
-        id: newId(),
-        file: `frames/x/y/${file}`,
-        sha256: hash,
-        bytes: 3,
-        width: 3,
-        height: 2,
-        added: '2026-11-02T12:00:00.000Z',
-      };
-      frame.versions.push(version);
-      changed();
-      return Response.json(version, { status: 201 });
-    }
-    return Response.json({ error: 'not found' }, { status: 404 });
-  }
-
-  return {
-    answer,
-    requests,
-    ifMatches,
-    frames,
-    changed,
-    cameras,
-    films,
-    lenses,
-    events,
-  };
+/** The roll's frames as the archive has them now. */
+function framesOf(archive: FakeArchive): readonly Frame[] {
+  return archive.rolls[0]?.frames ?? [];
 }
 
 function aScan(name: string, content = name): File {
@@ -294,17 +81,13 @@ function aFrameWithScan(number: string | null, file: string): Frame {
   };
 }
 
-function renderPage(service: { answer: (r: Request) => Promise<Response> }) {
-  const api = createApiClient({
-    baseUrl: 'http://localhost',
-    fetch: service.answer,
-  });
+function renderPage(archive: FakeArchive) {
   const queries = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   render(
     <QueryClientProvider client={queries}>
-      <RollPage api={api} rollId={rollId} />
+      <RollPage api={archive.api} rollId={rollId} />
     </QueryClientProvider>,
   );
 }
@@ -321,7 +104,7 @@ function chooseScans(...files: File[]) {
 
 test('heads the page with the roll number and how many frames it has', async () => {
   renderPage(
-    fakeRollService([
+    archiveWith([
       aFrameWithScan('1', '12340001.jpg'),
       aFrameWithScan('2', '12340002.jpg'),
     ]),
@@ -335,7 +118,7 @@ test('heads the page with the roll number and how many frames it has', async () 
 
 test('shows the roll’s name, camera, lens, film stock, date shot and description', async () => {
   renderPage(
-    fakeRollService(
+    archiveWith(
       [],
       {
         name: 'Iceland, first day',
@@ -345,9 +128,7 @@ test('shows the roll’s name, camera, lens, film stock, date shot and descripti
         film: 'kodak-portra-400',
         lens: 'zeiss-planar-80mm-f-2-8',
       },
-      [nikonFe],
-      [portra],
-      [planar],
+      { cameras: [nikonFe], films: [portra], lenses: [planar] },
     ),
   );
 
@@ -405,7 +186,7 @@ describe('editing the details', () => {
   }
 
   test('opens with the roll’s details filled in', async () => {
-    renderPage(fakeRollService([], iceland));
+    renderPage(archiveWith([], iceland));
     await editDetails();
 
     expect(field('Name').value).toBe('Iceland');
@@ -422,7 +203,7 @@ describe('editing the details', () => {
   });
 
   test('saves the details, sending the roll’s ETag, and shows them', async () => {
-    const service = fakeRollService([], iceland);
+    const service = archiveWith([], iceland);
     renderPage(service);
     await editDetails();
 
@@ -439,7 +220,7 @@ describe('editing the details', () => {
   });
 
   test('picks a camera from the archive’s', async () => {
-    const service = fakeRollService([], iceland, [nikonFe]);
+    const service = archiveWith([], iceland, { cameras: [nikonFe] });
     renderPage(service);
     await editDetails();
     await screen.findByRole('option', { name: 'Nikon FE' });
@@ -452,7 +233,7 @@ describe('editing the details', () => {
   });
 
   test('adds a camera the archive doesn’t have yet', async () => {
-    const service = fakeRollService([], iceland, [nikonFe]);
+    const service = archiveWith([], iceland, { cameras: [nikonFe] });
     renderPage(service);
     await editDetails();
 
@@ -470,7 +251,11 @@ describe('editing the details', () => {
 
   test('offers the archive’s cameras, then Add new…, with the roll’s chosen', async () => {
     renderPage(
-      fakeRollService([], { ...iceland, camera: 'nikon-fe' }, [nikonFe]),
+      archiveWith(
+        [],
+        { ...iceland, camera: 'nikon-fe' },
+        { cameras: [nikonFe] },
+      ),
     );
     await screen.findByText('Nikon FE');
     await editDetails();
@@ -487,7 +272,7 @@ describe('editing the details', () => {
   });
 
   test('adds a film stock the archive doesn’t have yet, with its details', async () => {
-    const service = fakeRollService([], iceland, [], [portra]);
+    const service = archiveWith([], iceland, { films: [portra] });
     renderPage(service);
     await editDetails();
 
@@ -518,11 +303,10 @@ describe('editing the details', () => {
   });
 
   test('shows the roll’s film stock chosen, and can clear it', async () => {
-    const service = fakeRollService(
+    const service = archiveWith(
       [],
       { ...iceland, film: 'kodak-portra-400' },
-      [],
-      [portra],
+      { films: [portra] },
     );
     renderPage(service);
     await screen.findByText('Kodak Portra 400');
@@ -543,7 +327,7 @@ describe('editing the details', () => {
   });
 
   test('picks a lens from the archive’s, and can clear it', async () => {
-    const service = fakeRollService([], iceland, [], [], [planar]);
+    const service = archiveWith([], iceland, { lenses: [planar] });
     renderPage(service);
     await editDetails();
     await screen.findByRole('option', { name: 'Zeiss Planar 80mm f/2.8' });
@@ -561,14 +345,9 @@ describe('editing the details', () => {
   });
 
   test('puts the roll in an event, shown in its details row', async () => {
-    const service = fakeRollService(
-      [],
-      iceland,
-      [],
-      [],
-      [],
-      [{ slug: 'iceland-2026', name: 'Iceland 2026', date: null }],
-    );
+    const service = archiveWith([], iceland, {
+      events: [{ slug: 'iceland-2026', name: 'Iceland 2026', date: null }],
+    });
     renderPage(service);
     await editDetails();
     await screen.findByRole('option', { name: 'Iceland 2026' });
@@ -581,7 +360,7 @@ describe('editing the details', () => {
   });
 
   test('asks for a year', async () => {
-    const service = fakeRollService([], iceland);
+    const service = archiveWith([], iceland);
     renderPage(service);
     await editDetails();
 
@@ -595,10 +374,10 @@ describe('editing the details', () => {
   });
 
   test('refuses to overwrite a roll changed since the page loaded, keeping what was entered', async () => {
-    const service = fakeRollService([], iceland);
+    const service = archiveWith([], iceland);
     renderPage(service);
     await editDetails();
-    service.changed();
+    service.changeRoll(rollId);
 
     fill('Name', 'Westfjords');
     fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
@@ -610,7 +389,7 @@ describe('editing the details', () => {
   });
 
   test('goes back to the details as they were on Cancel, saving nothing', async () => {
-    const service = fakeRollService([], iceland);
+    const service = archiveWith([], iceland);
     renderPage(service);
     await editDetails();
 
@@ -624,7 +403,7 @@ describe('editing the details', () => {
 
 describe('adding scans', () => {
   test('opens the drop zone from Add scans on a roll with frames', async () => {
-    renderPage(fakeRollService([aFrameWithScan('1', '12340001.jpg')]));
+    renderPage(archiveWith([aFrameWithScan('1', '12340001.jpg')]));
     const addScans = await screen.findByRole('button', { name: 'Add scans' });
     expect(screen.queryByLabelText('Choose scans')).toBeNull();
     expect(addScans.getAttribute('aria-expanded')).toBe('false');
@@ -636,7 +415,7 @@ describe('adding scans', () => {
   });
 
   test('shows the drop zone straight away on a roll with no frames', async () => {
-    renderPage(fakeRollService());
+    renderPage(archiveWith());
 
     expect(await screen.findByLabelText('Choose scans')).toBeDefined();
   });
@@ -644,7 +423,7 @@ describe('adding scans', () => {
 
 test('shows a thumbnail of each frame, labelled with its frame number', async () => {
   renderPage(
-    fakeRollService([
+    archiveWith([
       aFrameWithScan('1', '12340001.jpg'),
       aFrameWithScan(null, '12340002.jpg'),
     ]),
@@ -667,7 +446,7 @@ test('shows a thumbnail of each frame, labelled with its frame number', async ()
 
 test('shows frames in frame order, or in scan order when chosen', async () => {
   renderPage(
-    fakeRollService([
+    archiveWith([
       aFrameWithScan('3', '12340001.jpg'),
       aFrameWithScan('1', '12340002.jpg'),
       aFrameWithScan('2', '12340003.jpg'),
@@ -706,30 +485,30 @@ describe('editing a frame number', () => {
   }
 
   test('saves a new number on Enter, sending the roll’s ETag', async () => {
-    const service = fakeRollService([aFrameWithScan('1', '12340001.jpg')]);
+    const service = archiveWith([aFrameWithScan('1', '12340001.jpg')]);
     renderPage(service);
 
     fireEvent.click(await numberButton('Change frame number 1'));
     typeNumber('12A');
 
     expect(await numberButton('Change frame number 12A')).toBeDefined();
-    expect(service.frames[0]?.number).toBe('12A');
+    expect(framesOf(service)[0]?.number).toBe('12A');
     expect(service.ifMatches).toEqual(['"v1"']);
   });
 
   test('clears the number when it is emptied', async () => {
-    const service = fakeRollService([aFrameWithScan('1', '12340001.jpg')]);
+    const service = archiveWith([aFrameWithScan('1', '12340001.jpg')]);
     renderPage(service);
 
     fireEvent.click(await numberButton('Change frame number 1'));
     typeNumber('');
 
     expect(await numberButton('Set a frame number')).toBeDefined();
-    expect(service.frames[0]?.number).toBeNull();
+    expect(framesOf(service)[0]?.number).toBeNull();
   });
 
   test('changes nothing on Esc', async () => {
-    const service = fakeRollService([aFrameWithScan('1', '12340001.jpg')]);
+    const service = archiveWith([aFrameWithScan('1', '12340001.jpg')]);
     renderPage(service);
 
     fireEvent.click(await numberButton('Change frame number 1'));
@@ -740,7 +519,7 @@ describe('editing a frame number', () => {
   });
 
   test('takes at most 9 characters', async () => {
-    renderPage(fakeRollService([aFrameWithScan('1', '12340001.jpg')]));
+    renderPage(archiveWith([aFrameWithScan('1', '12340001.jpg')]));
 
     fireEvent.click(await numberButton('Change frame number 1'));
 
@@ -750,28 +529,28 @@ describe('editing a frame number', () => {
   });
 
   test('refuses to overwrite a roll changed since the page loaded, and offers a reload', async () => {
-    const service = fakeRollService([aFrameWithScan('1', '12340001.jpg')]);
+    const service = archiveWith([aFrameWithScan('1', '12340001.jpg')]);
     renderPage(service);
     fireEvent.click(await numberButton('Change frame number 1'));
     // Someone else changes the roll, e.g. in another tab.
-    service.changed();
+    service.changeRoll(rollId);
 
     typeNumber('2');
 
     expect(
       await screen.findByText('This roll changed since you opened it.'),
     ).toBeDefined();
-    expect(service.frames[0]?.number).toBe('1');
+    expect(framesOf(service)[0]?.number).toBe('1');
     expect(screen.getByLabelText<HTMLInputElement>('Frame number').value).toBe(
       '2',
     );
   });
 
   test('saves again after a reload, against the roll as it is now', async () => {
-    const service = fakeRollService([aFrameWithScan('1', '12340001.jpg')]);
+    const service = archiveWith([aFrameWithScan('1', '12340001.jpg')]);
     renderPage(service);
     fireEvent.click(await numberButton('Change frame number 1'));
-    service.changed();
+    service.changeRoll(rollId);
     typeNumber('2');
     await screen.findByText('This roll changed since you opened it.');
 
@@ -788,24 +567,9 @@ describe('editing a frame number', () => {
   });
 
   test('says so and stays open when a save fails', async () => {
-    renderPage({
-      answer: (request) =>
-        Promise.resolve(
-          request.method === 'PATCH'
-            ? new Response('', { status: 500 })
-            : Response.json(
-                {
-                  id: rollId,
-                  roll: '2026-014',
-                  name: null,
-                  description: null,
-                  shot: null,
-                  frames: [aFrameWithScan('1', '12340001.jpg')],
-                },
-                { headers: { ETag: '"v1"' } },
-              ),
-        ),
-    });
+    const archive = archiveWith([aFrameWithScan('1', '12340001.jpg')]);
+    archive.failSaves();
+    renderPage(archive);
 
     fireEvent.click(await numberButton('Change frame number 1'));
     typeNumber('2');
@@ -849,7 +613,7 @@ describe('renumbering', () => {
 
   async function aTailToHeadRoll() {
     // Uploaded in file name order, so numbered 1, 2, 3, though the film runs 3, 2, 1.
-    const service = fakeRollService([
+    const service = archiveWith([
       aFrameWithScan('1', '12340001.jpg'),
       aFrameWithScan('2', '12340002.jpg'),
       aFrameWithScan('3', '12340003.jpg'),
@@ -939,7 +703,7 @@ describe('renumbering', () => {
       await screen.findByRole('button', { name: 'Change frame number 3' }),
     ).toBeDefined();
     expect(screen.queryByLabelText('Which scan')).toBeNull();
-    expect(service.frames.map((f) => f.number)).toEqual(['3', '2', '1']);
+    expect(framesOf(service).map((f) => f.number)).toEqual(['3', '2', '1']);
     expect(service.ifMatches).toEqual(['"v1"']);
   });
 
@@ -956,38 +720,23 @@ describe('renumbering', () => {
   test('refuses to overwrite a roll changed since the page loaded, keeping the settings', async () => {
     const service = await aTailToHeadRoll();
     renumberSo('last', '1', 'down');
-    service.changed();
+    service.changeRoll(rollId);
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(
       await screen.findByText('This roll changed since you opened it.'),
     ).toBeDefined();
-    expect(service.frames.map((f) => f.number)).toEqual(['1', '2', '3']);
+    expect(framesOf(service).map((f) => f.number)).toEqual(['1', '2', '3']);
     expect(screen.getByLabelText<HTMLSelectElement>('Which scan').value).toBe(
       'last',
     );
   });
 
   test('says so when the numbers could not be saved', async () => {
-    renderPage({
-      answer: (request) =>
-        Promise.resolve(
-          request.method === 'PATCH'
-            ? new Response('', { status: 500 })
-            : Response.json(
-                {
-                  id: rollId,
-                  roll: '2026-014',
-                  name: null,
-                  description: null,
-                  shot: null,
-                  frames: [aFrameWithScan('1', '12340001.jpg')],
-                },
-                { headers: { ETag: '"v1"' } },
-              ),
-        ),
-    });
+    const archive = archiveWith([aFrameWithScan('1', '12340001.jpg')]);
+    archive.failSaves();
+    renderPage(archive);
     fireEvent.click(await screen.findByRole('button', { name: 'Renumber…' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -1012,7 +761,7 @@ describe('renumbering', () => {
 
 test('shows a placeholder for a frame with no scan', async () => {
   renderPage(
-    fakeRollService([
+    archiveWith([
       { id: rollId.replace('01', '02'), number: '5', versions: [] },
     ]),
   );
@@ -1021,18 +770,19 @@ test('shows a placeholder for a frame with no scan', async () => {
 });
 
 test('uploads each scan as a new frame, one at a time, in file name order', async () => {
-  const service = fakeRollService();
+  const service = archiveWith();
   renderPage(service);
   await screen.findByText('No frames yet.');
 
   chooseScans(aScan('12340002.jpg'), aScan('12340001.jpg'));
 
   expect(await screen.findByText('Uploaded 2 scans.')).toBeDefined();
+  const [first, second] = framesOf(service).map((frame) => frame.id);
   expect(service.requests.filter((r) => r.startsWith('POST'))).toEqual([
     `POST /api/rolls/${rollId}/frames`,
-    `POST /api/rolls/${rollId}/frames/01JC8Z7K3M0000000000000101/versions?file=12340001.jpg`,
+    `POST /api/rolls/${rollId}/frames/${String(first)}/versions?file=12340001.jpg`,
     `POST /api/rolls/${rollId}/frames`,
-    `POST /api/rolls/${rollId}/frames/01JC8Z7K3M0000000000000103/versions?file=12340002.jpg`,
+    `POST /api/rolls/${rollId}/frames/${String(second)}/versions?file=12340002.jpg`,
   ]);
   expect(
     (await screen.findAllByRole('img')).map((img) => img.getAttribute('alt')),
@@ -1040,18 +790,18 @@ test('uploads each scan as a new frame, one at a time, in file name order', asyn
 });
 
 test('numbers new frames in upload order, from 1 in an empty roll', async () => {
-  const service = fakeRollService();
+  const service = archiveWith();
   renderPage(service);
   await screen.findByText('No frames yet.');
 
   chooseScans(aScan('12340002.jpg'), aScan('12340001.jpg'));
   await screen.findByText('Uploaded 2 scans.');
 
-  expect(service.frames.map((f) => f.number)).toEqual(['1', '2']);
+  expect(framesOf(service).map((f) => f.number)).toEqual(['1', '2']);
 });
 
 test('numbers new frames on from the highest number in the roll', async () => {
-  const service = fakeRollService([
+  const service = archiveWith([
     aFrameWithScan('12A', '12340012.jpg'),
     aFrameWithScan('36', '12340036.jpg'),
     aFrameWithScan(null, '12340037.jpg'),
@@ -1062,7 +812,7 @@ test('numbers new frames on from the highest number in the roll', async () => {
   chooseScans(aScan('12340040.jpg'), aScan('12340041.jpg'));
   await screen.findByText('Uploaded 2 scans.');
 
-  expect(service.frames.map((f) => f.number)).toEqual([
+  expect(framesOf(service).map((f) => f.number)).toEqual([
     '12A',
     '36',
     null,
@@ -1072,7 +822,7 @@ test('numbers new frames on from the highest number in the roll', async () => {
 });
 
 test('does not use up a number for a scan already in the roll', async () => {
-  const service = fakeRollService();
+  const service = archiveWith();
   renderPage(service);
   await screen.findByText('No frames yet.');
   chooseScans(aScan('12340001.jpg', 'same'));
@@ -1081,11 +831,11 @@ test('does not use up a number for a scan already in the roll', async () => {
   chooseScans(aScan('12340001.jpg', 'same'), aScan('12340002.jpg'));
   await screen.findByText('Uploaded 1 scan. 1 was already in the roll.');
 
-  expect(service.frames.map((f) => f.number)).toEqual(['1', '2']);
+  expect(framesOf(service).map((f) => f.number)).toEqual(['1', '2']);
 });
 
 test('accepts scans dropped onto the page', async () => {
-  const service = fakeRollService();
+  const service = archiveWith();
   renderPage(service);
   await screen.findByText('No frames yet.');
 
@@ -1097,7 +847,7 @@ test('accepts scans dropped onto the page', async () => {
 });
 
 test('uploads the scans in a folder dropped onto the page', async () => {
-  const service = fakeRollService();
+  const service = archiveWith();
   renderPage(service);
   await screen.findByText('No frames yet.');
   const scans = [aScan('12340001.jpg'), aScan('12340002.jpg')];
@@ -1132,7 +882,7 @@ test('uploads the scans in a folder dropped onto the page', async () => {
 });
 
 test('says when a drop holds no scans', async () => {
-  renderPage(fakeRollService());
+  renderPage(archiveWith());
   await screen.findByText('No frames yet.');
 
   fireEvent.drop(screen.getByText(/Drop individual scans/), {
@@ -1143,7 +893,7 @@ test('says when a drop holds no scans', async () => {
 });
 
 test('skips a scan that is already in the roll, without creating a frame', async () => {
-  const service = fakeRollService();
+  const service = archiveWith();
   renderPage(service);
   await screen.findByText('No frames yet.');
   chooseScans(aScan('12340001.jpg', 'same'));
@@ -1154,11 +904,11 @@ test('skips a scan that is already in the roll, without creating a frame', async
   expect(
     await screen.findByText('Uploaded 1 scan. 1 was already in the roll.'),
   ).toBeDefined();
-  expect(service.frames).toHaveLength(2);
+  expect(framesOf(service)).toHaveLength(2);
 });
 
 test('does not upload a file whose name the service would refuse', async () => {
-  const service = fakeRollService();
+  const service = archiveWith();
   renderPage(service);
   await screen.findByText('No frames yet.');
 
@@ -1169,14 +919,11 @@ test('does not upload a file whose name the service would refuse', async () => {
       'Uploaded 0 scans. Not uploaded: scan 1.jpg (must be a JPEG file name like 12340014.jpg).',
     ),
   ).toBeDefined();
-  expect(service.frames).toHaveLength(0);
+  expect(framesOf(service)).toHaveLength(0);
 });
 
 test('says when the roll does not exist', async () => {
-  renderPage({
-    answer: () =>
-      Promise.resolve(Response.json({ error: 'no roll' }, { status: 404 })),
-  });
+  renderPage(fakeArchive());
 
   expect(await screen.findByText('There is no such roll.')).toBeDefined();
 });

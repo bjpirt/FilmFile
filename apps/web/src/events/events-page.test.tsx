@@ -1,10 +1,4 @@
 // @vitest-environment happy-dom
-import { createApiClient } from '@filmfile/contracts/client';
-import {
-  createEventRequest,
-  updateEventRequest,
-  type Event,
-} from '@filmfile/contracts/events';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   cleanup,
@@ -14,79 +8,19 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, expect, test } from 'vitest';
+import { fakeArchive, type FakeArchive } from '../testing/fake-archive.ts';
 import { EventsPage } from './events-page.tsx';
 
 afterEach(cleanup);
 
-/** Answers like the backend: events with versions, listed newest first, and no rolls. */
-function fakeService(events: Event[] = []) {
-  const ifMatches: (string | null)[] = [];
-  let version = 1;
-  const etag = () => `"v${String(version)}"`;
-  const changed = () => {
-    version += 1;
-  };
-  const newestFirst = () =>
-    [...events].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
-
-  async function answer(request: Request): Promise<Response> {
-    const url = new URL(request.url);
-    if (url.pathname === '/api/rolls') {
-      return Response.json({ rolls: [], unreadable: [] });
-    }
-    if (url.pathname === '/api/events') {
-      if (request.method === 'GET') {
-        return Response.json({ events: newestFirst() });
-      }
-      const { name, date } = createEventRequest.parse(await request.json());
-      const event = {
-        slug: name.toLowerCase().replace(/\W+/g, '-'),
-        name,
-        date: date ?? null,
-      };
-      events.push(event);
-      return Response.json(event, { status: 201 });
-    }
-    const slug = url.pathname.split('/').at(-1);
-    const index = events.findIndex((e) => e.slug === slug);
-    const current = events[index];
-    if (current === undefined) {
-      return Response.json({ error: 'not found' }, { status: 404 });
-    }
-    if (request.method === 'GET') {
-      return Response.json(current, { headers: { ETag: etag() } });
-    }
-    const ifMatch = request.headers.get('If-Match');
-    ifMatches.push(ifMatch);
-    if (ifMatch !== etag()) {
-      return Response.json({ error: 'changed' }, { status: 409 });
-    }
-    const { name, date } = updateEventRequest.parse(await request.json());
-    const updated = {
-      ...current,
-      ...(name === undefined ? {} : { name }),
-      ...(date === undefined ? {} : { date }),
-    };
-    events[index] = updated;
-    changed();
-    return Response.json(updated, { headers: { ETag: etag() } });
-  }
-
-  return { answer, events, ifMatches, changed };
-}
-
-function renderPage(service: { answer: (r: Request) => Promise<Response> }) {
-  const api = createApiClient({
-    baseUrl: 'http://localhost',
-    fetch: service.answer,
-  });
+function renderPage(archive: FakeArchive) {
   render(
     <QueryClientProvider
       client={
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
       }
     >
-      <EventsPage api={api} />
+      <EventsPage api={archive.api} />
     </QueryClientProvider>,
   );
 }
@@ -108,11 +42,13 @@ function eventsListed(): (string | null)[] {
 
 test('lists the events newest first, each with its date', async () => {
   renderPage(
-    fakeService([
-      { slug: 'westfjords', name: 'Westfjords', date: '2025-06' },
-      { slug: 'iceland-2026', name: 'Iceland 2026', date: '2026-09-12' },
-      { slug: 'undated', name: 'Undated', date: null },
-    ]),
+    fakeArchive({
+      events: [
+        { slug: 'westfjords', name: 'Westfjords', date: '2025-06' },
+        { slug: 'iceland-2026', name: 'Iceland 2026', date: '2026-09-12' },
+        { slug: 'undated', name: 'Undated', date: null },
+      ],
+    }),
   );
 
   await screen.findByText('Westfjords');
@@ -124,7 +60,7 @@ test('lists the events newest first, each with its date', async () => {
 });
 
 test('says how to add the first event', async () => {
-  renderPage(fakeService());
+  renderPage(fakeArchive());
 
   expect(
     await screen.findByText('No events yet. Add one with New event.'),
@@ -132,7 +68,7 @@ test('says how to add the first event', async () => {
 });
 
 test('adds a new event with its name and date', async () => {
-  const service = fakeService();
+  const service = fakeArchive();
   renderPage(service);
   fireEvent.click(await screen.findByRole('button', { name: 'New event' }));
 
@@ -150,7 +86,7 @@ test('adds a new event with its name and date', async () => {
 });
 
 test('asks for a new event’s name', async () => {
-  const service = fakeService();
+  const service = fakeArchive();
   renderPage(service);
   fireEvent.click(await screen.findByRole('button', { name: 'New event' }));
 
@@ -164,9 +100,9 @@ test('asks for a new event’s name', async () => {
 });
 
 test('renames an event and changes its date, sending its ETag', async () => {
-  const service = fakeService([
-    { slug: 'iceland', name: 'Iceland', date: null },
-  ]);
+  const service = fakeArchive({
+    events: [{ slug: 'iceland', name: 'Iceland', date: null }],
+  });
   renderPage(service);
   fireEvent.click(await screen.findByRole('button', { name: 'Edit Iceland' }));
 
@@ -184,13 +120,13 @@ test('renames an event and changes its date, sending its ETag', async () => {
 });
 
 test('refuses to overwrite an event changed since it was opened', async () => {
-  const service = fakeService([
-    { slug: 'iceland', name: 'Iceland', date: null },
-  ]);
+  const service = fakeArchive({
+    events: [{ slug: 'iceland', name: 'Iceland', date: null }],
+  });
   renderPage(service);
   fireEvent.click(await screen.findByRole('button', { name: 'Edit Iceland' }));
   const form = await screen.findByRole('form', { name: 'Edit Iceland' });
-  service.changed();
+  service.changeEvent('iceland');
 
   fill(form, 'Name', 'Iceland 2026');
   fireEvent.click(within(form).getByRole('button', { name: 'Save event' }));

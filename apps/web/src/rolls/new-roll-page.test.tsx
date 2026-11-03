@@ -1,15 +1,5 @@
 // @vitest-environment happy-dom
-import { createApiClient } from '@filmfile/contracts/client';
-import {
-  createCameraRequest,
-  createFilmStockRequest,
-  createLensRequest,
-  type Camera,
-  type FilmStock,
-  type Lens,
-} from '@filmfile/contracts/equipment';
-import { createEventRequest, type Event } from '@filmfile/contracts/events';
-import { createRollRequest, type Roll } from '@filmfile/contracts/rolls';
+import type { FilmStock } from '@filmfile/contracts/equipment';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   cleanup,
@@ -20,6 +10,11 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import {
+  aRoll,
+  fakeArchive,
+  type FakeArchive,
+} from '../testing/fake-archive.ts';
 import { NewRollPage } from './new-roll-page.tsx';
 
 const rollId = '01JC8Z7K3M0000000000000001';
@@ -30,165 +25,10 @@ beforeEach(() => {
 
 afterEach(cleanup);
 
-/** Answers like the backend: creates the roll, its frames and their scans. */
-function fakeService({
-  taken = [],
-  cameras = [],
-  films = [],
-  lenses = [],
-  events = [],
-}: {
-  taken?: string[];
-  cameras?: Camera[];
-  films?: FilmStock[];
-  lenses?: Lens[];
-  events?: Event[];
-} = {}) {
-  const created: unknown[] = [];
-  const uploads: string[] = [];
-  let cameraLists = 0;
-  let nextId = 100;
-  async function answer(request: Request): Promise<Response> {
-    const url = new URL(request.url);
-    if (url.pathname === '/api/equipment/cameras') {
-      if (request.method === 'GET') {
-        cameraLists += 1;
-        return Response.json({ cameras });
-      }
-      const { make, model } = createCameraRequest.parse(await request.json());
-      const camera = {
-        slug: `${make} ${model}`.toLowerCase().replace(/\W+/g, '-'),
-        make,
-        model,
-      };
-      if (cameras.some((c) => c.slug === camera.slug)) {
-        return Response.json({ error: 'exists' }, { status: 409 });
-      }
-      cameras.push(camera);
-      return Response.json(camera, { status: 201 });
-    }
-    if (url.pathname === '/api/events') {
-      if (request.method === 'GET') {
-        return Response.json({ events });
-      }
-      const { name, date } = createEventRequest.parse(await request.json());
-      const event = {
-        slug: name.toLowerCase().replace(/\W+/g, '-'),
-        name,
-        date: date ?? null,
-      };
-      events.push(event);
-      return Response.json(event, { status: 201 });
-    }
-    if (url.pathname === '/api/equipment/lenses') {
-      if (request.method === 'GET') {
-        return Response.json({ lenses });
-      }
-      const body = createLensRequest.parse(await request.json());
-      const lens: Lens = {
-        slug: [
-          body.make,
-          body.name,
-          body.focalLength == null ? '' : `${String(body.focalLength)}mm`,
-          body.maxAperture == null ? '' : `f/${String(body.maxAperture)}`,
-        ]
-          .join(' ')
-          .trim()
-          .toLowerCase()
-          .replace(/\W+/g, '-'),
-        make: body.make,
-        name: body.name,
-        focalLength: body.focalLength ?? null,
-        maxAperture: body.maxAperture ?? null,
-      };
-      lenses.push(lens);
-      return Response.json(lens, { status: 201 });
-    }
-    if (url.pathname === '/api/equipment/films') {
-      if (request.method === 'GET') {
-        return Response.json({ films });
-      }
-      const body = createFilmStockRequest.parse(await request.json());
-      const film: FilmStock = {
-        slug: [body.make, body.name, body.iso ?? '']
-          .join(' ')
-          .trim()
-          .toLowerCase()
-          .replace(/\W+/g, '-'),
-        make: body.make,
-        name: body.name,
-        iso: body.iso ?? null,
-        type: body.type ?? null,
-        format: body.format ?? null,
-      };
-      films.push(film);
-      return Response.json(film, { status: 201 });
-    }
-    if (url.pathname === '/api/rolls') {
-      const body = createRollRequest.parse(await request.json());
-      created.push(body);
-      if (taken.includes(body.roll)) {
-        return Response.json({ error: 'taken' }, { status: 409 });
-      }
-      const roll: Roll = {
-        id: rollId,
-        roll: body.roll,
-        name: body.name ?? null,
-        description: body.description ?? null,
-        shot: body.shot ?? null,
-        event: body.event ?? null,
-        camera: body.camera ?? null,
-        film: body.film ?? null,
-        lens: body.lens ?? null,
-        frames: [],
-      };
-      return Response.json(roll, { status: 201 });
-    }
-    if (url.pathname.endsWith('/frames')) {
-      nextId += 1;
-      return Response.json(
-        {
-          id: `01JC8Z7K3M0000000000000${String(nextId)}`,
-          number: null,
-          versions: [],
-        },
-        { status: 201 },
-      );
-    }
-    uploads.push(url.searchParams.get('file') ?? '');
-    return Response.json(
-      {
-        id: '01JC8Z7K3M0000000000000999',
-        file: 'x',
-        sha256: String(uploads.length).padStart(64, '0'),
-        bytes: 1,
-        width: 1,
-        height: 1,
-        added: '2026-11-02T12:00:00.000Z',
-      },
-      { status: 201 },
-    );
-  }
-  return {
-    answer,
-    created,
-    uploads,
-    cameras,
-    films,
-    lenses,
-    events,
-    cameraLists: () => cameraLists,
-  };
-}
-
-function renderPage(service: { answer: (r: Request) => Promise<Response> }) {
-  const api = createApiClient({
-    baseUrl: 'http://localhost',
-    fetch: service.answer,
-  });
+function renderPage(archive: FakeArchive) {
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <NewRollPage api={api} />
+      <NewRollPage api={archive.api} />
     </QueryClientProvider>,
   );
 }
@@ -245,7 +85,7 @@ async function waitToOpen(id: string) {
 }
 
 test('asks for the roll number, name, description and date shot', () => {
-  renderPage(fakeService());
+  renderPage(fakeArchive());
 
   expect(screen.getByRole('heading', { name: 'New roll' })).toBeDefined();
   for (const label of [
@@ -262,7 +102,7 @@ test('asks for the roll number, name, description and date shot', () => {
 });
 
 test('creates the roll with its details, then opens it', async () => {
-  const service = fakeService();
+  const service = fakeArchive();
   renderPage(service);
 
   fill('Roll number', '2026-014');
@@ -288,7 +128,7 @@ describe('the camera', () => {
   const nikonFe = { slug: 'nikon-fe', make: 'Nikon', model: 'FE' };
 
   test('is picked from the archive’s cameras', async () => {
-    const service = fakeService({ cameras: [nikonFe] });
+    const service = fakeArchive({ cameras: [nikonFe] });
     renderPage(service);
     await screen.findByRole('option', { name: 'Nikon FE' });
 
@@ -303,7 +143,7 @@ describe('the camera', () => {
   });
 
   test('can be a new one, added to the archive with its make and model', async () => {
-    const service = fakeService();
+    const service = fakeArchive();
     renderPage(service);
 
     fill('Roll number', '2026-014');
@@ -322,7 +162,7 @@ describe('the camera', () => {
   });
 
   test('asks for a new one’s make and model', async () => {
-    const service = fakeService();
+    const service = fakeArchive();
     renderPage(service);
 
     fill('Roll number', '2026-014');
@@ -337,10 +177,10 @@ describe('the camera', () => {
   });
 
   test('is the one the archive has when a new one is the same, added since the page loaded', async () => {
-    const service = fakeService();
+    const service = fakeArchive();
     renderPage(service);
     await waitFor(() => {
-      expect(service.cameraLists()).toBe(1);
+      expect(service.gets('/api/equipment/cameras')).toBe(1);
     });
     service.cameras.push(nikonFe);
 
@@ -357,7 +197,7 @@ describe('the camera', () => {
   });
 
   test('can’t be a new one named so like another that they’d share a file', async () => {
-    const service = fakeService({ cameras: [nikonFe] });
+    const service = fakeArchive({ cameras: [nikonFe] });
     renderPage(service);
 
     fill('Roll number', '2026-014');
@@ -384,7 +224,7 @@ describe('the film stock', () => {
   };
 
   test('offers the archive’s film stocks, then Add new…', async () => {
-    renderPage(fakeService({ films: [portra] }));
+    renderPage(fakeArchive({ films: [portra] }));
 
     await screen.findByRole('option', { name: 'Kodak Portra 400' });
     expect(
@@ -395,7 +235,7 @@ describe('the film stock', () => {
   });
 
   test('is picked from the archive’s film stocks', async () => {
-    const service = fakeService({ films: [portra] });
+    const service = fakeArchive({ films: [portra] });
     renderPage(service);
     await screen.findByRole('option', { name: 'Kodak Portra 400' });
 
@@ -410,7 +250,7 @@ describe('the film stock', () => {
   });
 
   test('can be a new one, added to the archive with the details given', async () => {
-    const service = fakeService();
+    const service = fakeArchive();
     renderPage(service);
 
     fill('Roll number', '2026-014');
@@ -439,7 +279,7 @@ describe('the film stock', () => {
   });
 
   test('asks for a new one’s make and name', async () => {
-    const service = fakeService();
+    const service = fakeArchive();
     renderPage(service);
 
     fill('Roll number', '2026-014');
@@ -453,7 +293,7 @@ describe('the film stock', () => {
   });
 
   test('asks for a whole-number ISO for a new one', async () => {
-    const service = fakeService();
+    const service = fakeArchive();
     renderPage(service);
 
     fill('Roll number', '2026-014');
@@ -472,7 +312,7 @@ describe('the film stock', () => {
 
 describe('the event', () => {
   test('is picked from the archive’s events', async () => {
-    const service = fakeService({
+    const service = fakeArchive({
       events: [{ slug: 'iceland-2026', name: 'Iceland 2026', date: null }],
     });
     renderPage(service);
@@ -489,7 +329,7 @@ describe('the event', () => {
   });
 
   test('can be a new one, added to the archive by name', async () => {
-    const service = fakeService();
+    const service = fakeArchive();
     renderPage(service);
 
     fill('Roll number', '2026-014');
@@ -513,7 +353,7 @@ describe('the event', () => {
   });
 
   test('asks for a new one’s name', async () => {
-    const service = fakeService();
+    const service = fakeArchive();
     renderPage(service);
 
     fill('Roll number', '2026-014');
@@ -529,7 +369,7 @@ describe('the event', () => {
 
 describe('the lens', () => {
   test('can be a new one, added to the archive with its focal length and aperture', async () => {
-    const service = fakeService();
+    const service = fakeArchive();
     renderPage(service);
 
     fill('Roll number', '2026-014');
@@ -561,7 +401,7 @@ describe('the lens', () => {
   });
 
   test('is picked from the archive’s lenses', async () => {
-    const service = fakeService({
+    const service = fakeArchive({
       lenses: [
         {
           slug: 'zeiss-planar-80mm-f-2-8',
@@ -586,7 +426,7 @@ describe('the lens', () => {
   });
 
   test('asks for an aperture that is an f-number', async () => {
-    const service = fakeService();
+    const service = fakeArchive();
     renderPage(service);
 
     fill('Roll number', '2026-014');
@@ -610,7 +450,7 @@ describe('the lens', () => {
 
 describe('the date shot', () => {
   test('takes its year from the roll number, until the year is changed', () => {
-    renderPage(fakeService());
+    renderPage(fakeArchive());
 
     fill('Roll number', '2026-014');
     expect(field('Year').value).toBe('2026');
@@ -621,7 +461,7 @@ describe('the date shot', () => {
   });
 
   test('offers the day once there is a month, and the time once there is a day', () => {
-    renderPage(fakeService());
+    renderPage(fakeArchive());
     const disabled = (label: string) => field(label).disabled;
 
     expect([disabled('Day'), disabled('Time')]).toEqual([true, true]);
@@ -632,7 +472,7 @@ describe('the date shot', () => {
   });
 
   test('can be just a year', async () => {
-    const service = fakeService();
+    const service = fakeArchive();
     renderPage(service);
 
     fill('Roll number', '2026-014');
@@ -643,7 +483,7 @@ describe('the date shot', () => {
   });
 
   test('is needed: at least a year', () => {
-    const service = fakeService();
+    const service = fakeArchive();
     renderPage(service);
 
     fill('Roll number', '2026-014');
@@ -657,7 +497,7 @@ describe('the date shot', () => {
   });
 
   test('asks for a four-digit year', () => {
-    const service = fakeService();
+    const service = fakeArchive();
     renderPage(service);
 
     fill('Roll number', '2026-014');
@@ -672,7 +512,7 @@ describe('the date shot', () => {
 });
 
 test('adds the scans chosen, after creating the roll', async () => {
-  const service = fakeService();
+  const service = fakeArchive();
   renderPage(service);
   fill('Roll number', '2026-014');
 
@@ -692,7 +532,7 @@ test('adds the scans chosen, after creating the roll', async () => {
 });
 
 test('marks the roll number and year as required', () => {
-  renderPage(fakeService());
+  renderPage(fakeArchive());
 
   expect(field('Roll number').required).toBe(true);
   expect(field('Year').required).toBe(true);
@@ -700,7 +540,7 @@ test('marks the roll number and year as required', () => {
 });
 
 test('asks for a roll number', () => {
-  const service = fakeService();
+  const service = fakeArchive();
   renderPage(service);
 
   create();
@@ -710,7 +550,7 @@ test('asks for a roll number', () => {
 });
 
 test('says when the roll number is taken, and stays on the page', async () => {
-  renderPage(fakeService({ taken: ['2026-014'] }));
+  renderPage(fakeArchive({ rolls: [aRoll('2026-014')] }));
 
   fill('Roll number', '2026-014');
   create();
@@ -722,7 +562,7 @@ test('says when the roll number is taken, and stays on the page', async () => {
 });
 
 test('goes back to the rolls on Cancel', () => {
-  renderPage(fakeService());
+  renderPage(fakeArchive());
 
   expect(
     screen.getByRole('link', { name: 'Cancel' }).getAttribute('href'),
