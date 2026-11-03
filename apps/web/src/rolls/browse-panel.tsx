@@ -1,19 +1,22 @@
-import type { Camera, FilmStock } from '@filmfile/contracts/equipment';
+import type { Camera, FilmStock, Lens } from '@filmfile/contracts/equipment';
 import type { Roll } from '@filmfile/contracts/rolls';
 import { cameraName } from '../equipment/use-cameras.ts';
 import { filmStockName } from '../equipment/use-film-stocks.ts';
+import { lensName } from '../equipment/use-lenses.ts';
 
-/** One way into the rolls: all of them, or those from a year, shot on a camera or of a film stock. */
+/** One way into the rolls: all of them, or those from a year, shot on a camera or with a lens, or of a film stock. */
 export interface RollsFilter {
   readonly year: string | undefined;
   readonly camera: string | undefined;
   readonly film: string | undefined;
+  readonly lens: string | undefined;
 }
 
 const everyRoll: RollsFilter = {
   year: undefined,
   camera: undefined,
   film: undefined,
+  lens: undefined,
 };
 
 interface Option {
@@ -75,19 +78,21 @@ function BrowseSection({
 
 /**
  * Ways into the rolls: all of them, or those from one year, shot on one
- * camera or of one film stock, one way at a time. More sections (events)
+ * camera or with one lens, or of one film stock, one way at a time. More sections (events)
  * arrive with their data.
  */
 export function BrowsePanel({
   rolls,
   cameras,
   films,
+  lenses,
   filter,
   choose,
 }: {
   readonly rolls: readonly Roll[];
   readonly cameras: readonly Camera[];
   readonly films: readonly FilmStock[];
+  readonly lenses: readonly Lens[];
   readonly filter: RollsFilter;
   readonly choose: (filter: RollsFilter) => void;
 }) {
@@ -103,6 +108,10 @@ export function BrowsePanel({
     rolls.flatMap((roll) => (roll.film === null ? [] : [roll.film])),
     (slug) => filmStockName(films, slug) ?? slug,
   ).sort(byLabel);
+  const rollLenses = counted(
+    rolls.flatMap((roll) => (roll.lens === null ? [] : [roll.lens])),
+    (slug) => lensName(lenses, slug) ?? slug,
+  ).sort(byLabel);
 
   return (
     <aside id="browse" className="browse" aria-label="Browse rolls">
@@ -111,7 +120,8 @@ export function BrowsePanel({
         aria-pressed={
           filter.year === undefined &&
           filter.camera === undefined &&
-          filter.film === undefined
+          filter.film === undefined &&
+          filter.lens === undefined
         }
         onClick={() => {
           choose(everyRoll);
@@ -135,6 +145,16 @@ export function BrowsePanel({
           chosen={filter.camera}
           choose={(camera) => {
             choose({ ...everyRoll, camera });
+          }}
+        />
+      )}
+      {rollLenses.length > 0 && (
+        <BrowseSection
+          title="Lenses"
+          options={rollLenses}
+          chosen={filter.lens}
+          choose={(lens) => {
+            choose({ ...everyRoll, lens });
           }}
         />
       )}

@@ -3,8 +3,10 @@ import { createApiClient } from '@filmfile/contracts/client';
 import {
   createCameraRequest,
   createFilmStockRequest,
+  createLensRequest,
   type Camera,
   type FilmStock,
+  type Lens,
 } from '@filmfile/contracts/equipment';
 import { createRollRequest, type Roll } from '@filmfile/contracts/rolls';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -32,7 +34,13 @@ function fakeService({
   taken = [],
   cameras = [],
   films = [],
-}: { taken?: string[]; cameras?: Camera[]; films?: FilmStock[] } = {}) {
+  lenses = [],
+}: {
+  taken?: string[];
+  cameras?: Camera[];
+  films?: FilmStock[];
+  lenses?: Lens[];
+} = {}) {
   const created: unknown[] = [];
   const uploads: string[] = [];
   let cameraLists = 0;
@@ -55,6 +63,30 @@ function fakeService({
       }
       cameras.push(camera);
       return Response.json(camera, { status: 201 });
+    }
+    if (url.pathname === '/api/equipment/lenses') {
+      if (request.method === 'GET') {
+        return Response.json({ lenses });
+      }
+      const body = createLensRequest.parse(await request.json());
+      const lens: Lens = {
+        slug: [
+          body.make,
+          body.name,
+          body.focalLength == null ? '' : `${String(body.focalLength)}mm`,
+          body.maxAperture == null ? '' : `f/${String(body.maxAperture)}`,
+        ]
+          .join(' ')
+          .trim()
+          .toLowerCase()
+          .replace(/\W+/g, '-'),
+        make: body.make,
+        name: body.name,
+        focalLength: body.focalLength ?? null,
+        maxAperture: body.maxAperture ?? null,
+      };
+      lenses.push(lens);
+      return Response.json(lens, { status: 201 });
     }
     if (url.pathname === '/api/equipment/films') {
       if (request.method === 'GET') {
@@ -90,6 +122,7 @@ function fakeService({
         shot: body.shot ?? null,
         camera: body.camera ?? null,
         film: body.film ?? null,
+        lens: body.lens ?? null,
         frames: [],
       };
       return Response.json(roll, { status: 201 });
@@ -125,6 +158,7 @@ function fakeService({
     uploads,
     cameras,
     films,
+    lenses,
     cameraLists: () => cameraLists,
   };
 }
@@ -413,6 +447,87 @@ describe('the film stock', () => {
 
     expect((await screen.findByRole('alert')).textContent).toBe(
       'Enter the ISO as a whole number, like 400.',
+    );
+    expect(service.created).toEqual([]);
+  });
+});
+
+describe('the lens', () => {
+  test('can be a new one, added to the archive with its focal length and aperture', async () => {
+    const service = fakeService();
+    renderPage(service);
+
+    fill('Roll number', '2026-014');
+    choose('Lens', 'Add new…');
+    const newLens = screen.getByRole('group', { name: 'New lens' });
+    fireEvent.change(within(newLens).getByLabelText('Make', { exact: false }), {
+      target: { value: 'Nikon' },
+    });
+    fireEvent.change(within(newLens).getByLabelText('Name', { exact: false }), {
+      target: { value: 'Nikkor AI-S' },
+    });
+    fill('Focal length', '50');
+    fill('Max aperture', '1.8');
+    create();
+
+    await waitToOpen(rollId);
+    expect(service.lenses).toEqual([
+      {
+        slug: 'nikon-nikkor-ai-s-50mm-f-1-8',
+        make: 'Nikon',
+        name: 'Nikkor AI-S',
+        focalLength: 50,
+        maxAperture: 1.8,
+      },
+    ]);
+    expect(service.created).toEqual([
+      { roll: '2026-014', shot: '2026', lens: 'nikon-nikkor-ai-s-50mm-f-1-8' },
+    ]);
+  });
+
+  test('is picked from the archive’s lenses', async () => {
+    const service = fakeService({
+      lenses: [
+        {
+          slug: 'zeiss-planar-80mm-f-2-8',
+          make: 'Zeiss',
+          name: 'Planar',
+          focalLength: 80,
+          maxAperture: 2.8,
+        },
+      ],
+    });
+    renderPage(service);
+    await screen.findByRole('option', { name: 'Zeiss Planar 80mm f/2.8' });
+
+    fill('Roll number', '2026-014');
+    choose('Lens', 'Zeiss Planar 80mm f/2.8');
+    create();
+
+    await waitToOpen(rollId);
+    expect(service.created).toEqual([
+      { roll: '2026-014', shot: '2026', lens: 'zeiss-planar-80mm-f-2-8' },
+    ]);
+  });
+
+  test('asks for an aperture that is an f-number', async () => {
+    const service = fakeService();
+    renderPage(service);
+
+    fill('Roll number', '2026-014');
+    choose('Lens', 'Add new…');
+    const newLens = screen.getByRole('group', { name: 'New lens' });
+    fireEvent.change(within(newLens).getByLabelText('Make', { exact: false }), {
+      target: { value: 'Nikon' },
+    });
+    fireEvent.change(within(newLens).getByLabelText('Name', { exact: false }), {
+      target: { value: 'Nikkor' },
+    });
+    fill('Max aperture', 'f/1.8');
+    create();
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Enter the widest aperture as an f-number, like 1.8.',
     );
     expect(service.created).toEqual([]);
   });

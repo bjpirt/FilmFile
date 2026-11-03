@@ -12,6 +12,7 @@ import type { IdGenerator } from '../../ports/id-generator.ts';
 import type { RollRepository } from '../../ports/roll-repository.ts';
 import { knownCamera } from './known-camera.ts';
 import { knownFilmStock } from './known-film-stock.ts';
+import { knownLens } from './known-lens.ts';
 import { textOrNull } from './text-or-null.ts';
 
 /** Creates an empty roll. The roll number is always given: it's never invented (D8). */
@@ -41,6 +42,8 @@ export class CreateRoll {
       readonly camera?: string | undefined;
       /** The film stock's slug. */
       readonly film?: string | undefined;
+      /** The lens's slug. */
+      readonly lens?: string | undefined;
     },
   ): Promise<Result<Roll, ValidationFailed | AlreadyExists>> {
     const rollNumber = parseRollNumber(input.roll);
@@ -66,6 +69,13 @@ export class CreateRoll {
     if (!film.ok) {
       return film;
     }
+    const lens =
+      input.lens === undefined
+        ? ok(null)
+        : await knownLens(this.#equipment, ctx, input.lens);
+    if (!lens.ok) {
+      return lens;
+    }
     const roll: Roll = {
       id: this.#ids.newRollId(),
       roll: rollNumber.value,
@@ -74,6 +84,7 @@ export class CreateRoll {
       shot: shot.value,
       camera: camera.value,
       film: film.value,
+      lens: lens.value,
       frames: [],
     };
     const created = await this.#rolls.create(ctx, roll);

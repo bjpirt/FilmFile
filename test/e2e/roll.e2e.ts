@@ -16,6 +16,12 @@ test('catalogue a roll: create it with its details and scans, correct a number, 
     day: '14',
     time: '06:30',
     newCamera: { make: 'Nikon', model: 'FE' },
+    newLens: {
+      make: 'Nikon',
+      name: 'Nikkor AI-S',
+      focalLength: '50',
+      maxAperture: '1.8',
+    },
     newFilmStock: {
       make: 'Kodak',
       name: 'Portra',
@@ -30,6 +36,7 @@ test('catalogue a roll: create it with its details and scans, correct a number, 
   await expect(page.getByText('Iceland, first day')).toBeVisible();
   await expect(page.getByText('Nikon FE')).toBeVisible();
   await expect(page.getByText('Kodak Portra 400')).toBeVisible();
+  await expect(page.getByText('Nikon Nikkor AI-S 50mm f/1.8')).toBeVisible();
   await expect(page.getByText('14 Sep 2026, 06:30')).toBeVisible();
   await expect(page.getByText('Jökulsárlón at dawn.')).toBeVisible();
   await expect(framesShown(page)).toHaveText(['1', '2', '3', '4', '5', '6']);

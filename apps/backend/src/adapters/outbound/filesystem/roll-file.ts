@@ -88,6 +88,10 @@ const storedRoll = z.object({
         isEquipmentSlug,
         'must be a slug like kodak-portra-400',
       ).optional(),
+      lens: branded<EquipmentSlug>(
+        isEquipmentSlug,
+        'must be a slug like nikon-nikkor-ai-s-50mm-f-1-8',
+      ).optional(),
     })
     .default({}),
   frames: z.array(storedFrame),
@@ -143,6 +147,7 @@ export function parseRollFile(text: string): Result<Roll, string> {
     shot,
     camera: meta.camera ?? null,
     film: meta.film ?? null,
+    lens: meta.lens ?? null,
     frames: frames.map((frame) => ({
       ...frame,
       versions: frame.versions.map((version) => ({
@@ -166,6 +171,7 @@ export function rollFileContent(roll: Roll): string {
     meta: {
       ...(roll.camera === null ? {} : { camera: roll.camera }),
       ...(roll.film === null ? {} : { film: roll.film }),
+      ...(roll.lens === null ? {} : { lens: roll.lens }),
     },
     frames: roll.frames.map((frame) => ({
       id: frame.id,

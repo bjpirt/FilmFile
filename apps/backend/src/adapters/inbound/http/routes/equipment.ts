@@ -4,8 +4,11 @@ import {
   cameraList,
   createCameraRequest,
   createFilmStockRequest,
+  createLensRequest,
   filmStock,
   filmStockList,
+  lens,
+  lensList,
 } from '@filmfile/contracts/equipment';
 import {
   errorResponse,
@@ -15,6 +18,8 @@ import type { CreateCamera } from '../../../../application/use-cases/equipment/c
 import type { CreateFilmStock } from '../../../../application/use-cases/equipment/create-film-stock.ts';
 import type { ListCameras } from '../../../../application/use-cases/equipment/list-cameras.ts';
 import type { ListFilmStocks } from '../../../../application/use-cases/equipment/list-film-stocks.ts';
+import type { CreateLens } from '../../../../application/use-cases/equipment/create-lens.ts';
+import type { ListLenses } from '../../../../application/use-cases/equipment/list-lenses.ts';
 import type { ArchiveContext } from '../../../../domain/shared/archive-context.ts';
 import { domainErrorResponse } from '../domain-error-response.ts';
 import { requireContentType } from '../middleware/require-content-type.ts';
@@ -82,14 +87,48 @@ const createFilmStock = createRoute({
   },
 });
 
+const listLenses = createRoute({
+  method: 'get',
+  path: '/lenses',
+  summary: 'List the lenses',
+  responses: {
+    200: json(
+      lensList,
+      'Every lens, ordered by make, name, focal length and aperture.',
+    ),
+  },
+});
+
+const createLens = createRoute({
+  method: 'post',
+  path: '/lenses',
+  summary: 'Add a lens',
+  middleware: [requireContentType('application/json')] as const,
+  request: {
+    body: {
+      required: true,
+      content: { 'application/json': { schema: createLensRequest } },
+    },
+  },
+  responses: {
+    201: json(lens, 'The new lens.'),
+    400: json(errorResponse, 'The body is not valid JSON.'),
+    409: json(errorResponse, 'A lens with the same slug already exists.'),
+    415: json(errorResponse, 'The body is not of the expected type.'),
+    422: json(invalidRequestResponse, 'The request is invalid.'),
+  },
+});
+
 export interface EquipmentUseCases {
   readonly listCameras: ListCameras;
   readonly createCamera: CreateCamera;
   readonly listFilmStocks: ListFilmStocks;
   readonly createFilmStock: CreateFilmStock;
+  readonly listLenses: ListLenses;
+  readonly createLens: CreateLens;
 }
 
-/** The archive's equipment: cameras and film stocks. */
+/** The archive's equipment: cameras, film stocks and lenses. */
 export function equipmentRoutes({
   ctx,
   useCases,
@@ -124,6 +163,18 @@ export function equipmentRoutes({
       ctx,
       c.req.valid('json'),
     );
+    return created.ok
+      ? c.json(created.value, 201)
+      : domainErrorResponse(c, created.error);
+  });
+
+  routes.openapi(listLenses, async (c) => {
+    const lenses = await useCases.listLenses.execute(ctx);
+    return c.json({ lenses: [...lenses] }, 200);
+  });
+
+  routes.openapi(createLens, async (c) => {
+    const created = await useCases.createLens.execute(ctx, c.req.valid('json'));
     return created.ok
       ? c.json(created.value, 201)
       : domainErrorResponse(c, created.error);

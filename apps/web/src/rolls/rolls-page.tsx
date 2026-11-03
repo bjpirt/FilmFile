@@ -1,10 +1,11 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import { useQuery } from '@tanstack/react-query';
-import type { Camera, FilmStock } from '@filmfile/contracts/equipment';
+import type { Camera, FilmStock, Lens } from '@filmfile/contracts/equipment';
 import type { Roll } from '@filmfile/contracts/rolls';
 import { useEffect } from 'react';
 import { cameraName, useCameras } from '../equipment/use-cameras.ts';
 import { filmStockName, useFilmStocks } from '../equipment/use-film-stocks.ts';
+import { lensName, useLenses } from '../equipment/use-lenses.ts';
 import { Link, navigate, useSearch } from '../routing.tsx';
 import { BrowsePanel } from './browse-panel.tsx';
 import { RollCard } from './roll-card.tsx';
@@ -80,14 +81,15 @@ function namedGroups(
 
 /**
  * The rolls in groups, each with its heading; one untitled group when not
- * grouping. Years go newest first; cameras and film stocks by name, with
- * rolls that have none last.
+ * grouping. Years go newest first; cameras, film stocks and lenses by name,
+ * with rolls that have none last.
  */
 function grouped(
   rolls: readonly Roll[],
   group: Grouping,
   cameras: readonly Camera[],
   films: readonly FilmStock[],
+  lenses: readonly Lens[],
 ): RollGroup[] {
   switch (group) {
     case 'none':
@@ -108,28 +110,46 @@ function grouped(
         (roll) => filmStockName(films, roll.film),
         'No film stock',
       );
+    case 'lens':
+      return namedGroups(
+        rolls,
+        (roll) => lensName(lenses, roll.lens),
+        'No lens',
+      );
   }
 }
 
-/** The page's heading for the rolls chosen, e.g. "Rolls of Kodak Portra 400 shot on Nikon FE in 2026". */
+/**
+ * The page's heading for the rolls chosen, e.g. "Rolls of Kodak Portra 400
+ * shot on Nikon FE with Zeiss Planar 80mm f/2.8 in 2026".
+ */
 function headingFor({
   year,
   camera,
   film,
+  lens,
 }: {
   readonly year: string | undefined;
   readonly camera: string | undefined;
   readonly film: string | undefined;
+  readonly lens: string | undefined;
 }): string {
   const of = film === undefined ? '' : ` of ${film}`;
-  const shotOn = camera === undefined ? '' : ` shot on ${camera}`;
+  const shot =
+    camera === undefined && lens === undefined
+      ? ''
+      : [
+          ' shot',
+          camera === undefined ? '' : ` on ${camera}`,
+          lens === undefined ? '' : ` with ${lens}`,
+        ].join('');
   const when =
     year === undefined
       ? ''
-      : of === '' && shotOn === ''
+      : of === '' && shot === ''
         ? ` from ${year}`
         : ` in ${year}`;
-  return `Rolls${of}${shotOn}${when}`;
+  return `Rolls${of}${shot}${when}`;
 }
 
 export function RollsPage({
@@ -162,6 +182,7 @@ export function RollsPage({
 
   const cameras = useCameras(api);
   const films = useFilmStocks(api);
+  const lenses = useLenses(api);
   const rolls = useQuery({
     queryKey: ['rolls'],
     queryFn: async () => {
@@ -178,7 +199,8 @@ export function RollsPage({
     (roll) =>
       (address.year === undefined || roll.roll.startsWith(address.year)) &&
       (address.camera === undefined || roll.camera === address.camera) &&
-      (address.film === undefined || roll.film === address.film),
+      (address.film === undefined || roll.film === address.film) &&
+      (address.lens === undefined || roll.lens === address.lens),
   );
 
   return (
@@ -188,6 +210,7 @@ export function RollsPage({
           rolls={all}
           cameras={cameras}
           films={films}
+          lenses={lenses}
           filter={address}
           choose={(filter) => {
             go(filter);
@@ -202,6 +225,7 @@ export function RollsPage({
                 year: address.year,
                 camera: cameraName(cameras, address.camera ?? null),
                 film: filmStockName(films, address.film ?? null),
+                lens: lensName(lenses, address.lens ?? null),
               })}
             </h1>
             {rolls.data !== undefined && (
@@ -220,6 +244,7 @@ export function RollsPage({
               <option value="none">Nothing</option>
               <option value="year">Year</option>
               <option value="camera">Camera</option>
+              <option value="lens">Lens</option>
               <option value="film">Film stock</option>
             </select>
           </label>
@@ -270,6 +295,7 @@ export function RollsPage({
           address.group,
           cameras,
           films,
+          lenses,
         ).map((group) => (
           <section key={group.title ?? 'all'} className="roll-group">
             {group.title !== undefined && (

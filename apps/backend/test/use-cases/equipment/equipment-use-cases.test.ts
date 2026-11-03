@@ -4,6 +4,8 @@ import { CreateCamera } from '../../../src/application/use-cases/equipment/creat
 import { CreateFilmStock } from '../../../src/application/use-cases/equipment/create-film-stock.ts';
 import { ListCameras } from '../../../src/application/use-cases/equipment/list-cameras.ts';
 import { ListFilmStocks } from '../../../src/application/use-cases/equipment/list-film-stocks.ts';
+import { CreateLens } from '../../../src/application/use-cases/equipment/create-lens.ts';
+import { ListLenses } from '../../../src/application/use-cases/equipment/list-lenses.ts';
 import { ctx } from '../../support/builders.ts';
 
 function setUp() {
@@ -13,6 +15,8 @@ function setUp() {
     listCameras: new ListCameras(equipment),
     createFilmStock: new CreateFilmStock(equipment),
     listFilmStocks: new ListFilmStocks(equipment),
+    createLens: new CreateLens(equipment),
+    listLenses: new ListLenses(equipment),
   };
 }
 
@@ -156,6 +160,68 @@ describe('CreateFilmStock', () => {
     const { createFilmStock } = setUp();
 
     expect(await createFilmStock.execute(ctx, input)).toMatchObject({
+      ok: false,
+      error: { kind: 'validation-failed', issues: [{ path: [field] }] },
+    });
+  });
+});
+
+describe('CreateLens', () => {
+  test('creates a lens with a slug made from its make, name, focal length and aperture', async () => {
+    const { createLens, listLenses } = setUp();
+
+    const created = await createLens.execute(ctx, {
+      make: ' Nikon',
+      name: 'Nikkor AI-S ',
+      focalLength: 50,
+      maxAperture: 1.8,
+    });
+
+    const lens = {
+      slug: 'nikon-nikkor-ai-s-50mm-f-1-8',
+      make: 'Nikon',
+      name: 'Nikkor AI-S',
+      focalLength: 50,
+      maxAperture: 1.8,
+    };
+    expect(created).toEqual({ ok: true, value: lens });
+    expect(await listLenses.execute(ctx)).toEqual([lens]);
+  });
+
+  test('leaves out the focal length and aperture when not given', async () => {
+    const { createLens } = setUp();
+
+    expect(
+      await createLens.execute(ctx, { make: 'Zeiss', name: 'Planar' }),
+    ).toMatchObject({
+      ok: true,
+      value: { slug: 'zeiss-planar', focalLength: null, maxAperture: null },
+    });
+  });
+
+  test('refuses a lens whose slug another has', async () => {
+    const { createLens } = setUp();
+    await createLens.execute(ctx, { make: 'Zeiss', name: 'Planar' });
+
+    expect(
+      await createLens.execute(ctx, { make: 'ZEISS', name: 'planar' }),
+    ).toEqual({
+      ok: false,
+      error: {
+        kind: 'already-exists',
+        entity: 'equipment',
+        id: 'zeiss-planar',
+      },
+    });
+  });
+
+  test.each([
+    ['make', { make: '', name: 'Planar' }],
+    ['name', { make: 'Zeiss', name: ' ' }],
+  ])('needs a %s', async (field, input) => {
+    const { createLens } = setUp();
+
+    expect(await createLens.execute(ctx, input)).toMatchObject({
       ok: false,
       error: { kind: 'validation-failed', issues: [{ path: [field] }] },
     });

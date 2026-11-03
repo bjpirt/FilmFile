@@ -36,5 +36,7 @@ export interface Roll {
   readonly camera: EquipmentSlug | null;
   /** The film stock the roll is, or null. */
   readonly film: EquipmentSlug | null;
+  /** The lens the roll was shot with, or null. */
+  readonly lens: EquipmentSlug | null;
   readonly frames: readonly Frame[];
 }

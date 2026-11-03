@@ -7,6 +7,8 @@ import { droppedFiles } from './dropped-files.ts';
 import { chooseCamera } from '../equipment/choose-camera.ts';
 import { cameraName, useCameras } from '../equipment/use-cameras.ts';
 import { chooseFilmStock } from '../equipment/choose-film-stock.ts';
+import { chooseLens } from '../equipment/choose-lens.ts';
+import { lensName, useLenses } from '../equipment/use-lenses.ts';
 import { filmStockName, useFilmStocks } from '../equipment/use-film-stocks.ts';
 import { EditDetailsPanel, type RollDetails } from './edit-details-panel.tsx';
 import { formatShot } from './format-shot.ts';
@@ -94,13 +96,16 @@ function RollAbout({
   roll,
   camera,
   film,
+  lens,
 }: {
   readonly roll: Roll;
   readonly camera: string | undefined;
   readonly film: string | undefined;
+  readonly lens: string | undefined;
 }) {
   const facts = [
     { label: 'Camera', value: camera },
+    { label: 'Lens', value: lens },
     { label: 'Film stock', value: film },
     {
       label: 'Shot',
@@ -140,6 +145,7 @@ export function RollPage({
   const queryClient = useQueryClient();
   const cameras = useCameras(api);
   const films = useFilmStocks(api);
+  const lenses = useLenses(api);
   const [upload, setUpload] = useState<Upload>({ kind: 'idle' });
   const [order, setOrder] = useState<'frame' | 'scan'>('frame');
   const [changedElsewhere, setChangedElsewhere] = useState(false);
@@ -267,12 +273,22 @@ export function RollPage({
       return film.problem;
     }
     await queryClient.invalidateQueries({ queryKey: ['films'] });
+    const lens = await chooseLens(api, details.lens);
+    if (!lens.ok) {
+      return lens.problem;
+    }
+    await queryClient.invalidateQueries({ queryKey: ['lenses'] });
     const { response } = await api.PATCH('/api/rolls/{rollId}', {
       params: {
         path: { rollId },
         header: { 'if-match': roll.data.etag },
       },
-      body: { ...details, camera: camera.slug, film: film.slug },
+      body: {
+        ...details,
+        camera: camera.slug,
+        film: film.slug,
+        lens: lens.slug,
+      },
     });
     if (response.status === 409) {
       // Said by the banner, with its Reload.
@@ -382,6 +398,7 @@ export function RollPage({
           roll={roll.data.roll}
           cameras={cameras}
           films={films}
+          lenses={lenses}
           save={saveDetails}
           cancel={() => {
             setEditingDetails(false);
@@ -394,6 +411,7 @@ export function RollPage({
           roll={roll.data.roll}
           camera={cameraName(cameras, roll.data.roll.camera)}
           film={filmStockName(films, roll.data.roll.film)}
+          lens={lensName(lenses, roll.data.roll.lens)}
         />
       )}
 

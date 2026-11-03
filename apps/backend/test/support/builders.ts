@@ -1,5 +1,6 @@
 import { cameraLabel, type Camera } from '../../src/domain/equipment/camera.ts';
 import { slugFor } from '../../src/domain/equipment/equipment-slug.ts';
+import { lensLabel, type Lens } from '../../src/domain/equipment/lens.ts';
 import {
   filmStockLabel,
   type FilmStock,
@@ -78,6 +79,7 @@ export function aRoll(
     shot: null,
     camera: null,
     film: null,
+    lens: null,
     frames: overrides.frames ?? [],
   };
 }
@@ -101,6 +103,25 @@ export function aFilmStock(
     type: details.type ?? null,
     format: details.format ?? null,
   };
+}
+
+/** A lens by make and name, e.g. aLens('Nikon', 'Nikkor AI-S', { focalLength: 50 }), with the slug made from them. */
+export function aLens(
+  make: string,
+  name: string,
+  details: Partial<Pick<Lens, 'focalLength' | 'maxAperture'>> = {},
+): Lens {
+  const lens = {
+    make,
+    name,
+    focalLength: details.focalLength ?? null,
+    maxAperture: details.maxAperture ?? null,
+  };
+  const slug = slugFor(lensLabel(lens));
+  if (slug === undefined) {
+    throw new Error(`bad test data: ${make} ${name}`);
+  }
+  return { slug, ...lens };
 }
 
 /** A camera by make and model, e.g. aCamera('Nikon', 'FE'), with the slug made from them. */

@@ -11,6 +11,8 @@ import { CreateCamera } from '../application/use-cases/equipment/create-camera.t
 import { CreateFilmStock } from '../application/use-cases/equipment/create-film-stock.ts';
 import { ListCameras } from '../application/use-cases/equipment/list-cameras.ts';
 import { ListFilmStocks } from '../application/use-cases/equipment/list-film-stocks.ts';
+import { CreateLens } from '../application/use-cases/equipment/create-lens.ts';
+import { ListLenses } from '../application/use-cases/equipment/list-lenses.ts';
 import { AddVersion } from '../application/use-cases/frames/add-version.ts';
 import { CreateFrame } from '../application/use-cases/frames/create-frame.ts';
 import { GetOriginal } from '../application/use-cases/frames/get-original.ts';
@@ -58,5 +60,7 @@ export function useCasesFor({
     createCamera: new CreateCamera(equipment),
     listFilmStocks: new ListFilmStocks(equipment),
     createFilmStock: new CreateFilmStock(equipment),
+    listLenses: new ListLenses(equipment),
+    createLens: new CreateLens(equipment),
   };
 }

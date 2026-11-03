@@ -14,11 +14,12 @@ import type {
 } from '../../ports/roll-repository.ts';
 import { knownCamera } from './known-camera.ts';
 import { knownFilmStock } from './known-film-stock.ts';
+import { knownLens } from './known-lens.ts';
 import { textOrNull } from './text-or-null.ts';
 
 /**
- * Changes a roll's details: name, description, date shot, camera and film
- * stock. A detail left
+ * Changes a roll's details: name, description, date shot, camera, film
+ * stock and lens. A detail left
  * out stays as it is; null or blank clears it. Saved only if the roll hasn't
  * changed since the caller read it at `expectedVersion`.
  */
@@ -43,6 +44,8 @@ export class UpdateRoll {
       readonly camera?: string | null | undefined;
       /** The film stock's slug. */
       readonly film?: string | null | undefined;
+      /** The lens's slug. */
+      readonly lens?: string | null | undefined;
     },
   ): Promise<
     Result<VersionedRoll, NotFound | ConcurrencyConflict | ValidationFailed>
@@ -68,6 +71,13 @@ export class UpdateRoll {
     if (!film.ok) {
       return film;
     }
+    const lens =
+      input.lens === undefined || input.lens === null
+        ? ok(input.lens)
+        : await knownLens(this.#equipment, ctx, input.lens);
+    if (!lens.ok) {
+      return lens;
+    }
     const current = await this.#rolls.get(ctx, input.id);
     if (current === undefined) {
       return err({ kind: 'not-found', entity: 'roll', id: input.id });
@@ -81,6 +91,7 @@ export class UpdateRoll {
       ...(shot.value === undefined ? {} : { shot: shot.value }),
       ...(camera.value === undefined ? {} : { camera: camera.value }),
       ...(film.value === undefined ? {} : { film: film.value }),
+      ...(lens.value === undefined ? {} : { lens: lens.value }),
     };
     const saved = await this.#rolls.save(ctx, roll, input.expectedVersion);
     return saved.ok ? ok({ roll, version: saved.value }) : saved;

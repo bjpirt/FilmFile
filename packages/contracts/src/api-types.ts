@@ -954,6 +954,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/equipment/lenses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the lenses */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Every lens, ordered by make, name, focal length and aperture. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LensList"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Add a lens */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateLensRequest"];
+                };
+            };
+            responses: {
+                /** @description The new lens. */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Lens"];
+                    };
+                };
+                /** @description The body is not valid JSON. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description A lens with the same slug already exists. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The body is not of the expected type. */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The request is invalid. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -992,6 +1088,11 @@ export interface components {
              * @example nikon-fe
              */
             film: string | null;
+            /**
+             * @description The slug of the lens the roll was shot with, or null.
+             * @example nikon-fe
+             */
+            lens: string | null;
             frames: components["schemas"]["Frame"][];
         };
         Frame: {
@@ -1056,6 +1157,8 @@ export interface components {
             camera?: string;
             /** @example nikon-fe */
             film?: string;
+            /** @example nikon-fe */
+            lens?: string;
         };
         /** @description The details to change. A detail left out stays as it is; null clears it. */
         UpdateRollRequest: {
@@ -1067,6 +1170,8 @@ export interface components {
             camera?: string | null;
             /** @example nikon-fe */
             film?: string | null;
+            /** @example nikon-fe */
+            lens?: string | null;
         };
         CreateFrameRequest: {
             /** @example 12A */
@@ -1148,6 +1253,36 @@ export interface components {
              * @enum {string|null}
              */
             format?: "110" | "120" | "127" | "220" | "35mm" | "4x5" | "8x10" | null;
+        };
+        LensList: {
+            lenses: components["schemas"]["Lens"][];
+        };
+        Lens: {
+            /** @example nikon-fe */
+            slug: string;
+            /** @example Nikon */
+            make: string;
+            /** @example Nikkor AI-S */
+            name: string;
+            /**
+             * @description In millimetres.
+             * @example 50
+             */
+            focalLength: number | null;
+            /**
+             * @description The widest f-number.
+             * @example 1.8
+             */
+            maxAperture: number | null;
+        };
+        /** @description Its slug is made from its make, name, focal length and aperture. */
+        CreateLensRequest: {
+            /** @example Nikon */
+            make: string;
+            /** @example Nikkor AI-S */
+            name: string;
+            focalLength?: number | null;
+            maxAperture?: number | null;
         };
     };
     responses: never;

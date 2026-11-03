@@ -26,6 +26,7 @@ describe('POST /api/rolls', () => {
       shot: null,
       camera: null,
       film: null,
+      lens: null,
       frames: [],
     });
     expect(idOf(body)).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);

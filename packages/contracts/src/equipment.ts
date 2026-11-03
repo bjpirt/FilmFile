@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// Request and response shapes for equipment: cameras and film stocks.
+// Request and response shapes for equipment: cameras, film stocks and lenses.
 
 /** How equipment is named in the archive, made from its name. */
 export const equipmentSlug = z
@@ -67,7 +67,41 @@ export const createFilmStockRequest = z
     description: 'Its slug is made from its make and name.',
   });
 
+export const lens = z
+  .object({
+    slug: equipmentSlug,
+    make: z.string().meta({ example: 'Nikon' }),
+    name: z.string().meta({ example: 'Nikkor AI-S' }),
+    focalLength: z
+      .number()
+      .nullable()
+      .meta({ description: 'In millimetres.', example: 50 }),
+    maxAperture: z
+      .number()
+      .nullable()
+      .meta({ description: 'The widest f-number.', example: 1.8 }),
+  })
+  .meta({ id: 'Lens' });
+
+export const lensList = z
+  .object({ lenses: z.array(lens) })
+  .meta({ id: 'LensList' });
+
+export const createLensRequest = z
+  .object({
+    make: z.string().min(1).max(50).meta({ example: 'Nikon' }),
+    name: z.string().min(1).max(100).meta({ example: 'Nikkor AI-S' }),
+    focalLength: z.number().positive().max(10_000).nullable().optional(),
+    maxAperture: z.number().positive().max(1_000).nullable().optional(),
+  })
+  .meta({
+    id: 'CreateLensRequest',
+    description:
+      'Its slug is made from its make, name, focal length and aperture.',
+  });
+
 export type Camera = z.infer<typeof camera>;
+export type Lens = z.infer<typeof lens>;
 export type FilmStock = z.infer<typeof filmStock>;
 export type FilmType = z.infer<typeof filmType>;
 export type FilmFormat = z.infer<typeof filmFormat>;

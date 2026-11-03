@@ -20,6 +20,13 @@ export interface NewRoll {
   readonly camera?: string;
   /** A camera to add, from Add new…. */
   readonly newCamera?: { readonly make: string; readonly model: string };
+  /** A lens to add, from Add new…. */
+  readonly newLens?: {
+    readonly make: string;
+    readonly name: string;
+    readonly focalLength?: string;
+    readonly maxAperture?: string;
+  };
   /** A film stock the archive has, as the list shows it, e.g. "Kodak Portra 400". */
   readonly filmStock?: string;
   /** A film stock to add, from Add new…. */
@@ -72,6 +79,19 @@ export async function createRoll(
   }
   if (details.newCamera !== undefined) {
     await addCamera(page, details.newCamera);
+  }
+  if (details.newLens !== undefined) {
+    const { make, name, focalLength, maxAperture } = details.newLens;
+    await page.getByLabel('Lens').selectOption({ label: 'Add new…' });
+    const newLens = page.getByRole('group', { name: 'New lens' });
+    await newLens.getByLabel('Make').fill(make);
+    await newLens.getByLabel('Name').fill(name);
+    if (focalLength !== undefined) {
+      await newLens.getByLabel('Focal length').fill(focalLength);
+    }
+    if (maxAperture !== undefined) {
+      await newLens.getByLabel('Max aperture').fill(maxAperture);
+    }
   }
   if (details.filmStock !== undefined) {
     await page

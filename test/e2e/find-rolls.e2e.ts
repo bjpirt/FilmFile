@@ -1,14 +1,15 @@
 import { expect, test } from '@playwright/test';
 import { createRoll, rollsShown } from './support/journeys.ts';
 
-// Rolls from years, and on a camera and film stock, no other journey uses,
-// so its counts are its own.
+// Rolls from years, and with a camera, lens and film stock, no other journey
+// uses, so its counts are its own.
 
-test('find rolls: group by year, filter by year, camera or film stock, switch views, and keep it all through reloads', async ({
+test('find rolls: group by year, filter by year, camera, lens or film stock, switch views, and keep it all through reloads', async ({
   page,
 }) => {
   await createRoll(page, '2023-301', {
     newCamera: { make: 'Leica', model: 'M6' },
+    newLens: { make: 'Mamiya', name: 'Sekor C', focalLength: '80' },
     newFilmStock: { make: 'Agfa', name: 'Vista', iso: '200' },
   });
   await createRoll(page, '2024-302', { camera: 'Leica M6' });
@@ -49,6 +50,16 @@ test('find rolls: group by year, filter by year, camera or film stock, switch vi
     page.getByRole('heading', { level: 1, name: 'Rolls shot on Leica M6' }),
   ).toBeVisible();
   await expect(rollsShown(page)).toHaveText(['2024-302', '2023-301']);
+
+  // Rolls shot with a lens.
+  await browse.getByRole('button', { name: /^Mamiya Sekor C 80mm/ }).click();
+  await expect(
+    page.getByRole('heading', {
+      level: 1,
+      name: 'Rolls shot with Mamiya Sekor C 80mm',
+    }),
+  ).toBeVisible();
+  await expect(rollsShown(page)).toHaveText(['2023-301']);
 
   // Rolls of a film stock.
   await browse.getByRole('button', { name: /^Agfa Vista 200/ }).click();

@@ -4,6 +4,7 @@ import { InMemoryRollRepository } from '../../../src/adapters/outbound/memory/in
 import { SequentialIdGenerator } from '../../../src/adapters/outbound/memory/sequential-id-generator.ts';
 import { CreateCamera } from '../../../src/application/use-cases/equipment/create-camera.ts';
 import { CreateFilmStock } from '../../../src/application/use-cases/equipment/create-film-stock.ts';
+import { CreateLens } from '../../../src/application/use-cases/equipment/create-lens.ts';
 import { CreateRoll } from '../../../src/application/use-cases/rolls/create-roll.ts';
 import { GetRoll } from '../../../src/application/use-cases/rolls/get-roll.ts';
 import { ListRolls } from '../../../src/application/use-cases/rolls/list-rolls.ts';
@@ -27,6 +28,7 @@ function setUp() {
     ctx: anArchive(),
     createCamera: new CreateCamera(equipment),
     createFilmStock: new CreateFilmStock(equipment),
+    createLens: new CreateLens(equipment),
     createRoll: new CreateRoll(rolls, equipment, ids),
     listRolls: new ListRolls(rolls),
     getRoll: new GetRoll(rolls),
@@ -48,6 +50,7 @@ describe('CreateRoll', () => {
         shot: null,
         camera: null,
         film: null,
+        lens: null,
         frames: [],
       },
     });
@@ -72,6 +75,29 @@ describe('CreateRoll', () => {
         film: 'kodak-portra-400',
       }),
     ).toMatchObject({ ok: true, value: { film: 'kodak-portra-400' } });
+  });
+
+  test('records the lens the roll was shot with', async () => {
+    const { ctx, createLens, createRoll } = setUp();
+    await createLens.execute(ctx, { make: 'Zeiss', name: 'Planar' });
+
+    expect(
+      await createRoll.execute(ctx, { roll: '2026-014', lens: 'zeiss-planar' }),
+    ).toMatchObject({ ok: true, value: { lens: 'zeiss-planar' } });
+  });
+
+  test('refuses a lens the archive does not have', async () => {
+    const { ctx, createRoll } = setUp();
+
+    expect(
+      await createRoll.execute(ctx, { roll: '2026-014', lens: 'zeiss-planar' }),
+    ).toEqual({
+      ok: false,
+      error: {
+        kind: 'validation-failed',
+        issues: [{ path: ['lens'], message: 'is not a lens in the archive' }],
+      },
+    });
   });
 
   test('refuses a film stock the archive does not have', async () => {
@@ -296,6 +322,48 @@ describe('UpdateRoll', () => {
     expect(cleared).toMatchObject({
       ok: true,
       value: { roll: { film: null } },
+    });
+  });
+
+  test('changes the lens, or clears it with null', async () => {
+    const { ctx, id, version, updateRoll, createLens } = await aCreatedRoll();
+    await createLens.execute(ctx, { make: 'Zeiss', name: 'Planar' });
+
+    const changed = await updateRoll.execute(ctx, {
+      id,
+      expectedVersion: version,
+      lens: 'zeiss-planar',
+    });
+    const cleared = changed.ok
+      ? await updateRoll.execute(ctx, {
+          id,
+          expectedVersion: changed.value.version,
+          lens: null,
+        })
+      : changed;
+
+    expect(changed).toMatchObject({
+      ok: true,
+      value: { roll: { lens: 'zeiss-planar' } },
+    });
+    expect(cleared).toMatchObject({
+      ok: true,
+      value: { roll: { lens: null } },
+    });
+  });
+
+  test('refuses a lens the archive does not have, changing nothing', async () => {
+    const { ctx, id, version, updateRoll } = await aCreatedRoll();
+
+    expect(
+      await updateRoll.execute(ctx, {
+        id,
+        expectedVersion: version,
+        lens: 'zeiss-planar',
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { kind: 'validation-failed', issues: [{ path: ['lens'] }] },
     });
   });
 

@@ -1,15 +1,16 @@
 import type { RollsView } from './view-preference.ts';
 
-export type Grouping = 'none' | 'year' | 'camera' | 'film';
+export type Grouping = 'none' | 'year' | 'camera' | 'film' | 'lens';
 
 const groupings: readonly string[] = [
   'none',
   'year',
   'camera',
   'film',
+  'lens',
 ] satisfies Grouping[];
 
-/** A camera's or film stock's slug from the address, if it is one. */
+/** A camera's, film stock's or lens's slug from the address, if it is one. */
 function slugIn(value: string | null): string | undefined {
   return value !== null && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(value)
     ? value
@@ -34,6 +35,8 @@ export interface RollsAddress {
   readonly camera: string | undefined;
   /** The slug of the film stock the rolls shown are. */
   readonly film: string | undefined;
+  /** The slug of the lens the rolls shown were shot with. */
+  readonly lens: string | undefined;
 }
 
 export function readAddress(search: string): RollsAddress {
@@ -48,6 +51,7 @@ export function readAddress(search: string): RollsAddress {
     year: year !== null && /^\d{4}$/.test(year) ? year : undefined,
     camera: slugIn(params.get('camera')),
     film: slugIn(params.get('film')),
+    lens: slugIn(params.get('lens')),
   };
 }
 
@@ -71,6 +75,9 @@ export function addressOf(address: RollsAddress): string {
   }
   if (address.film !== undefined) {
     params.set('film', address.film);
+  }
+  if (address.lens !== undefined) {
+    params.set('lens', address.lens);
   }
   const query = params.toString();
   return query === '' ? '/' : `/?${query}`;

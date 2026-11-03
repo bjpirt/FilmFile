@@ -10,6 +10,10 @@ import { noEquipment } from '../equipment/equipment-choice.ts';
 import type { FilmChoice } from '../equipment/film-choice.ts';
 import { FilmStockField } from '../equipment/film-stock-field.tsx';
 import { useFilmStocks } from '../equipment/use-film-stocks.ts';
+import { chooseLens } from '../equipment/choose-lens.ts';
+import type { LensChoice } from '../equipment/lens-choice.ts';
+import { LensField } from '../equipment/lens-field.tsx';
+import { useLenses } from '../equipment/use-lenses.ts';
 import { Link, navigate } from '../routing.tsx';
 import { DateShotFields } from './date-shot-fields.tsx';
 import { describeUpload } from './describe-upload.ts';
@@ -40,11 +44,13 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
   const queryClient = useQueryClient();
   const cameras = useCameras(api);
   const films = useFilmStocks(api);
+  const lenses = useLenses(api);
   const [rollNumber, setRollNumber] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [camera, setCamera] = useState<CameraChoice>(noEquipment);
   const [film, setFilm] = useState<FilmChoice>(noEquipment);
+  const [lens, setLens] = useState<LensChoice>(noEquipment);
   const [shot, setShot] = useState<ShotFields>({
     year: '',
     month: '',
@@ -102,6 +108,13 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
       return;
     }
     await queryClient.invalidateQueries({ queryKey: ['films'] });
+    const chosenLens = await chooseLens(api, lens);
+    if (!chosenLens.ok) {
+      setProgress({ kind: 'editing' });
+      setProblem(chosenLens.problem);
+      return;
+    }
+    await queryClient.invalidateQueries({ queryKey: ['lenses'] });
     const { data, response, error } = await api.POST('/api/rolls', {
       body: {
         roll,
@@ -112,6 +125,7 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
         shot: shotDate,
         ...(chosen.slug === null ? {} : { camera: chosen.slug }),
         ...(chosenFilm.slug === null ? {} : { film: chosenFilm.slug }),
+        ...(chosenLens.slug === null ? {} : { lens: chosenLens.slug }),
       },
     });
     if (data === undefined) {
@@ -217,6 +231,7 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
 
         <DateShotFields shot={shot} change={changeShot} />
         <CameraField cameras={cameras} choice={camera} change={setCamera} />
+        <LensField lenses={lenses} choice={lens} change={setLens} />
         <FilmStockField films={films} choice={film} change={setFilm} />
 
         <div

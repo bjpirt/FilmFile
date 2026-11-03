@@ -10,17 +10,19 @@ import {
   filmStockLabel,
   type FilmStock,
 } from '../../../domain/equipment/film-stock.ts';
+import { lensLabel, type Lens } from '../../../domain/equipment/lens.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type { AlreadyExists } from '../../../domain/shared/domain-error.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
 import { cameraFileContent, parseCameraFile } from './camera-file.ts';
 import { hasErrorCode } from './error-codes.ts';
 import { filmStockFileContent, parseFilmStockFile } from './film-stock-file.ts';
+import { lensFileContent, parseLensFile } from './lens-file.ts';
 import { safePath } from './safe-path.ts';
 import { createAtomically } from './write-atomically.ts';
 
 /** The folder under `equipment/` for each kind of equipment. */
-type Kind = 'cameras' | 'films';
+type Kind = 'cameras' | 'films' | 'lenses';
 
 function byName(a: string, b: string): number {
   // Numbers by value, so ISO 800 comes before 1600.
@@ -29,7 +31,8 @@ function byName(a: string, b: string): number {
 
 /**
  * Equipment kept as JSON files in the archive, one per item, named by its
- * slug: `equipment/cameras/<slug>.json` and `equipment/films/<slug>.json`.
+ * slug: `equipment/cameras/<slug>.json`, `equipment/films/<slug>.json` and
+ * `equipment/lenses/<slug>.json`.
  */
 export class FilesystemEquipmentRepository implements EquipmentRepository {
   readonly #archivePath: string;
@@ -94,6 +97,11 @@ export class FilesystemEquipmentRepository implements EquipmentRepository {
       : { slug, ...parseFilmStockFile(text) };
   }
 
+  async #lens(slug: EquipmentSlug): Promise<Lens | undefined> {
+    const text = await this.#read('lenses', slug);
+    return text === undefined ? undefined : { slug, ...parseLensFile(text) };
+  }
+
   async listCameras(): Promise<readonly Camera[]> {
     const cameras: Camera[] = [];
     for (const slug of await this.#slugs('cameras')) {
@@ -142,5 +150,30 @@ export class FilesystemEquipmentRepository implements EquipmentRepository {
     film: FilmStock,
   ): Promise<Result<void, AlreadyExists>> {
     return this.#create('films', film.slug, filmStockFileContent(film));
+  }
+
+  async listLenses(): Promise<readonly Lens[]> {
+    const lenses: Lens[] = [];
+    for (const slug of await this.#slugs('lenses')) {
+      const lens = await this.#lens(slug);
+      if (lens !== undefined) {
+        lenses.push(lens);
+      }
+    }
+    return lenses.sort((a, b) => byName(lensLabel(a), lensLabel(b)));
+  }
+
+  getLens(
+    _ctx: ArchiveContext,
+    slug: EquipmentSlug,
+  ): Promise<Lens | undefined> {
+    return this.#lens(slug);
+  }
+
+  createLens(
+    _ctx: ArchiveContext,
+    lens: Lens,
+  ): Promise<Result<void, AlreadyExists>> {
+    return this.#create('lenses', lens.slug, lensFileContent(lens));
   }
 }

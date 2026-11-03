@@ -97,6 +97,16 @@
             "example": "nikon-fe",
             "description": "The slug of the film stock the roll is, or null."
           },
+          "lens": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe",
+            "description": "The slug of the lens the roll was shot with, or null."
+          },
           "frames": {
             "type": "array",
             "items": {
@@ -112,6 +122,7 @@
           "shot",
           "camera",
           "film",
+          "lens",
           "frames"
         ]
       },
@@ -292,6 +303,12 @@
             "maxLength": 60,
             "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
             "example": "nikon-fe"
+          },
+          "lens": {
+            "type": "string",
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe"
           }
         },
         "required": [
@@ -333,6 +350,15 @@
             "example": "nikon-fe"
           },
           "film": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe"
+          },
+          "lens": {
             "type": [
               "string",
               "null"
@@ -605,6 +631,100 @@
           "name"
         ],
         "description": "Its slug is made from its make and name."
+      },
+      "LensList": {
+        "type": "object",
+        "properties": {
+          "lenses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Lens"
+            }
+          }
+        },
+        "required": [
+          "lenses"
+        ]
+      },
+      "Lens": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe"
+          },
+          "make": {
+            "type": "string",
+            "example": "Nikon"
+          },
+          "name": {
+            "type": "string",
+            "example": "Nikkor AI-S"
+          },
+          "focalLength": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "In millimetres.",
+            "example": 50
+          },
+          "maxAperture": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The widest f-number.",
+            "example": 1.8
+          }
+        },
+        "required": [
+          "slug",
+          "make",
+          "name",
+          "focalLength",
+          "maxAperture"
+        ]
+      },
+      "CreateLensRequest": {
+        "type": "object",
+        "properties": {
+          "make": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50,
+            "example": "Nikon"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "example": "Nikkor AI-S"
+          },
+          "focalLength": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "exclusiveMinimum": 0,
+            "maximum": 10000
+          },
+          "maxAperture": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "exclusiveMinimum": 0,
+            "maximum": 1000
+          }
+        },
+        "required": [
+          "make",
+          "name"
+        ],
+        "description": "Its slug is made from its make, name, focal length and aperture."
       }
     },
     "parameters": {}
@@ -1594,6 +1714,88 @@
           },
           "409": {
             "description": "A film stock with the same slug already exists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "The body is not of the expected type.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/equipment/lenses": {
+      "get": {
+        "summary": "List the lenses",
+        "responses": {
+          "200": {
+            "description": "Every lens, ordered by make, name, focal length and aperture.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LensList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add a lens",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLensRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new lens.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Lens"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not valid JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A lens with the same slug already exists.",
             "content": {
               "application/json": {
                 "schema": {

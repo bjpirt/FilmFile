@@ -177,6 +177,90 @@ describe('a roll’s film stock', () => {
   });
 });
 
+describe('POST /api/equipment/lenses', () => {
+  test('adds a lens, saved as its own file named by its slug, and lists it', async () => {
+    const response = await post('/api/equipment/lenses', {
+      make: 'Nikon',
+      name: 'Nikkor AI-S',
+      focalLength: 50,
+      maxAperture: 1.8,
+    });
+
+    const lens = {
+      slug: 'nikon-nikkor-ai-s-50mm-f-1-8',
+      make: 'Nikon',
+      name: 'Nikkor AI-S',
+      focalLength: 50,
+      maxAperture: 1.8,
+    };
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual(lens);
+    expect(
+      JSON.parse(
+        await readFile(
+          path.join(
+            archive.path(),
+            'equipment/lenses/nikon-nikkor-ai-s-50mm-f-1-8.json',
+          ),
+          'utf8',
+        ),
+      ),
+    ).toEqual({
+      schema: 1,
+      make: 'Nikon',
+      name: 'Nikkor AI-S',
+      focalLength: 50,
+      maxAperture: 1.8,
+    });
+    expect(await (await request('/api/equipment/lenses')).json()).toEqual({
+      lenses: [lens],
+    });
+  });
+
+  test('refuses a lens whose slug another has', async () => {
+    await post('/api/equipment/lenses', { make: 'Zeiss', name: 'Planar' });
+
+    const response = await post('/api/equipment/lenses', {
+      make: 'zeiss',
+      name: 'Planar',
+    });
+
+    expect(response.status).toBe(409);
+  });
+
+  test.each([
+    ['no name', { make: 'Zeiss' }],
+    ['a focal length of nothing', { make: 'Z', name: 'P', focalLength: 0 }],
+    ['an aperture below zero', { make: 'Z', name: 'P', maxAperture: -2 }],
+  ])('refuses %s', async (_, body) => {
+    expect((await post('/api/equipment/lenses', body)).status).toBe(422);
+  });
+});
+
+describe('a roll’s lens', () => {
+  test('is recorded when the roll is created', async () => {
+    await post('/api/equipment/lenses', { make: 'Zeiss', name: 'Planar' });
+
+    const created = await post('/api/rolls', {
+      roll: '2026-014',
+      lens: 'zeiss-planar',
+    });
+
+    expect(await created.json()).toMatchObject({ lens: 'zeiss-planar' });
+  });
+
+  test('must be a lens in the archive', async () => {
+    const response = await post('/api/rolls', {
+      roll: '2026-014',
+      lens: 'zeiss-planar',
+    });
+
+    expect(await response.json()).toMatchObject({
+      issues: [{ path: ['lens'] }],
+    });
+  });
+});
+
 describe('a roll’s camera', () => {
   test('is recorded when the roll is created, and changed with its details', async () => {
     await post('/api/equipment/cameras', { make: 'Nikon', model: 'FE' });

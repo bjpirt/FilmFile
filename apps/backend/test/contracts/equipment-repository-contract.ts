@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { EquipmentRepository } from '../../src/application/ports/equipment-repository.ts';
 import { err, ok } from '../../src/domain/shared/result.ts';
-import { aCamera, aFilmStock, ctx } from '../support/builders.ts';
+import { aCamera, aFilmStock, aLens, ctx } from '../support/builders.ts';
 
 /** What every EquipmentRepository must do, run against each adapter. */
 export function equipmentRepositoryContract(
@@ -130,6 +130,64 @@ export function equipmentRepositoryContract(
         'kodak-portra-800',
         'kodak-portra-1600',
       ]);
+    });
+
+    test('gets back exactly the lens created', async () => {
+      const equipment = makeRepository();
+      const lens = aLens('Nikon', 'Nikkor AI-S', {
+        focalLength: 50,
+        maxAperture: 1.8,
+      });
+
+      expect(await equipment.createLens(ctx, lens)).toEqual(ok(undefined));
+      expect(await equipment.getLens(ctx, lens.slug)).toEqual(lens);
+    });
+
+    test('keeps a lens with no focal length or aperture', async () => {
+      const equipment = makeRepository();
+      const lens = aLens('Zeiss', 'Planar');
+      await equipment.createLens(ctx, lens);
+
+      expect(await equipment.getLens(ctx, lens.slug)).toEqual(lens);
+    });
+
+    test('refuses to create a lens whose slug is taken, keeping the first', async () => {
+      const equipment = makeRepository();
+      const lens = aLens('Nikon', 'Nikkor AI-S', { focalLength: 50 });
+      await equipment.createLens(ctx, lens);
+
+      expect(
+        await equipment.createLens(ctx, { ...lens, make: 'NIKON' }),
+      ).toEqual(
+        err({
+          kind: 'already-exists',
+          entity: 'equipment',
+          id: 'nikon-nikkor-ai-s-50mm',
+        }),
+      );
+      expect(await equipment.listLenses(ctx)).toEqual([lens]);
+    });
+
+    test('lists lenses by make, name, then focal length by size', async () => {
+      const equipment = makeRepository();
+      for (const focalLength of [105, 50, 28]) {
+        await equipment.createLens(
+          ctx,
+          aLens('Nikon', 'Nikkor AI-S', { focalLength }),
+        );
+      }
+      await equipment.createLens(ctx, aLens('Leica', 'Summicron'));
+
+      expect((await equipment.listLenses(ctx)).map((l) => l.slug)).toEqual([
+        'leica-summicron',
+        'nikon-nikkor-ai-s-28mm',
+        'nikon-nikkor-ai-s-50mm',
+        'nikon-nikkor-ai-s-105mm',
+      ]);
+    });
+
+    test('lists nothing when there are no lenses', async () => {
+      expect(await makeRepository().listLenses(ctx)).toEqual([]);
     });
 
     test('keeps cameras and film stocks apart, even with the same slug', async () => {

@@ -54,6 +54,12 @@ const aRoll: fc.Arbitrary<Roll> = fc.record({
       .filter(isEquipmentSlug),
     { nil: null },
   ),
+  lens: fc.option(
+    fc
+      .stringMatching(/^[a-z0-9]{1,8}(-[a-z0-9]{1,8}){0,3}$/)
+      .filter(isEquipmentSlug),
+    { nil: null },
+  ),
   camera: fc.option(
     fc
       .stringMatching(/^[a-z0-9]{1,8}(-[a-z0-9]{1,8}){0,3}$/)
@@ -86,23 +92,35 @@ describe('roll.json', () => {
     );
   });
 
-  test('keeps the camera and film stock in the roll’s meta, by slug', () => {
+  test('keeps the camera, film stock and lens in the roll’s meta, by slug', () => {
     const roll = parseRollFile(
       JSON.stringify({
         schema: 1,
         id: '01M6EAAP694BKWR9HZ4N5Z54XD',
         roll: '2026-014',
-        meta: { camera: 'nikon-fe', film: 'kodak-portra-400' },
+        meta: {
+          camera: 'nikon-fe',
+          film: 'kodak-portra-400',
+          lens: 'nikon-nikkor-50mm',
+        },
         frames: [],
       }),
     );
 
     expect(roll).toMatchObject({
       ok: true,
-      value: { camera: 'nikon-fe', film: 'kodak-portra-400' },
+      value: {
+        camera: 'nikon-fe',
+        film: 'kodak-portra-400',
+        lens: 'nikon-nikkor-50mm',
+      },
     });
     expect(roll.ok && JSON.parse(rollFileContent(roll.value))).toMatchObject({
-      meta: { camera: 'nikon-fe', film: 'kodak-portra-400' },
+      meta: {
+        camera: 'nikon-fe',
+        film: 'kodak-portra-400',
+        lens: 'nikon-nikkor-50mm',
+      },
     });
   });
 
@@ -124,6 +142,7 @@ describe('roll.json', () => {
         shot: null,
         camera: null,
         film: null,
+        lens: null,
       },
     });
   });

@@ -11,6 +11,7 @@ test.each([
       year: undefined,
       camera: undefined,
       film: undefined,
+      lens: undefined,
     },
     '/',
   ],
@@ -23,6 +24,7 @@ test.each([
       year: undefined,
       camera: undefined,
       film: undefined,
+      lens: undefined,
     },
     '/?view=list',
   ],
@@ -35,6 +37,7 @@ test.each([
       year: '2026',
       camera: undefined,
       film: undefined,
+      lens: undefined,
     },
     '/?view=grid&group=year&sort=shot&year=2026',
   ],
@@ -47,6 +50,7 @@ test.each([
       year: undefined,
       camera: 'nikon-fe',
       film: undefined,
+      lens: undefined,
     },
     '/?group=camera&camera=nikon-fe',
   ],
@@ -59,8 +63,22 @@ test.each([
       year: undefined,
       camera: undefined,
       film: 'kodak-portra-400',
+      lens: undefined,
     },
     '/?group=film&film=kodak-portra-400',
+  ],
+  [
+    '?group=lens&lens=zeiss-planar',
+    {
+      view: undefined,
+      group: 'lens',
+      sort: 'number',
+      year: undefined,
+      camera: undefined,
+      film: undefined,
+      lens: 'zeiss-planar',
+    },
+    '/?group=lens&lens=zeiss-planar',
   ],
 ] as const)(
   'reads %j and writes it back the same',
@@ -73,7 +91,7 @@ test.each([
 test('ignores what it does not recognise', () => {
   expect(
     readAddress(
-      '?view=table&group=lens&sort=size&year=26&camera=Nikon%20FE&film=../x&other=1',
+      '?view=table&group=colour&sort=size&year=26&camera=Nikon%20FE&film=../x&lens=-&other=1',
     ),
   ).toEqual({
     view: undefined,
@@ -82,5 +100,6 @@ test('ignores what it does not recognise', () => {
     year: undefined,
     camera: undefined,
     film: undefined,
+    lens: undefined,
   });
 });

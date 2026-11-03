@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { createApiClient } from '@filmfile/contracts/client';
-import type { Camera, FilmStock } from '@filmfile/contracts/equipment';
+import type { Camera, FilmStock, Lens } from '@filmfile/contracts/equipment';
 import type { Roll, UnreadableRoll } from '@filmfile/contracts/rolls';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -25,6 +25,7 @@ function fakeRollsService(
   unreadable: UnreadableRoll[] = [],
   cameras: Camera[] = [],
   films: FilmStock[] = [],
+  lenses: Lens[] = [],
 ) {
   let nextId = 0;
   return async (request: Request): Promise<Response> => {
@@ -33,6 +34,9 @@ function fakeRollsService(
     }
     if (new URL(request.url).pathname === '/api/equipment/films') {
       return Response.json({ films });
+    }
+    if (new URL(request.url).pathname === '/api/equipment/lenses') {
+      return Response.json({ lenses });
     }
     if (request.method === 'GET') {
       return Response.json({ rolls, unreadable });
@@ -68,6 +72,7 @@ function fakeRollsService(
       shot: null,
       camera: null,
       film: null,
+      lens: null,
       frames: [],
     };
     rolls.push(created);
@@ -85,6 +90,7 @@ function aRoll(roll: string, frames = 0): Roll {
     shot: null,
     camera: null,
     film: null,
+    lens: null,
     frames: Array.from({ length: frames }, (_, i) => ({
       id: `01JC8Z7K3M00000000000001${String(i).padStart(2, '0')}`,
       number: null,
@@ -446,7 +452,7 @@ describe('finding rolls by film stock', () => {
     window.history.replaceState(
       null,
       '',
-      '/?year=2026&camera=nikon-fe&film=kodak-portra-400',
+      '/?year=2026&camera=nikon-fe&film=kodak-portra-400&lens=zeiss-planar-80mm-f-2-8',
     );
     renderPage(
       fakeRollsService(
@@ -455,20 +461,114 @@ describe('finding rolls by film stock', () => {
             ...aRoll('2026-015'),
             camera: 'nikon-fe',
             film: 'kodak-portra-400',
+            lens: 'zeiss-planar-80mm-f-2-8',
           },
         ],
         [],
         [{ slug: 'nikon-fe', make: 'Nikon', model: 'FE' }],
         films,
+        [
+          {
+            slug: 'zeiss-planar-80mm-f-2-8',
+            make: 'Zeiss',
+            name: 'Planar',
+            focalLength: 80,
+            maxAperture: 2.8,
+          },
+        ],
       ),
     );
 
     expect(
       await screen.findByRole('heading', {
         level: 1,
-        name: 'Rolls of Kodak Portra 400 shot on Nikon FE in 2026',
+        name: 'Rolls of Kodak Portra 400 shot on Nikon FE with Zeiss Planar 80mm f/2.8 in 2026',
       }),
     ).toBeDefined();
+  });
+});
+
+describe('finding rolls by lens', () => {
+  const lenses: Lens[] = [
+    {
+      slug: 'zeiss-planar-80mm-f-2-8',
+      make: 'Zeiss',
+      name: 'Planar',
+      focalLength: 80,
+      maxAperture: 2.8,
+    },
+    {
+      slug: 'nikon-nikkor-ai-s-50mm-f-1-8',
+      make: 'Nikon',
+      name: 'Nikkor AI-S',
+      focalLength: 50,
+      maxAperture: 1.8,
+    },
+  ];
+  const someRolls = () =>
+    fakeRollsService(
+      [
+        { ...aRoll('2025-003'), lens: 'zeiss-planar-80mm-f-2-8' },
+        aRoll('2026-001'),
+        { ...aRoll('2026-014'), lens: 'nikon-nikkor-ai-s-50mm-f-1-8' },
+        { ...aRoll('2026-015'), lens: 'zeiss-planar-80mm-f-2-8' },
+      ],
+      [],
+      [],
+      [],
+      lenses,
+    );
+
+  function rollsShown(): string[] {
+    return screen
+      .getAllByRole('link')
+      .map((link) => link.textContent)
+      .filter((text) => /^\d{4}-\d{3}$/.test(text));
+  }
+
+  test('groups rolls by lens, by name, with rolls that have none last', async () => {
+    renderPage(someRolls());
+    await screen.findByRole('region', { name: 'Lenses' });
+
+    fireEvent.change(screen.getByLabelText('Group by'), {
+      target: { value: 'lens' },
+    });
+
+    const groupHeadings = screen
+      .getAllByRole('heading', { level: 2 })
+      .filter((heading) => heading.closest('aside') === null);
+    expect(groupHeadings.map((h) => h.textContent)).toEqual([
+      'Nikon Nikkor AI-S 50mm f/1.8 1 roll',
+      'Zeiss Planar 80mm f/2.8 2 rolls',
+      'No lens 1 roll',
+    ]);
+    expect(window.location.search).toBe('?view=grid&group=lens');
+  });
+
+  test('lists the lenses rolls were shot with in the browse panel, with counts, and filters by one', async () => {
+    renderPage(someRolls());
+    const section = await screen.findByRole('region', { name: 'Lenses' });
+
+    expect(
+      within(section)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Nikon Nikkor AI-S 50mm f/1.81', 'Zeiss Planar 80mm f/2.82']);
+
+    fireEvent.click(
+      within(section).getByRole('button', { name: /^Zeiss Planar/ }),
+    );
+
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: 'Rolls shot with Zeiss Planar 80mm f/2.8',
+      }),
+    ).toBeDefined();
+    expect(rollsShown()).toEqual(['2025-003', '2026-015']);
+    expect(window.location.search).toBe(
+      '?view=grid&lens=zeiss-planar-80mm-f-2-8',
+    );
   });
 });
 

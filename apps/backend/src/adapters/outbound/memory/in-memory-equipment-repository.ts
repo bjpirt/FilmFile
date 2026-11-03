@@ -5,6 +5,7 @@ import {
   filmStockLabel,
   type FilmStock,
 } from '../../../domain/equipment/film-stock.ts';
+import { lensLabel, type Lens } from '../../../domain/equipment/lens.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type { AlreadyExists } from '../../../domain/shared/domain-error.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
@@ -32,6 +33,7 @@ function added<T extends { readonly slug: EquipmentSlug }>(
 export class InMemoryEquipmentRepository implements EquipmentRepository {
   readonly #cameras = new Map<EquipmentSlug, Camera>();
   readonly #films = new Map<EquipmentSlug, FilmStock>();
+  readonly #lenses = new Map<EquipmentSlug, Lens>();
 
   listCameras(): Promise<readonly Camera[]> {
     return Promise.resolve(
@@ -75,5 +77,27 @@ export class InMemoryEquipmentRepository implements EquipmentRepository {
     film: FilmStock,
   ): Promise<Result<void, AlreadyExists>> {
     return added(this.#films, film);
+  }
+
+  listLenses(): Promise<readonly Lens[]> {
+    return Promise.resolve(
+      [...this.#lenses.values()].sort((a, b) =>
+        byName(lensLabel(a), lensLabel(b)),
+      ),
+    );
+  }
+
+  getLens(
+    _ctx: ArchiveContext,
+    slug: EquipmentSlug,
+  ): Promise<Lens | undefined> {
+    return Promise.resolve(this.#lenses.get(slug));
+  }
+
+  createLens(
+    _ctx: ArchiveContext,
+    lens: Lens,
+  ): Promise<Result<void, AlreadyExists>> {
+    return added(this.#lenses, lens);
   }
 }

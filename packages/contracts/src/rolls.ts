@@ -67,6 +67,9 @@ export const roll = z
     film: equipmentSlug.nullable().meta({
       description: 'The slug of the film stock the roll is, or null.',
     }),
+    lens: equipmentSlug.nullable().meta({
+      description: 'The slug of the lens the roll was shot with, or null.',
+    }),
     frames: z.array(frame),
   })
   .meta({ id: 'Roll' });
@@ -101,6 +104,7 @@ export const createRollRequest = z
     shot: shotDate.optional(),
     camera: equipmentSlug.optional(),
     film: equipmentSlug.optional(),
+    lens: equipmentSlug.optional(),
   })
   .meta({ id: 'CreateRollRequest' });
 
@@ -111,6 +115,7 @@ export const updateRollRequest = z
     shot: shotDate.nullable().optional(),
     camera: equipmentSlug.nullable().optional(),
     film: equipmentSlug.nullable().optional(),
+    lens: equipmentSlug.nullable().optional(),
   })
   .meta({
     id: 'UpdateRollRequest',

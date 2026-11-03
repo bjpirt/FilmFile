@@ -3,8 +3,10 @@ import { createApiClient } from '@filmfile/contracts/client';
 import {
   createCameraRequest,
   createFilmStockRequest,
+  createLensRequest,
   type Camera,
   type FilmStock,
+  type Lens,
 } from '@filmfile/contracts/equipment';
 import {
   updateFrameNumbersRequest,
@@ -36,6 +38,15 @@ const rollDetails: Omit<Roll, 'frames'> = {
   shot: null,
   camera: null,
   film: null,
+  lens: null,
+};
+
+const planar: Lens = {
+  slug: 'zeiss-planar-80mm-f-2-8',
+  make: 'Zeiss',
+  name: 'Planar',
+  focalLength: 80,
+  maxAperture: 2.8,
 };
 
 const nikonFe: Camera = { slug: 'nikon-fe', make: 'Nikon', model: 'FE' };
@@ -62,6 +73,7 @@ function fakeRollService(
   details: Partial<Roll> = {},
   cameras: Camera[] = [],
   films: FilmStock[] = [],
+  lenses: Lens[] = [],
 ) {
   let roll = { ...rollDetails, ...details };
   const requests: string[] = [];
@@ -90,6 +102,30 @@ function fakeRollService(
       };
       cameras.push(camera);
       return Response.json(camera, { status: 201 });
+    }
+    if (url.pathname === '/api/equipment/lenses') {
+      if (request.method === 'GET') {
+        return Response.json({ lenses });
+      }
+      const body = createLensRequest.parse(await request.json());
+      const lens: Lens = {
+        slug: [
+          body.make,
+          body.name,
+          body.focalLength == null ? '' : `${String(body.focalLength)}mm`,
+          body.maxAperture == null ? '' : `f/${String(body.maxAperture)}`,
+        ]
+          .join(' ')
+          .trim()
+          .toLowerCase()
+          .replace(/\W+/g, '-'),
+        make: body.make,
+        name: body.name,
+        focalLength: body.focalLength ?? null,
+        maxAperture: body.maxAperture ?? null,
+      };
+      lenses.push(lens);
+      return Response.json(lens, { status: 201 });
     }
     if (url.pathname === '/api/equipment/films') {
       if (request.method === 'GET') {
@@ -127,7 +163,7 @@ function fakeRollService(
       const body: unknown = await request.json();
       if (url.pathname === `/api/rolls/${rollId}`) {
         // The page always sends every detail.
-        const { name, description, shot, camera, film } =
+        const { name, description, shot, camera, film, lens } =
           updateRollRequest.parse(body);
         roll = {
           ...roll,
@@ -136,6 +172,7 @@ function fakeRollService(
           shot: shot ?? null,
           camera: camera ?? null,
           film: film ?? null,
+          lens: lens ?? null,
         };
         changed();
         const updated: Roll = { ...roll, frames };
@@ -205,7 +242,16 @@ function fakeRollService(
     return Response.json({ error: 'not found' }, { status: 404 });
   }
 
-  return { answer, requests, ifMatches, frames, changed, cameras, films };
+  return {
+    answer,
+    requests,
+    ifMatches,
+    frames,
+    changed,
+    cameras,
+    films,
+    lenses,
+  };
 }
 
 function aScan(name: string, content = name): File {
@@ -269,7 +315,7 @@ test('heads the page with the roll number and how many frames it has', async () 
   expect(screen.getByText('2 frames')).toBeDefined();
 });
 
-test('shows the roll’s name, camera, film stock, date shot and description', async () => {
+test('shows the roll’s name, camera, lens, film stock, date shot and description', async () => {
   renderPage(
     fakeRollService(
       [],
@@ -279,17 +325,21 @@ test('shows the roll’s name, camera, film stock, date shot and description', a
         shot: '2026-09-14T06:30',
         camera: 'nikon-fe',
         film: 'kodak-portra-400',
+        lens: 'zeiss-planar-80mm-f-2-8',
       },
       [nikonFe],
       [portra],
+      [planar],
     ),
   );
 
   expect(await screen.findByText('Iceland, first day')).toBeDefined();
   expect(await screen.findByText('Nikon FE')).toBeDefined();
   expect(await screen.findByText('Kodak Portra 400')).toBeDefined();
+  expect(await screen.findByText('Zeiss Planar 80mm f/2.8')).toBeDefined();
   expect(details()).toEqual([
     ['Camera', 'Nikon FE'],
+    ['Lens', 'Zeiss Planar 80mm f/2.8'],
     ['Film stock', 'Kodak Portra 400'],
     ['Shot', '14 Sep 2026, 06:30'],
   ]);
@@ -471,6 +521,24 @@ describe('editing the details', () => {
 
     await waitFor(() => {
       expect(screen.queryByText('Kodak Portra 400')).toBeNull();
+    });
+  });
+
+  test('picks a lens from the archive’s, and can clear it', async () => {
+    const service = fakeRollService([], iceland, [], [], [planar]);
+    renderPage(service);
+    await editDetails();
+    await screen.findByRole('option', { name: 'Zeiss Planar 80mm f/2.8' });
+
+    choose('Lens', 'Zeiss Planar 80mm f/2.8');
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+    expect(await screen.findByText('Zeiss Planar 80mm f/2.8')).toBeDefined();
+
+    await editDetails();
+    choose('Lens', '—');
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+    await waitFor(() => {
+      expect(screen.queryByText('Zeiss Planar 80mm f/2.8')).toBeNull();
     });
   });
 
