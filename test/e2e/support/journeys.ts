@@ -14,6 +14,7 @@ export async function createRoll(
   rollNumber: string,
 ): Promise<void> {
   await page.goto('/');
+  await page.getByRole('button', { name: 'New roll' }).click();
   await page.getByLabel('Roll number').fill(rollNumber);
   await page.getByRole('button', { name: 'Create roll' }).click();
   await page.getByRole('link', { name: rollNumber }).click();

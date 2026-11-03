@@ -320,3 +320,81 @@ select {
 .frame-number-editor input {
   width: 9ch;
 }
+
+.muted {
+  color: var(--text-muted);
+}
+
+.page-heading {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  justify-content: space-between;
+  margin-bottom: var(--space-5);
+}
+
+.page-heading h1 {
+  margin: 0;
+}
+
+.roll-grid {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.roll-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-large);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.roll-card:hover {
+  border-color: var(--border-strong);
+}
+
+.peek {
+  background: #0b0c0d;
+  display: grid;
+  gap: 2px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.peek img,
+.peek-empty {
+  aspect-ratio: 3 / 2;
+  background: var(--scan-placeholder);
+  display: block;
+  object-fit: cover;
+  width: 100%;
+}
+
+.roll-card-body {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.roll-number {
+  font-family: var(--font-numbers);
+  font-size: 1.2rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* The whole card opens the roll, though only the roll number is the link. */
+.roll-card .roll-number::after {
+  content: '';
+  inset: 0;
+  position: absolute;
+}

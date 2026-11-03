@@ -1,15 +1,12 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type SubmitEvent } from 'react';
-import { Link } from '../routing.tsx';
-
-function frameCount(frames: number): string {
-  return frames === 1 ? '1 frame' : `${String(frames)} frames`;
-}
+import { RollCard } from './roll-card.tsx';
 
 export function RollsPage({ api }: { readonly api: ApiClient }) {
   const queryClient = useQueryClient();
-  const [rollId, setRollId] = useState('');
+  // The roll number being typed, while New roll is open.
+  const [newRoll, setNewRoll] = useState<string | undefined>(undefined);
 
   const rolls = useQuery({
     queryKey: ['rolls'],
@@ -42,39 +39,64 @@ export function RollsPage({ api }: { readonly api: ApiClient }) {
       }
     },
     onSuccess: async () => {
-      setRollId('');
+      setNewRoll(undefined);
       await queryClient.invalidateQueries({ queryKey: ['rolls'] });
     },
   });
 
   function submit(event: SubmitEvent) {
     event.preventDefault();
-    createRoll.mutate(rollId.trim());
+    createRoll.mutate((newRoll ?? '').trim());
   }
 
   return (
     <section>
-      <h1>Rolls</h1>
+      <div className="page-heading">
+        <h1>Rolls</h1>
+        {newRoll === undefined && (
+          <button
+            type="button"
+            className="primary"
+            onClick={() => {
+              setNewRoll('');
+            }}
+          >
+            New roll
+          </button>
+        )}
+      </div>
 
-      <form className="new-roll" onSubmit={submit}>
-        <label htmlFor="roll-number">Roll number</label>
-        <input
-          id="roll-number"
-          value={rollId}
-          placeholder="2026-014"
-          onChange={(event) => {
-            setRollId(event.target.value);
-          }}
-        />
-        <button
-          type="submit"
-          className="primary"
-          disabled={createRoll.isPending}
-        >
-          Create roll
-        </button>
-        {createRoll.isError && <p role="alert">{createRoll.error.message}</p>}
-      </form>
+      {newRoll !== undefined && (
+        <form className="new-roll" onSubmit={submit}>
+          <label htmlFor="roll-number">Roll number</label>
+          <input
+            id="roll-number"
+            value={newRoll}
+            placeholder="2026-014"
+            autoFocus
+            onChange={(event) => {
+              setNewRoll(event.target.value);
+            }}
+          />
+          <button
+            type="submit"
+            className="primary"
+            disabled={createRoll.isPending}
+          >
+            Create roll
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              createRoll.reset();
+              setNewRoll(undefined);
+            }}
+          >
+            Cancel
+          </button>
+          {createRoll.isError && <p role="alert">{createRoll.error.message}</p>}
+        </form>
+      )}
 
       {rolls.isPending && <p>Loading rolls…</p>}
       {rolls.isError && <p>Couldn't load the rolls. Is the service running?</p>}
@@ -86,12 +108,9 @@ export function RollsPage({ api }: { readonly api: ApiClient }) {
       ))}
       {rolls.data?.rolls.length === 0 && <p>No rolls yet.</p>}
       {rolls.data !== undefined && rolls.data.rolls.length > 0 && (
-        <ul>
+        <ul className="roll-grid">
           {rolls.data.rolls.map((roll) => (
-            <li key={roll.id}>
-              <Link to={`/rolls/${roll.id}`}>{roll.roll}</Link>{' '}
-              <span>{frameCount(roll.frames.length)}</span>
-            </li>
+            <RollCard key={roll.id} roll={roll} />
           ))}
         </ul>
       )}

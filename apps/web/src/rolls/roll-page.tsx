@@ -7,6 +7,7 @@ import { droppedFiles } from './dropped-files.ts';
 import { FrameNumberEditor, type SaveOutcome } from './frame-number-editor.tsx';
 import { inFrameOrder } from './frame-order.ts';
 import { renumber } from './renumber.ts';
+import { thumbnailUrl } from './thumbnail-url.ts';
 import {
   RenumberPanel,
   renumberingOf,
@@ -49,14 +50,14 @@ function Thumbnail({
   readonly rollId: string;
   readonly frame: Frame;
 }) {
-  // The newest version, until frames have a default version.
+  const src = thumbnailUrl(rollId, frame);
   const version = frame.versions.at(-1);
-  if (version === undefined) {
+  if (src === undefined || version === undefined) {
     return <div className="no-scan">No scan</div>;
   }
   return (
     <img
-      src={`/api/rolls/${rollId}/frames/${frame.id}/versions/${version.id}/thumbnail?size=small`}
+      src={src}
       alt={version.file.split('/').at(-1)}
       width={version.width}
       height={version.height}
