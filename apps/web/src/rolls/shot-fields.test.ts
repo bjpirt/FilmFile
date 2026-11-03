@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { shotFrom } from './shot-fields.ts';
+import { shotFieldsOf, shotFrom } from './shot-fields.ts';
 
 test.each([
   [{ year: '', month: '', day: '', time: '' }, undefined],
@@ -17,4 +17,14 @@ test.each([
   { year: '', month: '09', day: '', time: '' },
 ])('refuses %j, whose year is not four digits', (fields) => {
   expect(shotFrom(fields)).toEqual({ valid: false });
+});
+
+test.each([
+  [null, { year: '', month: '', day: '', time: '' }],
+  ['2026', { year: '2026', month: '', day: '', time: '' }],
+  ['2026-09', { year: '2026', month: '09', day: '', time: '' }],
+  ['2026-09-04', { year: '2026', month: '09', day: '04', time: '' }],
+  ['2026-09-14T06:30', { year: '2026', month: '09', day: '14', time: '06:30' }],
+])('fills the fields from %j', (shot, fields) => {
+  expect(shotFieldsOf(shot)).toEqual(fields);
 });

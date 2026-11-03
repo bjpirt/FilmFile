@@ -4,6 +4,7 @@ import { SequentialIdGenerator } from '../../../src/adapters/outbound/memory/seq
 import { CreateRoll } from '../../../src/application/use-cases/rolls/create-roll.ts';
 import { GetRoll } from '../../../src/application/use-cases/rolls/get-roll.ts';
 import { ListRolls } from '../../../src/application/use-cases/rolls/list-rolls.ts';
+import { UpdateRoll } from '../../../src/application/use-cases/rolls/update-roll.ts';
 import type { ArchiveContext } from '../../../src/domain/shared/archive-context.ts';
 import { isArchiveId, isRollId } from '../../../src/domain/shared/ids.ts';
 
@@ -23,6 +24,7 @@ function setUp() {
     createRoll: new CreateRoll(rolls, ids),
     listRolls: new ListRolls(rolls),
     getRoll: new GetRoll(rolls),
+    updateRoll: new UpdateRoll(rolls),
   };
 }
 
@@ -135,5 +137,98 @@ describe('GetRoll', () => {
       ok: false,
       error: { kind: 'not-found', entity: 'roll', id },
     });
+  });
+});
+
+describe('UpdateRoll', () => {
+  async function aCreatedRoll() {
+    const setup = setUp();
+    const created = await setup.createRoll.execute(setup.ctx, {
+      roll: '2026-014',
+      name: 'Iceland',
+      shot: '2026',
+    });
+    const read = created.ok
+      ? await setup.getRoll.execute(setup.ctx, { id: created.value.id })
+      : undefined;
+    if (!created.ok || !read?.ok) {
+      throw new Error('setup failed');
+    }
+    return { ...setup, id: created.value.id, version: read.value.version };
+  }
+
+  test('changes the details given, leaving the rest, and gives the roll as saved', async () => {
+    const { ctx, id, version, updateRoll, getRoll } = await aCreatedRoll();
+
+    const updated = await updateRoll.execute(ctx, {
+      id,
+      expectedVersion: version,
+      description: ' Jökulsárlón at dawn. ',
+      shot: '2026-09-14',
+    });
+
+    expect(updated).toEqual(await getRoll.execute(ctx, { id }));
+    expect(updated).toMatchObject({
+      ok: true,
+      value: {
+        roll: {
+          name: 'Iceland',
+          description: 'Jökulsárlón at dawn.',
+          shot: '2026-09-14',
+        },
+      },
+    });
+  });
+
+  test('clears a detail set to null or left blank', async () => {
+    const { ctx, id, version, updateRoll } = await aCreatedRoll();
+
+    const updated = await updateRoll.execute(ctx, {
+      id,
+      expectedVersion: version,
+      name: '  ',
+      shot: null,
+    });
+
+    expect(updated).toMatchObject({
+      ok: true,
+      value: { roll: { name: null, shot: null } },
+    });
+  });
+
+  test('refuses a date shot that is not a real date', async () => {
+    const { ctx, id, version, updateRoll } = await aCreatedRoll();
+
+    expect(
+      await updateRoll.execute(ctx, {
+        id,
+        expectedVersion: version,
+        shot: '2026-02-30',
+      }),
+    ).toMatchObject({ ok: false, error: { kind: 'validation-failed' } });
+  });
+
+  test('refuses when the roll changed since it was read', async () => {
+    const { ctx, id, updateRoll } = await aCreatedRoll();
+
+    expect(
+      await updateRoll.execute(ctx, {
+        id,
+        expectedVersion: 'stale',
+        name: 'Westfjords',
+      }),
+    ).toMatchObject({ ok: false, error: { kind: 'concurrency-conflict' } });
+  });
+
+  test('says when no roll has the ID', async () => {
+    const { ctx, updateRoll } = setUp();
+    const id = '01JC8Z7K3M0000000000000000';
+    if (!isRollId(id)) {
+      throw new Error('not a ULID');
+    }
+
+    expect(
+      await updateRoll.execute(ctx, { id, expectedVersion: '1', name: 'x' }),
+    ).toEqual({ ok: false, error: { kind: 'not-found', entity: 'roll', id } });
   });
 });

@@ -9,12 +9,7 @@ import type {
 import { ok, type Result } from '../../../domain/shared/result.ts';
 import type { IdGenerator } from '../../ports/id-generator.ts';
 import type { RollRepository } from '../../ports/roll-repository.ts';
-
-/** Text with surrounding space removed, or null when there's none left. */
-function textOrNull(text: string | undefined): string | null {
-  const trimmed = text?.trim() ?? '';
-  return trimmed === '' ? null : trimmed;
-}
+import { textOrNull } from './text-or-null.ts';
 
 /** Creates an empty roll. The roll number is always given: it's never invented (D8). */
 export class CreateRoll {

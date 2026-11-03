@@ -16,6 +16,7 @@ import {
   thumbnailQuery,
   updateFrameNumbersRequest,
   updateFrameRequest,
+  updateRollRequest,
   version,
   versionParams,
 } from '@filmfile/contracts/rolls';
@@ -29,6 +30,7 @@ import type { UpdateFrameNumbers } from '../../../../application/use-cases/frame
 import type { CreateRoll } from '../../../../application/use-cases/rolls/create-roll.ts';
 import type { GetRoll } from '../../../../application/use-cases/rolls/get-roll.ts';
 import type { ListRolls } from '../../../../application/use-cases/rolls/list-rolls.ts';
+import type { UpdateRoll } from '../../../../application/use-cases/rolls/update-roll.ts';
 import type { ArchiveContext } from '../../../../domain/shared/archive-context.ts';
 import {
   isFrameId,
@@ -110,6 +112,32 @@ const createRoll = createRoute({
     409: json(errorResponse, 'A roll with that roll number already exists.'),
     415: wrongType,
     422: invalid,
+  },
+});
+
+const updateRoll = createRoute({
+  method: 'patch',
+  path: '/{rollId}',
+  summary: "Change a roll's details",
+  description:
+    "Send the roll's ETag as If-Match: the change is refused if the roll has changed since. The response's ETag is the roll's new version.",
+  middleware: [requireJson] as const,
+  request: {
+    params: rollParams,
+    headers: ifMatchHeader,
+    body: {
+      required: true,
+      content: { 'application/json': { schema: updateRollRequest } },
+    },
+  },
+  responses: {
+    200: json(roll, 'The updated roll.'),
+    400: malformed,
+    404: json(errorResponse, 'There is no roll with that ID.'),
+    409: json(errorResponse, 'The roll has changed since it was read.'),
+    415: wrongType,
+    422: invalid,
+    428: json(errorResponse, 'If-Match is missing.'),
   },
 });
 
@@ -253,6 +281,7 @@ export interface RollUseCases {
   readonly createRoll: CreateRoll;
   readonly getRoll: GetRoll;
   readonly listRolls: ListRolls;
+  readonly updateRoll: UpdateRoll;
   readonly createFrame: CreateFrame;
   readonly updateFrame: UpdateFrame;
   readonly updateFrameNumbers: UpdateFrameNumbers;
@@ -304,6 +333,27 @@ export function rollRoutes({
     return created.ok
       ? c.json(rollDto(created.value), 201)
       : domainErrorResponse(c, created.error);
+  });
+
+  routes.openapi(updateRoll, async (c) => {
+    const { rollId } = c.req.valid('param');
+    if (!isRollId(rollId)) {
+      return c.json(notFound, 404);
+    }
+    const ifMatch = c.req.valid('header')['if-match'];
+    if (ifMatch === undefined) {
+      return c.json({ error: 'send the roll’s ETag as If-Match' }, 428);
+    }
+    const updated = await useCases.updateRoll.execute(ctx, {
+      id: rollId,
+      expectedVersion: versionFrom(ifMatch),
+      ...c.req.valid('json'),
+    });
+    if (!updated.ok) {
+      return domainErrorResponse(c, updated.error);
+    }
+    c.header('ETag', etagOf(updated.value.version));
+    return c.json(rollDto(updated.value.roll), 200);
   });
 
   routes.openapi(createFrame, async (c) => {

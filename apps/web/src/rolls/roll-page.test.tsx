@@ -2,6 +2,7 @@
 import { createApiClient } from '@filmfile/contracts/client';
 import {
   updateFrameNumbersRequest,
+  updateRollRequest,
   type Frame,
   type Roll,
 } from '@filmfile/contracts/rolls';
@@ -20,7 +21,7 @@ afterEach(cleanup);
 
 const rollId = '01JC8Z7K3M0000000000000001';
 
-const rollDetails = {
+const rollDetails: Omit<Roll, 'frames'> = {
   id: rollId,
   roll: '2026-014',
   name: null,
@@ -35,8 +36,9 @@ async function sha256(bytes: ArrayBuffer): Promise<string> {
   ).join('');
 }
 
-/** Answers the roll's endpoints the way the backend does, keeping frames in memory. */
-function fakeRollService(frames: Frame[] = []) {
+/** Answers the roll's endpoints the way the backend does, keeping the roll in memory. */
+function fakeRollService(frames: Frame[] = [], details: Partial<Roll> = {}) {
+  let roll = { ...rollDetails, ...details };
   const requests: string[] = [];
   const ifMatches: (string | null)[] = [];
   let nextId = 100;
@@ -52,8 +54,8 @@ function fakeRollService(frames: Frame[] = []) {
     const url = new URL(request.url);
     requests.push(`${request.method} ${url.pathname}${url.search}`);
     if (request.method === 'GET' && url.pathname === `/api/rolls/${rollId}`) {
-      const roll: Roll = { ...rollDetails, frames };
-      return Response.json(roll, { headers: { ETag: etag() } });
+      const body: Roll = { ...roll, frames };
+      return Response.json(body, { headers: { ETag: etag() } });
     }
     if (request.method === 'PATCH') {
       const ifMatch = request.headers.get('If-Match');
@@ -65,6 +67,19 @@ function fakeRollService(frames: Frame[] = []) {
         return Response.json({ error: 'changed' }, { status: 409 });
       }
       const body: unknown = await request.json();
+      if (url.pathname === `/api/rolls/${rollId}`) {
+        // The page always sends every detail.
+        const { name, description, shot } = updateRollRequest.parse(body);
+        roll = {
+          ...roll,
+          name: name ?? null,
+          description: description ?? null,
+          shot: shot ?? null,
+        };
+        changed();
+        const updated: Roll = { ...roll, frames };
+        return Response.json(updated, { headers: { ETag: etag() } });
+      }
       if (url.pathname.endsWith('/frames')) {
         const { numbers } = updateFrameNumbersRequest.parse(body);
         for (const { frameId, number } of numbers) {
@@ -75,8 +90,8 @@ function fakeRollService(frames: Frame[] = []) {
           }
         }
         changed();
-        const roll: Roll = { ...rollDetails, frames };
-        return Response.json(roll, { headers: { ETag: etag() } });
+        const updated: Roll = { ...roll, frames };
+        return Response.json(updated, { headers: { ETag: etag() } });
       }
       const number =
         typeof body === 'object' &&
@@ -213,6 +228,106 @@ test('shows the roll’s name, date shot and description', async () => {
   expect(await screen.findByText('Iceland, first day')).toBeDefined();
   expect(screen.getByText('Shot 14 Sep 2026, 06:30')).toBeDefined();
   expect(screen.getByText('Jökulsárlón at dawn.')).toBeDefined();
+});
+
+describe('editing the details', () => {
+  const iceland = {
+    name: 'Iceland',
+    description: 'Jökulsárlón at dawn.',
+    shot: '2026-09-14',
+  };
+
+  async function editDetails() {
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Edit details' }),
+    );
+  }
+
+  /** A field by its label, ignoring the required marker, as a screen reader names it. */
+  function field(label: string): HTMLInputElement {
+    return screen.getByLabelText<HTMLInputElement>(label, {
+      normalizer: (text) => text.replace('*', '').trim(),
+    });
+  }
+
+  function fill(label: string, value: string) {
+    fireEvent.change(field(label), { target: { value } });
+  }
+
+  test('opens with the roll’s details filled in', async () => {
+    renderPage(fakeRollService([], iceland));
+    await editDetails();
+
+    expect(field('Name').value).toBe('Iceland');
+    expect(field('Description').value).toBe('Jökulsárlón at dawn.');
+    expect(field('Year').value).toBe('2026');
+    expect(field('Month').value).toBe('09');
+    expect(field('Day').value).toBe('14');
+    expect(field('Time').value).toBe('');
+    expect(
+      screen
+        .getByRole('button', { name: 'Edit details' })
+        .getAttribute('aria-expanded'),
+    ).toBe('true');
+  });
+
+  test('saves the details, sending the roll’s ETag, and shows them', async () => {
+    const service = fakeRollService([], iceland);
+    renderPage(service);
+    await editDetails();
+
+    fill('Name', 'Westfjords');
+    fill('Description', '');
+    fill('Month', '');
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+
+    expect(await screen.findByText('Westfjords')).toBeDefined();
+    expect(screen.getByText('Shot 2026')).toBeDefined();
+    expect(screen.queryByText('Jökulsárlón at dawn.')).toBeNull();
+    expect(screen.queryByLabelText('Name')).toBeNull();
+    expect(service.ifMatches).toEqual(['"v1"']);
+  });
+
+  test('asks for a year', async () => {
+    const service = fakeRollService([], iceland);
+    renderPage(service);
+    await editDetails();
+
+    fill('Year', '');
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+
+    expect(screen.getByRole('alert').textContent).toBe(
+      'Enter the year as four digits, like 2026.',
+    );
+    expect(service.ifMatches).toEqual([]);
+  });
+
+  test('refuses to overwrite a roll changed since the page loaded, keeping what was entered', async () => {
+    const service = fakeRollService([], iceland);
+    renderPage(service);
+    await editDetails();
+    service.changed();
+
+    fill('Name', 'Westfjords');
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'This roll changed since you opened it.',
+    );
+    expect(field('Name').value).toBe('Westfjords');
+  });
+
+  test('goes back to the details as they were on Cancel, saving nothing', async () => {
+    const service = fakeRollService([], iceland);
+    renderPage(service);
+    await editDetails();
+
+    fill('Name', 'Westfjords');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.getByText('Iceland')).toBeDefined();
+    expect(service.ifMatches).toEqual([]);
+  });
 });
 
 describe('adding scans', () => {

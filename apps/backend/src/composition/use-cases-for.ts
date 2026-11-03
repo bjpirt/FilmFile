@@ -14,6 +14,7 @@ import { UpdateFrameNumbers } from '../application/use-cases/frames/update-frame
 import { CreateRoll } from '../application/use-cases/rolls/create-roll.ts';
 import { GetRoll } from '../application/use-cases/rolls/get-roll.ts';
 import { ListRolls } from '../application/use-cases/rolls/list-rolls.ts';
+import { UpdateRoll } from '../application/use-cases/rolls/update-roll.ts';
 
 /** An adapter for every outbound port. */
 export interface Adapters {
@@ -38,6 +39,7 @@ export function useCasesFor({
     createRoll: new CreateRoll(rolls, ids),
     getRoll: new GetRoll(rolls),
     listRolls: new ListRolls(rolls),
+    updateRoll: new UpdateRoll(rolls),
     createFrame: new CreateFrame(rolls, ids),
     updateFrame: new UpdateFrame(rolls),
     updateFrameNumbers: new UpdateFrameNumbers(rolls),

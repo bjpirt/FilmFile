@@ -4,6 +4,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from '../routing.tsx';
 import { droppedFiles } from './dropped-files.ts';
+import {
+  EditDetailsPanel,
+  type DetailsOutcome,
+  type RollDetails,
+} from './edit-details-panel.tsx';
 import { formatShot } from './format-shot.ts';
 import { frameCount } from './frame-count.ts';
 import { FrameNumberEditor, type SaveOutcome } from './frame-number-editor.tsx';
@@ -96,6 +101,7 @@ export function RollPage({
   const [order, setOrder] = useState<'frame' | 'scan'>('frame');
   const [changedElsewhere, setChangedElsewhere] = useState(false);
   const [addingScans, setAddingScans] = useState(false);
+  const [editingDetails, setEditingDetails] = useState(false);
   const [savingNumbers, setSavingNumbers] = useState(false);
   const [numbersNotSaved, setNumbersNotSaved] = useState(false);
   const [renumbering, setRenumbering] = useState<RenumberSettings | undefined>(
@@ -201,6 +207,34 @@ export function RollPage({
     setRenumbering(undefined);
   }
 
+  async function saveDetails(details: RollDetails): Promise<DetailsOutcome> {
+    if (roll.data === undefined) {
+      return 'failed';
+    }
+    const { response } = await api.PATCH('/api/rolls/{rollId}', {
+      params: {
+        path: { rollId },
+        header: { 'if-match': roll.data.etag },
+      },
+      body: details,
+    });
+    if (response.status === 409) {
+      setChangedElsewhere(true);
+      return 'changed-elsewhere';
+    }
+    // The panel checks the year, so the date is all the service can refuse.
+    if (response.status === 422) {
+      return 'not-a-date';
+    }
+    if (!response.ok) {
+      return 'failed';
+    }
+    // The rolls list shows the details too.
+    await queryClient.invalidateQueries({ queryKey: ['rolls'] });
+    setEditingDetails(false);
+    return 'saved';
+  }
+
   async function reload() {
     await queryClient.invalidateQueries({ queryKey: ['rolls', rollId] });
     setChangedElsewhere(false);
@@ -259,35 +293,58 @@ export function RollPage({
           </h1>
           <span className="muted">{frameCount(frames.length)}</span>
         </div>
-        {frames.length > 0 && (
+        <div className="page-actions">
           <button
             type="button"
-            aria-expanded={dropZoneOpen}
-            aria-controls="drop-zone"
+            aria-expanded={editingDetails}
+            aria-controls="edit-details"
             onClick={() => {
-              setAddingScans(!addingScans);
+              setEditingDetails(!editingDetails);
             }}
           >
-            Add scans
+            Edit details
           </button>
-        )}
-      </div>
-
-      {(roll.data.roll.name !== null ||
-        roll.data.roll.shot !== null ||
-        roll.data.roll.description !== null) && (
-        <div className="roll-about">
-          {roll.data.roll.name !== null && (
-            <p className="roll-name">{roll.data.roll.name}</p>
-          )}
-          {roll.data.roll.shot !== null && (
-            <p className="muted">Shot {formatShot(roll.data.roll.shot)}</p>
-          )}
-          {roll.data.roll.description !== null && (
-            <p className="roll-description">{roll.data.roll.description}</p>
+          {frames.length > 0 && (
+            <button
+              type="button"
+              aria-expanded={dropZoneOpen}
+              aria-controls="drop-zone"
+              onClick={() => {
+                setAddingScans(!addingScans);
+              }}
+            >
+              Add scans
+            </button>
           )}
         </div>
+      </div>
+
+      {editingDetails && (
+        <EditDetailsPanel
+          roll={roll.data.roll}
+          save={saveDetails}
+          cancel={() => {
+            setEditingDetails(false);
+          }}
+        />
       )}
+
+      {!editingDetails &&
+        (roll.data.roll.name !== null ||
+          roll.data.roll.shot !== null ||
+          roll.data.roll.description !== null) && (
+          <div className="roll-about">
+            {roll.data.roll.name !== null && (
+              <p className="roll-name">{roll.data.roll.name}</p>
+            )}
+            {roll.data.roll.shot !== null && (
+              <p className="muted">Shot {formatShot(roll.data.roll.shot)}</p>
+            )}
+            {roll.data.roll.description !== null && (
+              <p className="roll-description">{roll.data.roll.description}</p>
+            )}
+          </div>
+        )}
 
       {changedElsewhere && (
         <p role="alert" className="changed-elsewhere">

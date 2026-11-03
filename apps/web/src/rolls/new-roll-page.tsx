@@ -2,25 +2,11 @@ import type { ApiClient } from '@filmfile/contracts/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, type SubmitEvent } from 'react';
 import { Link, navigate } from '../routing.tsx';
+import { DateShotFields } from './date-shot-fields.tsx';
 import { describeUpload } from './describe-upload.ts';
 import { droppedFiles } from './dropped-files.ts';
 import { shotFrom, type ShotFields } from './shot-fields.ts';
 import { uploadScans, type UploadReport } from './upload-scans.ts';
-
-const months = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
 
 type Progress =
   | { readonly kind: 'editing' }
@@ -66,14 +52,11 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
     }
   }
 
-  function changeShot(change: Partial<ShotFields>) {
-    const next = { ...shot, ...change };
-    // Each part needs the one before it.
-    setShot({
-      ...next,
-      day: next.month === '' ? '' : next.day,
-      time: next.month === '' || next.day === '' ? '' : next.time,
-    });
+  function changeShot(next: ShotFields) {
+    if (next.year !== shot.year) {
+      setYearChanged(true);
+    }
+    setShot(next);
   }
 
   async function create(event: SubmitEvent) {
@@ -203,75 +186,7 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
           />
         </label>
 
-        <fieldset className="date-shot">
-          <legend>Date shot</legend>
-          <label>
-            <span>
-              Year{' '}
-              <span className="required" aria-hidden="true">
-                *
-              </span>
-            </span>
-            <input
-              required
-              className="numbers"
-              inputMode="numeric"
-              size={4}
-              maxLength={4}
-              value={shot.year}
-              onChange={(event) => {
-                setYearChanged(true);
-                changeShot({ year: event.target.value });
-              }}
-            />
-          </label>
-          <label>
-            Month
-            <select
-              value={shot.month}
-              onChange={(event) => {
-                changeShot({ month: event.target.value });
-              }}
-            >
-              <option value="">—</option>
-              {months.map((month, i) => (
-                <option key={month} value={String(i + 1).padStart(2, '0')}>
-                  {month}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Day
-            <select
-              value={shot.day}
-              disabled={shot.month === ''}
-              onChange={(event) => {
-                changeShot({ day: event.target.value });
-              }}
-            >
-              <option value="">—</option>
-              {Array.from({ length: 31 }, (_, i) => String(i + 1)).map(
-                (day) => (
-                  <option key={day} value={day.padStart(2, '0')}>
-                    {day}
-                  </option>
-                ),
-              )}
-            </select>
-          </label>
-          <label>
-            Time
-            <input
-              type="time"
-              value={shot.time}
-              disabled={shot.day === ''}
-              onChange={(event) => {
-                changeShot({ time: event.target.value });
-              }}
-            />
-          </label>
-        </fieldset>
+        <DateShotFields shot={shot} change={changeShot} />
 
         <div
           className="drop-zone"

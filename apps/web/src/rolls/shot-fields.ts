@@ -33,3 +33,10 @@ export function shotFrom(fields: ShotFields): EnteredShot {
   const date = `${year}-${month}-${day.padStart(2, '0')}`;
   return { valid: true, shot: time === '' ? date : `${date}T${time}` };
 }
+
+/** The fields for a date shot, as precise as it is: e.g. `2026-09` gives a year and month. */
+export function shotFieldsOf(shot: string | null): ShotFields {
+  const [date = '', time = ''] = (shot ?? '').split('T');
+  const [year = '', month = '', day = ''] = date.split('-');
+  return { year, month, day, time };
+}
