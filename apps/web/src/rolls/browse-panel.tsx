@@ -1,12 +1,15 @@
 import type { Camera, FilmStock, Lens } from '@filmfile/contracts/equipment';
+import type { Event } from '@filmfile/contracts/events';
 import type { Roll } from '@filmfile/contracts/rolls';
 import { cameraName } from '../equipment/use-cameras.ts';
 import { filmStockName } from '../equipment/use-film-stocks.ts';
 import { lensName } from '../equipment/use-lenses.ts';
+import { eventName } from '../events/use-events.ts';
 
-/** One way into the rolls: all of them, or those from a year, shot on a camera or with a lens, or of a film stock. */
+/** One way into the rolls: all of them, or those from a year or an event, shot on a camera or with a lens, or of a film stock. */
 export interface RollsFilter {
   readonly year: string | undefined;
+  readonly event: string | undefined;
   readonly camera: string | undefined;
   readonly film: string | undefined;
   readonly lens: string | undefined;
@@ -14,6 +17,7 @@ export interface RollsFilter {
 
 const everyRoll: RollsFilter = {
   year: undefined,
+  event: undefined,
   camera: undefined,
   film: undefined,
   lens: undefined,
@@ -77,15 +81,15 @@ function BrowseSection({
 }
 
 /**
- * Ways into the rolls: all of them, or those from one year, shot on one
- * camera or with one lens, or of one film stock, one way at a time. More sections (events)
- * arrive with their data.
+ * Ways into the rolls: all of them, or those from one year or event, shot
+ * on one camera or with one lens, or of one film stock, one way at a time.
  */
 export function BrowsePanel({
   rolls,
   cameras,
   films,
   lenses,
+  events,
   filter,
   choose,
 }: {
@@ -93,6 +97,7 @@ export function BrowsePanel({
   readonly cameras: readonly Camera[];
   readonly films: readonly FilmStock[];
   readonly lenses: readonly Lens[];
+  readonly events: readonly Event[];
   readonly filter: RollsFilter;
   readonly choose: (filter: RollsFilter) => void;
 }) {
@@ -108,6 +113,10 @@ export function BrowsePanel({
     rolls.flatMap((roll) => (roll.film === null ? [] : [roll.film])),
     (slug) => filmStockName(films, slug) ?? slug,
   ).sort(byLabel);
+  const rollEvents = counted(
+    rolls.flatMap((roll) => (roll.event === null ? [] : [roll.event])),
+    (slug) => eventName(events, slug) ?? slug,
+  ).sort(byLabel);
   const rollLenses = counted(
     rolls.flatMap((roll) => (roll.lens === null ? [] : [roll.lens])),
     (slug) => lensName(lenses, slug) ?? slug,
@@ -119,6 +128,7 @@ export function BrowsePanel({
         type="button"
         aria-pressed={
           filter.year === undefined &&
+          filter.event === undefined &&
           filter.camera === undefined &&
           filter.film === undefined &&
           filter.lens === undefined
@@ -138,6 +148,16 @@ export function BrowsePanel({
           choose({ ...everyRoll, year });
         }}
       />
+      {rollEvents.length > 0 && (
+        <BrowseSection
+          title="Events"
+          options={rollEvents}
+          chosen={filter.event}
+          choose={(event) => {
+            choose({ ...everyRoll, event });
+          }}
+        />
+      )}
       {rollCameras.length > 0 && (
         <BrowseSection
           title="Cameras"

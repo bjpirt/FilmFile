@@ -1,8 +1,8 @@
-import type { EquipmentSlug } from './equipment-slug.ts';
+import type { Slug } from '../shared/slug.ts';
 
 /** A camera rolls are shot on, e.g. a Nikon FE. */
 export interface Camera {
-  readonly slug: EquipmentSlug;
+  readonly slug: Slug;
   /** Who makes it, e.g. "Nikon". */
   readonly make: string;
   /** Which camera it is, e.g. "FE". */

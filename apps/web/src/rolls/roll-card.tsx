@@ -1,7 +1,9 @@
 import type { Camera, FilmStock } from '@filmfile/contracts/equipment';
+import type { Event } from '@filmfile/contracts/events';
 import type { Roll } from '@filmfile/contracts/rolls';
 import { cameraName } from '../equipment/use-cameras.ts';
 import { filmStockName } from '../equipment/use-film-stocks.ts';
+import { eventName } from '../events/use-events.ts';
 import { Link } from '../routing.tsx';
 import { formatShot } from './format-shot.ts';
 import { frameCount } from './frame-count.ts';
@@ -12,13 +14,16 @@ export function RollCard({
   roll,
   cameras,
   films,
+  events,
 }: {
   readonly roll: Roll;
   readonly cameras: readonly Camera[];
   readonly films: readonly FilmStock[];
+  readonly events: readonly Event[];
 }) {
-  // e.g. "Nikon FE · Kodak Portra 400 · Sep 2026"
+  // e.g. "Iceland 2026 · Nikon FE · Kodak Portra 400 · Sep 2026"
   const about = [
+    eventName(events, roll.event),
     cameraName(cameras, roll.camera),
     filmStockName(films, roll.film),
     roll.shot === null ? undefined : formatShot(roll.shot),

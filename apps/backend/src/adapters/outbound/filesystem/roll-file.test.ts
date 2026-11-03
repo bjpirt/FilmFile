@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, test } from 'vitest';
-import { isEquipmentSlug } from '../../../domain/equipment/equipment-slug.ts';
+import { isSlug } from '../../../domain/shared/slug.ts';
 import { isFrameNumber } from '../../../domain/rolls/frame-number.ts';
 import { isRollNumber } from '../../../domain/rolls/roll-number.ts';
 import { isShotDate } from '../../../domain/rolls/shot-date.ts';
@@ -49,21 +49,19 @@ const aRoll: fc.Arbitrary<Roll> = fc.record({
     { nil: null },
   ),
   film: fc.option(
-    fc
-      .stringMatching(/^[a-z0-9]{1,8}(-[a-z0-9]{1,8}){0,3}$/)
-      .filter(isEquipmentSlug),
+    fc.stringMatching(/^[a-z0-9]{1,8}(-[a-z0-9]{1,8}){0,3}$/).filter(isSlug),
+    { nil: null },
+  ),
+  event: fc.option(
+    fc.stringMatching(/^[a-z0-9]{1,8}(-[a-z0-9]{1,8}){0,3}$/).filter(isSlug),
     { nil: null },
   ),
   lens: fc.option(
-    fc
-      .stringMatching(/^[a-z0-9]{1,8}(-[a-z0-9]{1,8}){0,3}$/)
-      .filter(isEquipmentSlug),
+    fc.stringMatching(/^[a-z0-9]{1,8}(-[a-z0-9]{1,8}){0,3}$/).filter(isSlug),
     { nil: null },
   ),
   camera: fc.option(
-    fc
-      .stringMatching(/^[a-z0-9]{1,8}(-[a-z0-9]{1,8}){0,3}$/)
-      .filter(isEquipmentSlug),
+    fc.stringMatching(/^[a-z0-9]{1,8}(-[a-z0-9]{1,8}){0,3}$/).filter(isSlug),
     { nil: null },
   ),
   frames: fc.array(aFrame, { maxLength: 5 }),
@@ -140,6 +138,7 @@ describe('roll.json', () => {
         name: null,
         description: null,
         shot: null,
+        event: null,
         camera: null,
         film: null,
         lens: null,

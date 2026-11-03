@@ -1,9 +1,12 @@
 import type { Camera, FilmStock, Lens } from '@filmfile/contracts/equipment';
+import type { Event } from '@filmfile/contracts/events';
 import type { Roll } from '@filmfile/contracts/rolls';
 import { useState, type SubmitEvent } from 'react';
 import { CameraField } from '../equipment/camera-field.tsx';
+import type { EventChoice } from '../events/event-choice.ts';
+import { EventField } from '../events/event-field.tsx';
 import type { CameraChoice } from '../equipment/camera-choice.ts';
-import { choiceOf } from '../equipment/equipment-choice.ts';
+import { choiceOf } from '../forms/pick-or-add.ts';
 import type { FilmChoice } from '../equipment/film-choice.ts';
 import { FilmStockField } from '../equipment/film-stock-field.tsx';
 import type { LensChoice } from '../equipment/lens-choice.ts';
@@ -22,18 +25,21 @@ export interface RollDetails {
   readonly film: FilmChoice;
   /** The lens chosen, which may be a new one. */
   readonly lens: LensChoice;
+  /** The event chosen, which may be a new one. */
+  readonly event: EventChoice;
 }
 
 function textOrNull(text: string): string | null {
   return text.trim() === '' ? null : text.trim();
 }
 
-/** A roll's name, description, date shot, camera, film stock and lens, to change and save. */
+/** A roll's name, description, date shot, camera, lens, film stock and event, to change and save. */
 export function EditDetailsPanel({
   roll,
   cameras,
   films,
   lenses,
+  events,
   save,
   cancel,
 }: {
@@ -41,6 +47,7 @@ export function EditDetailsPanel({
   readonly cameras: readonly Camera[];
   readonly films: readonly FilmStock[];
   readonly lenses: readonly Lens[];
+  readonly events: readonly Event[];
   /** Saves the details, giving what to tell the person if they weren't saved. */
   readonly save: (details: RollDetails) => Promise<string | undefined>;
   readonly cancel: () => void;
@@ -51,6 +58,9 @@ export function EditDetailsPanel({
   const [camera, setCamera] = useState<CameraChoice>(choiceOf(roll.camera));
   const [film, setFilm] = useState<FilmChoice>(choiceOf(roll.film));
   const [lens, setLens] = useState<LensChoice>(choiceOf(roll.lens));
+  const [eventChoice, setEventChoice] = useState<EventChoice>(
+    choiceOf(roll.event),
+  );
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | undefined>(undefined);
 
@@ -71,6 +81,7 @@ export function EditDetailsPanel({
       camera,
       film,
       lens,
+      event: eventChoice,
     });
     // Once saved, the panel closes.
     setSaving(false);
@@ -112,6 +123,11 @@ export function EditDetailsPanel({
       <CameraField cameras={cameras} choice={camera} change={setCamera} />
       <LensField lenses={lenses} choice={lens} change={setLens} />
       <FilmStockField films={films} choice={film} change={setFilm} />
+      <EventField
+        events={events}
+        choice={eventChoice}
+        change={setEventChoice}
+      />
 
       {problem !== undefined && <p role="alert">{problem}</p>}
 

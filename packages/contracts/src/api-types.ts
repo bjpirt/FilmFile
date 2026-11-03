@@ -1050,6 +1050,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the events */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Every event, ordered by name. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EventList"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Add an event */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateEventRequest"];
+                };
+            };
+            responses: {
+                /** @description The new event. */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Event"];
+                    };
+                };
+                /** @description The body is not valid JSON. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description An event with the same slug already exists. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The body is not of the expected type. */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The request is invalid. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1078,6 +1174,11 @@ export interface components {
             description: string | null;
             /** @example 2026-09-14 */
             shot: string | null;
+            /**
+             * @description The slug of the event the roll was shot at, or null.
+             * @example nikon-fe
+             */
+            event: string | null;
             /**
              * @description The slug of the camera the roll was shot on, or null.
              * @example nikon-fe
@@ -1154,6 +1255,8 @@ export interface components {
             /** @example 2026-09-14 */
             shot?: string;
             /** @example nikon-fe */
+            event?: string;
+            /** @example nikon-fe */
             camera?: string;
             /** @example nikon-fe */
             film?: string;
@@ -1166,6 +1269,8 @@ export interface components {
             description?: string | null;
             /** @example 2026-09-14 */
             shot?: string | null;
+            /** @example nikon-fe */
+            event?: string | null;
             /** @example nikon-fe */
             camera?: string | null;
             /** @example nikon-fe */
@@ -1283,6 +1388,19 @@ export interface components {
             name: string;
             focalLength?: number | null;
             maxAperture?: number | null;
+        };
+        EventList: {
+            events: components["schemas"]["Event"][];
+        };
+        Event: {
+            /** @example nikon-fe */
+            slug: string;
+            /** @example Iceland 2026 */
+            name: string;
+        };
+        CreateEventRequest: {
+            /** @description What the event is called; its slug is made from it. */
+            name: string;
         };
     };
     responses: never;

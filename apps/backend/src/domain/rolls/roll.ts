@@ -1,4 +1,4 @@
-import type { EquipmentSlug } from '../equipment/equipment-slug.ts';
+import type { Slug } from '../shared/slug.ts';
 import type { FrameId, RollId, VersionId } from '../shared/ids.ts';
 import type { FrameNumber } from './frame-number.ts';
 import type { RollNumber } from './roll-number.ts';
@@ -32,11 +32,13 @@ export interface Roll {
   readonly description: string | null;
   /** When the roll was shot, as precisely as it's known, or null. */
   readonly shot: ShotDate | null;
+  /** The event the roll was shot at (D24), or null. */
+  readonly event: Slug | null;
   /** The camera the roll was shot on, or null. */
-  readonly camera: EquipmentSlug | null;
+  readonly camera: Slug | null;
   /** The film stock the roll is, or null. */
-  readonly film: EquipmentSlug | null;
+  readonly film: Slug | null;
   /** The lens the roll was shot with, or null. */
-  readonly lens: EquipmentSlug | null;
+  readonly lens: Slug | null;
   readonly frames: readonly Frame[];
 }

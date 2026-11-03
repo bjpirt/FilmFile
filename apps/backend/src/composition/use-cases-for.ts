@@ -1,8 +1,10 @@
 import type { EquipmentUseCases } from '../adapters/inbound/http/routes/equipment.ts';
+import type { EventUseCases } from '../adapters/inbound/http/routes/events.ts';
 import type { RollUseCases } from '../adapters/inbound/http/routes/rolls.ts';
 import type { BlobStore } from '../application/ports/blob-store.ts';
 import type { Clock } from '../application/ports/clock.ts';
 import type { EquipmentRepository } from '../application/ports/equipment-repository.ts';
+import type { EventRepository } from '../application/ports/event-repository.ts';
 import type { IdGenerator } from '../application/ports/id-generator.ts';
 import type { ImageInspector } from '../application/ports/image-inspector.ts';
 import type { PreviewProvider } from '../application/ports/preview-provider.ts';
@@ -13,6 +15,8 @@ import { ListCameras } from '../application/use-cases/equipment/list-cameras.ts'
 import { ListFilmStocks } from '../application/use-cases/equipment/list-film-stocks.ts';
 import { CreateLens } from '../application/use-cases/equipment/create-lens.ts';
 import { ListLenses } from '../application/use-cases/equipment/list-lenses.ts';
+import { CreateEvent } from '../application/use-cases/events/create-event.ts';
+import { ListEvents } from '../application/use-cases/events/list-events.ts';
 import { AddVersion } from '../application/use-cases/frames/add-version.ts';
 import { CreateFrame } from '../application/use-cases/frames/create-frame.ts';
 import { GetOriginal } from '../application/use-cases/frames/get-original.ts';
@@ -28,6 +32,7 @@ import { UpdateRoll } from '../application/use-cases/rolls/update-roll.ts';
 export interface Adapters {
   readonly rolls: RollRepository;
   readonly equipment: EquipmentRepository;
+  readonly events: EventRepository;
   readonly blobs: BlobStore;
   readonly inspector: ImageInspector;
   readonly previews: PreviewProvider;
@@ -39,17 +44,18 @@ export interface Adapters {
 export function useCasesFor({
   rolls,
   equipment,
+  events,
   blobs,
   inspector,
   previews,
   ids,
   clock,
-}: Adapters): RollUseCases & EquipmentUseCases {
+}: Adapters): RollUseCases & EquipmentUseCases & EventUseCases {
   return {
-    createRoll: new CreateRoll(rolls, equipment, ids),
+    createRoll: new CreateRoll(rolls, equipment, events, ids),
     getRoll: new GetRoll(rolls),
     listRolls: new ListRolls(rolls),
-    updateRoll: new UpdateRoll(rolls, equipment),
+    updateRoll: new UpdateRoll(rolls, equipment, events),
     createFrame: new CreateFrame(rolls, ids),
     updateFrame: new UpdateFrame(rolls),
     updateFrameNumbers: new UpdateFrameNumbers(rolls),
@@ -62,5 +68,7 @@ export function useCasesFor({
     createFilmStock: new CreateFilmStock(equipment),
     listLenses: new ListLenses(equipment),
     createLens: new CreateLens(equipment),
+    listEvents: new ListEvents(events),
+    createEvent: new CreateEvent(events),
   };
 }

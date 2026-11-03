@@ -1,5 +1,5 @@
 import { cameraLabel, type Camera } from '../../../domain/equipment/camera.ts';
-import { slugFor } from '../../../domain/equipment/equipment-slug.ts';
+import { slugFor } from '../../../domain/shared/slug.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type {
   AlreadyExists,

@@ -77,6 +77,16 @@
             "pattern": "^\\d{4}(-\\d{2}(-\\d{2}(T\\d{2}:\\d{2})?)?)?$",
             "example": "2026-09-14"
           },
+          "event": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe",
+            "description": "The slug of the event the roll was shot at, or null."
+          },
           "camera": {
             "type": [
               "string",
@@ -120,6 +130,7 @@
           "name",
           "description",
           "shot",
+          "event",
           "camera",
           "film",
           "lens",
@@ -292,6 +303,12 @@
             "pattern": "^\\d{4}(-\\d{2}(-\\d{2}(T\\d{2}:\\d{2})?)?)?$",
             "example": "2026-09-14"
           },
+          "event": {
+            "type": "string",
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe"
+          },
           "camera": {
             "type": "string",
             "maxLength": 60,
@@ -339,6 +356,15 @@
             ],
             "pattern": "^\\d{4}(-\\d{2}(-\\d{2}(T\\d{2}:\\d{2})?)?)?$",
             "example": "2026-09-14"
+          },
+          "event": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe"
           },
           "camera": {
             "type": [
@@ -725,6 +751,53 @@
           "name"
         ],
         "description": "Its slug is made from its make, name, focal length and aperture."
+      },
+      "EventList": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          }
+        },
+        "required": [
+          "events"
+        ]
+      },
+      "Event": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe"
+          },
+          "name": {
+            "type": "string",
+            "example": "Iceland 2026"
+          }
+        },
+        "required": [
+          "slug",
+          "name"
+        ]
+      },
+      "CreateEventRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "What the event is called; its slug is made from it."
+          }
+        },
+        "required": [
+          "name"
+        ]
       }
     },
     "parameters": {}
@@ -1796,6 +1869,88 @@
           },
           "409": {
             "description": "A lens with the same slug already exists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "The body is not of the expected type.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/events": {
+      "get": {
+        "summary": "List the events",
+        "responses": {
+          "200": {
+            "description": "Every event, ordered by name.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add an event",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEventRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new event.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not valid JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An event with the same slug already exists.",
             "content": {
               "application/json": {
                 "schema": {

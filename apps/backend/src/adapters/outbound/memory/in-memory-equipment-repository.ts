@@ -1,6 +1,6 @@
 import type { EquipmentRepository } from '../../../application/ports/equipment-repository.ts';
 import { cameraLabel, type Camera } from '../../../domain/equipment/camera.ts';
-import type { EquipmentSlug } from '../../../domain/equipment/equipment-slug.ts';
+import type { Slug } from '../../../domain/shared/slug.ts';
 import {
   filmStockLabel,
   type FilmStock,
@@ -16,8 +16,8 @@ function byName(a: string, b: string): number {
 }
 
 /** Adds an item to a map by its slug, unless one is there already. */
-function added<T extends { readonly slug: EquipmentSlug }>(
-  items: Map<EquipmentSlug, T>,
+function added<T extends { readonly slug: Slug }>(
+  items: Map<Slug, T>,
   item: T,
 ): Promise<Result<void, AlreadyExists>> {
   if (items.has(item.slug)) {
@@ -31,9 +31,9 @@ function added<T extends { readonly slug: EquipmentSlug }>(
 
 /** Equipment kept in memory, for tests. */
 export class InMemoryEquipmentRepository implements EquipmentRepository {
-  readonly #cameras = new Map<EquipmentSlug, Camera>();
-  readonly #films = new Map<EquipmentSlug, FilmStock>();
-  readonly #lenses = new Map<EquipmentSlug, Lens>();
+  readonly #cameras = new Map<Slug, Camera>();
+  readonly #films = new Map<Slug, FilmStock>();
+  readonly #lenses = new Map<Slug, Lens>();
 
   listCameras(): Promise<readonly Camera[]> {
     return Promise.resolve(
@@ -43,10 +43,7 @@ export class InMemoryEquipmentRepository implements EquipmentRepository {
     );
   }
 
-  getCamera(
-    _ctx: ArchiveContext,
-    slug: EquipmentSlug,
-  ): Promise<Camera | undefined> {
+  getCamera(_ctx: ArchiveContext, slug: Slug): Promise<Camera | undefined> {
     return Promise.resolve(this.#cameras.get(slug));
   }
 
@@ -67,7 +64,7 @@ export class InMemoryEquipmentRepository implements EquipmentRepository {
 
   getFilmStock(
     _ctx: ArchiveContext,
-    slug: EquipmentSlug,
+    slug: Slug,
   ): Promise<FilmStock | undefined> {
     return Promise.resolve(this.#films.get(slug));
   }
@@ -87,10 +84,7 @@ export class InMemoryEquipmentRepository implements EquipmentRepository {
     );
   }
 
-  getLens(
-    _ctx: ArchiveContext,
-    slug: EquipmentSlug,
-  ): Promise<Lens | undefined> {
+  getLens(_ctx: ArchiveContext, slug: Slug): Promise<Lens | undefined> {
     return Promise.resolve(this.#lenses.get(slug));
   }
 

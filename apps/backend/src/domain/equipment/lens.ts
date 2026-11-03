@@ -1,8 +1,8 @@
-import type { EquipmentSlug } from './equipment-slug.ts';
+import type { Slug } from '../shared/slug.ts';
 
 /** A lens rolls are shot with, e.g. a Nikon Nikkor AI-S 50mm f/1.8. */
 export interface Lens {
-  readonly slug: EquipmentSlug;
+  readonly slug: Slug;
   /** Who makes it, e.g. "Nikon". */
   readonly make: string;
   /** Its own name, e.g. "Nikkor AI-S". */

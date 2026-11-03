@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { equipmentSlug } from './equipment.ts';
+import { slug } from './slug.ts';
 
 // Request and response shapes for rolls, their frames and the frames' versions.
 
@@ -61,13 +61,16 @@ export const roll = z
     }),
     description: z.string().nullable(),
     shot: shotDate.nullable(),
-    camera: equipmentSlug.nullable().meta({
+    event: slug.nullable().meta({
+      description: 'The slug of the event the roll was shot at, or null.',
+    }),
+    camera: slug.nullable().meta({
       description: 'The slug of the camera the roll was shot on, or null.',
     }),
-    film: equipmentSlug.nullable().meta({
+    film: slug.nullable().meta({
       description: 'The slug of the film stock the roll is, or null.',
     }),
-    lens: equipmentSlug.nullable().meta({
+    lens: slug.nullable().meta({
       description: 'The slug of the lens the roll was shot with, or null.',
     }),
     frames: z.array(frame),
@@ -102,9 +105,10 @@ export const createRollRequest = z
     name: z.string().max(100).optional(),
     description: z.string().max(5000).optional(),
     shot: shotDate.optional(),
-    camera: equipmentSlug.optional(),
-    film: equipmentSlug.optional(),
-    lens: equipmentSlug.optional(),
+    event: slug.optional(),
+    camera: slug.optional(),
+    film: slug.optional(),
+    lens: slug.optional(),
   })
   .meta({ id: 'CreateRollRequest' });
 
@@ -113,9 +117,10 @@ export const updateRollRequest = z
     name: z.string().max(100).nullable().optional(),
     description: z.string().max(5000).nullable().optional(),
     shot: shotDate.nullable().optional(),
-    camera: equipmentSlug.nullable().optional(),
-    film: equipmentSlug.nullable().optional(),
-    lens: equipmentSlug.nullable().optional(),
+    event: slug.nullable().optional(),
+    camera: slug.nullable().optional(),
+    film: slug.nullable().optional(),
+    lens: slug.nullable().optional(),
   })
   .meta({
     id: 'UpdateRollRequest',

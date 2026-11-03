@@ -1,4 +1,4 @@
-import { slugFor } from '../../../domain/equipment/equipment-slug.ts';
+import { slugFor } from '../../../domain/shared/slug.ts';
 import {
   filmStockLabel,
   type FilmFormat,

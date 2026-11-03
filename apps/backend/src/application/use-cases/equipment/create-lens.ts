@@ -1,4 +1,4 @@
-import { slugFor } from '../../../domain/equipment/equipment-slug.ts';
+import { slugFor } from '../../../domain/shared/slug.ts';
 import { lensLabel, type Lens } from '../../../domain/equipment/lens.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type {

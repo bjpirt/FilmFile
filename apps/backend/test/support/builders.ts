@@ -1,5 +1,6 @@
 import { cameraLabel, type Camera } from '../../src/domain/equipment/camera.ts';
-import { slugFor } from '../../src/domain/equipment/equipment-slug.ts';
+import { slugFor } from '../../src/domain/shared/slug.ts';
+import type { Event } from '../../src/domain/events/event.ts';
 import { lensLabel, type Lens } from '../../src/domain/equipment/lens.ts';
 import {
   filmStockLabel,
@@ -77,6 +78,7 @@ export function aRoll(
     name: null,
     description: null,
     shot: null,
+    event: null,
     camera: null,
     film: null,
     lens: null,
@@ -122,6 +124,15 @@ export function aLens(
     throw new Error(`bad test data: ${make} ${name}`);
   }
   return { slug, ...lens };
+}
+
+/** An event with the given name, and the slug made from it. */
+export function anEvent(name: string): Event {
+  const slug = slugFor(name);
+  if (slug === undefined) {
+    throw new Error(`bad test data: ${name}`);
+  }
+  return { slug, name };
 }
 
 /** A camera by make and model, e.g. aCamera('Nikon', 'FE'), with the slug made from them. */

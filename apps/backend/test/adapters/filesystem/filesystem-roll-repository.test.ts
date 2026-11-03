@@ -38,6 +38,7 @@ test('creates roll.json in the roll year’s folder', async () => {
         name: null,
         description: null,
         shot: null,
+        event: null,
         meta: {},
         frames: [],
       },

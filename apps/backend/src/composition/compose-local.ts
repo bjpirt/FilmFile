@@ -2,6 +2,7 @@ import type { OpenAPIHono } from '@hono/zod-openapi';
 import { createApp } from '../adapters/inbound/http/create-app.ts';
 import type { ReportError } from '../adapters/inbound/http/middleware/error-handler.ts';
 import { FilesystemEquipmentRepository } from '../adapters/outbound/filesystem/filesystem-equipment-repository.ts';
+import { FilesystemEventRepository } from '../adapters/outbound/filesystem/filesystem-event-repository.ts';
 import { FilesystemBlobStore } from '../adapters/outbound/filesystem/filesystem-blob-store.ts';
 import { FilesystemRollRepository } from '../adapters/outbound/filesystem/filesystem-roll-repository.ts';
 import { NodeClock } from '../adapters/outbound/node/node-clock.ts';
@@ -35,6 +36,7 @@ export function composeLocal(config: {
     useCases: useCasesFor({
       rolls: new FilesystemRollRepository(config.archivePath),
       equipment: new FilesystemEquipmentRepository(config.archivePath),
+      events: new FilesystemEventRepository(config.archivePath),
       blobs: new FilesystemBlobStore(config.archivePath),
       inspector: new SharpImageInspector(maxPixels),
       previews: new SharpPreviewProvider(config.cachePath, maxPixels),

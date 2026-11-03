@@ -14,6 +14,7 @@ import {
   type Frame,
   type Roll,
 } from '@filmfile/contracts/rolls';
+import { createEventRequest, type Event } from '@filmfile/contracts/events';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   cleanup,
@@ -36,6 +37,7 @@ const rollDetails: Omit<Roll, 'frames'> = {
   name: null,
   description: null,
   shot: null,
+  event: null,
   camera: null,
   film: null,
   lens: null,
@@ -74,6 +76,7 @@ function fakeRollService(
   cameras: Camera[] = [],
   films: FilmStock[] = [],
   lenses: Lens[] = [],
+  events: Event[] = [],
 ) {
   let roll = { ...rollDetails, ...details };
   const requests: string[] = [];
@@ -102,6 +105,15 @@ function fakeRollService(
       };
       cameras.push(camera);
       return Response.json(camera, { status: 201 });
+    }
+    if (url.pathname === '/api/events') {
+      if (request.method === 'GET') {
+        return Response.json({ events });
+      }
+      const { name } = createEventRequest.parse(await request.json());
+      const event = { slug: name.toLowerCase().replace(/\W+/g, '-'), name };
+      events.push(event);
+      return Response.json(event, { status: 201 });
     }
     if (url.pathname === '/api/equipment/lenses') {
       if (request.method === 'GET') {
@@ -163,13 +175,14 @@ function fakeRollService(
       const body: unknown = await request.json();
       if (url.pathname === `/api/rolls/${rollId}`) {
         // The page always sends every detail.
-        const { name, description, shot, camera, film, lens } =
+        const { name, description, shot, event, camera, film, lens } =
           updateRollRequest.parse(body);
         roll = {
           ...roll,
           name: name ?? null,
           description: description ?? null,
           shot: shot ?? null,
+          event: event ?? null,
           camera: camera ?? null,
           film: film ?? null,
           lens: lens ?? null,
@@ -251,6 +264,7 @@ function fakeRollService(
     cameras,
     films,
     lenses,
+    events,
   };
 }
 
@@ -540,6 +554,26 @@ describe('editing the details', () => {
     await waitFor(() => {
       expect(screen.queryByText('Zeiss Planar 80mm f/2.8')).toBeNull();
     });
+  });
+
+  test('puts the roll in an event, shown in its details row', async () => {
+    const service = fakeRollService(
+      [],
+      iceland,
+      [],
+      [],
+      [],
+      [{ slug: 'iceland-2026', name: 'Iceland 2026' }],
+    );
+    renderPage(service);
+    await editDetails();
+    await screen.findByRole('option', { name: 'Iceland 2026' });
+
+    choose('Event', 'Iceland 2026');
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+
+    expect(await screen.findByText('Iceland 2026')).toBeDefined();
+    expect(details()).toContainEqual(['Event', 'Iceland 2026']);
   });
 
   test('asks for a year', async () => {

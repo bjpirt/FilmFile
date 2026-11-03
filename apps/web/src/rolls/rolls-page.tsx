@@ -1,11 +1,11 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import { useQuery } from '@tanstack/react-query';
-import type { Camera, FilmStock, Lens } from '@filmfile/contracts/equipment';
 import type { Roll } from '@filmfile/contracts/rolls';
 import { useEffect } from 'react';
 import { cameraName, useCameras } from '../equipment/use-cameras.ts';
 import { filmStockName, useFilmStocks } from '../equipment/use-film-stocks.ts';
 import { lensName, useLenses } from '../equipment/use-lenses.ts';
+import { eventName, useEvents } from '../events/use-events.ts';
 import { Link, navigate, useSearch } from '../routing.tsx';
 import { BrowsePanel } from './browse-panel.tsx';
 import { RollCard } from './roll-card.tsx';
@@ -79,17 +79,23 @@ function namedGroups(
   });
 }
 
+/** What each event, camera, film stock and lens a roll has is called, by slug. */
+interface Names {
+  readonly event: (slug: string | null) => string | undefined;
+  readonly camera: (slug: string | null) => string | undefined;
+  readonly film: (slug: string | null) => string | undefined;
+  readonly lens: (slug: string | null) => string | undefined;
+}
+
 /**
  * The rolls in groups, each with its heading; one untitled group when not
- * grouping. Years go newest first; cameras, film stocks and lenses by name,
- * with rolls that have none last.
+ * grouping. Years go newest first; events, cameras, film stocks and lenses
+ * by name, with rolls that have none last.
  */
 function grouped(
   rolls: readonly Roll[],
   group: Grouping,
-  cameras: readonly Camera[],
-  films: readonly FilmStock[],
-  lenses: readonly Lens[],
+  names: Names,
 ): RollGroup[] {
   switch (group) {
     case 'none':
@@ -98,43 +104,44 @@ function grouped(
       return groupedBy(rolls, (roll) => roll.roll.slice(0, 4)).sort((a, b) =>
         (b.title ?? '').localeCompare(a.title ?? ''),
       );
+    case 'event':
+      return namedGroups(rolls, (roll) => names.event(roll.event), 'No event');
     case 'camera':
       return namedGroups(
         rolls,
-        (roll) => cameraName(cameras, roll.camera),
+        (roll) => names.camera(roll.camera),
         'No camera',
       );
     case 'film':
       return namedGroups(
         rolls,
-        (roll) => filmStockName(films, roll.film),
+        (roll) => names.film(roll.film),
         'No film stock',
       );
     case 'lens':
-      return namedGroups(
-        rolls,
-        (roll) => lensName(lenses, roll.lens),
-        'No lens',
-      );
+      return namedGroups(rolls, (roll) => names.lens(roll.lens), 'No lens');
   }
 }
 
 /**
  * The page's heading for the rolls chosen, e.g. "Rolls of Kodak Portra 400
- * shot on Nikon FE with Zeiss Planar 80mm f/2.8 in 2026".
+ * at Iceland 2026 shot on Nikon FE with Zeiss Planar 80mm f/2.8 in 2026".
  */
 function headingFor({
   year,
+  event,
   camera,
   film,
   lens,
 }: {
   readonly year: string | undefined;
+  readonly event: string | undefined;
   readonly camera: string | undefined;
   readonly film: string | undefined;
   readonly lens: string | undefined;
 }): string {
   const of = film === undefined ? '' : ` of ${film}`;
+  const at = event === undefined ? '' : ` at ${event}`;
   const shot =
     camera === undefined && lens === undefined
       ? ''
@@ -146,10 +153,10 @@ function headingFor({
   const when =
     year === undefined
       ? ''
-      : of === '' && shot === ''
+      : of === '' && at === '' && shot === ''
         ? ` from ${year}`
         : ` in ${year}`;
-  return `Rolls${of}${shot}${when}`;
+  return `Rolls${of}${at}${shot}${when}`;
 }
 
 export function RollsPage({
@@ -183,6 +190,13 @@ export function RollsPage({
   const cameras = useCameras(api);
   const films = useFilmStocks(api);
   const lenses = useLenses(api);
+  const events = useEvents(api);
+  const names: Names = {
+    event: (slug) => eventName(events, slug),
+    camera: (slug) => cameraName(cameras, slug),
+    film: (slug) => filmStockName(films, slug),
+    lens: (slug) => lensName(lenses, slug),
+  };
   const rolls = useQuery({
     queryKey: ['rolls'],
     queryFn: async () => {
@@ -198,6 +212,7 @@ export function RollsPage({
   const shown = all.filter(
     (roll) =>
       (address.year === undefined || roll.roll.startsWith(address.year)) &&
+      (address.event === undefined || roll.event === address.event) &&
       (address.camera === undefined || roll.camera === address.camera) &&
       (address.film === undefined || roll.film === address.film) &&
       (address.lens === undefined || roll.lens === address.lens),
@@ -211,6 +226,7 @@ export function RollsPage({
           cameras={cameras}
           films={films}
           lenses={lenses}
+          events={events}
           filter={address}
           choose={(filter) => {
             go(filter);
@@ -223,9 +239,10 @@ export function RollsPage({
             <h1>
               {headingFor({
                 year: address.year,
-                camera: cameraName(cameras, address.camera ?? null),
-                film: filmStockName(films, address.film ?? null),
-                lens: lensName(lenses, address.lens ?? null),
+                event: names.event(address.event ?? null),
+                camera: names.camera(address.camera ?? null),
+                film: names.film(address.film ?? null),
+                lens: names.lens(address.lens ?? null),
               })}
             </h1>
             {rolls.data !== undefined && (
@@ -243,6 +260,7 @@ export function RollsPage({
             >
               <option value="none">Nothing</option>
               <option value="year">Year</option>
+              <option value="event">Event</option>
               <option value="camera">Camera</option>
               <option value="lens">Lens</option>
               <option value="film">Film stock</option>
@@ -290,41 +308,39 @@ export function RollsPage({
           </p>
         ))}
         {rolls.data !== undefined && all.length === 0 && <p>No rolls yet.</p>}
-        {grouped(
-          sorted(shown, address.sort),
-          address.group,
-          cameras,
-          films,
-          lenses,
-        ).map((group) => (
-          <section key={group.title ?? 'all'} className="roll-group">
-            {group.title !== undefined && (
-              <h2>
-                {group.title}{' '}
-                <span className="muted">{rollCount(group.rolls.length)}</span>
-              </h2>
-            )}
-            {group.rolls.length > 0 &&
-              (view === 'grid' ? (
-                <ul className="roll-grid">
-                  {group.rolls.map((roll) => (
-                    <RollCard
-                      key={roll.id}
-                      roll={roll}
-                      cameras={cameras}
-                      films={films}
-                    />
-                  ))}
-                </ul>
-              ) : (
-                <RollTable
-                  rolls={group.rolls}
-                  cameras={cameras}
-                  films={films}
-                />
-              ))}
-          </section>
-        ))}
+        {grouped(sorted(shown, address.sort), address.group, names).map(
+          (group) => (
+            <section key={group.title ?? 'all'} className="roll-group">
+              {group.title !== undefined && (
+                <h2>
+                  {group.title}{' '}
+                  <span className="muted">{rollCount(group.rolls.length)}</span>
+                </h2>
+              )}
+              {group.rolls.length > 0 &&
+                (view === 'grid' ? (
+                  <ul className="roll-grid">
+                    {group.rolls.map((roll) => (
+                      <RollCard
+                        key={roll.id}
+                        roll={roll}
+                        cameras={cameras}
+                        films={films}
+                        events={events}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <RollTable
+                    rolls={group.rolls}
+                    cameras={cameras}
+                    films={films}
+                    events={events}
+                  />
+                ))}
+            </section>
+          ),
+        )}
       </section>
     </div>
   );

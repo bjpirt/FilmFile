@@ -16,6 +16,7 @@ export function rollDto(roll: Roll): RollDto {
     name: roll.name,
     description: roll.description,
     shot: roll.shot,
+    event: roll.event,
     camera: roll.camera,
     film: roll.film,
     lens: roll.lens,

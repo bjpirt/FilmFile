@@ -360,7 +360,7 @@ Each use case is a class with its dependencies injected through the constructor 
 - The API serves **resolved data**: a roll comes back with every frame's resolved metadata and provenance, plus an `ETag`. Writes require `If-Match` and return 409 on conflict.
 - **Image data and metadata have separate endpoints.** Frames are created and edited as JSON (`/api/rolls/{rollId}/frames`). Images are uploaded as versions of a frame, one file per request, with the raw image as the body (`POST /api/rolls/{rollId}/frames/{frameId}/versions?file=…`), with details such as the file name in the query. Phase 1 uploads lab scans only; Phase 2 adds other files through the same endpoint. A raw image body can't be sent by a cross-site form.
 - Original files and thumbnails are read through their version (`…/versions/{versionId}/file` and `…/versions/{versionId}/thumbnail?size=small|large`), never by path or hash. Thumbnails are cached by content hash behind the scenes.
-- Live updates go over **server-sent events** (`/api/events`).
+- Live updates go over **server-sent events** (`/api/changes`; `/api/events` is the archive's events).
 
 ### 13.9 Repository layout
 

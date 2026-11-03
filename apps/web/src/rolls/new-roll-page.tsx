@@ -6,7 +6,11 @@ import { CameraField } from '../equipment/camera-field.tsx';
 import { chooseCamera } from '../equipment/choose-camera.ts';
 import { useCameras } from '../equipment/use-cameras.ts';
 import { chooseFilmStock } from '../equipment/choose-film-stock.ts';
-import { noEquipment } from '../equipment/equipment-choice.ts';
+import { chooseEvent } from '../events/choose-event.ts';
+import type { EventChoice } from '../events/event-choice.ts';
+import { EventField } from '../events/event-field.tsx';
+import { useEvents } from '../events/use-events.ts';
+import { nothingPicked } from '../forms/pick-or-add.ts';
 import type { FilmChoice } from '../equipment/film-choice.ts';
 import { FilmStockField } from '../equipment/film-stock-field.tsx';
 import { useFilmStocks } from '../equipment/use-film-stocks.ts';
@@ -45,12 +49,14 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
   const cameras = useCameras(api);
   const films = useFilmStocks(api);
   const lenses = useLenses(api);
+  const events = useEvents(api);
   const [rollNumber, setRollNumber] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [camera, setCamera] = useState<CameraChoice>(noEquipment);
-  const [film, setFilm] = useState<FilmChoice>(noEquipment);
-  const [lens, setLens] = useState<LensChoice>(noEquipment);
+  const [camera, setCamera] = useState<CameraChoice>(nothingPicked);
+  const [film, setFilm] = useState<FilmChoice>(nothingPicked);
+  const [lens, setLens] = useState<LensChoice>(nothingPicked);
+  const [eventChoice, setEventChoice] = useState<EventChoice>(nothingPicked);
   const [shot, setShot] = useState<ShotFields>({
     year: '',
     month: '',
@@ -115,6 +121,13 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
       return;
     }
     await queryClient.invalidateQueries({ queryKey: ['lenses'] });
+    const chosenEvent = await chooseEvent(api, eventChoice);
+    if (!chosenEvent.ok) {
+      setProgress({ kind: 'editing' });
+      setProblem(chosenEvent.problem);
+      return;
+    }
+    await queryClient.invalidateQueries({ queryKey: ['events'] });
     const { data, response, error } = await api.POST('/api/rolls', {
       body: {
         roll,
@@ -126,6 +139,7 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
         ...(chosen.slug === null ? {} : { camera: chosen.slug }),
         ...(chosenFilm.slug === null ? {} : { film: chosenFilm.slug }),
         ...(chosenLens.slug === null ? {} : { lens: chosenLens.slug }),
+        ...(chosenEvent.slug === null ? {} : { event: chosenEvent.slug }),
       },
     });
     if (data === undefined) {
@@ -233,6 +247,11 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
         <CameraField cameras={cameras} choice={camera} change={setCamera} />
         <LensField lenses={lenses} choice={lens} change={setLens} />
         <FilmStockField films={films} choice={film} change={setFilm} />
+        <EventField
+          events={events}
+          choice={eventChoice}
+          change={setEventChoice}
+        />
 
         <div
           className="drop-zone"

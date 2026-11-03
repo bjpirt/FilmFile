@@ -8,28 +8,36 @@ import type {
 import type { RollId } from '../../../domain/shared/ids.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
 import type { EquipmentRepository } from '../../ports/equipment-repository.ts';
+import type { EventRepository } from '../../ports/event-repository.ts';
 import type {
   RollRepository,
   VersionedRoll,
 } from '../../ports/roll-repository.ts';
 import { knownCamera } from './known-camera.ts';
+import { knownEvent } from './known-event.ts';
 import { knownFilmStock } from './known-film-stock.ts';
 import { knownLens } from './known-lens.ts';
 import { textOrNull } from './text-or-null.ts';
 
 /**
- * Changes a roll's details: name, description, date shot, camera, film
- * stock and lens. A detail left
+ * Changes a roll's details: name, description, date shot, event, camera,
+ * film stock and lens. A detail left
  * out stays as it is; null or blank clears it. Saved only if the roll hasn't
  * changed since the caller read it at `expectedVersion`.
  */
 export class UpdateRoll {
   readonly #rolls: RollRepository;
   readonly #equipment: EquipmentRepository;
+  readonly #events: EventRepository;
 
-  constructor(rolls: RollRepository, equipment: EquipmentRepository) {
+  constructor(
+    rolls: RollRepository,
+    equipment: EquipmentRepository,
+    events: EventRepository,
+  ) {
     this.#rolls = rolls;
     this.#equipment = equipment;
+    this.#events = events;
   }
 
   async execute(
@@ -40,6 +48,8 @@ export class UpdateRoll {
       readonly name?: string | null | undefined;
       readonly description?: string | null | undefined;
       readonly shot?: string | null | undefined;
+      /** The event's slug. */
+      readonly event?: string | null | undefined;
       /** The camera's slug. */
       readonly camera?: string | null | undefined;
       /** The film stock's slug. */
@@ -56,6 +66,13 @@ export class UpdateRoll {
         : parseShotDate(input.shot);
     if (!shot.ok) {
       return shot;
+    }
+    const event =
+      input.event === undefined || input.event === null
+        ? ok(input.event)
+        : await knownEvent(this.#events, ctx, input.event);
+    if (!event.ok) {
+      return event;
     }
     const camera =
       input.camera === undefined || input.camera === null
@@ -89,6 +106,7 @@ export class UpdateRoll {
         ? {}
         : { description: textOrNull(input.description) }),
       ...(shot.value === undefined ? {} : { shot: shot.value }),
+      ...(event.value === undefined ? {} : { event: event.value }),
       ...(camera.value === undefined ? {} : { camera: camera.value }),
       ...(film.value === undefined ? {} : { film: film.value }),
       ...(lens.value === undefined ? {} : { lens: lens.value }),

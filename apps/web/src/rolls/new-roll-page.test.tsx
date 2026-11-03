@@ -8,6 +8,7 @@ import {
   type FilmStock,
   type Lens,
 } from '@filmfile/contracts/equipment';
+import { createEventRequest, type Event } from '@filmfile/contracts/events';
 import { createRollRequest, type Roll } from '@filmfile/contracts/rolls';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -35,11 +36,13 @@ function fakeService({
   cameras = [],
   films = [],
   lenses = [],
+  events = [],
 }: {
   taken?: string[];
   cameras?: Camera[];
   films?: FilmStock[];
   lenses?: Lens[];
+  events?: Event[];
 } = {}) {
   const created: unknown[] = [];
   const uploads: string[] = [];
@@ -63,6 +66,15 @@ function fakeService({
       }
       cameras.push(camera);
       return Response.json(camera, { status: 201 });
+    }
+    if (url.pathname === '/api/events') {
+      if (request.method === 'GET') {
+        return Response.json({ events });
+      }
+      const { name } = createEventRequest.parse(await request.json());
+      const event = { slug: name.toLowerCase().replace(/\W+/g, '-'), name };
+      events.push(event);
+      return Response.json(event, { status: 201 });
     }
     if (url.pathname === '/api/equipment/lenses') {
       if (request.method === 'GET') {
@@ -120,6 +132,7 @@ function fakeService({
         name: body.name ?? null,
         description: body.description ?? null,
         shot: body.shot ?? null,
+        event: body.event ?? null,
         camera: body.camera ?? null,
         film: body.film ?? null,
         lens: body.lens ?? null,
@@ -159,6 +172,7 @@ function fakeService({
     cameras,
     films,
     lenses,
+    events,
     cameraLists: () => cameraLists,
   };
 }
@@ -447,6 +461,63 @@ describe('the film stock', () => {
 
     expect((await screen.findByRole('alert')).textContent).toBe(
       'Enter the ISO as a whole number, like 400.',
+    );
+    expect(service.created).toEqual([]);
+  });
+});
+
+describe('the event', () => {
+  test('is picked from the archive’s events', async () => {
+    const service = fakeService({
+      events: [{ slug: 'iceland-2026', name: 'Iceland 2026' }],
+    });
+    renderPage(service);
+    await screen.findByRole('option', { name: 'Iceland 2026' });
+
+    fill('Roll number', '2026-014');
+    choose('Event', 'Iceland 2026');
+    create();
+
+    await waitToOpen(rollId);
+    expect(service.created).toEqual([
+      { roll: '2026-014', shot: '2026', event: 'iceland-2026' },
+    ]);
+  });
+
+  test('can be a new one, added to the archive by name', async () => {
+    const service = fakeService();
+    renderPage(service);
+
+    fill('Roll number', '2026-014');
+    choose('Event', 'Add new…');
+    const newEvent = screen.getByRole('group', { name: 'New event' });
+    fireEvent.change(
+      within(newEvent).getByLabelText('Name', { exact: false }),
+      {
+        target: { value: 'Westfjords' },
+      },
+    );
+    create();
+
+    await waitToOpen(rollId);
+    expect(service.events).toEqual([
+      { slug: 'westfjords', name: 'Westfjords' },
+    ]);
+    expect(service.created).toEqual([
+      { roll: '2026-014', shot: '2026', event: 'westfjords' },
+    ]);
+  });
+
+  test('asks for a new one’s name', async () => {
+    const service = fakeService();
+    renderPage(service);
+
+    fill('Roll number', '2026-014');
+    choose('Event', 'Add new…');
+    create();
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      "Enter the new event's name, like Iceland 2026.",
     );
     expect(service.created).toEqual([]);
   });

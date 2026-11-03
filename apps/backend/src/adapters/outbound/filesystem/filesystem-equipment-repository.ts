@@ -2,10 +2,7 @@ import { glob, mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { EquipmentRepository } from '../../../application/ports/equipment-repository.ts';
 import { cameraLabel, type Camera } from '../../../domain/equipment/camera.ts';
-import {
-  isEquipmentSlug,
-  type EquipmentSlug,
-} from '../../../domain/equipment/equipment-slug.ts';
+import { isSlug, type Slug } from '../../../domain/shared/slug.ts';
 import {
   filmStockLabel,
   type FilmStock,
@@ -41,18 +38,18 @@ export class FilesystemEquipmentRepository implements EquipmentRepository {
     this.#archivePath = archivePath;
   }
 
-  #file(kind: Kind, slug: EquipmentSlug): string {
+  #file(kind: Kind, slug: Slug): string {
     return safePath(this.#archivePath, 'equipment', kind, `${slug}.json`);
   }
 
   /** The slugs of every item of a kind: files named as a slug are items. */
-  async #slugs(kind: Kind): Promise<EquipmentSlug[]> {
-    const slugs: EquipmentSlug[] = [];
+  async #slugs(kind: Kind): Promise<Slug[]> {
+    const slugs: Slug[] = [];
     for await (const relative of glob(`equipment/${kind}/*.json`, {
       cwd: this.#archivePath,
     })) {
       const slug = path.basename(relative, '.json');
-      if (isEquipmentSlug(slug)) {
+      if (isSlug(slug)) {
         slugs.push(slug);
       }
     }
@@ -60,7 +57,7 @@ export class FilesystemEquipmentRepository implements EquipmentRepository {
   }
 
   /** An item's file text, or undefined if there's no such item. */
-  async #read(kind: Kind, slug: EquipmentSlug): Promise<string | undefined> {
+  async #read(kind: Kind, slug: Slug): Promise<string | undefined> {
     try {
       return await readFile(this.#file(kind, slug), 'utf8');
     } catch (error) {
@@ -73,7 +70,7 @@ export class FilesystemEquipmentRepository implements EquipmentRepository {
 
   async #create(
     kind: Kind,
-    slug: EquipmentSlug,
+    slug: Slug,
     content: string,
   ): Promise<Result<void, AlreadyExists>> {
     await mkdir(safePath(this.#archivePath, 'equipment', kind), {
@@ -85,19 +82,19 @@ export class FilesystemEquipmentRepository implements EquipmentRepository {
       : err({ kind: 'already-exists', entity: 'equipment', id: slug });
   }
 
-  async #camera(slug: EquipmentSlug): Promise<Camera | undefined> {
+  async #camera(slug: Slug): Promise<Camera | undefined> {
     const text = await this.#read('cameras', slug);
     return text === undefined ? undefined : { slug, ...parseCameraFile(text) };
   }
 
-  async #filmStock(slug: EquipmentSlug): Promise<FilmStock | undefined> {
+  async #filmStock(slug: Slug): Promise<FilmStock | undefined> {
     const text = await this.#read('films', slug);
     return text === undefined
       ? undefined
       : { slug, ...parseFilmStockFile(text) };
   }
 
-  async #lens(slug: EquipmentSlug): Promise<Lens | undefined> {
+  async #lens(slug: Slug): Promise<Lens | undefined> {
     const text = await this.#read('lenses', slug);
     return text === undefined ? undefined : { slug, ...parseLensFile(text) };
   }
@@ -113,10 +110,7 @@ export class FilesystemEquipmentRepository implements EquipmentRepository {
     return cameras.sort((a, b) => byName(cameraLabel(a), cameraLabel(b)));
   }
 
-  getCamera(
-    _ctx: ArchiveContext,
-    slug: EquipmentSlug,
-  ): Promise<Camera | undefined> {
+  getCamera(_ctx: ArchiveContext, slug: Slug): Promise<Camera | undefined> {
     return this.#camera(slug);
   }
 
@@ -140,7 +134,7 @@ export class FilesystemEquipmentRepository implements EquipmentRepository {
 
   getFilmStock(
     _ctx: ArchiveContext,
-    slug: EquipmentSlug,
+    slug: Slug,
   ): Promise<FilmStock | undefined> {
     return this.#filmStock(slug);
   }
@@ -163,10 +157,7 @@ export class FilesystemEquipmentRepository implements EquipmentRepository {
     return lenses.sort((a, b) => byName(lensLabel(a), lensLabel(b)));
   }
 
-  getLens(
-    _ctx: ArchiveContext,
-    slug: EquipmentSlug,
-  ): Promise<Lens | undefined> {
+  getLens(_ctx: ArchiveContext, slug: Slug): Promise<Lens | undefined> {
     return this.#lens(slug);
   }
 

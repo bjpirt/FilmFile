@@ -1,10 +1,12 @@
 import { describe, expect, test } from 'vitest';
 import { InMemoryEquipmentRepository } from '../../../src/adapters/outbound/memory/in-memory-equipment-repository.ts';
+import { InMemoryEventRepository } from '../../../src/adapters/outbound/memory/in-memory-event-repository.ts';
 import { InMemoryRollRepository } from '../../../src/adapters/outbound/memory/in-memory-roll-repository.ts';
 import { SequentialIdGenerator } from '../../../src/adapters/outbound/memory/sequential-id-generator.ts';
 import { CreateCamera } from '../../../src/application/use-cases/equipment/create-camera.ts';
 import { CreateFilmStock } from '../../../src/application/use-cases/equipment/create-film-stock.ts';
 import { CreateLens } from '../../../src/application/use-cases/equipment/create-lens.ts';
+import { CreateEvent } from '../../../src/application/use-cases/events/create-event.ts';
 import { CreateRoll } from '../../../src/application/use-cases/rolls/create-roll.ts';
 import { GetRoll } from '../../../src/application/use-cases/rolls/get-roll.ts';
 import { ListRolls } from '../../../src/application/use-cases/rolls/list-rolls.ts';
@@ -23,16 +25,18 @@ function anArchive(): ArchiveContext {
 function setUp() {
   const rolls = new InMemoryRollRepository();
   const equipment = new InMemoryEquipmentRepository();
+  const events = new InMemoryEventRepository();
   const ids = new SequentialIdGenerator();
   return {
     ctx: anArchive(),
     createCamera: new CreateCamera(equipment),
     createFilmStock: new CreateFilmStock(equipment),
     createLens: new CreateLens(equipment),
-    createRoll: new CreateRoll(rolls, equipment, ids),
+    createRoll: new CreateRoll(rolls, equipment, events, ids),
+    createEvent: new CreateEvent(events),
     listRolls: new ListRolls(rolls),
     getRoll: new GetRoll(rolls),
-    updateRoll: new UpdateRoll(rolls, equipment),
+    updateRoll: new UpdateRoll(rolls, equipment, events),
   };
 }
 
@@ -48,6 +52,7 @@ describe('CreateRoll', () => {
         name: null,
         description: null,
         shot: null,
+        event: null,
         camera: null,
         film: null,
         lens: null,
@@ -75,6 +80,37 @@ describe('CreateRoll', () => {
         film: 'kodak-portra-400',
       }),
     ).toMatchObject({ ok: true, value: { film: 'kodak-portra-400' } });
+  });
+
+  test('records the event the roll was shot at', async () => {
+    const { ctx, createEvent, createRoll } = setUp();
+    await createEvent.execute(ctx, { name: 'Iceland 2026' });
+
+    expect(
+      await createRoll.execute(ctx, {
+        roll: '2026-014',
+        event: 'iceland-2026',
+      }),
+    ).toMatchObject({ ok: true, value: { event: 'iceland-2026' } });
+  });
+
+  test('refuses an event the archive does not have', async () => {
+    const { ctx, createRoll } = setUp();
+
+    expect(
+      await createRoll.execute(ctx, {
+        roll: '2026-014',
+        event: 'iceland-2026',
+      }),
+    ).toEqual({
+      ok: false,
+      error: {
+        kind: 'validation-failed',
+        issues: [
+          { path: ['event'], message: 'is not an event in the archive' },
+        ],
+      },
+    });
   });
 
   test('records the lens the roll was shot with', async () => {
@@ -322,6 +358,48 @@ describe('UpdateRoll', () => {
     expect(cleared).toMatchObject({
       ok: true,
       value: { roll: { film: null } },
+    });
+  });
+
+  test('changes the event, or clears it with null', async () => {
+    const { ctx, id, version, updateRoll, createEvent } = await aCreatedRoll();
+    await createEvent.execute(ctx, { name: 'Westfjords' });
+
+    const changed = await updateRoll.execute(ctx, {
+      id,
+      expectedVersion: version,
+      event: 'westfjords',
+    });
+    const cleared = changed.ok
+      ? await updateRoll.execute(ctx, {
+          id,
+          expectedVersion: changed.value.version,
+          event: null,
+        })
+      : changed;
+
+    expect(changed).toMatchObject({
+      ok: true,
+      value: { roll: { event: 'westfjords' } },
+    });
+    expect(cleared).toMatchObject({
+      ok: true,
+      value: { roll: { event: null } },
+    });
+  });
+
+  test('refuses an event the archive does not have, changing nothing', async () => {
+    const { ctx, id, version, updateRoll } = await aCreatedRoll();
+
+    expect(
+      await updateRoll.execute(ctx, {
+        id,
+        expectedVersion: version,
+        event: 'westfjords',
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { kind: 'validation-failed', issues: [{ path: ['event'] }] },
     });
   });
 

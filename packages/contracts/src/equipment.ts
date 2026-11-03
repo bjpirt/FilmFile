@@ -1,17 +1,11 @@
 import { z } from 'zod';
+import { slug } from './slug.ts';
 
 // Request and response shapes for equipment: cameras, film stocks and lenses.
 
-/** How equipment is named in the archive, made from its name. */
-export const equipmentSlug = z
-  .string()
-  .max(60)
-  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'must be a slug like nikon-fe')
-  .meta({ example: 'nikon-fe' });
-
 export const camera = z
   .object({
-    slug: equipmentSlug,
+    slug,
     make: z.string().meta({ example: 'Nikon' }),
     model: z.string().meta({ example: 'FE' }),
   })
@@ -41,7 +35,7 @@ export const filmFormat = z
 
 export const filmStock = z
   .object({
-    slug: equipmentSlug,
+    slug,
     make: z.string().meta({ example: 'Kodak' }),
     name: z.string().meta({ example: 'Portra 400' }),
     iso: z.number().int().nullable().meta({ example: 400 }),
@@ -69,7 +63,7 @@ export const createFilmStockRequest = z
 
 export const lens = z
   .object({
-    slug: equipmentSlug,
+    slug,
     make: z.string().meta({ example: 'Nikon' }),
     name: z.string().meta({ example: 'Nikkor AI-S' }),
     focalLength: z

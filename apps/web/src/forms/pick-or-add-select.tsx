@@ -1,14 +1,14 @@
-import type { EquipmentChoice } from './equipment-choice.ts';
+import type { PickOrAdd } from './pick-or-add.ts';
 
 // Option values: '' for none, a slug, or this, which no slug can be.
 const addNew = '+new';
 
 /**
- * A dropdown of the archive's cameras, film stocks or lenses: none, each one
- * by its label, then Add new…, which starts a new one from `blank`. The
+ * A dropdown of the archive's cameras, film stocks, lenses or events: none,
+ * each one by its label, then Add new…, which starts a new one from `blank`. The
  * new one's details are asked for beside it.
  */
-export function EquipmentSelect<New>({
+export function PickOrAddSelect<New>({
   label,
   options,
   choice,
@@ -20,9 +20,9 @@ export function EquipmentSelect<New>({
     readonly slug: string;
     readonly label: string;
   }[];
-  readonly choice: EquipmentChoice<New>;
+  readonly choice: PickOrAdd<New>;
   readonly blank: New;
-  readonly change: (choice: EquipmentChoice<New>) => void;
+  readonly change: (choice: PickOrAdd<New>) => void;
 }) {
   const value =
     choice.kind === 'none'
@@ -30,7 +30,7 @@ export function EquipmentSelect<New>({
       : choice.kind === 'existing'
         ? choice.slug
         : addNew;
-  // A roll's equipment not among the options loaded (yet) still shows, by slug.
+  // What a roll has that's not among the options loaded (yet) still shows, by slug.
   const unlisted =
     choice.kind === 'existing' &&
     !options.some((option) => option.slug === choice.slug)

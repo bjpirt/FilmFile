@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { isEquipmentSlug, slugFor } from './equipment-slug.ts';
+import { isSlug, slugFor } from './slug.ts';
 
 test.each([
   ['Nikon FE', 'nikon-fe'],
@@ -26,12 +26,12 @@ test('keeps a slug to 60 characters, without a dash at the end', () => {
 });
 
 test.each(['nikon-fe', 'a', '500c'])('accepts %j as a slug', (slug) => {
-  expect(isEquipmentSlug(slug)).toBe(true);
+  expect(isSlug(slug)).toBe(true);
 });
 
 test.each(['Nikon-FE', '-fe', 'fe-', 'nikon--fe', '../fe', 'a'.repeat(61)])(
   'refuses %j as a slug',
   (slug) => {
-    expect(isEquipmentSlug(slug)).toBe(false);
+    expect(isSlug(slug)).toBe(false);
   },
 );

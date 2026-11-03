@@ -9,6 +9,8 @@ import { cameraName, useCameras } from '../equipment/use-cameras.ts';
 import { chooseFilmStock } from '../equipment/choose-film-stock.ts';
 import { chooseLens } from '../equipment/choose-lens.ts';
 import { lensName, useLenses } from '../equipment/use-lenses.ts';
+import { chooseEvent } from '../events/choose-event.ts';
+import { eventName, useEvents } from '../events/use-events.ts';
 import { filmStockName, useFilmStocks } from '../equipment/use-film-stocks.ts';
 import { EditDetailsPanel, type RollDetails } from './edit-details-panel.tsx';
 import { formatShot } from './format-shot.ts';
@@ -97,16 +99,19 @@ function RollAbout({
   camera,
   film,
   lens,
+  event,
 }: {
   readonly roll: Roll;
   readonly camera: string | undefined;
   readonly film: string | undefined;
   readonly lens: string | undefined;
+  readonly event: string | undefined;
 }) {
   const facts = [
     { label: 'Camera', value: camera },
     { label: 'Lens', value: lens },
     { label: 'Film stock', value: film },
+    { label: 'Event', value: event },
     {
       label: 'Shot',
       value: roll.shot === null ? undefined : formatShot(roll.shot),
@@ -146,6 +151,7 @@ export function RollPage({
   const cameras = useCameras(api);
   const films = useFilmStocks(api);
   const lenses = useLenses(api);
+  const events = useEvents(api);
   const [upload, setUpload] = useState<Upload>({ kind: 'idle' });
   const [order, setOrder] = useState<'frame' | 'scan'>('frame');
   const [changedElsewhere, setChangedElsewhere] = useState(false);
@@ -278,6 +284,11 @@ export function RollPage({
       return lens.problem;
     }
     await queryClient.invalidateQueries({ queryKey: ['lenses'] });
+    const event = await chooseEvent(api, details.event);
+    if (!event.ok) {
+      return event.problem;
+    }
+    await queryClient.invalidateQueries({ queryKey: ['events'] });
     const { response } = await api.PATCH('/api/rolls/{rollId}', {
       params: {
         path: { rollId },
@@ -288,6 +299,7 @@ export function RollPage({
         camera: camera.slug,
         film: film.slug,
         lens: lens.slug,
+        event: event.slug,
       },
     });
     if (response.status === 409) {
@@ -399,6 +411,7 @@ export function RollPage({
           cameras={cameras}
           films={films}
           lenses={lenses}
+          events={events}
           save={saveDetails}
           cancel={() => {
             setEditingDetails(false);
@@ -412,6 +425,7 @@ export function RollPage({
           camera={cameraName(cameras, roll.data.roll.camera)}
           film={filmStockName(films, roll.data.roll.film)}
           lens={lensName(lenses, roll.data.roll.lens)}
+          event={eventName(events, roll.data.roll.event)}
         />
       )}
 

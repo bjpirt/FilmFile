@@ -24,6 +24,7 @@ describe('POST /api/rolls', () => {
       name: null,
       description: null,
       shot: null,
+      event: null,
       camera: null,
       film: null,
       lens: null,
@@ -50,6 +51,7 @@ describe('POST /api/rolls', () => {
       name: null,
       description: null,
       shot: null,
+      event: null,
       meta: {},
       frames: [],
     });

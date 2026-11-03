@@ -11,6 +11,10 @@ const roll = {
   name: null,
   description: null,
   shot: null,
+  event: null,
+  camera: null,
+  film: null,
+  lens: null,
   frames: [],
 };
 
@@ -28,8 +32,10 @@ function renderApp() {
       Promise.resolve(
         Response.json(
           request.url.endsWith('/api/rolls')
-            ? { rolls: [roll], unreadable: [] }
-            : roll,
+            ? { rolls: [{ ...roll, event: 'iceland-2026' }], unreadable: [] }
+            : request.url.endsWith('/api/events')
+              ? { events: [{ slug: 'iceland-2026', name: 'Iceland 2026' }] }
+              : roll,
         ),
       ),
   });
@@ -81,6 +87,27 @@ test('hides and shows the browse panel from the header', async () => {
 
   expect(
     screen.getByRole('complementary', { name: 'Browse rolls' }),
+  ).toBeDefined();
+});
+
+test('lists the events from the header, with their rolls, and opens an event’s rolls', async () => {
+  renderApp();
+
+  fireEvent.click(screen.getByRole('link', { name: 'Events' }));
+
+  expect(
+    await screen.findByRole('heading', { level: 1, name: 'Events' }),
+  ).toBeDefined();
+  const event = await screen.findByRole('listitem');
+  expect(event.textContent).toBe('Iceland 20261 roll');
+
+  fireEvent.click(screen.getByRole('link', { name: 'Iceland 2026' }));
+
+  expect(
+    await screen.findByRole('heading', {
+      level: 1,
+      name: 'Rolls at Iceland 2026',
+    }),
   ).toBeDefined();
 });
 

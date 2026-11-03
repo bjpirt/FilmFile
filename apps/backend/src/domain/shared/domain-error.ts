@@ -15,7 +15,8 @@ export type DomainError =
   | ImageRejected
   | ScanAlreadyInRoll;
 
-export type EntityKind = 'archive' | 'roll' | 'frame' | 'version' | 'equipment';
+export type EntityKind =
+  'archive' | 'roll' | 'frame' | 'version' | 'equipment' | 'event';
 
 export interface NotFound {
   readonly kind: 'not-found';

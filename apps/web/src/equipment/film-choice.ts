@@ -1,5 +1,5 @@
 import type { FilmFormat, FilmType } from '@filmfile/contracts/equipment';
-import type { EquipmentChoice } from './equipment-choice.ts';
+import type { PickOrAdd } from '../forms/pick-or-add.ts';
 
 /** A new film stock's details as entered: the ISO as typed, blanks for none. */
 export interface NewFilmStock {
@@ -10,7 +10,7 @@ export interface NewFilmStock {
   readonly format: FilmFormat | '';
 }
 
-export type FilmChoice = EquipmentChoice<NewFilmStock>;
+export type FilmChoice = PickOrAdd<NewFilmStock>;
 
 export const blankFilmStock: NewFilmStock = {
   make: '',

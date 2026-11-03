@@ -16,6 +16,10 @@ export interface NewRoll {
   readonly month?: string;
   readonly day?: string;
   readonly time?: string;
+  /** An event the archive has, by name. */
+  readonly event?: string;
+  /** An event to add, from Add new…, by name. */
+  readonly newEvent?: string;
   /** A camera the archive has, as the list shows it, e.g. "Nikon FE". */
   readonly camera?: string;
   /** A camera to add, from Add new…. */
@@ -73,6 +77,16 @@ export async function createRoll(
   }
   if (details.time !== undefined) {
     await page.getByLabel('Time').fill(details.time);
+  }
+  if (details.event !== undefined) {
+    await page.getByLabel('Event').selectOption({ label: details.event });
+  }
+  if (details.newEvent !== undefined) {
+    await page.getByLabel('Event').selectOption({ label: 'Add new…' });
+    await page
+      .getByRole('group', { name: 'New event' })
+      .getByLabel('Name')
+      .fill(details.newEvent);
   }
   if (details.camera !== undefined) {
     await page.getByLabel('Camera').selectOption({ label: details.camera });

@@ -1,8 +1,8 @@
 import type { Lens } from '@filmfile/contracts/equipment';
 import { useId } from 'react';
-import { EquipmentSelect } from './equipment-select.tsx';
+import { PickOrAddSelect } from '../forms/pick-or-add-select.tsx';
 import { blankLens, type LensChoice, type NewLens } from './lens-choice.ts';
-import { RequiredMarker } from './required-marker.tsx';
+import { RequiredMarker } from '../forms/required-marker.tsx';
 import { lensLabel } from './use-lenses.ts';
 
 /** A lens picked from the archive's, or Add new…, which asks for its details. */
@@ -24,7 +24,7 @@ export function LensField({
 
   return (
     <>
-      <EquipmentSelect
+      <PickOrAddSelect
         label="Lens"
         options={lenses.map((lens) => ({
           slug: lens.slug,

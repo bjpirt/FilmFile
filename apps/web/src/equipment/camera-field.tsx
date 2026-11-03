@@ -4,8 +4,8 @@ import {
   type CameraChoice,
   type NewCamera,
 } from './camera-choice.ts';
-import { EquipmentSelect } from './equipment-select.tsx';
-import { RequiredMarker } from './required-marker.tsx';
+import { PickOrAddSelect } from '../forms/pick-or-add-select.tsx';
+import { RequiredMarker } from '../forms/required-marker.tsx';
 import { cameraLabel } from './use-cameras.ts';
 
 /** A camera picked from the archive's, or Add new…, which asks for its make and model. */
@@ -24,7 +24,7 @@ export function CameraField({
 
   return (
     <>
-      <EquipmentSelect
+      <PickOrAddSelect
         label="Camera"
         options={cameras.map((camera) => ({
           slug: camera.slug,

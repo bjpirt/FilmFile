@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { createApiClient } from '@filmfile/contracts/client';
 import type { Camera, FilmStock, Lens } from '@filmfile/contracts/equipment';
+import type { Event } from '@filmfile/contracts/events';
 import type { Roll, UnreadableRoll } from '@filmfile/contracts/rolls';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -23,9 +24,17 @@ afterEach(() => {
 function fakeRollsService(
   rolls: Roll[] = [],
   unreadable: UnreadableRoll[] = [],
-  cameras: Camera[] = [],
-  films: FilmStock[] = [],
-  lenses: Lens[] = [],
+  {
+    events = [],
+    cameras = [],
+    films = [],
+    lenses = [],
+  }: {
+    events?: Event[];
+    cameras?: Camera[];
+    films?: FilmStock[];
+    lenses?: Lens[];
+  } = {},
 ) {
   let nextId = 0;
   return async (request: Request): Promise<Response> => {
@@ -37,6 +46,9 @@ function fakeRollsService(
     }
     if (new URL(request.url).pathname === '/api/equipment/lenses') {
       return Response.json({ lenses });
+    }
+    if (new URL(request.url).pathname === '/api/events') {
+      return Response.json({ events });
     }
     if (request.method === 'GET') {
       return Response.json({ rolls, unreadable });
@@ -70,6 +82,7 @@ function fakeRollsService(
       name: null,
       description: null,
       shot: null,
+      event: null,
       camera: null,
       film: null,
       lens: null,
@@ -88,6 +101,7 @@ function aRoll(roll: string, frames = 0): Roll {
     name: null,
     description: null,
     shot: null,
+    event: null,
     camera: null,
     film: null,
     lens: null,
@@ -112,6 +126,10 @@ function renderPage(
       <RollsPage api={api} browseOpen={browseOpen} />
     </QueryClientProvider>,
   );
+}
+
+function showList() {
+  fireEvent.click(screen.getByRole('button', { name: 'List' }));
 }
 
 /** A roll whose frames each have a scan, so its card shows thumbnails. */
@@ -269,7 +287,7 @@ describe('finding rolls by camera', () => {
         { ...aRoll('2026-015'), camera: 'nikon-fe' },
       ],
       [],
-      cameras,
+      { cameras },
     );
 
   function rollsShown(): string[] {
@@ -377,8 +395,7 @@ describe('finding rolls by film stock', () => {
         { ...aRoll('2026-015'), film: 'kodak-portra-400' },
       ],
       [],
-      [],
-      films,
+      { films },
     );
 
   function rollsShown(): string[] {
@@ -465,17 +482,19 @@ describe('finding rolls by film stock', () => {
           },
         ],
         [],
-        [{ slug: 'nikon-fe', make: 'Nikon', model: 'FE' }],
-        films,
-        [
-          {
-            slug: 'zeiss-planar-80mm-f-2-8',
-            make: 'Zeiss',
-            name: 'Planar',
-            focalLength: 80,
-            maxAperture: 2.8,
-          },
-        ],
+        {
+          cameras: [{ slug: 'nikon-fe', make: 'Nikon', model: 'FE' }],
+          films,
+          lenses: [
+            {
+              slug: 'zeiss-planar-80mm-f-2-8',
+              make: 'Zeiss',
+              name: 'Planar',
+              focalLength: 80,
+              maxAperture: 2.8,
+            },
+          ],
+        },
       ),
     );
 
@@ -514,9 +533,7 @@ describe('finding rolls by lens', () => {
         { ...aRoll('2026-015'), lens: 'zeiss-planar-80mm-f-2-8' },
       ],
       [],
-      [],
-      [],
-      lenses,
+      { lenses },
     );
 
   function rollsShown(): string[] {
@@ -572,11 +589,90 @@ describe('finding rolls by lens', () => {
   });
 });
 
-describe('the list view', () => {
-  function showList() {
-    fireEvent.click(screen.getByRole('button', { name: 'List' }));
+describe('finding rolls by event', () => {
+  const events: Event[] = [
+    { slug: 'westfjords', name: 'Westfjords' },
+    { slug: 'iceland-2026', name: 'Iceland 2026' },
+  ];
+  const someRolls = () =>
+    fakeRollsService(
+      [
+        { ...aRoll('2025-003'), event: 'westfjords' },
+        aRoll('2026-001'),
+        { ...aRoll('2026-014'), event: 'iceland-2026' },
+        { ...aRoll('2026-015'), event: 'iceland-2026' },
+      ],
+      [],
+      { events },
+    );
+
+  function rollsShown(): string[] {
+    return screen
+      .getAllByRole('link')
+      .map((link) => link.textContent)
+      .filter((text) => /^\d{4}-\d{3}$/.test(text));
   }
 
+  test('shows each roll’s event on its card and in the list', async () => {
+    renderPage(
+      fakeRollsService(
+        [{ ...aRoll('2025-003'), event: 'westfjords', shot: '2025-06' }],
+        [],
+        { events },
+      ),
+    );
+
+    expect(await screen.findByText('Westfjords · Jun 2025')).toBeDefined();
+
+    showList();
+
+    expect(
+      screen.getAllByRole('cell').map((cell) => cell.textContent),
+    ).toContain('Westfjords');
+  });
+
+  test('groups rolls by event, by name, with rolls that have none last', async () => {
+    renderPage(someRolls());
+    await screen.findByRole('region', { name: 'Events' });
+
+    fireEvent.change(screen.getByLabelText('Group by'), {
+      target: { value: 'event' },
+    });
+
+    const groupHeadings = screen
+      .getAllByRole('heading', { level: 2 })
+      .filter((heading) => heading.closest('aside') === null);
+    expect(groupHeadings.map((h) => h.textContent)).toEqual([
+      'Iceland 2026 2 rolls',
+      'Westfjords 1 roll',
+      'No event 1 roll',
+    ]);
+    expect(window.location.search).toBe('?view=grid&group=event');
+  });
+
+  test('lists the events rolls were shot at in the browse panel, with counts, and filters by one', async () => {
+    renderPage(someRolls());
+    const section = await screen.findByRole('region', { name: 'Events' });
+
+    expect(
+      within(section)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Iceland 20262', 'Westfjords1']);
+
+    fireEvent.click(
+      within(section).getByRole('button', { name: /^Iceland 2026/ }),
+    );
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Rolls at Iceland 2026' }),
+    ).toBeDefined();
+    expect(rollsShown()).toEqual(['2026-014', '2026-015']);
+    expect(window.location.search).toBe('?view=grid&event=iceland-2026');
+  });
+});
+
+describe('the list view', () => {
   test('shows the rolls as a table: roll, a strip of scans and frames', async () => {
     renderPage(
       fakeRollsService([aRollWithScans('2026-014', 5), aRoll('2026-015')]),
@@ -597,6 +693,7 @@ describe('the list view', () => {
       'Roll',
       'Strip',
       'Name',
+      'Event',
       'Camera',
       'Film stock',
       'Shot',
@@ -616,17 +713,19 @@ describe('the list view', () => {
           },
         ],
         [],
-        [{ slug: 'nikon-fe', make: 'Nikon', model: 'FE' }],
-        [
-          {
-            slug: 'kodak-portra-400',
-            make: 'Kodak',
-            name: 'Portra',
-            iso: 400,
-            type: 'colour-negative',
-            format: '35mm',
-          },
-        ],
+        {
+          cameras: [{ slug: 'nikon-fe', make: 'Nikon', model: 'FE' }],
+          films: [
+            {
+              slug: 'kodak-portra-400',
+              make: 'Kodak',
+              name: 'Portra',
+              iso: 400,
+              type: 'colour-negative',
+              format: '35mm',
+            },
+          ],
+        },
       ),
     );
 

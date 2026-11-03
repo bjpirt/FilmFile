@@ -1,8 +1,5 @@
 import { z } from 'zod';
-import {
-  isEquipmentSlug,
-  type EquipmentSlug,
-} from '../../../domain/equipment/equipment-slug.ts';
+import { isSlug, type Slug } from '../../../domain/shared/slug.ts';
 import {
   isFrameNumber,
   type FrameNumber,
@@ -77,19 +74,19 @@ const storedRoll = z.object({
   shot: branded<ShotDate>(isShotDate, 'must be a date like 2026-09-14')
     .nullable()
     .default(null),
+  event: branded<Slug>(isSlug, 'must be a slug like iceland-2026')
+    .nullable()
+    .default(null),
   // The roll's inheritable details (design section 6), by equipment slug.
   meta: z
     .object({
-      camera: branded<EquipmentSlug>(
-        isEquipmentSlug,
-        'must be a slug like nikon-fe',
-      ).optional(),
-      film: branded<EquipmentSlug>(
-        isEquipmentSlug,
+      camera: branded<Slug>(isSlug, 'must be a slug like nikon-fe').optional(),
+      film: branded<Slug>(
+        isSlug,
         'must be a slug like kodak-portra-400',
       ).optional(),
-      lens: branded<EquipmentSlug>(
-        isEquipmentSlug,
+      lens: branded<Slug>(
+        isSlug,
         'must be a slug like nikon-nikkor-ai-s-50mm-f-1-8',
       ).optional(),
     })
@@ -138,13 +135,15 @@ export function parseRollFile(text: string): Result<Roll, string> {
     );
     return err(`it doesn't match the roll format (${issues.join('; ')})`);
   }
-  const { id, roll, name, description, shot, meta, frames } = parsed.data;
+  const { id, roll, name, description, shot, event, meta, frames } =
+    parsed.data;
   return ok({
     id,
     roll,
     name,
     description,
     shot,
+    event,
     camera: meta.camera ?? null,
     film: meta.film ?? null,
     lens: meta.lens ?? null,
@@ -167,6 +166,7 @@ export function rollFileContent(roll: Roll): string {
     name: roll.name,
     description: roll.description,
     shot: roll.shot,
+    event: roll.event,
     // Only the details a roll has, so its file says nothing of the rest.
     meta: {
       ...(roll.camera === null ? {} : { camera: roll.camera }),

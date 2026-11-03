@@ -1,4 +1,4 @@
-import type { EquipmentChoice } from './equipment-choice.ts';
+import type { PickOrAdd } from '../forms/pick-or-add.ts';
 
 /** A new camera's details as entered. */
 export interface NewCamera {
@@ -6,6 +6,6 @@ export interface NewCamera {
   readonly model: string;
 }
 
-export type CameraChoice = EquipmentChoice<NewCamera>;
+export type CameraChoice = PickOrAdd<NewCamera>;
 
 export const blankCamera: NewCamera = { make: '', model: '' };

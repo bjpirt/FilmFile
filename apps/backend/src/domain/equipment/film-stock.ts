@@ -1,4 +1,4 @@
-import type { EquipmentSlug } from './equipment-slug.ts';
+import type { Slug } from '../shared/slug.ts';
 
 /** What kind of picture the film gives. */
 export const filmTypes = [
@@ -22,7 +22,7 @@ export type FilmFormat = (typeof filmFormats)[number];
 
 /** A film stock rolls are shot on, e.g. Kodak Portra at ISO 400, in 35mm. */
 export interface FilmStock {
-  readonly slug: EquipmentSlug;
+  readonly slug: Slug;
   /** Who makes it, e.g. "Kodak". */
   readonly make: string;
   /** The stock's own name, e.g. "Portra". */

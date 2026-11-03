@@ -1,7 +1,4 @@
-import {
-  isEquipmentSlug,
-  type EquipmentSlug,
-} from '../../../domain/equipment/equipment-slug.ts';
+import { isSlug, type Slug } from '../../../domain/shared/slug.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type { ValidationFailed } from '../../../domain/shared/domain-error.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
@@ -12,8 +9,8 @@ export async function knownLens(
   equipment: EquipmentRepository,
   ctx: ArchiveContext,
   slug: string,
-): Promise<Result<EquipmentSlug, ValidationFailed>> {
-  if (isEquipmentSlug(slug) && (await equipment.getLens(ctx, slug))) {
+): Promise<Result<Slug, ValidationFailed>> {
+  if (isSlug(slug) && (await equipment.getLens(ctx, slug))) {
     return ok(slug);
   }
   return err({

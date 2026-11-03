@@ -8,9 +8,11 @@ import type {
 } from '../../../domain/shared/domain-error.ts';
 import { ok, type Result } from '../../../domain/shared/result.ts';
 import type { EquipmentRepository } from '../../ports/equipment-repository.ts';
+import type { EventRepository } from '../../ports/event-repository.ts';
 import type { IdGenerator } from '../../ports/id-generator.ts';
 import type { RollRepository } from '../../ports/roll-repository.ts';
 import { knownCamera } from './known-camera.ts';
+import { knownEvent } from './known-event.ts';
 import { knownFilmStock } from './known-film-stock.ts';
 import { knownLens } from './known-lens.ts';
 import { textOrNull } from './text-or-null.ts';
@@ -19,15 +21,18 @@ import { textOrNull } from './text-or-null.ts';
 export class CreateRoll {
   readonly #rolls: RollRepository;
   readonly #equipment: EquipmentRepository;
+  readonly #events: EventRepository;
   readonly #ids: IdGenerator;
 
   constructor(
     rolls: RollRepository,
     equipment: EquipmentRepository,
+    events: EventRepository,
     ids: IdGenerator,
   ) {
     this.#rolls = rolls;
     this.#equipment = equipment;
+    this.#events = events;
     this.#ids = ids;
   }
 
@@ -38,6 +43,8 @@ export class CreateRoll {
       readonly name?: string | undefined;
       readonly description?: string | undefined;
       readonly shot?: string | undefined;
+      /** The event's slug. */
+      readonly event?: string | undefined;
       /** The camera's slug. */
       readonly camera?: string | undefined;
       /** The film stock's slug. */
@@ -54,6 +61,13 @@ export class CreateRoll {
       input.shot === undefined ? ok(null) : parseShotDate(input.shot);
     if (!shot.ok) {
       return shot;
+    }
+    const event =
+      input.event === undefined
+        ? ok(null)
+        : await knownEvent(this.#events, ctx, input.event);
+    if (!event.ok) {
+      return event;
     }
     const camera =
       input.camera === undefined
@@ -82,6 +96,7 @@ export class CreateRoll {
       name: textOrNull(input.name),
       description: textOrNull(input.description),
       shot: shot.value,
+      event: event.value,
       camera: camera.value,
       film: film.value,
       lens: lens.value,

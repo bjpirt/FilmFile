@@ -1,4 +1,5 @@
 import type { ApiClient } from '@filmfile/contracts/client';
+import { EventsPage } from './events/events-page.tsx';
 import { NewRollPage } from './rolls/new-roll-page.tsx';
 import { RollPage } from './rolls/roll-page.tsx';
 import { useState } from 'react';
@@ -22,6 +23,9 @@ function Page({
 }) {
   if (path === '/') {
     return <RollsPage api={api} browseOpen={browseOpen} />;
+  }
+  if (path === '/events') {
+    return <EventsPage api={api} />;
   }
   if (path === '/rolls/new') {
     return <NewRollPage api={api} />;
@@ -97,6 +101,9 @@ export function App({ api }: { readonly api: ApiClient }) {
         <nav aria-label="Main">
           <Link to="/" current={path === '/' || path.startsWith('/rolls/')}>
             Rolls
+          </Link>
+          <Link to="/events" current={path === '/events'}>
+            Events
           </Link>
         </nav>
       </header>

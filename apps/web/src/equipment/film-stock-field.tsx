@@ -5,13 +5,13 @@ import {
   type FilmStock,
   type FilmType,
 } from '@filmfile/contracts/equipment';
-import { EquipmentSelect } from './equipment-select.tsx';
+import { PickOrAddSelect } from '../forms/pick-or-add-select.tsx';
 import {
   blankFilmStock,
   type FilmChoice,
   type NewFilmStock,
 } from './film-choice.ts';
-import { RequiredMarker } from './required-marker.tsx';
+import { RequiredMarker } from '../forms/required-marker.tsx';
 import { filmStockLabel } from './use-film-stocks.ts';
 
 // The options come from the contract's enums; every value needs a label.
@@ -140,7 +140,7 @@ export function FilmStockField({
 }) {
   return (
     <>
-      <EquipmentSelect
+      <PickOrAddSelect
         label="Film stock"
         options={films.map((film) => ({
           slug: film.slug,

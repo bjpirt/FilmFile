@@ -268,7 +268,7 @@ POST   /api/rolls/{rollId}/rename            { roll }, If-Match required
 
 (mapping routes depend on where the mapping engine lives)
 
-GET    /api/events                           server-sent events
+GET    /api/changes                          server-sent events
 
 POST   /api/maintenance/check                { full?: boolean }
 POST   /api/maintenance/reindex
