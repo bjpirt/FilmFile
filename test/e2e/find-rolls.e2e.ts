@@ -1,15 +1,18 @@
 import { expect, test } from '@playwright/test';
 import { createRoll, rollsShown } from './support/journeys.ts';
 
-// Rolls from years, and on a camera, no other journey uses, so its counts
-// are its own.
+// Rolls from years, and on a camera and film stock, no other journey uses,
+// so its counts are its own.
 
-test('find rolls: group by year, filter by year or camera, switch views, and keep it all through reloads', async ({
+test('find rolls: group by year, filter by year, camera or film stock, switch views, and keep it all through reloads', async ({
   page,
 }) => {
-  await createRoll(page, '2023-301', { camera: 'Leica M6' });
+  await createRoll(page, '2023-301', {
+    camera: 'Leica M6',
+    newFilmStock: { make: 'Agfa', name: 'Vista', iso: '200' },
+  });
   await createRoll(page, '2024-302', { camera: 'Leica M6' });
-  await createRoll(page, '2024-303');
+  await createRoll(page, '2024-303', { filmStock: 'Agfa Vista 200' });
   await page.goto('/');
 
   await page.getByLabel('Group by').selectOption('year');
@@ -46,6 +49,13 @@ test('find rolls: group by year, filter by year or camera, switch views, and kee
     page.getByRole('heading', { level: 1, name: 'Rolls shot on Leica M6' }),
   ).toBeVisible();
   await expect(rollsShown(page)).toHaveText(['2024-302', '2023-301']);
+
+  // Rolls of a film stock.
+  await browse.getByRole('button', { name: /^Agfa Vista 200/ }).click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Rolls of Agfa Vista 200' }),
+  ).toBeVisible();
+  await expect(rollsShown(page)).toHaveText(['2024-303', '2023-301']);
 
   // The browse panel can be put away, and stays away after a reload.
   await page.getByRole('button', { name: 'Hide the browse panel' }).click();

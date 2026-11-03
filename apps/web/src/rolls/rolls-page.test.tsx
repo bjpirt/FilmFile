@@ -343,6 +343,135 @@ describe('finding rolls by camera', () => {
   });
 });
 
+describe('finding rolls by film stock', () => {
+  const films: FilmStock[] = [
+    {
+      slug: 'kodak-portra-400',
+      make: 'Kodak',
+      name: 'Portra',
+      iso: 400,
+      type: 'colour-negative',
+      format: '35mm',
+    },
+    {
+      slug: 'ilford-hp5-plus-400',
+      make: 'Ilford',
+      name: 'HP5 Plus',
+      iso: 400,
+      type: 'black-and-white',
+      format: '35mm',
+    },
+  ];
+  const someRolls = () =>
+    fakeRollsService(
+      [
+        { ...aRoll('2025-003'), film: 'kodak-portra-400' },
+        aRoll('2026-001'),
+        { ...aRoll('2026-014'), film: 'ilford-hp5-plus-400' },
+        { ...aRoll('2026-015'), film: 'kodak-portra-400' },
+      ],
+      [],
+      [],
+      films,
+    );
+
+  function rollsShown(): string[] {
+    return screen
+      .getAllByRole('link')
+      .map((link) => link.textContent)
+      .filter((text) => /^\d{4}-\d{3}$/.test(text));
+  }
+
+  test('groups rolls by film stock, by name, with rolls that have none last', async () => {
+    renderPage(someRolls());
+    await screen.findByRole('region', { name: 'Film stocks' });
+
+    fireEvent.change(screen.getByLabelText('Group by'), {
+      target: { value: 'film' },
+    });
+
+    const groupHeadings = screen
+      .getAllByRole('heading', { level: 2 })
+      .filter((heading) => heading.closest('aside') === null);
+    expect(groupHeadings.map((h) => h.textContent)).toEqual([
+      'Ilford HP5 Plus 400 1 roll',
+      'Kodak Portra 400 2 rolls',
+      'No film stock 1 roll',
+    ]);
+    expect(rollsShown()).toEqual([
+      '2026-014',
+      '2025-003',
+      '2026-015',
+      '2026-001',
+    ]);
+    expect(window.location.search).toBe('?view=grid&group=film');
+  });
+
+  test('lists the film stocks rolls are in the browse panel, with counts', async () => {
+    renderPage(someRolls());
+    const section = await screen.findByRole('region', { name: 'Film stocks' });
+
+    expect(
+      within(section)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Ilford HP5 Plus 4001', 'Kodak Portra 4002']);
+  });
+
+  test('filters by the film stock chosen in the browse panel', async () => {
+    window.history.replaceState(null, '', '/?camera=nikon-fe');
+    renderPage(someRolls());
+    const section = await screen.findByRole('region', { name: 'Film stocks' });
+
+    fireEvent.click(
+      within(section).getByRole('button', { name: /^Kodak Portra 400/ }),
+    );
+
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: 'Rolls of Kodak Portra 400',
+      }),
+    ).toBeDefined();
+    expect(rollsShown()).toEqual(['2025-003', '2026-015']);
+    expect(window.location.search).toBe('?view=grid&film=kodak-portra-400');
+    expect(
+      within(section)
+        .getByRole('button', { name: /^Kodak Portra 400/ })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
+  });
+
+  test('names everything the rolls are filtered by in the heading', async () => {
+    window.history.replaceState(
+      null,
+      '',
+      '/?year=2026&camera=nikon-fe&film=kodak-portra-400',
+    );
+    renderPage(
+      fakeRollsService(
+        [
+          {
+            ...aRoll('2026-015'),
+            camera: 'nikon-fe',
+            film: 'kodak-portra-400',
+          },
+        ],
+        [],
+        [{ slug: 'nikon-fe', name: 'Nikon FE' }],
+        films,
+      ),
+    );
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Rolls of Kodak Portra 400 shot on Nikon FE in 2026',
+      }),
+    ).toBeDefined();
+  });
+});
+
 describe('the list view', () => {
   function showList() {
     fireEvent.click(screen.getByRole('button', { name: 'List' }));

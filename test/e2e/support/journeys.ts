@@ -18,6 +18,8 @@ export interface NewRoll {
   readonly time?: string;
   /** A camera's name: one the archive has, or a new one. */
   readonly camera?: string;
+  /** A film stock the archive has, as the list shows it, e.g. "Kodak Portra 400". */
+  readonly filmStock?: string;
   /** A film stock to add, from Add new…. */
   readonly newFilmStock?: {
     readonly make: string;
@@ -65,6 +67,11 @@ export async function createRoll(
   }
   if (details.camera !== undefined) {
     await page.getByLabel('Camera').fill(details.camera);
+  }
+  if (details.filmStock !== undefined) {
+    await page
+      .getByLabel('Film stock')
+      .selectOption({ label: details.filmStock });
   }
   if (details.newFilmStock !== undefined) {
     const { make, name, iso, format } = details.newFilmStock;

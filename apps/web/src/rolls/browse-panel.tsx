@@ -1,17 +1,32 @@
-import type { Camera } from '@filmfile/contracts/equipment';
+import type { Camera, FilmStock } from '@filmfile/contracts/equipment';
 import type { Roll } from '@filmfile/contracts/rolls';
 import { cameraName } from '../equipment/use-cameras.ts';
+import { filmStockName } from '../equipment/use-film-stocks.ts';
 
-/** One way into the rolls: all of them, or those from a year or shot on a camera. */
+/** One way into the rolls: all of them, or those from a year, shot on a camera or of a film stock. */
 export interface RollsFilter {
   readonly year: string | undefined;
   readonly camera: string | undefined;
+  readonly film: string | undefined;
 }
+
+const everyRoll: RollsFilter = {
+  year: undefined,
+  camera: undefined,
+  film: undefined,
+};
 
 interface Option {
   readonly key: string;
   readonly label: string;
   readonly count: number;
+}
+
+function byLabel(a: Option, b: Option): number {
+  return a.label.localeCompare(b.label, undefined, {
+    sensitivity: 'base',
+    numeric: true,
+  });
 }
 
 /** Each distinct value among the rolls, with how many rolls have it. */
@@ -37,7 +52,7 @@ function BrowseSection({
   readonly chosen: string | undefined;
   readonly choose: (key: string) => void;
 }) {
-  const headingId = `browse-${title.toLowerCase()}`;
+  const headingId = `browse-${title.toLowerCase().replace(/\W+/g, '-')}`;
   return (
     <section aria-labelledby={headingId}>
       <h2 id={headingId}>{title}</h2>
@@ -59,17 +74,20 @@ function BrowseSection({
 }
 
 /**
- * Ways into the rolls: all of them, those from one year, or those shot on
- * one camera. More sections (events, film stocks) arrive with their data.
+ * Ways into the rolls: all of them, or those from one year, shot on one
+ * camera or of one film stock, one way at a time. More sections (events)
+ * arrive with their data.
  */
 export function BrowsePanel({
   rolls,
   cameras,
+  films,
   filter,
   choose,
 }: {
   readonly rolls: readonly Roll[];
   readonly cameras: readonly Camera[];
+  readonly films: readonly FilmStock[];
   readonly filter: RollsFilter;
   readonly choose: (filter: RollsFilter) => void;
 }) {
@@ -80,17 +98,23 @@ export function BrowsePanel({
   const rollCameras = counted(
     rolls.flatMap((roll) => (roll.camera === null ? [] : [roll.camera])),
     (slug) => cameraName(cameras, slug) ?? slug,
-  ).sort((a, b) =>
-    a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }),
-  );
+  ).sort(byLabel);
+  const rollFilms = counted(
+    rolls.flatMap((roll) => (roll.film === null ? [] : [roll.film])),
+    (slug) => filmStockName(films, slug) ?? slug,
+  ).sort(byLabel);
 
   return (
     <aside id="browse" className="browse" aria-label="Browse rolls">
       <button
         type="button"
-        aria-pressed={filter.year === undefined && filter.camera === undefined}
+        aria-pressed={
+          filter.year === undefined &&
+          filter.camera === undefined &&
+          filter.film === undefined
+        }
         onClick={() => {
-          choose({ year: undefined, camera: undefined });
+          choose(everyRoll);
         }}
       >
         <span>All rolls</span>
@@ -101,7 +125,7 @@ export function BrowsePanel({
         options={years}
         chosen={filter.year}
         choose={(year) => {
-          choose({ year, camera: undefined });
+          choose({ ...everyRoll, year });
         }}
       />
       {rollCameras.length > 0 && (
@@ -110,7 +134,17 @@ export function BrowsePanel({
           options={rollCameras}
           chosen={filter.camera}
           choose={(camera) => {
-            choose({ year: undefined, camera });
+            choose({ ...everyRoll, camera });
+          }}
+        />
+      )}
+      {rollFilms.length > 0 && (
+        <BrowseSection
+          title="Film stocks"
+          options={rollFilms}
+          chosen={filter.film}
+          choose={(film) => {
+            choose({ ...everyRoll, film });
           }}
         />
       )}
