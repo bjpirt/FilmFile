@@ -34,7 +34,9 @@ function EventEditor({
 }) {
   const queryClient = useQueryClient();
   const event = useQuery({
-    queryKey: ['events', slug],
+    // Not ['events', slug], which the event page caches the event alone
+    // under; still under ['events'], so saving an event refreshes both.
+    queryKey: ['events', slug, 'with-version'],
     queryFn: async () => {
       const { data, response } = await api.GET('/api/events/{slug}', {
         params: { path: { slug } },
@@ -96,7 +98,7 @@ function EventRow({
   return (
     <>
       <span className="event-name">
-        <Link to={`/?event=${event.slug}`}>{event.name}</Link>
+        <Link to={`/events/${event.slug}`}>{event.name}</Link>
         {event.date !== null && (
           <span className="muted"> · {formatShot(event.date)}</span>
         )}
@@ -111,7 +113,7 @@ function EventRow({
 
 /**
  * Every event, newest first, with how many rolls were shot at it, each
- * leading to those rolls. Events are added and changed here (D32).
+ * leading to its page of frames. Events are added and changed here (D32).
  */
 export function EventsPage({ api }: { readonly api: ApiClient }) {
   const queryClient = useQueryClient();

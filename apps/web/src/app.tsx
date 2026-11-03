@@ -1,4 +1,5 @@
 import type { ApiClient } from '@filmfile/contracts/client';
+import { EventPage } from './events/event-page.tsx';
 import { EventsPage } from './events/events-page.tsx';
 import { NewRollPage } from './rolls/new-roll-page.tsx';
 import { RollPage } from './rolls/roll-page.tsx';
@@ -11,6 +12,7 @@ import {
 import { Link, usePath } from './routing.tsx';
 
 const rollPath = /^\/rolls\/([0-9A-HJKMNP-TV-Z]{26})$/;
+const eventPath = /^\/events\/([a-z0-9]+(?:-[a-z0-9]+)*)$/;
 
 function Page({
   api,
@@ -29,6 +31,10 @@ function Page({
   }
   if (path === '/rolls/new') {
     return <NewRollPage api={api} />;
+  }
+  const eventSlug = eventPath.exec(path)?.[1];
+  if (eventSlug !== undefined) {
+    return <EventPage api={api} slug={eventSlug} />;
   }
   const rollId = rollPath.exec(path)?.[1];
   if (rollId !== undefined) {
@@ -102,7 +108,7 @@ export function App({ api }: { readonly api: ApiClient }) {
           <Link to="/" current={path === '/' || path.startsWith('/rolls/')}>
             Rolls
           </Link>
-          <Link to="/events" current={path === '/events'}>
+          <Link to="/events" current={path.startsWith('/events')}>
             Events
           </Link>
         </nav>

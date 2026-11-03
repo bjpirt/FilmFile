@@ -598,6 +598,23 @@ select {
   color: var(--accent);
 }
 
+.frame-caption {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.browse a {
+  align-items: center;
+  color: inherit;
+  display: flex;
+  justify-content: space-between;
+  min-height: 2.25rem;
+  padding: 0 var(--space-3);
+  text-decoration: none;
+}
+
 .roll-group {
   margin-bottom: var(--space-6);
 }

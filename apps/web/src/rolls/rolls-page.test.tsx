@@ -523,13 +523,6 @@ describe('finding rolls by event', () => {
       events,
     });
 
-  function rollsShown(): string[] {
-    return screen
-      .getAllByRole('link')
-      .map((link) => link.textContent)
-      .filter((text) => /^\d{4}-\d{3}$/.test(text));
-  }
-
   test('shows each roll’s event on its card and in the list', async () => {
     renderPage(
       fakeArchive({
@@ -566,25 +559,21 @@ describe('finding rolls by event', () => {
     expect(window.location.search).toBe('?view=grid&group=event');
   });
 
-  test('lists the events rolls were shot at in the browse panel, with counts, and filters by one', async () => {
+  test('lists the events rolls were shot at in the browse panel, with counts, each opening its page of frames', async () => {
     renderPage(someRolls());
     const section = await screen.findByRole('region', { name: 'Events' });
 
     expect(
       within(section)
-        .getAllByRole('button')
-        .map((button) => button.textContent),
+        .getAllByRole('link')
+        .map((link) => link.textContent),
     ).toEqual(['Iceland 20262', 'Westfjords1']);
 
-    fireEvent.click(
-      within(section).getByRole('button', { name: /^Iceland 2026/ }),
-    );
-
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Rolls at Iceland 2026' }),
-    ).toBeDefined();
-    expect(rollsShown()).toEqual(['2026-014', '2026-015']);
-    expect(window.location.search).toBe('?view=grid&event=iceland-2026');
+      within(section)
+        .getByRole('link', { name: /^Iceland 2026/ })
+        .getAttribute('href'),
+    ).toBe('/events/iceland-2026');
   });
 });
 

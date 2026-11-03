@@ -1,6 +1,12 @@
 // @vitest-environment happy-dom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import { App } from './app.tsx';
 import { aRoll, fakeArchive } from './testing/fake-archive.ts';
@@ -70,7 +76,7 @@ test('hides and shows the browse panel from the header', async () => {
   ).toBeDefined();
 });
 
-test('lists the events from the header, with their rolls, and opens an event’s rolls', async () => {
+test('lists the events from the header, with their rolls, and opens an event’s frames', async () => {
   renderApp();
 
   fireEvent.click(screen.getByRole('link', { name: 'Events' }));
@@ -84,10 +90,27 @@ test('lists the events from the header, with their rolls, and opens an event’s
   fireEvent.click(screen.getByRole('link', { name: 'Iceland 2026' }));
 
   expect(
-    await screen.findByRole('heading', {
-      level: 1,
-      name: 'Rolls at Iceland 2026',
-    }),
+    await screen.findByRole('heading', { level: 1, name: 'Iceland 2026' }),
+  ).toBeDefined();
+  expect(window.location.pathname).toBe('/events/iceland-2026');
+});
+
+test('opens an event just edited, showing it as saved', async () => {
+  window.history.pushState(null, '', '/events');
+  renderApp();
+
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Edit Iceland 2026' }),
+  );
+  const form = await screen.findByRole('form', { name: 'Edit Iceland 2026' });
+  fireEvent.change(within(form).getByDisplayValue('Iceland 2026'), {
+    target: { value: 'Iceland' },
+  });
+  fireEvent.click(within(form).getByRole('button', { name: 'Save event' }));
+  fireEvent.click(await screen.findByRole('link', { name: 'Iceland' }));
+
+  expect(
+    await screen.findByRole('heading', { level: 1, name: 'Iceland' }),
   ).toBeDefined();
 });
 

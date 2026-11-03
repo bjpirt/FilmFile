@@ -1,15 +1,27 @@
-import { expect, test } from '@playwright/test';
-import { createRoll, rollsShown } from './support/journeys.ts';
+import { expect, test, type Page } from '@playwright/test';
+import { fixtureSets } from '../../apps/backend/test/support/lab-scans.ts';
+import { createRoll } from './support/journeys.ts';
 
 // An event and rolls from a year no other journey uses, so its counts are
 // its own.
 
-test('organise by event: put rolls in an event, give it a date and add another on the Events page, and find the rolls from both ways in', async ({
+/** The frames on an event's page, each as "Frame N of roll YYYY-NNN". */
+function eventFrames(page: Page) {
+  return page.getByRole('list', { name: 'Frames' }).getByRole('listitem');
+}
+
+test('organise by event: put rolls in an event, date it and add another on the Events page, and see its frames from every roll', async ({
   page,
 }) => {
-  await createRoll(page, '2021-501', { newEvent: 'Faroe Islands' });
+  await createRoll(page, '2021-501', {
+    newEvent: 'Faroe Islands',
+    scans: fixtureSets.headToTail,
+  });
   await expect(page.getByText('Faroe Islands')).toBeVisible();
-  await createRoll(page, '2021-502', { event: 'Faroe Islands' });
+  await createRoll(page, '2021-502', {
+    event: 'Faroe Islands',
+    scans: fixtureSets.labSkippedFrame,
+  });
   await createRoll(page, '2021-503');
 
   await page.getByRole('link', { name: 'Events' }).click();
@@ -30,17 +42,32 @@ test('organise by event: put rolls in an event, give it a date and add another o
     page.getByRole('listitem').filter({ hasText: 'Shetland 2021' }),
   ).toHaveText('Shetland 20210 rollsEdit');
 
+  // The event is its frames, from both rolls, not the rolls themselves.
   await page.getByRole('link', { name: 'Faroe Islands' }).click();
   await expect(
-    page.getByRole('heading', { level: 1, name: 'Rolls at Faroe Islands' }),
+    page.getByRole('heading', { level: 1, name: 'Faroe Islands' }),
   ).toBeVisible();
-  await expect(rollsShown(page)).toHaveText(['2021-501', '2021-502']);
+  await expect(page.getByText('11 frames')).toBeVisible();
+  await expect(eventFrames(page)).toHaveCount(11);
 
-  // The browse panel offers the same way in.
-  await page.getByRole('button', { name: /^All rolls/ }).click();
+  await page.getByLabel('Group by').selectOption({ label: 'Roll' });
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText([
+    '2021-501 6 frames',
+    '2021-502 5 frames',
+  ]);
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 2 })).toHaveText([
+    '2021-501 6 frames',
+    '2021-502 5 frames',
+  ]);
+
+  // The browse panel leads to the same page.
+  await page.goto('/');
   await page
     .getByRole('complementary', { name: 'Browse rolls' })
-    .getByRole('button', { name: /^Faroe Islands/ })
+    .getByRole('link', { name: /^Faroe Islands/ })
     .click();
-  await expect(rollsShown(page)).toHaveText(['2021-501', '2021-502']);
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Faroe Islands' }),
+  ).toBeVisible();
 });

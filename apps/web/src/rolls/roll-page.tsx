@@ -18,7 +18,7 @@ import { frameCount } from './frame-count.ts';
 import { FrameNumberEditor, type SaveOutcome } from './frame-number-editor.tsx';
 import { inFrameOrder } from './frame-order.ts';
 import { renumber } from './renumber.ts';
-import { thumbnailUrl } from './thumbnail-url.ts';
+import { Thumbnail } from './thumbnail.tsx';
 import {
   RenumberPanel,
   renumberingOf,
@@ -38,28 +38,6 @@ type Upload =
   | { readonly kind: 'finished'; readonly report: UploadReport };
 
 class RollNotFound extends Error {}
-
-function Thumbnail({
-  rollId,
-  frame,
-}: {
-  readonly rollId: string;
-  readonly frame: Frame;
-}) {
-  const src = thumbnailUrl(rollId, frame);
-  const version = frame.versions.at(-1);
-  if (src === undefined || version === undefined) {
-    return <div className="no-scan">No scan</div>;
-  }
-  return (
-    <img
-      src={src}
-      alt={version.file.split('/').at(-1)}
-      width={version.width}
-      height={version.height}
-    />
-  );
-}
 
 /** A frame's number as renumbering would leave it, highlighted if it changes. */
 function ProposedNumber({

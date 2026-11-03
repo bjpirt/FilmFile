@@ -135,23 +135,20 @@ function grouped(
 
 /**
  * The page's heading for the rolls chosen, e.g. "Rolls of Kodak Portra 400
- * at Iceland 2026 shot on Nikon FE with Zeiss Planar 80mm f/2.8 in 2026".
+ * shot on Nikon FE with Zeiss Planar 80mm f/2.8 in 2026".
  */
 function headingFor({
   year,
-  event,
   camera,
   film,
   lens,
 }: {
   readonly year: string | undefined;
-  readonly event: string | undefined;
   readonly camera: string | undefined;
   readonly film: string | undefined;
   readonly lens: string | undefined;
 }): string {
   const of = film === undefined ? '' : ` of ${film}`;
-  const at = event === undefined ? '' : ` at ${event}`;
   const shot =
     camera === undefined && lens === undefined
       ? ''
@@ -163,10 +160,10 @@ function headingFor({
   const when =
     year === undefined
       ? ''
-      : of === '' && at === '' && shot === ''
+      : of === '' && shot === ''
         ? ` from ${year}`
         : ` in ${year}`;
-  return `Rolls${of}${at}${shot}${when}`;
+  return `Rolls${of}${shot}${when}`;
 }
 
 export function RollsPage({
@@ -225,7 +222,6 @@ export function RollsPage({
   const shown = all.filter(
     (roll) =>
       (address.year === undefined || roll.roll.startsWith(address.year)) &&
-      (address.event === undefined || roll.event === address.event) &&
       (address.camera === undefined || roll.camera === address.camera) &&
       (address.film === undefined || roll.film === address.film) &&
       (address.lens === undefined || roll.lens === address.lens),
@@ -252,7 +248,6 @@ export function RollsPage({
             <h1>
               {headingFor({
                 year: address.year,
-                event: names.event(address.event ?? null),
                 camera: names.camera(address.camera ?? null),
                 film: names.film(address.film ?? null),
                 lens: names.lens(address.lens ?? null),

@@ -5,11 +5,11 @@ import { cameraName } from '../equipment/use-cameras.ts';
 import { filmStockName } from '../equipment/use-film-stocks.ts';
 import { lensName } from '../equipment/use-lenses.ts';
 import { eventName } from '../events/use-events.ts';
+import { Link } from '../routing.tsx';
 
-/** One way into the rolls: all of them, or those from a year or an event, shot on a camera or with a lens, or of a film stock. */
+/** One way into the rolls: all of them, or those from a year, shot on a camera or with a lens, or of a film stock. */
 export interface RollsFilter {
   readonly year: string | undefined;
-  readonly event: string | undefined;
   readonly camera: string | undefined;
   readonly film: string | undefined;
   readonly lens: string | undefined;
@@ -17,7 +17,6 @@ export interface RollsFilter {
 
 const everyRoll: RollsFilter = {
   year: undefined,
-  event: undefined,
   camera: undefined,
   film: undefined,
   lens: undefined,
@@ -81,8 +80,9 @@ function BrowseSection({
 }
 
 /**
- * Ways into the rolls: all of them, or those from one year or event, shot
- * on one camera or with one lens, or of one film stock, one way at a time.
+ * Ways into the rolls: all of them, or those from one year, shot on one
+ * camera or with one lens, or of one film stock, one way at a time; and
+ * each event, which opens the event's page of frames (D33).
  */
 export function BrowsePanel({
   rolls,
@@ -133,7 +133,6 @@ export function BrowsePanel({
         type="button"
         aria-pressed={
           filter.year === undefined &&
-          filter.event === undefined &&
           filter.camera === undefined &&
           filter.film === undefined &&
           filter.lens === undefined
@@ -154,14 +153,15 @@ export function BrowsePanel({
         }}
       />
       {rollEvents.length > 0 && (
-        <BrowseSection
-          title="Events"
-          options={rollEvents}
-          chosen={filter.event}
-          choose={(event) => {
-            choose({ ...everyRoll, event });
-          }}
-        />
+        <section aria-labelledby="browse-events">
+          <h2 id="browse-events">Events</h2>
+          {rollEvents.map((option) => (
+            <Link key={option.key} to={`/events/${option.key}`}>
+              <span>{option.label}</span>
+              <span className="muted">{option.count}</span>
+            </Link>
+          ))}
+        </section>
       )}
       {rollCameras.length > 0 && (
         <BrowseSection
