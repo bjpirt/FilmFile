@@ -27,13 +27,20 @@ export function navigate(to: string): void {
 export function Link({
   to,
   children,
+  className,
+  current = false,
 }: {
   readonly to: string;
   readonly children: ReactNode;
+  readonly className?: string;
+  /** Marks the link as the current section, e.g. in the main navigation. */
+  readonly current?: boolean;
 }) {
   return (
     <a
       href={to}
+      className={className}
+      aria-current={current ? 'page' : undefined}
       onClick={(event) => {
         // Let the browser handle new-tab and new-window clicks.
         if (

@@ -246,7 +246,7 @@ export function RollPage({
       <p>
         <Link to="/">All rolls</Link>
       </p>
-      <h2>Roll {roll.data.roll.roll}</h2>
+      <h1>Roll {roll.data.roll.roll}</h1>
 
       {changedElsewhere && (
         <p role="alert" className="changed-elsewhere">

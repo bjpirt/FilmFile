@@ -54,9 +54,9 @@ export function RollsPage({ api }: { readonly api: ApiClient }) {
 
   return (
     <section>
-      <h2>Rolls</h2>
+      <h1>Rolls</h1>
 
-      <form onSubmit={submit}>
+      <form className="new-roll" onSubmit={submit}>
         <label htmlFor="roll-number">Roll number</label>
         <input
           id="roll-number"
@@ -66,7 +66,11 @@ export function RollsPage({ api }: { readonly api: ApiClient }) {
             setRollId(event.target.value);
           }}
         />
-        <button type="submit" disabled={createRoll.isPending}>
+        <button
+          type="submit"
+          className="primary"
+          disabled={createRoll.isPending}
+        >
           Create roll
         </button>
         {createRoll.isError && <p role="alert">{createRoll.error.message}</p>}

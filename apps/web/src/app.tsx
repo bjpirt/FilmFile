@@ -27,10 +27,22 @@ function Page({
 }
 
 export function App({ api }: { readonly api: ApiClient }) {
+  const path = usePath();
   return (
-    <main>
-      <h1>FilmFile</h1>
-      <Page api={api} path={usePath()} />
-    </main>
+    <>
+      <header className="app-header">
+        <Link to="/" className="app-name">
+          FilmFile
+        </Link>
+        <nav aria-label="Main">
+          <Link to="/" current={path === '/' || path.startsWith('/rolls/')}>
+            Rolls
+          </Link>
+        </nav>
+      </header>
+      <main className="page">
+        <Page api={api} path={path} />
+      </main>
+    </>
   );
 }

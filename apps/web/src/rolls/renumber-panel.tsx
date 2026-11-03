@@ -83,7 +83,12 @@ export function RenumberPanel({
           <option value="down">down</option>
         </select>
       </span>
-      <button type="button" onClick={save} disabled={!valid || saving}>
+      <button
+        type="button"
+        className="primary"
+        onClick={save}
+        disabled={!valid || saving}
+      >
         Save
       </button>
       <button type="button" onClick={cancel} disabled={saving}>
