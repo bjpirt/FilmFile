@@ -23,7 +23,7 @@ test.each([
   const original = await aJpeg({ width: 3000, height: 2000 });
   const previews = new SharpPreviewProvider(cachePath, 100_000_000);
 
-  const thumbnail = await previews.thumbnail('abc', size, () =>
+  const thumbnail = await previews.thumbnail('abc', size, 0, () =>
     Promise.resolve(new Uint8Array(original)),
   );
 
@@ -32,4 +32,19 @@ test.each([
     width,
     height,
   });
+});
+
+test.each([
+  [90, 267, 400],
+  [180, 400, 267],
+  [270, 267, 400],
+] as const)('turns it %i° clockwise', async (rotate, width, height) => {
+  const original = await aJpeg({ width: 3000, height: 2000 });
+  const previews = new SharpPreviewProvider(cachePath, 100_000_000);
+
+  const thumbnail = await previews.thumbnail('abc', 'small', rotate, () =>
+    Promise.resolve(new Uint8Array(original)),
+  );
+
+  expect(await sharp(thumbnail).metadata()).toMatchObject({ width, height });
 });

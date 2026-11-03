@@ -17,6 +17,7 @@ import {
   updateFrameNumbersRequest,
   updateFrameRequest,
   updateRollRequest,
+  updateVersionRequest,
   version,
   versionParams,
 } from '@filmfile/contracts/rolls';
@@ -27,6 +28,7 @@ import type { DeleteFrame } from '../../../../application/use-cases/frames/delet
 import type { GetOriginal } from '../../../../application/use-cases/frames/get-original.ts';
 import type { GetThumbnail } from '../../../../application/use-cases/frames/get-thumbnail.ts';
 import type { UpdateFrame } from '../../../../application/use-cases/frames/update-frame.ts';
+import type { UpdateVersion } from '../../../../application/use-cases/frames/update-version.ts';
 import type { UpdateFrameNumbers } from '../../../../application/use-cases/frames/update-frame-numbers.ts';
 import type { CreateRoll } from '../../../../application/use-cases/rolls/create-roll.ts';
 import type { DeleteRoll } from '../../../../application/use-cases/rolls/delete-roll.ts';
@@ -278,6 +280,32 @@ const addVersion = createRoute({
   },
 });
 
+const updateVersion = createRoute({
+  method: 'patch',
+  path: '/{rollId}/frames/{frameId}/versions/{versionId}',
+  summary: 'Turn a version',
+  description:
+    "Send the roll's ETag as If-Match: the change is refused if the roll has changed since. The version's file is never changed; only how it's shown. The response's ETag is the roll's new version.",
+  middleware: [requireJson] as const,
+  request: {
+    params: versionParams,
+    headers: ifMatchHeader,
+    body: {
+      required: true,
+      content: { 'application/json': { schema: updateVersionRequest } },
+    },
+  },
+  responses: {
+    200: json(version, 'The updated version.'),
+    400: malformed,
+    404: json(errorResponse, 'The frame has no version with that ID.'),
+    409: json(errorResponse, 'The roll has changed since it was read.'),
+    415: wrongType,
+    422: invalid,
+    428: json(errorResponse, 'If-Match is missing.'),
+  },
+});
+
 const getOriginal = createRoute({
   method: 'get',
   path: '/{rollId}/frames/{frameId}/versions/{versionId}/file',
@@ -302,6 +330,9 @@ const getThumbnail = createRoute({
   },
 });
 
+/** A turn as the thumbnail's query gives it, in degrees. */
+const turns = { '0': 0, '90': 90, '180': 180, '270': 270 } as const;
+
 export interface RollUseCases {
   readonly createRoll: CreateRoll;
   readonly getRoll: GetRoll;
@@ -310,6 +341,7 @@ export interface RollUseCases {
   readonly deleteRoll: DeleteRoll;
   readonly createFrame: CreateFrame;
   readonly updateFrame: UpdateFrame;
+  readonly updateVersion: UpdateVersion;
   readonly updateFrameNumbers: UpdateFrameNumbers;
   readonly deleteFrame: DeleteFrame;
   readonly addVersion: AddVersion;
@@ -517,6 +549,29 @@ export function rollRoutes({
       : domainErrorResponse(c, original.error);
   });
 
+  routes.openapi(updateVersion, async (c) => {
+    const { rollId, frameId, versionId } = c.req.valid('param');
+    if (!isRollId(rollId) || !isFrameId(frameId) || !isVersionId(versionId)) {
+      return c.json(notFound, 404);
+    }
+    const ifMatch = c.req.valid('header')['if-match'];
+    if (ifMatch === undefined) {
+      return c.json({ error: 'send the roll’s ETag as If-Match' }, 428);
+    }
+    const updated = await useCases.updateVersion.execute(ctx, {
+      rollId,
+      frameId,
+      versionId,
+      expectedVersion: versionFrom(ifMatch),
+      ...c.req.valid('json'),
+    });
+    if (!updated.ok) {
+      return domainErrorResponse(c, updated.error);
+    }
+    c.header('ETag', etagOf(updated.value.version));
+    return c.json(versionDto(updated.value.updated), 200);
+  });
+
   routes.openapi(getThumbnail, async (c) => {
     const { rollId, frameId, versionId } = c.req.valid('param');
     if (!isRollId(rollId) || !isFrameId(frameId) || !isVersionId(versionId)) {
@@ -527,6 +582,7 @@ export function rollRoutes({
       frameId,
       versionId,
       size: c.req.valid('query').size,
+      rotate: turns[c.req.valid('query').rotate],
     });
     return thumbnail.ok
       ? c.body(new Uint8Array(thumbnail.value), 200, {

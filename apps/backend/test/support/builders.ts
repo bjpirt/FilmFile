@@ -46,6 +46,7 @@ export function aVersion(
     width: 3,
     height: 2,
     added: new Date('2026-11-02T12:00:00.000Z'),
+    rotate: 0,
   };
 }
 

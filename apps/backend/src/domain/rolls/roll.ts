@@ -1,6 +1,7 @@
 import type { Slug } from '../shared/slug.ts';
 import type { FrameId, RollId, VersionId } from '../shared/ids.ts';
 import type { FrameNumber } from './frame-number.ts';
+import type { QuarterTurn } from './quarter-turn.ts';
 import type { Rating } from './rating.ts';
 import type { RollNumber } from './roll-number.ts';
 import type { ShotDate } from './shot-date.ts';
@@ -15,6 +16,8 @@ export interface Version {
   readonly width: number;
   readonly height: number;
   readonly added: Date;
+  /** How it's turned when shown; its file is never changed (D41). */
+  readonly rotate: QuarterTurn;
 }
 
 /** One photograph on the roll. */

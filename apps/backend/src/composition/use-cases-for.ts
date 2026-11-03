@@ -25,6 +25,7 @@ import { CreateFrame } from '../application/use-cases/frames/create-frame.ts';
 import { DeleteFrame } from '../application/use-cases/frames/delete-frame.ts';
 import { GetOriginal } from '../application/use-cases/frames/get-original.ts';
 import { GetThumbnail } from '../application/use-cases/frames/get-thumbnail.ts';
+import { UpdateVersion } from '../application/use-cases/frames/update-version.ts';
 import { UpdateFrame } from '../application/use-cases/frames/update-frame.ts';
 import { UpdateFrameNumbers } from '../application/use-cases/frames/update-frame-numbers.ts';
 import { CreateRoll } from '../application/use-cases/rolls/create-roll.ts';
@@ -66,6 +67,7 @@ export function useCasesFor({
     deleteRoll: new DeleteRoll(rolls, holding, clock),
     createFrame: new CreateFrame(rolls, ids),
     updateFrame: new UpdateFrame(rolls),
+    updateVersion: new UpdateVersion(rolls),
     updateFrameNumbers: new UpdateFrameNumbers(rolls),
     deleteFrame: new DeleteFrame(rolls, holding, clock),
     addVersion: new AddVersion(rolls, blobs, inspector, ids, clock),

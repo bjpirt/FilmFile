@@ -105,6 +105,7 @@ export class AddVersion {
       file,
       ...facts,
       added: this.#clock.now(),
+      rotate: 0,
     };
     return ok({
       roll: {

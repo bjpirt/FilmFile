@@ -18,9 +18,11 @@ import {
   updateFrameNumbersRequest,
   updateFrameRequest,
   updateRollRequest,
+  updateVersionRequest,
   type Frame,
   type Roll,
   type UnreadableRoll,
+  type Version,
 } from '@filmfile/contracts/rolls';
 import { cameraLabel } from '../equipment/use-cameras.ts';
 import { filmStockLabel } from '../equipment/use-film-stocks.ts';
@@ -77,6 +79,7 @@ export function aFrame(number: string | null, file: string): Frame {
         width: 3,
         height: 2,
         added: '2026-11-02T12:00:00.000Z',
+        rotate: 0,
       },
     ],
   };
@@ -444,6 +447,33 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       change(roll.id);
       return Response.json(updated, { headers: { ETag: etagOf(roll.id) } });
     }
+    if (request.method === 'PATCH') {
+      const turned = frame.versions.find((v) => v.id === rest[3]);
+      if (turned === undefined) {
+        return notFound();
+      }
+      const refused = checkIfMatch(request, roll.id);
+      if (refused !== undefined) {
+        return refused;
+      }
+      const body = await bodyOf(request, updateVersionRequest);
+      if (!body.ok) {
+        return body.response;
+      }
+      const updated = { ...turned, rotate: body.value.rotate };
+      roll.frames = roll.frames.map((f) =>
+        f.id === frameId
+          ? {
+              ...f,
+              versions: f.versions.map((v) =>
+                v.id === turned.id ? updated : v,
+              ),
+            }
+          : f,
+      );
+      change(roll.id);
+      return Response.json(updated, { headers: { ETag: etagOf(roll.id) } });
+    }
     const hash = await sha256(await request.arrayBuffer());
     const holder = roll.frames.find((f) =>
       f.versions.some((version) => version.sha256 === hash),
@@ -456,7 +486,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     }
     const file = url.searchParams.get('file') ?? '';
     uploads.push(file);
-    const version = {
+    const version: Version = {
       id: newId(),
       file: `frames/x/y/${file}`,
       sha256: hash,
@@ -464,6 +494,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       width: 3,
       height: 2,
       added: '2026-11-02T12:00:00.000Z',
+      rotate: 0,
     };
     roll.frames = roll.frames.map((f) =>
       f.id === frameId ? { ...f, versions: [...f.versions, version] } : f,

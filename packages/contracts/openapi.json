@@ -227,6 +227,35 @@
           "added": {
             "type": "string",
             "format": "date-time"
+          },
+          "rotate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "enum": [
+                  0
+                ]
+              },
+              {
+                "type": "number",
+                "enum": [
+                  90
+                ]
+              },
+              {
+                "type": "number",
+                "enum": [
+                  180
+                ]
+              },
+              {
+                "type": "number",
+                "enum": [
+                  270
+                ]
+              }
+            ],
+            "description": "Degrees clockwise: 0, 90, 180 or 270."
           }
         },
         "required": [
@@ -236,7 +265,8 @@
           "bytes",
           "width",
           "height",
-          "added"
+          "added",
+          "rotate"
         ],
         "description": "One image file of a frame."
       },
@@ -522,6 +552,44 @@
           }
         },
         "description": "The details to change; a detail left out stays as it is."
+      },
+      "UpdateVersionRequest": {
+        "type": "object",
+        "properties": {
+          "rotate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "enum": [
+                  0
+                ]
+              },
+              {
+                "type": "number",
+                "enum": [
+                  90
+                ]
+              },
+              {
+                "type": "number",
+                "enum": [
+                  180
+                ]
+              },
+              {
+                "type": "number",
+                "enum": [
+                  270
+                ]
+              }
+            ],
+            "description": "Degrees clockwise: 0, 90, 180 or 270."
+          }
+        },
+        "required": [
+          "rotate"
+        ],
+        "description": "How the version is turned when shown; its file is never changed."
       },
       "CameraList": {
         "type": "object",
@@ -1821,6 +1889,136 @@
         }
       }
     },
+    "/api/rolls/{rollId}/frames/{frameId}/versions/{versionId}": {
+      "patch": {
+        "summary": "Turn a version",
+        "description": "Send the roll's ETag as If-Match: the change is refused if the roll has changed since. The version's file is never changed; only how it's shown. The response's ETag is the roll's new version.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "rollId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "frameId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "versionId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The roll's ETag, from when it was read."
+            },
+            "required": false,
+            "description": "The roll's ETag, from when it was read.",
+            "name": "if-match",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateVersionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Version"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not valid JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The frame has no version with that ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The roll has changed since it was read.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "The body is not of the expected type.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/rolls/{rollId}/frames/{frameId}/versions/{versionId}/thumbnail": {
       "get": {
         "summary": "Get a thumbnail of a version",
@@ -1867,6 +2065,23 @@
             "required": true,
             "description": "small fits within 400 px, large within 2048 px.",
             "name": "size",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "90",
+                "180",
+                "270"
+              ],
+              "default": "0",
+              "description": "Degrees to turn it clockwise (D41)."
+            },
+            "required": false,
+            "description": "Degrees to turn it clockwise (D41).",
+            "name": "rotate",
             "in": "query"
           }
         ],

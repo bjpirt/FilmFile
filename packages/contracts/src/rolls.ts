@@ -16,6 +16,12 @@ export const rollNumber = z
     example: '2026-014',
   });
 
+/** How far a version is turned clockwise when shown, in degrees (D41). */
+export const quarterTurn = z
+  // One literal each: the OpenAPI generator keeps only the first of z.literal([…]).
+  .union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)])
+  .meta({ description: 'Degrees clockwise: 0, 90, 180 or 270.' });
+
 export const version = z
   .object({
     id: ulid,
@@ -28,6 +34,7 @@ export const version = z
     width: z.number().int(),
     height: z.number().int(),
     added: z.string().meta({ format: 'date-time' }),
+    rotate: quarterTurn,
   })
   .meta({ id: 'Version', description: 'One image file of a frame.' });
 
@@ -210,6 +217,16 @@ export const thumbnailQuery = z.object({
   size: z.enum(['small', 'large']).meta({
     description: 'small fits within 400 px, large within 2048 px.',
   }),
+  rotate: z
+    .enum(['0', '90', '180', '270'])
+    .default('0')
+    .meta({ description: 'Degrees to turn it clockwise (D41).' }),
+});
+
+export const updateVersionRequest = z.object({ rotate: quarterTurn }).meta({
+  id: 'UpdateVersionRequest',
+  description:
+    'How the version is turned when shown; its file is never changed.',
 });
 
 export type Version = z.infer<typeof version>;

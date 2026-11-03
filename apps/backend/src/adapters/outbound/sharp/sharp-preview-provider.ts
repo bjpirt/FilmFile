@@ -2,13 +2,14 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
 import type { PreviewProvider } from '../../../application/ports/preview-provider.ts';
+import type { QuarterTurn } from '../../../domain/rolls/quarter-turn.ts';
 import type { ThumbnailSize } from '../../../domain/rolls/thumbnail-size.ts';
 import { hasErrorCode } from '../filesystem/error-codes.ts';
 import { safePath } from '../filesystem/safe-path.ts';
 
 const pixels: Record<ThumbnailSize, number> = { small: 400, large: 2048 };
 
-/** WebP thumbnails made with sharp, cached in the OS cache folder by content hash. */
+/** WebP thumbnails made with sharp, cached in the OS cache folder by content hash and turn. */
 export class SharpPreviewProvider implements PreviewProvider {
   readonly #cachePath: string;
   readonly #maxPixels: number;
@@ -21,12 +22,14 @@ export class SharpPreviewProvider implements PreviewProvider {
   async thumbnail(
     sha256: string,
     size: ThumbnailSize,
+    rotate: QuarterTurn,
     original: () => Promise<Uint8Array>,
   ): Promise<Uint8Array> {
     const cached = safePath(
       this.#cachePath,
       'thumbnails',
-      `${sha256}-${size}.webp`,
+      // Unturned ones keep the names they had before versions could be turned.
+      `${sha256}-${size}${rotate === 0 ? '' : `-${String(rotate)}`}.webp`,
     );
     try {
       return await readFile(cached);
@@ -38,6 +41,7 @@ export class SharpPreviewProvider implements PreviewProvider {
     const made = await sharp(await original(), {
       limitInputPixels: this.#maxPixels,
     })
+      .rotate(rotate)
       .resize(pixels[size], pixels[size], {
         fit: 'inside',
         withoutEnlargement: true,

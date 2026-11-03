@@ -8,6 +8,7 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { Version } from '@filmfile/contracts/rolls';
 import { App } from '../app.tsx';
 import {
   aFrame,
@@ -209,7 +210,7 @@ describe('opened from an event', () => {
 });
 
 describe('the frame’s details and versions', () => {
-  const second = {
+  const second: Version = {
     id: '01JC8Z7K3M00000000000V0009',
     file: 'frames/x/z/12340001-again.jpg',
     sha256: 'again',
@@ -217,6 +218,7 @@ describe('the frame’s details and versions', () => {
     width: 3089,
     height: 2048,
     added: '2026-11-03T09:00:00.000Z',
+    rotate: 0,
   };
   const twice = aRoll('2026-020', {
     camera: 'nikon-fe',
@@ -557,5 +559,77 @@ describe('deleting the frame', () => {
       screen.getByRole('heading', { level: 1, name: 'Frame 2' }),
     ).toBeDefined();
     expect(archive.deleted).toEqual([]);
+  });
+});
+
+describe('turning the frame', () => {
+  function openFirst(): FakeArchive {
+    const archive = fakeArchive({ rolls: [structuredClone(roll)] });
+    openAt(`/rolls/${roll.id}/frames/${frameId('1')}`, archive);
+    return archive;
+  }
+
+  function shownImage(): HTMLElement {
+    return screen.getByRole('img', { name: '12340001.jpg' });
+  }
+
+  function savedTurn(archive: FakeArchive) {
+    return archive.rolls[0]?.frames.find((f) => f.number === '1')?.versions[0]
+      ?.rotate;
+  }
+
+  test('turns the version shown a quarter turn clockwise, keeping it', async () => {
+    const archive = openFirst();
+    await screen.findByRole('heading', { level: 1, name: 'Frame 1' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate clockwise' }));
+
+    await vi.waitFor(() => {
+      expect(shownImage().getAttribute('src')).toContain('rotate=90');
+    });
+    expect(savedTurn(archive)).toBe(90);
+    expect(archive.ifMatches).toEqual(['"v1"']);
+    // A turned scan's shape is turned too: 3 × 2 becomes 2 × 3.
+    expect(shownImage().getAttribute('width')).toBe('2');
+    expect(shownImage().getAttribute('height')).toBe('3');
+  });
+
+  test('turns anticlockwise, round past upright', async () => {
+    const archive = openFirst();
+    await screen.findByRole('heading', { level: 1, name: 'Frame 1' });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Rotate anticlockwise' }),
+    );
+
+    await vi.waitFor(() => {
+      expect(savedTurn(archive)).toBe(270);
+    });
+    expect(shownImage().getAttribute('src')).toContain('rotate=270');
+  });
+
+  test('shows it turned in the filmstrip too', async () => {
+    openFirst();
+    await screen.findByRole('heading', { level: 1, name: 'Frame 1' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate clockwise' }));
+
+    await vi.waitFor(() => {
+      expect(
+        within(screen.getByRole('link', { name: 'Frame 1' }))
+          .getByRole('presentation')
+          .getAttribute('src'),
+      ).toContain('rotate=90');
+    });
+  });
+
+  test('leaves an upright version’s address as it was', async () => {
+    openFirst();
+
+    expect(
+      (await screen.findByRole('img', { name: '12340001.jpg' })).getAttribute(
+        'src',
+      ),
+    ).not.toContain('rotate');
   });
 });

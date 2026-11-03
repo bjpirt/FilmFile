@@ -16,6 +16,7 @@ import { DeleteFrame } from '../../../src/application/use-cases/frames/delete-fr
 import { GetOriginal } from '../../../src/application/use-cases/frames/get-original.ts';
 import { GetThumbnail } from '../../../src/application/use-cases/frames/get-thumbnail.ts';
 import { UpdateFrame } from '../../../src/application/use-cases/frames/update-frame.ts';
+import { UpdateVersion } from '../../../src/application/use-cases/frames/update-version.ts';
 import { UpdateFrameNumbers } from '../../../src/application/use-cases/frames/update-frame-numbers.ts';
 import { CreateRoll } from '../../../src/application/use-cases/rolls/create-roll.ts';
 import type { ArchiveContext } from '../../../src/domain/shared/archive-context.ts';
@@ -70,6 +71,7 @@ async function setUp() {
     getOriginal: new GetOriginal(rolls, blobs),
     getThumbnail: new GetThumbnail(rolls, blobs, previews),
     updateFrame: new UpdateFrame(rolls),
+    updateVersion: new UpdateVersion(rolls),
     updateFrameNumbers: new UpdateFrameNumbers(rolls),
   };
 }
@@ -600,6 +602,7 @@ describe('AddVersion', () => {
       width: 30,
       height: 20,
       added: new Date('2026-11-02T12:00:00.000Z'),
+      rotate: 0,
     };
     expect(added).toEqual({ ok: true, value: version });
     expect((await rolls.get(ctx, roll.id))?.roll.frames[0]?.versions).toEqual([
@@ -670,6 +673,99 @@ describe('AddVersion', () => {
   });
 });
 
+describe('UpdateVersion', () => {
+  async function withAVersion() {
+    const setup = await setUp();
+    const frameId = await aFrameIn(setup.createFrame, setup.roll.id);
+    const added = await setup.addVersion.execute(ctx, {
+      rollId: setup.roll.id,
+      frameId,
+      fileName: '12340014.jpg',
+      bytes: new Uint8Array(await aJpeg()),
+    });
+    const read = await setup.rolls.get(ctx, setup.roll.id);
+    if (!added.ok || read === undefined) {
+      throw new Error('setup failed');
+    }
+    return {
+      ...setup,
+      ids: { rollId: setup.roll.id, frameId, versionId: added.value.id },
+      added: added.value,
+      version: read.version,
+    };
+  }
+
+  test('turns the version, keeping its file, and gives the roll’s new version', async () => {
+    const { rolls, ids, added, version, updateVersion } = await withAVersion();
+
+    const turned = await updateVersion.execute(ctx, {
+      ...ids,
+      expectedVersion: version,
+      rotate: 270,
+    });
+
+    const after = await rolls.get(ctx, ids.rollId);
+    expect(turned).toMatchObject({
+      ok: true,
+      value: {
+        version: after?.version,
+        updated: { id: ids.versionId, rotate: 270 },
+      },
+    });
+    expect(after?.roll.frames[0]?.versions[0]).toEqual({
+      ...added,
+      rotate: 270,
+    });
+  });
+
+  test.each([45, -90, 360])('refuses a turn of %d°', async (rotate) => {
+    const { ids, version, updateVersion } = await withAVersion();
+
+    expect(
+      await updateVersion.execute(ctx, {
+        ...ids,
+        expectedVersion: version,
+        rotate,
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { kind: 'validation-failed', issues: [{ path: ['rotate'] }] },
+    });
+  });
+
+  test('refuses when the roll changed since it was read', async () => {
+    const { ids, version, createFrame, updateVersion } = await withAVersion();
+    await createFrame.execute(ctx, { rollId: ids.rollId });
+
+    expect(
+      await updateVersion.execute(ctx, {
+        ...ids,
+        expectedVersion: version,
+        rotate: 90,
+      }),
+    ).toEqual({
+      ok: false,
+      error: { kind: 'concurrency-conflict', entity: 'roll', id: ids.rollId },
+    });
+  });
+
+  test('says when the version does not exist', async () => {
+    const { ids, version, updateVersion } = await withAVersion();
+
+    expect(
+      await updateVersion.execute(ctx, {
+        ...ids,
+        versionId: checked(missing, isVersionId),
+        expectedVersion: version,
+        rotate: 90,
+      }),
+    ).toEqual({
+      ok: false,
+      error: { kind: 'not-found', entity: 'version', id: missing },
+    });
+  });
+});
+
 describe('GetOriginal and GetThumbnail', () => {
   async function withAVersion() {
     const setup = await setUp();
@@ -700,14 +796,36 @@ describe('GetOriginal and GetThumbnail', () => {
   test('GetThumbnail makes a thumbnail from the original once, then reuses it', async () => {
     const { getThumbnail, previews, ids } = await withAVersion();
 
-    const first = await getThumbnail.execute(ctx, { ...ids, size: 'small' });
-    const second = await getThumbnail.execute(ctx, { ...ids, size: 'small' });
+    const first = await getThumbnail.execute(ctx, {
+      ...ids,
+      size: 'small',
+      rotate: 0,
+    });
+    const second = await getThumbnail.execute(ctx, {
+      ...ids,
+      size: 'small',
+      rotate: 0,
+    });
 
     expect(first).toEqual(second);
     expect(first.ok && new TextDecoder().decode(first.value)).toMatch(
       /^small of /,
     );
     expect(previews.originalsLoaded).toBe(1);
+  });
+
+  test('GetThumbnail turns it as asked', async () => {
+    const { getThumbnail, ids } = await withAVersion();
+
+    const turned = await getThumbnail.execute(ctx, {
+      ...ids,
+      size: 'small',
+      rotate: 90,
+    });
+
+    expect(turned.ok && new TextDecoder().decode(turned.value)).toMatch(
+      / turned 90$/,
+    );
   });
 
   test.each(['GetOriginal', 'GetThumbnail'])(
@@ -719,7 +837,11 @@ describe('GetOriginal and GetThumbnail', () => {
       const result =
         useCase === 'GetOriginal'
           ? await getOriginal.execute(ctx, absent)
-          : await getThumbnail.execute(ctx, { ...absent, size: 'small' });
+          : await getThumbnail.execute(ctx, {
+              ...absent,
+              size: 'small',
+              rotate: 0,
+            });
 
       expect(result).toEqual({
         ok: false,

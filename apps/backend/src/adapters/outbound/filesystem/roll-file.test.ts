@@ -26,6 +26,7 @@ const aVersion = fc.record({
     max: new Date('9999-12-31T23:59:59.999Z'),
     noInvalidDate: true,
   }),
+  rotate: fc.constantFrom<0 | 90 | 180 | 270>(0, 90, 180, 270),
 });
 
 const aFrame = fc.record({

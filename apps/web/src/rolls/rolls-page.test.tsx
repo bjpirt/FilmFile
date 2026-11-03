@@ -79,6 +79,7 @@ function aRollWithScans(roll: string, scans: number): Roll {
             width: 3,
             height: 2,
             added: '2026-11-02T12:00:00.000Z',
+            rotate: 0,
           },
         ],
       };

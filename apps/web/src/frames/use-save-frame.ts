@@ -8,6 +8,9 @@ import type { CollectionFrame } from './frame-view.tsx';
 /** The details of a frame to change; one left out stays as it is. */
 export type FrameChanges = components['schemas']['UpdateFrameRequest'];
 
+/** Degrees clockwise a version is turned when shown. */
+export type QuarterTurn = components['schemas']['Version']['rotate'];
+
 interface ReadRoll {
   readonly roll: Roll;
   readonly etag: string;
@@ -114,6 +117,47 @@ export function useSaveFrame(
     await queryClient.invalidateQueries({ queryKey: ['rolls'], exact: true });
   }
 
+  async function sendTurn(versionId: string, rotate: QuarterTurn) {
+    const read = queryClient.getQueryData<ReadRoll>(['rolls', rollId]);
+    if (read === undefined) {
+      return;
+    }
+    setProblem(undefined);
+    const { data, response } = await api.PATCH(
+      '/api/rolls/{rollId}/frames/{frameId}/versions/{versionId}',
+      {
+        params: {
+          path: { rollId, frameId, versionId },
+          header: { 'if-match': read.etag },
+        },
+        body: { rotate },
+      },
+    );
+    if (response.status === 409) {
+      setProblem('This roll changed since you opened it. Reload the page.');
+      return;
+    }
+    if (data === undefined) {
+      setProblem("Couldn't save it. Is the service running?");
+      return;
+    }
+    queryClient.setQueryData<ReadRoll>(['rolls', rollId], {
+      roll: {
+        ...read.roll,
+        frames: read.roll.frames.map((f) =>
+          f.id === frameId
+            ? {
+                ...f,
+                versions: f.versions.map((v) => (v.id === data.id ? data : v)),
+              }
+            : f,
+        ),
+      },
+      etag: response.headers.get('ETag') ?? read.etag,
+    });
+    await queryClient.invalidateQueries({ queryKey: ['rolls'], exact: true });
+  }
+
   function queued(send: () => Promise<void>): Promise<void> {
     saving.current = saving.current.then(send).catch(() => {
       setProblem("Couldn't save it. Is the service running?");
@@ -123,6 +167,9 @@ export function useSaveFrame(
 
   return {
     save: (changes: FrameChanges) => queued(() => send(changes)),
+    /** Turns one of the frame's versions as it's shown (D41). */
+    turn: (versionId: string, rotate: QuarterTurn) =>
+      queued(() => sendTurn(versionId, rotate)),
     /** Deletes the frame into the archive's deleted folder, then calls `onDeleted`. */
     remove: (onDeleted: () => void) => queued(() => sendDelete(onDeleted)),
     problem,

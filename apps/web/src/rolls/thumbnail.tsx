@@ -20,12 +20,14 @@ export function Thumbnail({
   if (src === undefined || version === undefined) {
     return <div className="no-scan">No scan</div>;
   }
+  // A quarter turn either way swaps the shape the browser makes room for.
+  const sideways = version.rotate === 90 || version.rotate === 270;
   return (
     <img
       src={src}
       alt={decorative ? '' : version.file.split('/').at(-1)}
-      width={version.width}
-      height={version.height}
+      width={sideways ? version.height : version.width}
+      height={sideways ? version.width : version.height}
     />
   );
 }

@@ -24,8 +24,8 @@ export function previewProviderContract(
       const previews = makeProvider();
       const original = await counting();
 
-      const first = await previews.thumbnail('abc', 'small', original.load);
-      const second = await previews.thumbnail('abc', 'small', original.load);
+      const first = await previews.thumbnail('abc', 'small', 0, original.load);
+      const second = await previews.thumbnail('abc', 'small', 0, original.load);
 
       expect(first.length).toBeGreaterThan(0);
       expect(second).toEqual(first);
@@ -36,9 +36,32 @@ export function previewProviderContract(
       const previews = makeProvider();
       const original = await counting();
 
-      await previews.thumbnail('abc', 'small', original.load);
-      await previews.thumbnail('abc', 'large', original.load);
+      await previews.thumbnail('abc', 'small', 0, original.load);
+      await previews.thumbnail('abc', 'large', 0, original.load);
 
+      expect(original.loads()).toBe(2);
+    });
+
+    test('makes a separate thumbnail for each turn, keeping each', async () => {
+      const previews = makeProvider();
+      const original = await counting();
+
+      const upright = await previews.thumbnail(
+        'abc',
+        'small',
+        0,
+        original.load,
+      );
+      const turned = await previews.thumbnail(
+        'abc',
+        'small',
+        90,
+        original.load,
+      );
+      const again = await previews.thumbnail('abc', 'small', 90, original.load);
+
+      expect(turned).not.toEqual(upright);
+      expect(again).toEqual(turned);
       expect(original.loads()).toBe(2);
     });
   });

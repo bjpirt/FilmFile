@@ -9,7 +9,8 @@ import {
   rememberedDetailsOpen,
 } from './details-preference.ts';
 import { FrameDetails } from './frame-details.tsx';
-import { useSaveFrame } from './use-save-frame.ts';
+import { shownVersion } from '../rolls/shown-version.ts';
+import { useSaveFrame, type QuarterTurn } from './use-save-frame.ts';
 
 /** A frame in the collection being stepped through, with the roll it's on. */
 export interface CollectionFrame {
@@ -23,6 +24,31 @@ function typing(target: EventTarget | null): boolean {
     target instanceof HTMLElement &&
     (target.isContentEditable ||
       ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+  );
+}
+
+const quarterTurns: readonly QuarterTurn[] = [0, 90, 180, 270];
+
+/** A curved arrow, turning one way or the other. */
+function TurnIcon({ clockwise }: { readonly clockwise: boolean }) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {/* The clockwise arrow is the anticlockwise one, mirrored. */}
+      <g transform={clockwise ? 'translate(24 0) scale(-1 1)' : undefined}>
+        <path d="M4 12a8 8 0 1 0 2.5-5.8" />
+        <path d="M4 3v5h5" />
+      </g>
+    </svg>
   );
 }
 
@@ -93,7 +119,21 @@ export function FrameView({
   const next = frames[current + 1];
   const currentInStrip = useRef<HTMLLIElement>(null);
   const [detailsOpen, setDetailsOpen] = useState(rememberedDetailsOpen);
-  const { save, remove, problem } = useSaveFrame(api, shown);
+  const { save, turn, remove, problem } = useSaveFrame(api, shown);
+  const turning = shown === undefined ? undefined : shownVersion(shown.frame);
+
+  /** Turns the version shown a quarter turn: 90 clockwise, -90 anticlockwise. */
+  function turnBy(degrees: 90 | -90) {
+    if (turning === undefined) {
+      return;
+    }
+    const turned = quarterTurns.find(
+      (t) => t === (turning.rotate + degrees + 360) % 360,
+    );
+    if (turned !== undefined) {
+      void turn(turning.id, turned);
+    }
+  }
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   /** Deletes the frame shown, then shows the next, the previous, or where it was opened from. */
@@ -180,6 +220,32 @@ export function FrameView({
           {current + 1} of {frames.length}
         </span>
         <span className="frame-view-actions">
+          {turning !== undefined && (
+            <>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Rotate anticlockwise"
+                title="Rotate anticlockwise"
+                onClick={() => {
+                  turnBy(-90);
+                }}
+              >
+                <TurnIcon clockwise={false} />
+              </button>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Rotate clockwise"
+                title="Rotate clockwise"
+                onClick={() => {
+                  turnBy(90);
+                }}
+              >
+                <TurnIcon clockwise />
+              </button>
+            </>
+          )}
           <button
             type="button"
             className="icon-button"

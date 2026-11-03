@@ -6,22 +6,13 @@ Each task is about one commit: small enough to review in one sitting, with its t
 
 `[x]` done, `[ ]` to do, `[-]` dropped or replaced (with where it went).
 
-**Next up:** 1. Frame view and describing frames.
+**Next up:** 1. Archive settings.
 
 ---
 
 ## To do
 
-### 1. Frame view and describing frames
-
-- [x] **U26 Open a frame.** Clicking a frame's thumbnail, on a roll's page or an event's page, opens it large, filling the screen, with its frame and roll numbers. Along the bottom, a filmstrip of thumbnails of every frame in the collection it was opened from (the roll in frame order, or the event's frames in their grouping and order), the current one highlighted and kept in view; clicking one goes straight to it. Previous and next arrows on screen, and the ← and → keys, step through the same collection; Esc, or the link back, returns to where it was opened from. Each frame has its own address (`/rolls/<roll>/frames/<frame>`, or `/events/<event>/frames/<frame>` with the event's grouping), so reload and back keep it. Stepping replaces the address, so Back leaves the frame view; the filmstrip's thumbnails are named by their links. Extends the "Catalogue a roll" journey. *(From 1b.8.)*
-- [x] **U27 A frame's details and versions.** An "i" in a circle at the top right, above the image, shows and hides "About this frame" beside it (closed until opened; the choice is remembered in the browser): the roll's camera, lens, film stock, event and date shot (with where each came from once frames have their own, group 3), then the frame's versions, each with its file name, size, pixel size and the day it was added. The one shown is marked "Shown"; any other has "Set as default", which makes it the version shown for the frame everywhere, on contact sheets, filmstrips and in the frame view (`defaultVersion` on the frame, D15, in roll.json and the API; set with `PATCH /api/rolls/{rollId}/frames/{frameId}` and `If-Match`); with none chosen, the newest is shown. *(From 1b.8 and 1.1.1's helper for the version a frame shows.)*
-- [x] **U29 Describe a frame.** In the frame view's details panel, the frame's title and notes, edited in place and saved when you leave the field, and its rating, one to five stars (D39): clicked, or the 1–5 keys anywhere in the frame view, with 0 clearing it. The title shows under the frame's heading. Each change is saved with `If-Match`, so a roll changed elsewhere isn't overwritten. *(From 1c.1.)*
-- [x] **U32 A roll's notes.** A roll's description becomes its notes: "Notes" in place of "Description" on the new roll page, in Edit details and on the roll's page, and `notes` in the API and roll.json (schema 2; a schema 1 file's `description` is read as its notes). A roll's notes are its own: a frame doesn't inherit them, and its notes field stays its own (D40). Extends the "Describe a roll" journey.
-- [x] **U28a Delete a frame from the frame view.** A bin button in the frame view's bar, as on the roll page (U23), asking "Delete this frame?" in place; deleting it moves on to the next frame (or the previous, at the end, or back to where it was opened from when none is left), from a roll or an event. Extends the "Catalogue a roll" journey. *(From 1b.8.)*
-- [ ] **U33 Rotate a frame.** In the frame view, "Rotate anticlockwise" and "Rotate clockwise" buttons turn the version shown a quarter turn each time. The turn is kept on the version (`transform.rotate`: 0, 90, 180 or 270), never by changing its file (D41), and saved with `If-Match`; the frame view, filmstrip and contact sheets all show it turned.
-
-### 2. Archive settings
+### 1. Archive settings
 
 The archive's name, author, copyright and licence, set on first run and changed later; no labs (D35).
 
@@ -30,7 +21,7 @@ The archive's name, author, copyright and licence, set on first run and changed 
 - [ ] **1.4.2 Archive routes.** *(Equipment and events routes: U9–U12b.)*
 - [ ] **1b.2 First-run setup.** Shown when the archive isn't initialised: its name, author, copyright and licence, changeable later on a settings page.
 
-### 3. Frames' own details, bulk editing and locations
+### 2. Frames' own details, bulk editing and locations
 
 Selecting frames on a roll and giving them all an event, camera, film stock or lens at once. Frames inherit these from their roll and can have their own, as the design's metadata layering describes (section 6): a frame shot on a second camera, or the few frames of a roll that belong to a particular event (D25).
 
@@ -45,7 +36,7 @@ Selecting frames on a roll and giving them all an event, camera, film stock or l
 - [ ] **U18 Locations.** A location (a place name, with latitude and longitude if known) can be set on an event, a roll or a frame, and is inherited down the design's layers: roll, then its events (parent before child), then the frame (D26). Set in Edit details for a roll, on an event's page, and with "Set location" for selected frames (U16's bar). Shown in the roll's details row and for each frame, with where it came from ("Jökulsárlón — event"). Coordinates are typed or pasted, e.g. from a maps app; picking on a map is an open question.
 - [ ] **1c.1 Frame editing.** *(Title, rating and notes: U29; tags: U30, parked.)* What remains: a frame's own location and lens; inherited values greyed with their source; "set on roll instead" and "clear override".
 
-### 4. Multi-version frames
+### 3. Multi-version frames
 
 More than one version of a frame: other scans or edits of it, kept as further versions (design section 8.2). Web-native images first, then my own hi-res camera scans as raws, one frame at a time for now (D34).
 
@@ -54,7 +45,7 @@ More than one version of a frame: other scans or edits of it, kept as further ve
 - [ ] **U20 Raw files as versions.** A version can be a Sony ARW or Fujifilm RAF raw as well as a lab scan's JPEG, checked by file signature, not extension, within the upload size limit. Each version records where it came from (`source`: lab scan or camera scan), so raws are never written to. Thumbnails of a raw come from the preview JPEG it carries (`exiftool-vendored`; a new dependency, named in the design). API: the existing versions endpoint takes the raw as the body.
 - [ ] **U21 Add a raw to a frame.** "Add version…" (U34) takes raws too, and a raw can be dropped onto a frame on the roll page, adding it as another version of that frame. The contact sheet marks frames that have raws, and still shows the lab scan unless the raw is chosen to show; a frame's versions are listed with their source as well as their size and when they were added.
 
-### 5. Index and maintenance
+### 4. Index and maintenance
 
 - [ ] **1.2.4 `CatalogueIndex`.** `better-sqlite3` in the cache directory: rolls, frames, frame tags and equipment; upsert a resolved roll, query with the `ListRolls` filters and sort orders (D9), rebuild. Replaces the S1 directory scan for listing.
 - [ ] **1.3.13 `RebuildIndex`.**
@@ -271,6 +262,15 @@ Deleting a frame or a roll into the archive's `deleted/` folder. Changing a roll
 
 - [x] **U23 Delete a frame.** On the roll page, each frame shows a bin button when hovered or focused ("Delete frame 12"); clicking it covers the thumbnail, in place, with "Delete this frame?" and Delete and Cancel. Deleting saves the roll without the frame, with `If-Match`, then moves the frame's folder into `deleted/<time>-frame-<id>/` beside a `frame.json` saying what the frame was and which roll it came from; a roll changed elsewhere isn't overwritten. The holding area (`HoldingArea`) has filesystem and in-memory adapters and a contract suite. API: `DELETE /api/rolls/{rollId}/frames/{frameId}` (204, with the roll's new ETag). The "Catalogue a roll" journey deletes a frame. *(From 1.2.3, 1.3.16 and 1.4.3.)*
 - [x] **U24 Delete a roll.** "Delete roll…" beside Edit details and Add scans swaps them, in place, for "Delete this roll and its 6 frames?" (or "Delete this roll?" when it has none) with Delete roll and Cancel. Deleting moves the roll's whole folder, roll.json and every frame's files, into `deleted/<time>-roll-<id>/` beside a `roll-deleted.json`, then opens the rolls page (D38). Sent with `If-Match`: the roll repository checks the version and hands the roll to the holding area under the roll's lock (`RollRepository.remove`), so nothing changes it in between. API: `DELETE /api/rolls/{rollId}` (204). The "Catalogue a roll" journey ends by deleting its roll. *(From 1.3.16, 1.4.3 and 1c.2.)*
+
+### Frame view and describing frames
+
+- [x] **U26 Open a frame.** Clicking a frame's thumbnail, on a roll's page or an event's page, opens it large, filling the screen, with its frame and roll numbers. Along the bottom, a filmstrip of thumbnails of every frame in the collection it was opened from (the roll in frame order, or the event's frames in their grouping and order), the current one highlighted and kept in view; clicking one goes straight to it. Previous and next arrows on screen, and the ← and → keys, step through the same collection; Esc, or the link back, returns to where it was opened from. Each frame has its own address (`/rolls/<roll>/frames/<frame>`, or `/events/<event>/frames/<frame>` with the event's grouping), so reload and back keep it. Stepping replaces the address, so Back leaves the frame view; the filmstrip's thumbnails are named by their links. Extends the "Catalogue a roll" journey. *(From 1b.8.)*
+- [x] **U27 A frame's details and versions.** An "i" in a circle at the top right, above the image, shows and hides "About this frame" beside it (closed until opened; the choice is remembered in the browser): the roll's camera, lens, film stock, event and date shot (with where each came from once frames have their own, group 2), then the frame's versions, each with its file name, size, pixel size and the day it was added. The one shown is marked "Shown"; any other has "Set as default", which makes it the version shown for the frame everywhere, on contact sheets, filmstrips and in the frame view (`defaultVersion` on the frame, D15, in roll.json and the API; set with `PATCH /api/rolls/{rollId}/frames/{frameId}` and `If-Match`); with none chosen, the newest is shown. *(From 1b.8 and 1.1.1's helper for the version a frame shows.)*
+- [x] **U29 Describe a frame.** In the frame view's details panel, the frame's title and notes, edited in place and saved when you leave the field, and its rating, one to five stars (D39): clicked, or the 1–5 keys anywhere in the frame view, with 0 clearing it. The title shows under the frame's heading. Each change is saved with `If-Match`, so a roll changed elsewhere isn't overwritten. *(From 1c.1.)*
+- [x] **U32 A roll's notes.** A roll's description becomes its notes: "Notes" in place of "Description" on the new roll page, in Edit details and on the roll's page, and `notes` in the API and roll.json (schema 2; a schema 1 file's `description` is read as its notes). A roll's notes are its own: a frame doesn't inherit them, and its notes field stays its own (D40). Extends the "Describe a roll" journey.
+- [x] **U28a Delete a frame from the frame view.** A bin button in the frame view's bar, as on the roll page (U23), asking "Delete this frame?" in place; deleting it moves on to the next frame (or the previous, at the end, or back to where it was opened from when none is left), from a roll or an event. Extends the "Catalogue a roll" journey. *(From 1b.8.)*
+- [x] **U33 Rotate a frame.** In the frame view, "Rotate anticlockwise" and "Rotate clockwise" buttons turn the version shown a quarter turn each time. The turn is kept on the version (`transform.rotate`: 0, 90, 180 or 270), never by changing its file (D41), and saved with `If-Match`; the frame view, filmstrip and contact sheets all show it turned.
 
 ### Replaced or dropped
 

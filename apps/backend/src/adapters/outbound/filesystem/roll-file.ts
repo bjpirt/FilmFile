@@ -8,6 +8,10 @@ import {
   isRollNumber,
   type RollNumber,
 } from '../../../domain/rolls/roll-number.ts';
+import {
+  isQuarterTurn,
+  type QuarterTurn,
+} from '../../../domain/rolls/quarter-turn.ts';
 import { isRating, type Rating } from '../../../domain/rolls/rating.ts';
 import type { Frame, Roll } from '../../../domain/rolls/roll.ts';
 import { isShotDate, type ShotDate } from '../../../domain/rolls/shot-date.ts';
@@ -66,6 +70,15 @@ const storedVersion = z.object({
   width: z.number().int(),
   height: z.number().int(),
   added: z.iso.datetime(),
+  // Only written when the version is turned, so an unturned one says nothing of it.
+  transform: z
+    .object({
+      rotate: z.custom<QuarterTurn>(
+        (value) => typeof value === 'number' && isQuarterTurn(value),
+        'must be 0, 90, 180 or 270',
+      ),
+    })
+    .optional(),
 });
 
 /** A frame as roll.json (and a deleted frame's frame.json) holds it. */
@@ -184,9 +197,10 @@ export function parseRollFile(text: string): Result<Roll, string> {
 export function frameFromStored(stored: z.output<typeof storedFrame>): Frame {
   return {
     ...stored,
-    versions: stored.versions.map((version) => ({
+    versions: stored.versions.map(({ transform, ...version }) => ({
       ...version,
       added: new Date(version.added),
+      rotate: transform?.rotate ?? 0,
     })),
   };
 }
@@ -208,6 +222,9 @@ export function storedFrameOf(frame: Frame): z.input<typeof storedFrame> {
       width: version.width,
       height: version.height,
       added: version.added.toISOString(),
+      ...(version.rotate === 0
+        ? {}
+        : { transform: { rotate: version.rotate } }),
     })),
   };
 }

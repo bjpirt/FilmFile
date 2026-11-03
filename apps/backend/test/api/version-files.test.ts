@@ -78,6 +78,26 @@ describe('GET …/versions/{versionId}/thumbnail', () => {
     },
   );
 
+  test('turns it as asked, a quarter turn at a time', async () => {
+    const response = await request(
+      `${versionUrl}/thumbnail?size=small&rotate=90`,
+    );
+
+    expect(await imageSize(response)).toEqual({
+      format: 'webp',
+      width: 267,
+      height: 400,
+    });
+  });
+
+  test('refuses a turn that isn’t a quarter turn', async () => {
+    const response = await request(
+      `${versionUrl}/thumbnail?size=small&rotate=45`,
+    );
+
+    expect(response.status).toBe(422);
+  });
+
   test('never enlarges a scan smaller than the thumbnail', async () => {
     versionUrl = await uploadVersion(
       await aJpeg({ width: 30, height: 20 }),
@@ -112,5 +132,60 @@ describe('GET …/versions/{versionId}/thumbnail', () => {
     const response = await request(`${unknown}/thumbnail?size=small`);
 
     expect(response.status).toBe(404);
+  });
+});
+
+describe('PATCH …/versions/{versionId}', () => {
+  async function etagOf(url: string): Promise<string> {
+    const rollUrl = url.split('/frames/')[0] ?? '';
+    return (await request(rollUrl)).headers.get('ETag') ?? '';
+  }
+
+  function patch(url: string, body: unknown, ifMatch?: string) {
+    return request(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(ifMatch === undefined ? {} : { 'If-Match': ifMatch }),
+      },
+      body: JSON.stringify(body),
+    });
+  }
+
+  beforeEach(async () => {
+    versionUrl = await uploadVersion(await aJpeg());
+  });
+
+  test('turns the version, returning it and the roll’s new ETag', async () => {
+    const etag = await etagOf(versionUrl);
+
+    const response = await patch(versionUrl, { rotate: 90 }, etag);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ rotate: 90 });
+    const roll = await request(versionUrl.split('/frames/')[0] ?? '');
+    expect(response.headers.get('ETag')).toBe(roll.headers.get('ETag'));
+    expect(await roll.json()).toMatchObject({
+      frames: [{ versions: [{ rotate: 90 }] }],
+    });
+  });
+
+  test('keeps the original file as it was', async () => {
+    const before = await (await request(`${versionUrl}/file`)).arrayBuffer();
+
+    await patch(versionUrl, { rotate: 180 }, await etagOf(versionUrl));
+
+    const after = await (await request(`${versionUrl}/file`)).arrayBuffer();
+    expect(Buffer.from(after).equals(Buffer.from(before))).toBe(true);
+  });
+
+  test.each([
+    ['no If-Match', { rotate: 90 }, undefined, 428],
+    ['a stale If-Match', { rotate: 90 }, '"stale"', 409],
+    ['a turn that isn’t a quarter turn', { rotate: 45 }, 'etag', 422],
+  ])('refuses %s', async (_case, body, ifMatch, status) => {
+    const etag = ifMatch === 'etag' ? await etagOf(versionUrl) : ifMatch;
+
+    expect((await patch(versionUrl, body, etag)).status).toBe(status);
   });
 });

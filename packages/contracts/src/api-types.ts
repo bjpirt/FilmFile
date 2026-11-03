@@ -826,6 +826,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/rolls/{rollId}/frames/{frameId}/versions/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Turn a version
+         * @description Send the roll's ETag as If-Match: the change is refused if the roll has changed since. The version's file is never changed; only how it's shown. The response's ETag is the roll's new version.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: {
+                    /** @description The roll's ETag, from when it was read. */
+                    "if-match"?: string;
+                };
+                path: {
+                    rollId: string;
+                    frameId: string;
+                    versionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateVersionRequest"];
+                };
+            };
+            responses: {
+                /** @description The updated version. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Version"];
+                    };
+                };
+                /** @description The body is not valid JSON. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The frame has no version with that ID. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The roll has changed since it was read. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The body is not of the expected type. */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The request is invalid. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+                /** @description If-Match is missing. */
+                428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/api/rolls/{rollId}/frames/{frameId}/versions/{versionId}/thumbnail": {
         parameters: {
             query?: never;
@@ -839,6 +943,8 @@ export interface paths {
                 query: {
                     /** @description small fits within 400 px, large within 2048 px. */
                     size: "small" | "large";
+                    /** @description Degrees to turn it clockwise (D41). */
+                    rotate?: "0" | "90" | "180" | "270";
                 };
                 header?: never;
                 path: {
@@ -1501,6 +1607,8 @@ export interface components {
             height: number;
             /** Format: date-time */
             added: string;
+            /** @description Degrees clockwise: 0, 90, 180 or 270. */
+            rotate: 0 | 90 | 180 | 270;
         };
         UnreadableRoll: {
             /**
@@ -1589,6 +1697,11 @@ export interface components {
              * @example 01M6EAAP694BKWR9HZ4N5Z54XD
              */
             defaultVersion?: string | null;
+        };
+        /** @description How the version is turned when shown; its file is never changed. */
+        UpdateVersionRequest: {
+            /** @description Degrees clockwise: 0, 90, 180 or 270. */
+            rotate: 0 | 90 | 180 | 270;
         };
         CameraList: {
             cameras: components["schemas"]["Camera"][];
