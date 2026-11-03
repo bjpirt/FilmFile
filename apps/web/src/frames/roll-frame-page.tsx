@@ -49,6 +49,7 @@ export function RollFramePage({
   );
   return (
     <FrameView
+      api={api}
       frames={frames}
       current={frames.findIndex(({ frame }) => frame.id === frameId)}
       back={{ to: `/rolls/${rollId}`, label: `Roll ${roll.data.roll.roll}` }}

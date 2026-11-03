@@ -53,6 +53,7 @@ export function aFrame(
   overrides: {
     readonly id?: string;
     readonly number?: string | null;
+    readonly defaultVersion?: string;
     readonly versions?: readonly Version[];
   } = {},
 ): Frame {
@@ -62,6 +63,10 @@ export function aFrame(
       overrides.number === undefined || overrides.number === null
         ? null
         : checked(overrides.number, isFrameNumber),
+    defaultVersion:
+      overrides.defaultVersion === undefined
+        ? null
+        : checked(overrides.defaultVersion, isVersionId),
     versions: overrides.versions ?? [],
   };
 }

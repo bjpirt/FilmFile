@@ -21,6 +21,8 @@ export interface Frame {
   readonly id: FrameId;
   /** The frame number printed on the film, or null if not known yet. */
   readonly number: FrameNumber | null;
+  /** The version shown for the frame; when null, its newest (D15). */
+  readonly defaultVersion: VersionId | null;
   readonly versions: readonly Version[];
 }
 

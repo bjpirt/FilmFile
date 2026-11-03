@@ -37,6 +37,7 @@ export class CreateFrame {
           () => this.#ids.newFrameId(),
         ),
         number: number.value,
+        defaultVersion: null,
         versions: [],
       };
       return Promise.resolve(

@@ -581,7 +581,7 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Set or clear a frame's number
+         * Change a frame's number or the version shown for it
          * @description Send the roll's ETag as If-Match: the change is refused if the roll has changed since. The response's ETag is the roll's new version.
          */
         patch: {
@@ -1474,6 +1474,11 @@ export interface components {
              * @example 12A
              */
             number: string | null;
+            /**
+             * @description The version shown for the frame, or null for its newest.
+             * @example 01M6EAAP694BKWR9HZ4N5Z54XD
+             */
+            defaultVersion: string | null;
             versions: components["schemas"]["Version"][];
         };
         /** @description One image file of a frame. */
@@ -1563,12 +1568,18 @@ export interface components {
                 number: string | null;
             }[];
         };
+        /** @description The details to change; a detail left out stays as it is. */
         UpdateFrameRequest: {
             /**
              * @description The new frame number, or null to clear it.
              * @example 12A
              */
-            number: string | null;
+            number?: string | null;
+            /**
+             * @description The version to show for the frame, one of its own, or null to show its newest.
+             * @example 01M6EAAP694BKWR9HZ4N5Z54XD
+             */
+            defaultVersion?: string | null;
         };
         CameraList: {
             cameras: components["schemas"]["Camera"][];

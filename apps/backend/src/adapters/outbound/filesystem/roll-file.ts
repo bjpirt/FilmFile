@@ -59,6 +59,10 @@ export const storedFrame = z.object({
     isFrameNumber,
     'must be 1 to 9 characters',
   ).nullable(),
+  // Added after the first frames were written, which read as having none.
+  defaultVersion: branded<VersionId>(isVersionId, 'must be a ULID')
+    .nullable()
+    .default(null),
   versions: z.array(storedVersion),
 });
 
@@ -168,6 +172,7 @@ export function storedFrameOf(frame: Frame): z.input<typeof storedFrame> {
   return {
     id: frame.id,
     number: frame.number,
+    defaultVersion: frame.defaultVersion,
     versions: frame.versions.map((version) => ({
       id: version.id,
       file: version.file,

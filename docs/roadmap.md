@@ -6,16 +6,18 @@ Each task is about one commit: small enough to review in one sitting, with its t
 
 `[x]` done, `[ ]` to do, `[-]` dropped or replaced (with where it went).
 
-**Next up:** 1. Frame view.
+**Next up:** 1. Frame view and describing frames.
 
 ---
 
 ## To do
 
-### 1. Frame view
+### 1. Frame view and describing frames
 
 - [x] **U26 Open a frame.** Clicking a frame's thumbnail, on a roll's page or an event's page, opens it large, filling the screen, with its frame and roll numbers. Along the bottom, a filmstrip of thumbnails of every frame in the collection it was opened from (the roll in frame order, or the event's frames in their grouping and order), the current one highlighted and kept in view; clicking one goes straight to it. Previous and next arrows on screen, and the ← and → keys, step through the same collection; Esc, or the link back, returns to where it was opened from. Each frame has its own address (`/rolls/<roll>/frames/<frame>`, or `/events/<event>/frames/<frame>` with the event's grouping), so reload and back keep it. Stepping replaces the address, so Back leaves the frame view; the filmstrip's thumbnails are named by their links. Extends the "Catalogue a roll" journey. *(From 1b.8.)*
-- [ ] **U27 A frame's details and versions.** Beside the image: the frame's details (for now the roll's camera, lens, film stock, event and date shot; with where each came from once frames have their own, group 4), and the frame's versions with their file names, sizes, pixel sizes and when they were added. "Set as default" chooses the version shown for the frame everywhere (`defaultVersion`, D15); otherwise the newest is shown. Brings the helper for the version a frame shows (from 1.1.1). *(From 1b.8.)*
+- [x] **U27 A frame's details and versions.** An "i" in a circle at the top right, above the image, shows and hides "About this frame" beside it (closed until opened; the choice is remembered in the browser): the roll's camera, lens, film stock, event and date shot (with where each came from once frames have their own, group 4), then the frame's versions, each with its file name, size, pixel size and the day it was added. The one shown is marked "Shown"; any other has "Set as default", which makes it the version shown for the frame everywhere, on contact sheets, filmstrips and in the frame view (`defaultVersion` on the frame, D15, in roll.json and the API; set with `PATCH /api/rolls/{rollId}/frames/{frameId}` and `If-Match`); with none chosen, the newest is shown. *(From 1b.8 and 1.1.1's helper for the version a frame shows.)*
+- [ ] **U29 Describe a frame.** In the frame view's details panel, the frame's title and notes, edited in place and saved when you leave the field, and its rating, one to five stars (D39): clicked, or the 1–5 keys anywhere in the frame view, with 0 clearing it. The title shows under the frame's heading. Each change is saved with `If-Match`, so a roll changed elsewhere isn't overwritten. *(From 1c.1.)*
+- [ ] **U30 Tag frames.** In the details panel, a frame's tags: added by typing, with the archive's existing tags suggested, and removed one by one. *(From 1c.1.)*
 - [ ] **U28 Delete from the frame view.** "Delete frame" there, as on the roll page (U23), moving on to the next frame; and deleting one version of a frame into `deleted/`, leaving the frame and its other versions (the holding area's `holdVersion`). *(From 1b.8 and 1.3.16.)*
 
 ### 2. Raw camera scans
@@ -25,11 +27,7 @@ My own hi-res scans of chosen frames, made with a digital camera, kept as furthe
 - [ ] **U20 Raw files as versions.** A version can be a Sony ARW or Fujifilm RAF raw as well as a lab scan's JPEG, checked by file signature, not extension, within the upload size limit. Each version records where it came from (`source`: lab scan or camera scan), so raws are never written to. Thumbnails of a raw come from the preview JPEG it carries (`exiftool-vendored`; a new dependency, named in the design). API: the existing versions endpoint takes the raw as the body.
 - [ ] **U21 Add a raw to a frame.** On the roll page, a frame offers "Add raw…", and a raw can be dropped onto a frame: it's added as another version of that frame, keeping its file name, and a frame can have several. The contact sheet marks frames that have raws, and still shows the lab scan unless the raw is chosen to show; a frame's versions are listed with their source, size and when they were added.
 
-### 3. Describing frames
-
-- [ ] **1c.1 Frame editing.** Title, rating (keys 0–5), tags, notes, location, lens override; inherited values greyed with their source; "set on roll instead" and "clear override".
-
-### 4. Frames' own details, bulk editing and locations
+### 3. Frames' own details, bulk editing and locations
 
 Selecting frames on a roll and giving them all an event, camera, film stock or lens at once. Frames inherit these from their roll and can have their own, as the design's metadata layering describes (section 6): a frame shot on a second camera, or the few frames of a roll that belong to a particular event (D25).
 
@@ -42,8 +40,9 @@ Selecting frames on a roll and giving them all an event, camera, film stock or l
 - [ ] **U17 Events across rolls.** An event's page (U12c) also shows frames that are in the event themselves (U15), not only those of rolls in it, grouped as before; browsing by event includes a roll when any of its frames is in that event.
 - [ ] **1c.3 Bulk edit and delete.** *(Selecting frames and setting their event, camera, film stock or lens: U14, U16; location: U18.)* What remains: tags on selected frames, and deleting them after confirmation.
 - [ ] **U18 Locations.** A location (a place name, with latitude and longitude if known) can be set on an event, a roll or a frame, and is inherited down the design's layers: roll, then its events (parent before child), then the frame (D26). Set in Edit details for a roll, on an event's page, and with "Set location" for selected frames (U16's bar). Shown in the roll's details row and for each frame, with where it came from ("Jökulsárlón — event"). Coordinates are typed or pasted, e.g. from a maps app; picking on a map is an open question.
+- [ ] **1c.1 Frame editing.** *(Title, rating, notes and tags: U29, U30.)* What remains: a frame's own location and lens; inherited values greyed with their source; "set on roll instead" and "clear override".
 
-### 5. Archive settings
+### 4. Archive settings
 
 The archive's name, author, copyright and licence, set on first run and changed later; no labs (D35).
 
@@ -52,7 +51,7 @@ The archive's name, author, copyright and licence, set on first run and changed 
 - [ ] **1.4.2 Archive routes.** *(Equipment and events routes: U9–U12b.)*
 - [ ] **1b.2 First-run setup.** Shown when the archive isn't initialised: its name, author, copyright and licence, changeable later on a settings page.
 
-### 6. Index and maintenance
+### 5. Index and maintenance
 
 - [ ] **1.2.4 `CatalogueIndex`.** `better-sqlite3` in the cache directory: rolls, frames, frame tags and equipment; upsert a resolved roll, query with the `ListRolls` filters and sort orders (D9), rebuild. Replaces the S1 directory scan for listing.
 - [ ] **1.3.13 `RebuildIndex`.**
@@ -150,6 +149,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D36 | No real-time notifications for now: the browser sees changes made elsewhere when it next loads the data, and a save refused because something changed says so (as now). The `Notifier` port, its server-sent events route and the browser's live updates are out of the plan. | 1.2.6, 1.4.7, 1b.1 |
 | D37 | No file watcher until one is needed: files changed outside FilmFile (by hand or by sync) are validated whenever they're read, as `roll.json` already is, and the index is brought up to date by rebuilding it. | 1.3.14, 1.5.1 |
 | D38 | Any roll can be deleted, not only an empty one, after a confirmation that says how many frames go with it: its whole folder moves into `deleted/`, as frames do. Replaces D12's rule that only empty rolls can be deleted. | U24 |
+| D39 | A frame's rating is one to five stars, or none; there's no zero-star rating, and 0 (the key) clears it. | U29 |
 
 **Still open:** see `docs/design.md`, section 15.
 

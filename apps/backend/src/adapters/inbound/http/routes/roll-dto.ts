@@ -1,5 +1,5 @@
 import type { Roll as RollDto } from '@filmfile/contracts/rolls';
-import type { Roll, Version } from '../../../../domain/rolls/roll.ts';
+import type { Frame, Roll, Version } from '../../../../domain/rolls/roll.ts';
 
 // Domain types to the API's response shapes.
 
@@ -7,6 +7,15 @@ export function versionDto(
   version: Version,
 ): RollDto['frames'][number]['versions'][number] {
   return { ...version, added: version.added.toISOString() };
+}
+
+export function frameDto(frame: Frame): RollDto['frames'][number] {
+  return {
+    id: frame.id,
+    number: frame.number,
+    defaultVersion: frame.defaultVersion,
+    versions: frame.versions.map(versionDto),
+  };
 }
 
 export function rollDto(roll: Roll): RollDto {
@@ -20,10 +29,6 @@ export function rollDto(roll: Roll): RollDto {
     camera: roll.camera,
     film: roll.film,
     lens: roll.lens,
-    frames: roll.frames.map((frame) => ({
-      id: frame.id,
-      number: frame.number,
-      versions: frame.versions.map(versionDto),
-    })),
+    frames: roll.frames.map(frameDto),
   };
 }

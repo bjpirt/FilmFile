@@ -23,7 +23,12 @@ describe('POST /api/rolls/{id}/frames', () => {
     const frame: unknown = await response.json();
 
     expect(response.status).toBe(201);
-    expect(frame).toEqual({ id: idOf(frame), number: null, versions: [] });
+    expect(frame).toEqual({
+      id: idOf(frame),
+      number: null,
+      defaultVersion: null,
+      versions: [],
+    });
     expect(idOf(frame)).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
   });
 
@@ -111,6 +116,7 @@ describe('PATCH /api/rolls/{id}/frames/{frameId}', () => {
     expect(await response.json()).toEqual({
       id: frameId,
       number: '12A',
+      defaultVersion: null,
       versions: [],
     });
     const newEtag = response.headers.get('ETag');
@@ -170,6 +176,49 @@ describe('PATCH /api/rolls/{id}/frames/{frameId}', () => {
     );
 
     expect(response.status).toBe(404);
+  });
+});
+
+describe('PATCH a frame’s version shown', () => {
+  test('shows the version chosen, then the newest again with null', async () => {
+    const rollId = await aRoll();
+    const frameId = String(
+      idOf(await (await post(`/api/rolls/${rollId}/frames`, {})).json()),
+    );
+    const uploaded: unknown = await (
+      await request(
+        `/api/rolls/${rollId}/frames/${frameId}/versions?file=12340001.jpg`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'image/jpeg' },
+          body: new Uint8Array(await aJpeg()),
+        },
+      )
+    ).json();
+    const url = `/api/rolls/${rollId}/frames/${frameId}`;
+    const etag = (await request(`/api/rolls/${rollId}`)).headers.get('ETag');
+
+    const chosen = await request(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'If-Match': etag ?? '',
+      },
+      body: JSON.stringify({ defaultVersion: idOf(uploaded) }),
+    });
+    const cleared = await request(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'If-Match': chosen.headers.get('ETag') ?? '',
+      },
+      body: JSON.stringify({ defaultVersion: null }),
+    });
+
+    expect(await chosen.json()).toMatchObject({
+      defaultVersion: idOf(uploaded),
+    });
+    expect(await cleared.json()).toMatchObject({ defaultVersion: null });
   });
 });
 

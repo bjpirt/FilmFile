@@ -38,6 +38,9 @@ export const frame = z
       description: 'The frame number, or null if not known yet.',
       example: '12A',
     }),
+    defaultVersion: ulid.nullable().meta({
+      description: 'The version shown for the frame, or null for its newest.',
+    }),
     versions: z.array(version),
   })
   .meta({ id: 'Frame' });
@@ -143,9 +146,17 @@ export const updateFrameRequest = z
   .object({
     number: frameNumber
       .nullable()
+      .optional()
       .meta({ description: 'The new frame number, or null to clear it.' }),
+    defaultVersion: ulid.nullable().optional().meta({
+      description:
+        'The version to show for the frame, one of its own, or null to show its newest.',
+    }),
   })
-  .meta({ id: 'UpdateFrameRequest' });
+  .meta({
+    id: 'UpdateFrameRequest',
+    description: 'The details to change; a detail left out stays as it is.',
+  });
 
 export const updateFrameNumbersRequest = z
   .object({

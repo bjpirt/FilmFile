@@ -16,7 +16,10 @@ import {
   type FakeArchive,
 } from '../testing/fake-archive.ts';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
 
 const roll = aRoll('2026-014', {
   event: 'iceland',
@@ -202,5 +205,120 @@ describe('opened from an event', () => {
     expect(
       await screen.findByRole('heading', { name: 'Frame 1' }),
     ).toBeDefined();
+  });
+});
+
+describe('the frame’s details and versions', () => {
+  const second = {
+    id: '01JC8Z7K3M00000000000V0009',
+    file: 'frames/x/z/12340001-again.jpg',
+    sha256: 'again',
+    bytes: 2_400_000,
+    width: 3089,
+    height: 2048,
+    added: '2026-11-03T09:00:00.000Z',
+  };
+  const twice = aRoll('2026-020', {
+    camera: 'nikon-fe',
+    shot: '2026-09',
+    frames: [
+      {
+        ...aFrame('1', '12340001.jpg'),
+        versions: [...aFrame('1', '12340001.jpg').versions, second],
+      },
+    ],
+  });
+
+  async function showDetails() {
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Show details' }),
+    );
+  }
+
+  function openTwice(): FakeArchive {
+    const archive = fakeArchive({
+      rolls: [twice],
+      cameras: [{ slug: 'nikon-fe', make: 'Nikon', model: 'FE' }],
+    });
+    openAt(`/rolls/${twice.id}/frames/${twice.frames[0]?.id ?? ''}`, archive);
+    return archive;
+  }
+
+  test('hides the details until the "i" shows them, remembering the choice', async () => {
+    openTwice();
+    const toggle = await screen.findByRole('button', { name: 'Show details' });
+    expect(
+      screen.queryByRole('complementary', { name: 'About this frame' }),
+    ).toBeNull();
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+
+    fireEvent.click(toggle);
+
+    expect(
+      screen.getByRole('complementary', { name: 'About this frame' }),
+    ).toBeDefined();
+    expect(
+      screen
+        .getByRole('button', { name: 'Hide details' })
+        .getAttribute('aria-expanded'),
+    ).toBe('true');
+    cleanup();
+    openTwice();
+    expect(
+      await screen.findByRole('complementary', { name: 'About this frame' }),
+    ).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide details' }));
+
+    expect(
+      screen.queryByRole('complementary', { name: 'About this frame' }),
+    ).toBeNull();
+  });
+
+  test('shows the roll’s details beside the frame', async () => {
+    openTwice();
+    await showDetails();
+
+    const details = await screen.findByRole('complementary', {
+      name: 'About this frame',
+    });
+    expect(await within(details).findByText('Nikon FE')).toBeDefined();
+    expect(within(details).getByText('Sep 2026')).toBeDefined();
+  });
+
+  test('lists the frame’s versions, newest shown, each with its size and when it was added', async () => {
+    openTwice();
+    await showDetails();
+
+    const versions = await screen.findByRole('list', { name: 'Versions' });
+    expect(
+      within(versions)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent),
+    ).toEqual([
+      '12340001.jpg3 bytes · 3 × 2 · 2 Nov 2026Set as default',
+      '12340001-again.jpg2.4 MB · 3089 × 2048 · 3 Nov 2026Shown',
+    ]);
+    expect(
+      screen.getByRole('img', { name: '12340001-again.jpg' }),
+    ).toBeDefined();
+  });
+
+  test('shows another version when it’s set as default, sending the roll’s ETag', async () => {
+    const archive = openTwice();
+    await showDetails();
+    const versions = await screen.findByRole('list', { name: 'Versions' });
+
+    fireEvent.click(
+      within(versions).getByRole('button', { name: 'Set as default' }),
+    );
+
+    expect(
+      await screen.findByRole('img', { name: '12340001.jpg' }),
+    ).toBeDefined();
+    expect(archive.ifMatches).toEqual(['"v1"']);
+    expect(archive.rolls[0]?.frames[0]?.defaultVersion).toBe(
+      aFrame('1', '12340001.jpg').versions[0]?.id,
+    );
   });
 });

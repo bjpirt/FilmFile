@@ -64,6 +64,7 @@ export function aFrame(number: string | null, file: string): Frame {
   return {
     id: `01JC8Z7K3M00000000000F${n}`,
     number,
+    defaultVersion: null,
     versions: [
       {
         id: `01JC8Z7K3M00000000000V${n}`,
@@ -377,6 +378,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         const frame: Frame = {
           id: newId(),
           number: body.value.number ?? null,
+          defaultVersion: null,
           versions: [],
         };
         roll.frames.push(frame);
@@ -425,7 +427,12 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       if (!body.ok) {
         return body.response;
       }
-      const updated = { ...frame, number: body.value.number };
+      const { number, defaultVersion } = body.value;
+      const updated = {
+        ...frame,
+        ...(number === undefined ? {} : { number }),
+        ...(defaultVersion === undefined ? {} : { defaultVersion }),
+      };
       roll.frames = roll.frames.map((f) => (f.id === frameId ? updated : f));
       change(roll.id);
       return Response.json(updated, { headers: { ETag: etagOf(roll.id) } });

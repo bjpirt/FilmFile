@@ -301,10 +301,89 @@ select {
   margin: 0;
 }
 
+.frame-view-body {
+  display: grid;
+  flex: 1;
+  gap: var(--space-5);
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+}
+
+.frame-view-body.with-details {
+  grid-template-columns: minmax(0, 1fr) 17rem;
+}
+
+@media (max-width: 52rem) {
+  .frame-view-body.with-details {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* At the right-hand end of the bar, above the image's top right. */
+.details-toggle {
+  align-self: center;
+  margin-left: auto;
+}
+
+.details-toggle[aria-expanded='true'] {
+  color: var(--accent);
+}
+
+.frame-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow-y: auto;
+}
+
+.frame-details h2 {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  margin: var(--space-2) 0 0;
+  text-transform: uppercase;
+}
+
+.versions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.versions li {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.versions .muted {
+  font-size: 0.85rem;
+}
+
+.versions button {
+  align-self: flex-start;
+  font-size: 0.85rem;
+  min-height: 2rem;
+  padding: 0 var(--space-3);
+}
+
+.version-file {
+  font-family: var(--font-numbers);
+  overflow-wrap: anywhere;
+}
+
+.version-shown {
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+
 .frame-view-stage {
   align-items: center;
   display: flex;
-  flex: 1;
   gap: var(--space-3);
   min-height: 0;
 }

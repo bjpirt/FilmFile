@@ -67,6 +67,7 @@ function aFrameWithScan(number: string | null, file: string): Frame {
   return {
     id: `01JC8Z7K3M00000000000000${file.slice(6, 8)}`,
     number,
+    defaultVersion: null,
     versions: [
       {
         id: `01JC8Z7K3M00000000000001${file.slice(6, 8)}`,
@@ -911,7 +912,12 @@ describe('renumbering', () => {
 test('shows a placeholder for a frame with no scan', async () => {
   renderPage(
     archiveWith([
-      { id: rollId.replace('01', '02'), number: '5', versions: [] },
+      {
+        id: rollId.replace('01', '02'),
+        number: '5',
+        defaultVersion: null,
+        versions: [],
+      },
     ]),
   );
 

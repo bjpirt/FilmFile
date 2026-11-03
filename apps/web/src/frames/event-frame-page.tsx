@@ -40,6 +40,7 @@ export function EventFramePage({
   const frames = shown.groups.flatMap((g) => g.frames);
   return (
     <FrameView
+      api={api}
       frames={frames}
       current={frames.findIndex(({ frame }) => frame.id === frameId)}
       back={{ to: `/events/${slug}${grouping}`, label: shown.event.name }}

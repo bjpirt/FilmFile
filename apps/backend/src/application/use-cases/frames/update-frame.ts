@@ -11,8 +11,9 @@ import { err, ok, type Result } from '../../../domain/shared/result.ts';
 import type { RollRepository } from '../../ports/roll-repository.ts';
 
 /**
- * Sets or clears a frame's number, if the roll hasn't changed since the
- * caller read it at `expectedVersion`.
+ * Changes a frame's number or the version shown for it (D15), if the roll
+ * hasn't changed since the caller read it at `expectedVersion`. A detail
+ * left out stays as it is; null clears it.
  */
 export class UpdateFrame {
   readonly #rolls: RollRepository;
@@ -27,7 +28,9 @@ export class UpdateFrame {
       readonly rollId: RollId;
       readonly frameId: FrameId;
       readonly expectedVersion: string;
-      readonly number: string | null;
+      readonly number?: string | null | undefined;
+      /** The ID of one of the frame's own versions. */
+      readonly defaultVersion?: string | null | undefined;
     },
   ): Promise<
     Result<
@@ -36,7 +39,9 @@ export class UpdateFrame {
     >
   > {
     const number =
-      input.number === null ? ok(null) : parseFrameNumber(input.number);
+      input.number === undefined || input.number === null
+        ? ok(input.number)
+        : parseFrameNumber(input.number);
     if (!number.ok) {
       return number;
     }
@@ -48,8 +53,27 @@ export class UpdateFrame {
     if (frame === undefined) {
       return err({ kind: 'not-found', entity: 'frame', id: input.frameId });
     }
+    const shown =
+      input.defaultVersion === undefined || input.defaultVersion === null
+        ? input.defaultVersion
+        : frame.versions.find((v) => v.id === input.defaultVersion)?.id;
+    if (shown === undefined && input.defaultVersion !== undefined) {
+      return err({
+        kind: 'validation-failed',
+        issues: [
+          {
+            path: ['defaultVersion'],
+            message: 'must be one of the frame’s versions',
+          },
+        ],
+      });
+    }
 
-    const updated: Frame = { ...frame, number: number.value };
+    const updated: Frame = {
+      ...frame,
+      ...(number.value === undefined ? {} : { number: number.value }),
+      ...(shown === undefined ? {} : { defaultVersion: shown }),
+    };
     // Saved against the version the caller read, so a change made since is never overwritten.
     const saved = await this.#rolls.save(
       ctx,

@@ -1,7 +1,13 @@
+import type { ApiClient } from '@filmfile/contracts/client';
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Thumbnail } from '../rolls/thumbnail.tsx';
 import { Link, navigate } from '../routing.tsx';
+import {
+  rememberDetailsOpen,
+  rememberedDetailsOpen,
+} from './details-preference.ts';
+import { FrameDetails } from './frame-details.tsx';
 
 /** A frame in the collection being stepped through, with the roll it's on. */
 export interface CollectionFrame {
@@ -18,18 +24,57 @@ function typing(target: EventTarget | null): boolean {
   );
 }
 
+/** Shows and hides the frame's details: an "i" in a circle, named for what it will do. */
+function DetailsToggle({
+  open,
+  toggle,
+}: {
+  readonly open: boolean;
+  readonly toggle: () => void;
+}) {
+  const label = open ? 'Hide details' : 'Show details';
+  return (
+    <button
+      type="button"
+      className="icon-button details-toggle"
+      aria-label={label}
+      title={label}
+      aria-expanded={open}
+      aria-controls="frame-details"
+      onClick={toggle}
+    >
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <line x1="12" y1="11" x2="12" y2="16.5" />
+        <circle cx="12" cy="7.75" r="0.6" fill="currentColor" />
+      </svg>
+    </button>
+  );
+}
+
 /**
  * One frame, large, with a filmstrip of the collection it was opened from
  * (a roll, or an event's frames) to step through: by the arrows on screen,
  * the ← and → keys, or a click on the filmstrip. Esc goes back.
  */
 export function FrameView({
+  api,
   frames,
   current,
   back,
   addressOf,
   labelOf,
 }: {
+  readonly api: ApiClient;
   readonly frames: readonly CollectionFrame[];
   /** The index of the frame shown. */
   readonly current: number;
@@ -44,6 +89,7 @@ export function FrameView({
   const previous = frames[current - 1];
   const next = frames[current + 1];
   const currentInStrip = useRef<HTMLLIElement>(null);
+  const [detailsOpen, setDetailsOpen] = useState(rememberedDetailsOpen);
 
   useEffect(() => {
     // happy-dom, which the page tests run in, has no scrollIntoView, though
@@ -100,38 +146,58 @@ export function FrameView({
         <span className="muted">
           {current + 1} of {frames.length}
         </span>
+        <DetailsToggle
+          open={detailsOpen}
+          toggle={() => {
+            rememberDetailsOpen(!detailsOpen);
+            setDetailsOpen(!detailsOpen);
+          }}
+        />
       </div>
 
-      <div className="frame-view-stage">
-        <button
-          type="button"
-          className="frame-step"
-          aria-label="Previous frame"
-          disabled={previous === undefined}
-          onClick={() => {
-            if (previous !== undefined) {
-              navigate(addressOf(previous), { replace: true });
-            }
-          }}
-        >
-          ‹
-        </button>
-        <div className="frame-view-image">
-          <Thumbnail rollId={shown.roll.id} frame={shown.frame} size="large" />
+      <div
+        className={
+          detailsOpen ? 'frame-view-body with-details' : 'frame-view-body'
+        }
+      >
+        <div className="frame-view-stage">
+          <button
+            type="button"
+            className="frame-step"
+            aria-label="Previous frame"
+            disabled={previous === undefined}
+            onClick={() => {
+              if (previous !== undefined) {
+                navigate(addressOf(previous), { replace: true });
+              }
+            }}
+          >
+            ‹
+          </button>
+          <div className="frame-view-image">
+            <Thumbnail
+              rollId={shown.roll.id}
+              frame={shown.frame}
+              size="large"
+            />
+          </div>
+          <button
+            type="button"
+            className="frame-step"
+            aria-label="Next frame"
+            disabled={next === undefined}
+            onClick={() => {
+              if (next !== undefined) {
+                navigate(addressOf(next), { replace: true });
+              }
+            }}
+          >
+            ›
+          </button>
         </div>
-        <button
-          type="button"
-          className="frame-step"
-          aria-label="Next frame"
-          disabled={next === undefined}
-          onClick={() => {
-            if (next !== undefined) {
-              navigate(addressOf(next), { replace: true });
-            }
-          }}
-        >
-          ›
-        </button>
+        {detailsOpen && (
+          <FrameDetails api={api} roll={shown.roll} frame={shown.frame} />
+        )}
       </div>
 
       <ol className="filmstrip" aria-label="Filmstrip">

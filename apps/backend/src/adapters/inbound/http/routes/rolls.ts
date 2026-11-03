@@ -43,7 +43,7 @@ import { domainErrorResponse } from '../domain-error-response.ts';
 import { etagOf, versionFrom } from '../etag.ts';
 import { requireContentType } from '../middleware/require-content-type.ts';
 import { invalidRequestHook } from './invalid-request-hook.ts';
-import { rollDto, versionDto } from './roll-dto.ts';
+import { frameDto, rollDto, versionDto } from './roll-dto.ts';
 
 // D4: lab scans are a few MB; this leaves room for large scans to come.
 const maxUploadMegabytes = 200;
@@ -200,7 +200,7 @@ const updateFrameNumbers = createRoute({
 const updateFrame = createRoute({
   method: 'patch',
   path: '/{rollId}/frames/{frameId}',
-  summary: "Set or clear a frame's number",
+  summary: "Change a frame's number or the version shown for it",
   description:
     "Send the roll's ETag as If-Match: the change is refused if the roll has changed since. The response's ETag is the roll's new version.",
   middleware: [requireJson] as const,
@@ -411,7 +411,7 @@ export function rollRoutes({
       number: c.req.valid('json').number,
     });
     return created.ok
-      ? c.json({ ...created.value, versions: [] }, 201)
+      ? c.json(frameDto(created.value), 201)
       : domainErrorResponse(c, created.error);
   });
 
@@ -454,13 +454,13 @@ export function rollRoutes({
       rollId,
       frameId,
       expectedVersion: versionFrom(ifMatch),
-      number: c.req.valid('json').number,
+      ...c.req.valid('json'),
     });
     if (!updated.ok) {
       return domainErrorResponse(c, updated.error);
     }
     c.header('ETag', etagOf(updated.value.version));
-    return c.json({ ...updated.value.frame, versions: [] }, 200);
+    return c.json(frameDto(updated.value.frame), 200);
   });
 
   routes.openapi(deleteFrame, async (c) => {

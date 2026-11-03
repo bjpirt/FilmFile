@@ -1,7 +1,8 @@
 import type { Frame } from '@filmfile/contracts/rolls';
+import { shownVersion } from './shown-version.ts';
 import { thumbnailUrl } from './thumbnail-url.ts';
 
-/** A frame's newest scan, small or large, named by its file; a placeholder if it has none. */
+/** The scan shown for a frame, small or large, named by its file; a placeholder if it has none. */
 export function Thumbnail({
   rollId,
   frame,
@@ -15,7 +16,7 @@ export function Thumbnail({
   readonly decorative?: boolean;
 }) {
   const src = thumbnailUrl(rollId, frame, size);
-  const version = frame.versions.at(-1);
+  const version = shownVersion(frame);
   if (src === undefined || version === undefined) {
     return <div className="no-scan">No scan</div>;
   }

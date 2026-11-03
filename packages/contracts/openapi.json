@@ -153,6 +153,15 @@
             "description": "The frame number, or null if not known yet.",
             "example": "12A"
           },
+          "defaultVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "example": "01M6EAAP694BKWR9HZ4N5Z54XD",
+            "description": "The version shown for the frame, or null for its newest."
+          },
           "versions": {
             "type": "array",
             "items": {
@@ -163,6 +172,7 @@
         "required": [
           "id",
           "number",
+          "defaultVersion",
           "versions"
         ]
       },
@@ -454,11 +464,18 @@
             "maxLength": 9,
             "example": "12A",
             "description": "The new frame number, or null to clear it."
+          },
+          "defaultVersion": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+            "example": "01M6EAAP694BKWR9HZ4N5Z54XD",
+            "description": "The version to show for the frame, one of its own, or null to show its newest."
           }
         },
-        "required": [
-          "number"
-        ]
+        "description": "The details to change; a detail left out stays as it is."
       },
       "CameraList": {
         "type": "object",
@@ -1356,7 +1373,7 @@
     },
     "/api/rolls/{rollId}/frames/{frameId}": {
       "patch": {
-        "summary": "Set or clear a frame's number",
+        "summary": "Change a frame's number or the version shown for it",
         "description": "Send the roll's ETag as If-Match: the change is refused if the roll has changed since. The response's ETag is the roll's new version.",
         "parameters": [
           {

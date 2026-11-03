@@ -97,7 +97,12 @@ describe('CreateFrame', () => {
 
     expect(created).toEqual({
       ok: true,
-      value: { id: '00000000000000000000000003', number: '2', versions: [] },
+      value: {
+        id: '00000000000000000000000003',
+        number: '2',
+        defaultVersion: null,
+        versions: [],
+      },
     });
     expect(
       (await rolls.get(ctx, roll.id))?.roll.frames.map((f) => f.number),
@@ -146,7 +151,12 @@ describe('UpdateFrame', () => {
     expect(updated).toEqual({
       ok: true,
       value: {
-        frame: { id: frameId, number: '12A', versions: [] },
+        frame: {
+          id: frameId,
+          number: '12A',
+          defaultVersion: null,
+          versions: [],
+        },
         version: after?.version,
       },
     });
@@ -289,6 +299,85 @@ describe('DeleteFrame', () => {
     ).toMatchObject({
       ok: false,
       error: { kind: 'not-found', entity: 'frame' },
+    });
+  });
+});
+
+describe('UpdateFrame with the version shown', () => {
+  async function withTwoVersions() {
+    const setup = await setUp();
+    const frameId = await aFrameIn(setup.createFrame, setup.roll.id);
+    const versions: string[] = [];
+    for (const shade of [0, 120]) {
+      const added = await setup.addVersion.execute(ctx, {
+        rollId: setup.roll.id,
+        frameId,
+        fileName: `1234000${String(shade)}.jpg`,
+        bytes: new Uint8Array(await aJpeg({ shade })),
+      });
+      if (added.ok) {
+        versions.push(added.value.id);
+      }
+    }
+    const read = await setup.rolls.get(ctx, setup.roll.id);
+    return { ...setup, frameId, versions, version: read?.version ?? '' };
+  }
+
+  test('chooses one of the frame’s versions to show, leaving its number', async () => {
+    const { roll, frameId, versions, version, updateFrame } =
+      await withTwoVersions();
+
+    const updated = await updateFrame.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      expectedVersion: version,
+      defaultVersion: versions[0],
+    });
+
+    expect(updated).toMatchObject({
+      ok: true,
+      value: { frame: { defaultVersion: versions[0], number: null } },
+    });
+  });
+
+  test('goes back to showing the newest with null', async () => {
+    const { rolls, roll, frameId, versions, version, updateFrame } =
+      await withTwoVersions();
+    const chosen = await updateFrame.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      expectedVersion: version,
+      defaultVersion: versions[0],
+    });
+
+    await updateFrame.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      expectedVersion: chosen.ok ? chosen.value.version : '',
+      defaultVersion: null,
+    });
+
+    expect(
+      (await rolls.get(ctx, roll.id))?.roll.frames[0]?.defaultVersion,
+    ).toBeNull();
+  });
+
+  test('refuses a version that is not the frame’s', async () => {
+    const { roll, frameId, version, updateFrame } = await withTwoVersions();
+
+    expect(
+      await updateFrame.execute(ctx, {
+        rollId: roll.id,
+        frameId,
+        expectedVersion: version,
+        defaultVersion: missing,
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: {
+        kind: 'validation-failed',
+        issues: [{ path: ['defaultVersion'] }],
+      },
     });
   });
 });
