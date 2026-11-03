@@ -1,6 +1,7 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
+import { aJpeg } from '../support/a-jpeg.ts';
 import { apiFor, idOf } from '../support/api.ts';
 import { useTempArchive } from '../support/temp-archive.ts';
 
@@ -274,5 +275,74 @@ describe('PATCH /api/rolls/{id}', () => {
     );
 
     expect(response.status).toBe(404);
+  });
+});
+
+describe('DELETE /api/rolls/{id}', () => {
+  async function aRollWithAScan() {
+    const created: unknown = await (await createRoll('2026-014')).json();
+    const url = `/api/rolls/${String(idOf(created))}`;
+    const frameId = String(
+      idOf(await (await post(`${url}/frames`, {})).json()),
+    );
+    await request(`${url}/frames/${frameId}/versions?file=12340001.jpg`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'image/jpeg' },
+      body: new Uint8Array(await aJpeg()),
+    });
+    const etag = (await request(url)).headers.get('ETag') ?? '';
+    return { id: String(idOf(created)), url, etag };
+  }
+
+  function deleteRoll(url: string, ifMatch?: string) {
+    return request(url, {
+      method: 'DELETE',
+      headers: ifMatch === undefined ? {} : { 'If-Match': ifMatch },
+    });
+  }
+
+  test('deletes the roll with its frames, moving its whole folder into deleted/', async () => {
+    const { id, url, etag } = await aRollWithAScan();
+
+    const response = await deleteRoll(url, etag);
+
+    expect(response.status).toBe(204);
+    expect((await request(url)).status).toBe(404);
+    const [held] = await readdir(path.join(archive.path(), 'deleted'));
+    const folder = path.join(archive.path(), 'deleted', held ?? '');
+    expect(held).toMatch(
+      new RegExp(`^\\d{4}-\\d{2}-\\d{2}T\\d{6}Z-roll-${id}$`),
+    );
+    expect(
+      JSON.parse(
+        await readFile(path.join(folder, 'roll-deleted.json'), 'utf8'),
+      ),
+    ).toMatchObject({ schema: 1, roll: { id, roll: '2026-014' } });
+    expect(
+      JSON.parse(
+        await readFile(path.join(folder, '2026-014', 'roll.json'), 'utf8'),
+      ),
+    ).toMatchObject({ id, frames: [{ versions: [{}] }] });
+    expect(await readdir(path.join(archive.path(), 'rolls/2026'))).toEqual([]);
+  });
+
+  test('requires If-Match', async () => {
+    const { url } = await aRollWithAScan();
+
+    expect((await deleteRoll(url)).status).toBe(428);
+  });
+
+  test('refuses a stale If-Match, keeping the roll', async () => {
+    const { url, etag } = await aRollWithAScan();
+    await post(`${url}/frames`, {});
+
+    expect((await deleteRoll(url, etag)).status).toBe(409);
+    expect((await request(url)).status).toBe(200);
+  });
+
+  test('returns 404 for an ID that no roll has', async () => {
+    expect(
+      (await deleteRoll('/api/rolls/01JC8Z7K3M0000000000000000', '"1"')).status,
+    ).toBe(404);
   });
 });

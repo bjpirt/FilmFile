@@ -149,4 +149,28 @@ export class FilesystemRollRepository implements RollRepository {
       return ok(changed.value.value);
     });
   }
+
+  remove(
+    _ctx: ArchiveContext,
+    id: RollId,
+    expectedVersion: string,
+    handOver: (roll: Roll) => Promise<void>,
+  ): Promise<Result<void, NotFound | ConcurrencyConflict>> {
+    return this.#lock.run(id, async () => {
+      const current = await this.#find(id);
+      if (current === undefined) {
+        return err({ kind: 'not-found', entity: 'roll', id });
+      }
+      if (current.version !== expectedVersion) {
+        return err({ kind: 'concurrency-conflict', entity: 'roll', id });
+      }
+      await handOver(current.roll);
+      if (await this.#find(id)) {
+        throw new Error(
+          `roll ${id} was handed over but is still in the archive`,
+        );
+      }
+      return ok(undefined);
+    });
+  }
 }

@@ -13,6 +13,17 @@ export interface HeldFrame {
   readonly at: Date;
 }
 
+/** A deleted roll, as the holding area keeps it: its whole folder, frames and all (D38). */
+export interface HeldRoll {
+  readonly kind: 'roll';
+  readonly rollId: RollId;
+  readonly roll: RollNumber;
+  /** When it was deleted. */
+  readonly at: Date;
+}
+
+export type Held = HeldFrame | HeldRoll;
+
 /**
  * Where deleted things go: the archive's `deleted/` folder, or memory in
  * tests. Nothing in it is ever deleted or overwritten; only the user empties
@@ -22,6 +33,9 @@ export interface HoldingArea {
   /** Moves a deleted frame's files out of its roll, with its JSON, into a folder of its own. */
   holdFrame(ctx: ArchiveContext, held: Omit<HeldFrame, 'kind'>): Promise<void>;
 
+  /** Moves a deleted roll's whole folder, frames and all, into a folder of its own. */
+  holdRoll(ctx: ArchiveContext, held: Omit<HeldRoll, 'kind'>): Promise<void>;
+
   /** Everything held, oldest first. */
-  list(ctx: ArchiveContext): Promise<readonly HeldFrame[]>;
+  list(ctx: ArchiveContext): Promise<readonly Held[]>;
 }

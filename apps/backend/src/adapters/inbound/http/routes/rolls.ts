@@ -29,6 +29,7 @@ import type { GetThumbnail } from '../../../../application/use-cases/frames/get-
 import type { UpdateFrame } from '../../../../application/use-cases/frames/update-frame.ts';
 import type { UpdateFrameNumbers } from '../../../../application/use-cases/frames/update-frame-numbers.ts';
 import type { CreateRoll } from '../../../../application/use-cases/rolls/create-roll.ts';
+import type { DeleteRoll } from '../../../../application/use-cases/rolls/delete-roll.ts';
 import type { GetRoll } from '../../../../application/use-cases/rolls/get-roll.ts';
 import type { ListRolls } from '../../../../application/use-cases/rolls/list-rolls.ts';
 import type { UpdateRoll } from '../../../../application/use-cases/rolls/update-roll.ts';
@@ -128,6 +129,22 @@ const updateRoll = createRoute({
     404: json(errorResponse, 'There is no roll with that ID.'),
     409: json(errorResponse, 'The roll has changed since it was read.'),
     415: wrongType,
+    422: invalid,
+    428: json(errorResponse, 'If-Match is missing.'),
+  },
+});
+
+const deleteRoll = createRoute({
+  method: 'delete',
+  path: '/{rollId}',
+  summary: 'Delete a roll',
+  description:
+    "Deletes the roll with its frames (D38). Send the roll's ETag as If-Match: the delete is refused if the roll has changed since. The roll's whole folder moves into the archive's deleted/ folder; nothing is lost.",
+  request: { params: rollParams, headers: ifMatchHeader },
+  responses: {
+    204: { description: 'The roll was deleted.' },
+    404: json(errorResponse, 'There is no roll with that ID.'),
+    409: json(errorResponse, 'The roll has changed since it was read.'),
     422: invalid,
     428: json(errorResponse, 'If-Match is missing.'),
   },
@@ -290,6 +307,7 @@ export interface RollUseCases {
   readonly getRoll: GetRoll;
   readonly listRolls: ListRolls;
   readonly updateRoll: UpdateRoll;
+  readonly deleteRoll: DeleteRoll;
   readonly createFrame: CreateFrame;
   readonly updateFrame: UpdateFrame;
   readonly updateFrameNumbers: UpdateFrameNumbers;
@@ -363,6 +381,24 @@ export function rollRoutes({
     }
     c.header('ETag', etagOf(updated.value.version));
     return c.json(rollDto(updated.value.roll), 200);
+  });
+
+  routes.openapi(deleteRoll, async (c) => {
+    const { rollId } = c.req.valid('param');
+    if (!isRollId(rollId)) {
+      return c.json(notFound, 404);
+    }
+    const ifMatch = c.req.valid('header')['if-match'];
+    if (ifMatch === undefined) {
+      return c.json({ error: 'send the roll’s ETag as If-Match' }, 428);
+    }
+    const deleted = await useCases.deleteRoll.execute(ctx, {
+      id: rollId,
+      expectedVersion: versionFrom(ifMatch),
+    });
+    return deleted.ok
+      ? c.body(null, 204)
+      : domainErrorResponse(c, deleted.error);
   });
 
   routes.openapi(createFrame, async (c) => {

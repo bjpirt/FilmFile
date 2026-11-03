@@ -10,7 +10,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import {
   aRoll,
   fakeArchive,
@@ -473,6 +473,80 @@ describe('deleting a frame', () => {
         name: 'Delete the frame with no number',
       }),
     ).toBeDefined();
+  });
+});
+
+describe('deleting the roll', () => {
+  beforeEach(() => {
+    window.history.replaceState(null, '', `/rolls/${rollId}`);
+  });
+
+  test('asks to confirm, saying how many frames go with it, then deletes it and opens the rolls page', async () => {
+    const service = archiveWith([
+      aFrameWithScan('1', '12340001.jpg'),
+      aFrameWithScan('2', '12340002.jpg'),
+    ]);
+    renderPage(service);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Delete roll…' }),
+    );
+
+    const confirm = screen.getByRole('alertdialog', {
+      name: 'Delete roll 2026-014',
+    });
+    expect(confirm.textContent).toBe(
+      'Delete this roll and its 2 frames?Delete rollCancel',
+    );
+    fireEvent.click(
+      within(confirm).getByRole('button', { name: 'Delete roll' }),
+    );
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/');
+    });
+    expect(service.rolls).toEqual([]);
+    expect(service.ifMatches).toEqual(['"v1"']);
+  });
+
+  test('asks more simply for a roll with no frames', async () => {
+    renderPage(archiveWith());
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Delete roll…' }),
+    );
+
+    expect(screen.getByRole('alertdialog').textContent).toBe(
+      'Delete this roll?Delete rollCancel',
+    );
+  });
+
+  test('keeps the roll on Cancel', async () => {
+    const service = archiveWith();
+    renderPage(service);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Delete roll…' }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(service.rolls).toHaveLength(1);
+  });
+
+  test('refuses to delete a roll changed since the page loaded', async () => {
+    const service = archiveWith();
+    renderPage(service);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Delete roll…' }),
+    );
+    service.changeRoll(rollId);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete roll' }));
+
+    expect(
+      await screen.findByText(/This roll changed since you opened it/),
+    ).toBeDefined();
+    expect(service.rolls).toHaveLength(1);
+    expect(window.location.pathname).toBe(`/rolls/${rollId}`);
   });
 });
 

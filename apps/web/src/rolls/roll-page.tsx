@@ -2,7 +2,7 @@ import type { ApiClient } from '@filmfile/contracts/client';
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Link } from '../routing.tsx';
+import { Link, navigate } from '../routing.tsx';
 import { droppedFiles } from './dropped-files.ts';
 import { chooseCamera } from '../equipment/choose-camera.ts';
 import { cameraName, useCameras } from '../equipment/use-cameras.ts';
@@ -146,6 +146,7 @@ export function RollPage({
     undefined,
   );
   const [deleteFailed, setDeleteFailed] = useState(false);
+  const [confirmingRollDelete, setConfirmingRollDelete] = useState(false);
   const [editingDetails, setEditingDetails] = useState(false);
   const [savingNumbers, setSavingNumbers] = useState(false);
   const [numbersNotSaved, setNumbersNotSaved] = useState(false);
@@ -243,6 +244,31 @@ export function RollPage({
     }
     // The rolls list counts frames too.
     await queryClient.invalidateQueries({ queryKey: ['rolls'] });
+  }
+
+  /** Deletes the roll, frames and all, into the archive's deleted folder (D38), then opens the rolls page. */
+  async function deleteRoll() {
+    if (roll.data === undefined) {
+      return;
+    }
+    setDeleteFailed(false);
+    const { response } = await api.DELETE('/api/rolls/{rollId}', {
+      params: { path: { rollId }, header: { 'if-match': roll.data.etag } },
+    });
+    setConfirmingRollDelete(false);
+    if (response.status === 409) {
+      setChangedElsewhere(true);
+      return;
+    }
+    if (!response.ok) {
+      setDeleteFailed(true);
+      return;
+    }
+    // The roll is gone, so it's dropped rather than reloaded, which would
+    // only find it missing; the rolls list is reloaded when it next shows.
+    queryClient.removeQueries({ queryKey: ['rolls', rollId] });
+    await queryClient.invalidateQueries({ queryKey: ['rolls'], exact: true });
+    navigate('/');
   }
 
   /** Saves every frame's proposed number in one update, closing the panel if it's saved. */
@@ -397,30 +423,69 @@ export function RollPage({
           </h1>
           <span className="muted">{frameCount(frames.length)}</span>
         </div>
-        <div className="page-actions">
-          <button
-            type="button"
-            aria-expanded={editingDetails}
-            aria-controls="edit-details"
-            onClick={() => {
-              setEditingDetails(!editingDetails);
-            }}
+        {confirmingRollDelete ? (
+          // In place of the buttons, so nothing below moves.
+          <div
+            role="alertdialog"
+            aria-label={`Delete roll ${roll.data.roll.roll}`}
+            className="page-actions confirm-roll-delete"
           >
-            Edit details
-          </button>
-          {frames.length > 0 && (
+            <p>
+              {frames.length === 0
+                ? 'Delete this roll?'
+                : `Delete this roll and its ${frameCount(frames.length)}?`}
+            </p>
             <button
               type="button"
-              aria-expanded={dropZoneOpen}
-              aria-controls="drop-zone"
+              className="danger"
+              onClick={() => void deleteRoll()}
+            >
+              Delete roll
+            </button>
+            <button
+              type="button"
+              autoFocus
               onClick={() => {
-                setAddingScans(!addingScans);
+                setConfirmingRollDelete(false);
               }}
             >
-              Add scans
+              Cancel
             </button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="page-actions">
+            <button
+              type="button"
+              aria-expanded={editingDetails}
+              aria-controls="edit-details"
+              onClick={() => {
+                setEditingDetails(!editingDetails);
+              }}
+            >
+              Edit details
+            </button>
+            {frames.length > 0 && (
+              <button
+                type="button"
+                aria-expanded={dropZoneOpen}
+                aria-controls="drop-zone"
+                onClick={() => {
+                  setAddingScans(!addingScans);
+                }}
+              >
+                Add scans
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmingRollDelete(true);
+              }}
+            >
+              Delete roll…
+            </button>
+          </div>
+        )}
       </div>
 
       {editingDetails && (
@@ -448,7 +513,7 @@ export function RollPage({
       )}
 
       {deleteFailed && (
-        <p role="alert">Couldn't delete the frame. Is the service running?</p>
+        <p role="alert">Couldn't delete that. Is the service running?</p>
       )}
 
       {changedElsewhere && (

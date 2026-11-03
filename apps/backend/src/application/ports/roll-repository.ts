@@ -67,4 +67,17 @@ export interface RollRepository {
     id: RollId,
     apply: (roll: Roll) => Promise<Result<RollChange<T>, E>>,
   ): Promise<Result<T, E | NotFound>>;
+
+  /**
+   * Removes a roll, if it hasn't changed since it was read as
+   * `expectedVersion`, by handing it to `handOver`, which takes its files
+   * away (into the holding area), with no other change to the roll in
+   * between. Afterwards the roll is gone.
+   */
+  remove(
+    ctx: ArchiveContext,
+    id: RollId,
+    expectedVersion: string,
+    handOver: (roll: Roll) => Promise<void>,
+  ): Promise<Result<void, NotFound | ConcurrencyConflict>>;
 }

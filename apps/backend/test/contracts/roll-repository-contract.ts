@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { RollRepository } from '../../src/application/ports/roll-repository.ts';
+import type { Roll } from '../../src/domain/rolls/roll.ts';
 import { isRollId } from '../../src/domain/shared/ids.ts';
 import { err, ok } from '../../src/domain/shared/result.ts';
 import { checked } from '../support/checked.ts';
@@ -9,6 +10,8 @@ import { aFrame, aRoll, aVersion, ctx, ulidFor } from '../support/builders.ts';
 export function rollRepositoryContract(
   name: string,
   makeRepository: () => RollRepository,
+  /** Takes a removed roll's files away, as the holding area would. */
+  takeAway: (roll: Roll) => Promise<void> = () => Promise.resolve(),
 ): void {
   describe(`${name} meets the RollRepository contract`, () => {
     test('gets back exactly what was created', async () => {
@@ -167,6 +170,61 @@ export function rollRepositoryContract(
         await makeRepository().change(ctx, id, (roll) =>
           Promise.resolve(ok({ roll, value: undefined })),
         ),
+      ).toEqual(err({ kind: 'not-found', entity: 'roll', id }));
+    });
+
+    test('removes a roll read at the current version, handing it over', async () => {
+      const rolls = makeRepository();
+      const roll = aRoll({ frames: [aFrame()] });
+      await rolls.create(ctx, roll);
+      const read = await rolls.get(ctx, roll.id);
+      const handedOver: Roll[] = [];
+
+      const removed = await rolls.remove(
+        ctx,
+        roll.id,
+        read?.version ?? '',
+        async (gone) => {
+          handedOver.push(gone);
+          await takeAway(gone);
+        },
+      );
+
+      expect(removed).toEqual(ok(undefined));
+      expect(handedOver).toEqual([roll]);
+      expect(await rolls.get(ctx, roll.id)).toBeUndefined();
+      expect((await rolls.list(ctx)).rolls).toEqual([]);
+    });
+
+    test('refuses to remove a roll changed since it was read, handing nothing over', async () => {
+      const rolls = makeRepository();
+      const roll = aRoll();
+      await rolls.create(ctx, roll);
+      const read = await rolls.get(ctx, roll.id);
+      await rolls.save(
+        ctx,
+        { ...roll, frames: [aFrame()] },
+        read?.version ?? '',
+      );
+      const handedOver: Roll[] = [];
+
+      expect(
+        await rolls.remove(ctx, roll.id, read?.version ?? '', (gone) => {
+          handedOver.push(gone);
+          return takeAway(gone);
+        }),
+      ).toEqual(
+        err({ kind: 'concurrency-conflict', entity: 'roll', id: roll.id }),
+      );
+      expect(handedOver).toEqual([]);
+      expect(await rolls.get(ctx, roll.id)).toBeDefined();
+    });
+
+    test('says when a roll to remove does not exist', async () => {
+      const id = checked('01JC8Z7K3M0000000000000000', isRollId);
+
+      expect(
+        await makeRepository().remove(ctx, id, 'any', () => Promise.resolve()),
       ).toEqual(err({ kind: 'not-found', entity: 'roll', id }));
     });
   });

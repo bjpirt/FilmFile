@@ -352,6 +352,10 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       if (refused !== undefined) {
         return refused;
       }
+      if (request.method === 'DELETE') {
+        rolls.splice(rolls.indexOf(roll), 1);
+        return new Response(null, { status: 204 });
+      }
       const body = await bodyOf(request, updateRollRequest);
       if (!body.ok) {
         return body.response;

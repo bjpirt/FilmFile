@@ -337,6 +337,14 @@ select {
   padding: 0 var(--space-3);
 }
 
+.confirm-roll-delete {
+  align-items: center;
+}
+
+.confirm-roll-delete p {
+  margin: 0;
+}
+
 button.danger {
   background: var(--danger);
   border-color: var(--danger);

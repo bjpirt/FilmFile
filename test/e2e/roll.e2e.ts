@@ -4,10 +4,11 @@ import {
   changeFrameNumber,
   createRoll,
   deleteFrame,
+  rollsShown,
   framesShown,
 } from './support/journeys.ts';
 
-test('catalogue a roll: create it with its details and scans, correct a number, delete a frame, and find it all still there after a reload', async ({
+test('catalogue a roll: create it with its details and scans, correct a number, delete a frame, find it all still there after a reload, then delete the roll', async ({
   page,
 }) => {
   await createRoll(page, '2026-014', {
@@ -59,4 +60,14 @@ test('catalogue a roll: create it with its details and scans, correct a number, 
   await page.reload();
 
   await expect(framesShown(page)).toHaveText(['1', '2', '3', '4', '5']);
+
+  await page.getByRole('button', { name: 'Delete roll…' }).click();
+  await page
+    .getByRole('alertdialog', { name: 'Delete roll 2026-014' })
+    .getByRole('button', { name: 'Delete roll' })
+    .click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Rolls' }),
+  ).toBeVisible();
+  await expect(rollsShown(page).filter({ hasText: '2026-014' })).toHaveCount(0);
 });

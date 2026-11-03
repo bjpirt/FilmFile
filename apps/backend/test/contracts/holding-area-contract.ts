@@ -1,11 +1,14 @@
 import { describe, expect, test } from 'vitest';
 import type { HoldingArea } from '../../src/application/ports/holding-area.ts';
+import type { Roll } from '../../src/domain/rolls/roll.ts';
 import { aFrame, aRoll, aVersion, ctx, ulidFor } from '../support/builders.ts';
 
 /** What every HoldingArea must do, run against each adapter. */
 export function holdingAreaContract(
   name: string,
   makeHoldingArea: () => HoldingArea,
+  /** Puts a roll in the archive, as the roll repository would, so it can be held. */
+  createRoll: (roll: Roll) => Promise<void> = () => Promise.resolve(),
 ): void {
   describe(`${name} meets the HoldingArea contract`, () => {
     test('holds nothing to begin with', async () => {
@@ -45,10 +48,40 @@ export function holdingAreaContract(
         });
       }
 
-      expect((await holding.list(ctx)).map((held) => held.frame.id)).toEqual([
-        ulidFor(6),
-        ulidFor(5),
+      expect(
+        (await holding.list(ctx)).map((held) =>
+          held.kind === 'frame' ? held.frame.id : held.rollId,
+        ),
+      ).toEqual([ulidFor(6), ulidFor(5)]);
+    });
+
+    test('holds a deleted roll, with when it was deleted, among the frames by age', async () => {
+      const holding = makeHoldingArea();
+      const roll = aRoll({ frames: [aFrame()] });
+      await createRoll(roll);
+      await holding.holdFrame(ctx, {
+        rollId: roll.id,
+        roll: roll.roll,
+        frame: aFrame({ id: ulidFor(7) }),
+        at: new Date('2026-11-03T09:00:00.000Z'),
+      });
+
+      await holding.holdRoll(ctx, {
+        rollId: roll.id,
+        roll: roll.roll,
+        at: new Date('2026-11-02T09:00:00.000Z'),
+      });
+
+      expect((await holding.list(ctx)).map((held) => held.kind)).toEqual([
+        'roll',
+        'frame',
       ]);
+      expect((await holding.list(ctx))[0]).toEqual({
+        kind: 'roll',
+        rollId: roll.id,
+        roll: roll.roll,
+        at: new Date('2026-11-02T09:00:00.000Z'),
+      });
     });
   });
 }

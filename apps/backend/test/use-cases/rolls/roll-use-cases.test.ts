@@ -1,12 +1,16 @@
 import { describe, expect, test } from 'vitest';
 import { InMemoryEquipmentRepository } from '../../../src/adapters/outbound/memory/in-memory-equipment-repository.ts';
 import { InMemoryEventRepository } from '../../../src/adapters/outbound/memory/in-memory-event-repository.ts';
+import { FixedClock } from '../../../src/adapters/outbound/memory/fixed-clock.ts';
+import { InMemoryHoldingArea } from '../../../src/adapters/outbound/memory/in-memory-holding-area.ts';
 import { InMemoryRollRepository } from '../../../src/adapters/outbound/memory/in-memory-roll-repository.ts';
 import { SequentialIdGenerator } from '../../../src/adapters/outbound/memory/sequential-id-generator.ts';
 import { CreateCamera } from '../../../src/application/use-cases/equipment/create-camera.ts';
 import { CreateFilmStock } from '../../../src/application/use-cases/equipment/create-film-stock.ts';
 import { CreateLens } from '../../../src/application/use-cases/equipment/create-lens.ts';
 import { CreateEvent } from '../../../src/application/use-cases/events/create-event.ts';
+import type { HoldingArea } from '../../../src/application/ports/holding-area.ts';
+import { DeleteRoll } from '../../../src/application/use-cases/rolls/delete-roll.ts';
 import { CreateRoll } from '../../../src/application/use-cases/rolls/create-roll.ts';
 import { GetRoll } from '../../../src/application/use-cases/rolls/get-roll.ts';
 import { ListRolls } from '../../../src/application/use-cases/rolls/list-rolls.ts';
@@ -27,7 +31,14 @@ function setUp() {
   const equipment = new InMemoryEquipmentRepository();
   const events = new InMemoryEventRepository();
   const ids = new SequentialIdGenerator();
+  const holding: HoldingArea = new InMemoryHoldingArea();
   return {
+    holding,
+    deleteRoll: new DeleteRoll(
+      rolls,
+      holding,
+      new FixedClock('2026-11-02T12:00:00.000Z'),
+    ),
     ctx: anArchive(),
     createCamera: new CreateCamera(equipment),
     createFilmStock: new CreateFilmStock(equipment),
@@ -526,5 +537,58 @@ describe('UpdateRoll', () => {
     expect(
       await updateRoll.execute(ctx, { id, expectedVersion: '1', name: 'x' }),
     ).toEqual({ ok: false, error: { kind: 'not-found', entity: 'roll', id } });
+  });
+});
+
+describe('DeleteRoll', () => {
+  async function aRollRead() {
+    const setup = setUp();
+    const created = await setup.createRoll.execute(setup.ctx, {
+      roll: '2026-014',
+    });
+    if (!created.ok) {
+      throw new Error('setup failed');
+    }
+    const read = await setup.getRoll.execute(setup.ctx, {
+      id: created.value.id,
+    });
+    return {
+      ...setup,
+      id: created.value.id,
+      version: read.ok ? read.value.version : '',
+    };
+  }
+
+  test('takes the roll out of the archive and holds it, with when', async () => {
+    const { ctx, id, version, deleteRoll, getRoll, holding } =
+      await aRollRead();
+
+    expect(
+      await deleteRoll.execute(ctx, { id, expectedVersion: version }),
+    ).toEqual({ ok: true, value: undefined });
+    expect(await getRoll.execute(ctx, { id })).toMatchObject({ ok: false });
+    expect(await holding.list(ctx)).toEqual([
+      {
+        kind: 'roll',
+        rollId: id,
+        roll: '2026-014',
+        at: new Date('2026-11-02T12:00:00.000Z'),
+      },
+    ]);
+  });
+
+  test('refuses when the roll changed since it was read, holding nothing', async () => {
+    const { ctx, id, version, deleteRoll, updateRoll, holding } =
+      await aRollRead();
+    await updateRoll.execute(ctx, {
+      id,
+      expectedVersion: version,
+      name: 'Westfjords',
+    });
+
+    expect(
+      await deleteRoll.execute(ctx, { id, expectedVersion: version }),
+    ).toMatchObject({ ok: false, error: { kind: 'concurrency-conflict' } });
+    expect(await holding.list(ctx)).toEqual([]);
   });
 });
