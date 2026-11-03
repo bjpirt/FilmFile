@@ -1,6 +1,7 @@
 import type { OpenAPIHono } from '@hono/zod-openapi';
 import { createApp } from '../adapters/inbound/http/create-app.ts';
 import { FixedClock } from '../adapters/outbound/memory/fixed-clock.ts';
+import { InMemoryArchiveRepository } from '../adapters/outbound/memory/in-memory-archive-repository.ts';
 import { InMemoryBlobStore } from '../adapters/outbound/memory/in-memory-blob-store.ts';
 import { InMemoryEquipmentRepository } from '../adapters/outbound/memory/in-memory-equipment-repository.ts';
 import { InMemoryEventRepository } from '../adapters/outbound/memory/in-memory-event-repository.ts';
@@ -26,6 +27,7 @@ export function composeInMemory(
     port: 4310,
     ctx: localArchive(),
     useCases: useCasesFor({
+      archives: new InMemoryArchiveRepository(),
       rolls: new InMemoryRollRepository(),
       equipment: new InMemoryEquipmentRepository(),
       events: new InMemoryEventRepository(),

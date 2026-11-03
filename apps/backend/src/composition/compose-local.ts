@@ -1,6 +1,7 @@
 import type { OpenAPIHono } from '@hono/zod-openapi';
 import { createApp } from '../adapters/inbound/http/create-app.ts';
 import type { ReportError } from '../adapters/inbound/http/middleware/error-handler.ts';
+import { FilesystemArchiveRepository } from '../adapters/outbound/filesystem/filesystem-archive-repository.ts';
 import { FilesystemEquipmentRepository } from '../adapters/outbound/filesystem/filesystem-equipment-repository.ts';
 import { FilesystemEventRepository } from '../adapters/outbound/filesystem/filesystem-event-repository.ts';
 import { FilesystemHoldingArea } from '../adapters/outbound/filesystem/filesystem-holding-area.ts';
@@ -35,6 +36,7 @@ export function composeLocal(config: {
     ...config,
     ctx: localArchive(),
     useCases: useCasesFor({
+      archives: new FilesystemArchiveRepository(config.archivePath),
       rolls: new FilesystemRollRepository(config.archivePath),
       equipment: new FilesystemEquipmentRepository(config.archivePath),
       events: new FilesystemEventRepository(config.archivePath),

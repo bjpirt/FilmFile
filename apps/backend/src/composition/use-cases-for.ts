@@ -1,6 +1,8 @@
+import type { ArchiveUseCases } from '../adapters/inbound/http/routes/archive.ts';
 import type { EquipmentUseCases } from '../adapters/inbound/http/routes/equipment.ts';
 import type { EventUseCases } from '../adapters/inbound/http/routes/events.ts';
 import type { RollUseCases } from '../adapters/inbound/http/routes/rolls.ts';
+import type { ArchiveRepository } from '../application/ports/archive-repository.ts';
 import type { BlobStore } from '../application/ports/blob-store.ts';
 import type { Clock } from '../application/ports/clock.ts';
 import type { EquipmentRepository } from '../application/ports/equipment-repository.ts';
@@ -10,6 +12,9 @@ import type { IdGenerator } from '../application/ports/id-generator.ts';
 import type { ImageInspector } from '../application/ports/image-inspector.ts';
 import type { PreviewProvider } from '../application/ports/preview-provider.ts';
 import type { RollRepository } from '../application/ports/roll-repository.ts';
+import { GetArchive } from '../application/use-cases/archive/get-archive.ts';
+import { InitialiseArchive } from '../application/use-cases/archive/initialise-archive.ts';
+import { UpdateArchive } from '../application/use-cases/archive/update-archive.ts';
 import { CreateCamera } from '../application/use-cases/equipment/create-camera.ts';
 import { CreateFilmStock } from '../application/use-cases/equipment/create-film-stock.ts';
 import { ListCameras } from '../application/use-cases/equipment/list-cameras.ts';
@@ -36,6 +41,7 @@ import { UpdateRoll } from '../application/use-cases/rolls/update-roll.ts';
 
 /** An adapter for every outbound port. */
 export interface Adapters {
+  readonly archives: ArchiveRepository;
   readonly rolls: RollRepository;
   readonly equipment: EquipmentRepository;
   readonly events: EventRepository;
@@ -49,6 +55,7 @@ export interface Adapters {
 
 /** The use cases, wired to the given adapters. */
 export function useCasesFor({
+  archives,
   rolls,
   equipment,
   events,
@@ -58,8 +65,14 @@ export function useCasesFor({
   previews,
   ids,
   clock,
-}: Adapters): RollUseCases & EquipmentUseCases & EventUseCases {
+}: Adapters): RollUseCases &
+  EquipmentUseCases &
+  EventUseCases &
+  ArchiveUseCases {
   return {
+    getArchive: new GetArchive(archives),
+    initialiseArchive: new InitialiseArchive(archives, ids),
+    updateArchive: new UpdateArchive(archives),
     createRoll: new CreateRoll(rolls, equipment, events, ids),
     getRoll: new GetRoll(rolls),
     listRolls: new ListRolls(rolls),

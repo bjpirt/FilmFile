@@ -965,6 +965,87 @@
           }
         },
         "description": "The details to change. A detail left out stays as it is; a null date clears it. The slug never changes."
+      },
+      "Archive": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Ben’s film archive"
+          },
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Who took the photographs; frames inherit it.",
+            "example": "Ben Pirt"
+          },
+          "copyright": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The copyright notice; frames inherit it.",
+            "example": "© Ben Pirt. All rights reserved."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "author",
+          "copyright"
+        ]
+      },
+      "CreateArchiveRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "author": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "copyright": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "description": "Sets the archive up, once (D43)."
+      },
+      "UpdateArchiveRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100
+          },
+          "copyright": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          }
+        },
+        "description": "The details to change. A detail left out stays as it is; null clears the author or copyright."
       }
     },
     "parameters": {}
@@ -2567,6 +2648,197 @@
           },
           "409": {
             "description": "The event has changed since it was read.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "The body is not of the expected type.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/archive": {
+      "get": {
+        "summary": "Get the archive's details",
+        "description": "The response's ETag is the archive's version, for If-Match.",
+        "responses": {
+          "200": {
+            "description": "The archive's details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Archive"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The archive isn't set up yet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Set the archive up",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateArchiveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The archive, set up.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Archive"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not valid JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The archive is already set up.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "The body is not of the expected type.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Change the archive's name, author or copyright",
+        "description": "Send the archive's ETag as If-Match: the change is refused if the archive has changed since. The response's ETag is the archive's new version.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "The archive's ETag, from when it was read."
+            },
+            "required": false,
+            "description": "The archive's ETag, from when it was read.",
+            "name": "if-match",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateArchiveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The archive, changed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Archive"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not valid JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The archive isn't set up yet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The archive has changed since it was read.",
             "content": {
               "application/json": {
                 "schema": {
