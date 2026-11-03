@@ -8,7 +8,7 @@ import {
   framesShown,
 } from './support/journeys.ts';
 
-test('catalogue a roll: create it with its details and scans, correct a number, delete a frame, find it all still there after a reload, then delete the roll', async ({
+test('catalogue a roll: create it with its details and scans, correct a number, delete a frame, find it all still there after a reload, look through it frame by frame, then delete the roll', async ({
   page,
 }) => {
   await createRoll(page, '2026-014', {
@@ -60,6 +60,31 @@ test('catalogue a roll: create it with its details and scans, correct a number, 
   await page.reload();
 
   await expect(framesShown(page)).toHaveText(['1', '2', '3', '4', '5']);
+
+  // Look through the frames large, then back to the roll.
+  await page.getByRole('link', { name: 'Open frame 1' }).click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Frame 1' }),
+  ).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Frame 2' }),
+  ).toBeVisible();
+  await page
+    .getByRole('list', { name: 'Filmstrip' })
+    .getByRole('link', { name: 'Frame 5' })
+    .click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Frame 5' }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Frame 5' }),
+  ).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(
+    page.getByRole('heading', { name: 'Roll 2026-014' }),
+  ).toBeVisible();
 
   await page.getByRole('button', { name: 'Delete roll…' }).click();
   await page

@@ -631,7 +631,12 @@ export function RollPage({
             {shown.map((frame, i) => (
               <li key={frame.id}>
                 <div className="frame-picture">
-                  <Thumbnail rollId={rollId} frame={frame} />
+                  <Link
+                    to={`/rolls/${rollId}/frames/${frame.id}`}
+                    aria-label={`Open ${frameName(frame)}`}
+                  >
+                    <Thumbnail rollId={rollId} frame={frame} />
+                  </Link>
                   {confirmingDelete === frame.id && (
                     // Over the thumbnail, the same size, so nothing else moves.
                     <div

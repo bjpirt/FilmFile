@@ -42,18 +42,26 @@ export function Link({
   children,
   className,
   current = false,
+  replace = false,
+  'aria-label': label,
+  'aria-current': marked,
 }: {
   readonly to: string;
   readonly children: ReactNode;
   readonly className?: string;
   /** Marks the link as the current section, e.g. in the main navigation. */
   readonly current?: boolean;
+  /** Goes there in place of the current history entry, as stepping through frames does. */
+  readonly replace?: boolean;
+  readonly 'aria-label'?: string;
+  readonly 'aria-current'?: 'true';
 }) {
   return (
     <a
       href={to}
       className={className}
-      aria-current={current ? 'page' : undefined}
+      aria-current={current ? 'page' : marked}
+      aria-label={label}
       onClick={(event) => {
         // Let the browser handle new-tab and new-window clicks.
         if (
@@ -65,7 +73,7 @@ export function Link({
           return;
         }
         event.preventDefault();
-        navigate(to);
+        navigate(to, { replace });
       }}
     >
       {children}

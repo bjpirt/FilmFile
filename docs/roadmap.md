@@ -14,7 +14,9 @@ Each task is about one commit: small enough to review in one sitting, with its t
 
 ### 1. Frame view
 
-- [ ] **1b.8 Frame view.** Clicking a frame's thumbnail, on a roll's page or an event's page, opens it large, filling the screen. Along the bottom, a filmstrip of thumbnails of every frame in the collection it was opened from (the roll, or the event's frames in their grouping and order), with the current one highlighted and kept in view; clicking one goes straight to it. Previous and next arrows on screen, and the ← and → keys, step through the same collection; Esc goes back to where it was opened from. The frame's address is its own, so reload and back keep it. Beside the image: its frame and roll numbers, resolved metadata with where each value came from, and the frame's versions with "Set as default" and delete (into `deleted/`, from 1.3.16). "Delete frame", as on the roll page (U23), moving on to the next frame. Uses the helper for the version a frame shows (from 1.1.1).
+- [x] **U26 Open a frame.** Clicking a frame's thumbnail, on a roll's page or an event's page, opens it large, filling the screen, with its frame and roll numbers. Along the bottom, a filmstrip of thumbnails of every frame in the collection it was opened from (the roll in frame order, or the event's frames in their grouping and order), the current one highlighted and kept in view; clicking one goes straight to it. Previous and next arrows on screen, and the ← and → keys, step through the same collection; Esc, or the link back, returns to where it was opened from. Each frame has its own address (`/rolls/<roll>/frames/<frame>`, or `/events/<event>/frames/<frame>` with the event's grouping), so reload and back keep it. Stepping replaces the address, so Back leaves the frame view; the filmstrip's thumbnails are named by their links. Extends the "Catalogue a roll" journey. *(From 1b.8.)*
+- [ ] **U27 A frame's details and versions.** Beside the image: the frame's details (for now the roll's camera, lens, film stock, event and date shot; with where each came from once frames have their own, group 4), and the frame's versions with their file names, sizes, pixel sizes and when they were added. "Set as default" chooses the version shown for the frame everywhere (`defaultVersion`, D15); otherwise the newest is shown. Brings the helper for the version a frame shows (from 1.1.1). *(From 1b.8.)*
+- [ ] **U28 Delete from the frame view.** "Delete frame" there, as on the roll page (U23), moving on to the next frame; and deleting one version of a frame into `deleted/`, leaving the frame and its other versions (the holding area's `holdVersion`). *(From 1b.8 and 1.3.16.)*
 
 ### 2. Raw camera scans
 
@@ -278,6 +280,7 @@ Tasks from the first plan that turned out differently:
 - [-] **1b.9 Checkpoint.** *(Dropped as a step: real rolls are catalogued as we go, and what that turns up is planned as it comes.)*
 - 1c.4 Fix numbering: *replaced by N3–N6.*
 - 1.2.3 `HoldingArea`, 1.3.15 `RenameRoll`, 1.3.16 deleting versions, frames and rolls, and 1c.2 roll editing's rename and delete: *split into U23–U25, with deleting a version in the frame view (1b.8).*
+- 1b.8 Frame view: *split into U26–U28.*
 - 1.4.3 Remaining roll and frame routes: *the delete and rename routes in U23–U25; bulk frame edits with U16; sort and filter parameters with the index (1.3.4).*
 - 1.2.6 `Notifier`, 1.4.7 server-sent events route and 1b.1 live updates: *dropped (D36).*
 - 1.3.10 and 1.4.6, the sleeve photo: *dropped.*

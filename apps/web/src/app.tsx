@@ -1,6 +1,8 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import { EventPage } from './events/event-page.tsx';
 import { EventsPage } from './events/events-page.tsx';
+import { EventFramePage } from './frames/event-frame-page.tsx';
+import { RollFramePage } from './frames/roll-frame-page.tsx';
 import { NewRollPage } from './rolls/new-roll-page.tsx';
 import { RollPage } from './rolls/roll-page.tsx';
 import { useState } from 'react';
@@ -13,6 +15,10 @@ import { Link, usePath } from './routing.tsx';
 
 const rollPath = /^\/rolls\/([0-9A-HJKMNP-TV-Z]{26})$/;
 const eventPath = /^\/events\/([a-z0-9]+(?:-[a-z0-9]+)*)$/;
+const rollFramePath =
+  /^\/rolls\/([0-9A-HJKMNP-TV-Z]{26})\/frames\/([0-9A-HJKMNP-TV-Z]{26})$/;
+const eventFramePath =
+  /^\/events\/([a-z0-9]+(?:-[a-z0-9]+)*)\/frames\/([0-9A-HJKMNP-TV-Z]{26})$/;
 
 function Page({
   api,
@@ -31,6 +37,18 @@ function Page({
   }
   if (path === '/rolls/new') {
     return <NewRollPage api={api} />;
+  }
+  const rollFrame = rollFramePath.exec(path);
+  if (rollFrame?.[1] !== undefined && rollFrame[2] !== undefined) {
+    return (
+      <RollFramePage api={api} rollId={rollFrame[1]} frameId={rollFrame[2]} />
+    );
+  }
+  const eventFrame = eventFramePath.exec(path);
+  if (eventFrame?.[1] !== undefined && eventFrame[2] !== undefined) {
+    return (
+      <EventFramePage api={api} slug={eventFrame[1]} frameId={eventFrame[2]} />
+    );
   }
   const eventSlug = eventPath.exec(path)?.[1];
   if (eventSlug !== undefined) {
