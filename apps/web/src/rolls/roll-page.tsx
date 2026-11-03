@@ -355,7 +355,7 @@ export function RollPage({
               }}
             />
           )}
-          <ol className="contact-sheet">
+          <ol className="contact-sheet" aria-label="Contact sheet">
             {shown.map((frame, i) => (
               <li key={frame.id}>
                 <Thumbnail rollId={rollId} frame={frame} />
