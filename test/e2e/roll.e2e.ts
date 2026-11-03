@@ -8,7 +8,7 @@ import {
   framesShown,
 } from './support/journeys.ts';
 
-test('catalogue a roll: create it with its details and scans, correct a number, delete a frame, find it all still there after a reload, look through it frame by frame, describe a frame, then delete the roll', async ({
+test('catalogue a roll: create it with its details and scans, correct a number, delete a frame, find it all still there after a reload, look through it frame by frame, describe a frame and delete it, then delete the roll', async ({
   page,
 }) => {
   await createRoll(page, '2026-014', {
@@ -91,10 +91,21 @@ test('catalogue a roll: create it with its details and scans, correct a number, 
   ).toBeVisible();
   await expect(page.getByText('Ice on black sand')).toBeVisible();
   await expect(page.getByLabel('Rated 4 of 5')).toBeVisible();
+
+  // Delete it from the frame view, which moves on to the frame before.
+  await page.getByRole('button', { name: 'Delete frame' }).click();
+  await page
+    .getByRole('alertdialog', { name: 'Delete frame 5' })
+    .getByRole('button', { name: 'Delete' })
+    .click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Frame 4' }),
+  ).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(
     page.getByRole('heading', { name: 'Roll 2026-014' }),
   ).toBeVisible();
+  await expect(framesShown(page)).toHaveText(['1', '2', '3', '4']);
 
   await page.getByRole('button', { name: 'Delete roll…' }).click();
   await page

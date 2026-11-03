@@ -1,6 +1,7 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
 import { useEffect, useRef, useState } from 'react';
+import { BinIcon } from '../bin-icon.tsx';
 import { Thumbnail } from '../rolls/thumbnail.tsx';
 import { Link, navigate } from '../routing.tsx';
 import {
@@ -92,7 +93,18 @@ export function FrameView({
   const next = frames[current + 1];
   const currentInStrip = useRef<HTMLLIElement>(null);
   const [detailsOpen, setDetailsOpen] = useState(rememberedDetailsOpen);
-  const { save, problem } = useSaveFrame(api, shown);
+  const { save, remove, problem } = useSaveFrame(api, shown);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  /** Deletes the frame shown, then shows the next, the previous, or where it was opened from. */
+  function deleteShown() {
+    const after = next ?? previous;
+    void remove(() => {
+      navigate(after === undefined ? back.to : addressOf(after), {
+        replace: true,
+      });
+    });
+  }
 
   useEffect(() => {
     // happy-dom, which the page tests run in, has no scrollIntoView, though
@@ -114,6 +126,14 @@ export function FrameView({
       ) {
         return;
       }
+      if (confirmingDelete) {
+        // Esc answers the question, rather than leaving the frame view.
+        if (event.key === 'Escape') {
+          setConfirmingDelete(false);
+          event.preventDefault();
+        }
+        return;
+      }
       // Stepping replaces the address, so Back still leaves the frame view.
       if (event.key === 'ArrowLeft' && previous !== undefined) {
         navigate(addressOf(previous), { replace: true });
@@ -132,7 +152,7 @@ export function FrameView({
     return () => {
       window.removeEventListener('keydown', onKey);
     };
-  }, [previous, next, back.to, addressOf, save]);
+  }, [previous, next, back.to, addressOf, save, confirmingDelete]);
 
   if (shown === undefined) {
     return (
@@ -159,13 +179,26 @@ export function FrameView({
         <span className="muted">
           {current + 1} of {frames.length}
         </span>
-        <DetailsToggle
-          open={detailsOpen}
-          toggle={() => {
-            rememberDetailsOpen(!detailsOpen);
-            setDetailsOpen(!detailsOpen);
-          }}
-        />
+        <span className="frame-view-actions">
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Delete frame"
+            title="Delete frame"
+            onClick={() => {
+              setConfirmingDelete(true);
+            }}
+          >
+            <BinIcon size={20} />
+          </button>
+          <DetailsToggle
+            open={detailsOpen}
+            toggle={() => {
+              rememberDetailsOpen(!detailsOpen);
+              setDetailsOpen(!detailsOpen);
+            }}
+          />
+        </span>
       </div>
       {shown.frame.title !== null && (
         <p className="frame-title">{shown.frame.title}</p>
@@ -196,6 +229,36 @@ export function FrameView({
               frame={shown.frame}
               size="large"
             />
+            {confirmingDelete && (
+              <div
+                role="alertdialog"
+                aria-label={`Delete frame ${shown.frame.number ?? 'with no number'}`}
+                className="confirm-delete over-frame"
+              >
+                <p className="confirm-question">Delete this frame?</p>
+                <div className="confirm-actions">
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() => {
+                      setConfirmingDelete(false);
+                      deleteShown();
+                    }}
+                  >
+                    Delete
+                  </button>
+                  <button
+                    type="button"
+                    autoFocus
+                    onClick={() => {
+                      setConfirmingDelete(false);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           <button
             type="button"

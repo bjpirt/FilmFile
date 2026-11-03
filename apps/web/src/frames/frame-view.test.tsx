@@ -450,3 +450,112 @@ describe('describing a frame', () => {
     expect(savedFrame(archive)?.rating).toBeNull();
   });
 });
+
+describe('deleting the frame', () => {
+  /** A fresh archive, since deleting changes its rolls. */
+  function archiveOf(): FakeArchive {
+    return fakeArchive({
+      rolls: [structuredClone(roll), structuredClone(earlier)],
+      events: [{ slug: 'iceland', name: 'Iceland', date: '2026-09' }],
+    });
+  }
+
+  async function deleteShown(number: string) {
+    await screen.findByRole('heading', { level: 1, name: `Frame ${number}` });
+    fireEvent.click(screen.getByRole('button', { name: 'Delete frame' }));
+    fireEvent.click(
+      within(
+        screen.getByRole('alertdialog', { name: `Delete frame ${number}` }),
+      ).getByRole('button', { name: 'Delete' }),
+    );
+  }
+
+  test('asks first, then deletes it and moves on to the next frame', async () => {
+    const archive = archiveOf();
+    openAt(`/rolls/${roll.id}/frames/${frameId('2')}`, archive);
+
+    await deleteShown('2');
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Frame 3' }),
+    ).toBeDefined();
+    await vi.waitFor(() => {
+      expect(filmstrip()).toEqual(['Frame 1', 'Frame 3 (shown)']);
+    });
+    expect(archive.deleted.map((f) => f.number)).toEqual(['2']);
+    expect(archive.ifMatches).toEqual(['"v1"']);
+  });
+
+  test('moves back to the previous frame when it was the last', async () => {
+    openAt(`/rolls/${roll.id}/frames/${frameId('3')}`, archiveOf());
+
+    await deleteShown('3');
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Frame 2' }),
+    ).toBeDefined();
+  });
+
+  test('goes back to the roll when no frame is left', async () => {
+    openAt(`/rolls/${earlier.id}/frames/${frameId('36')}`, archiveOf());
+
+    await deleteShown('36');
+
+    expect(
+      await screen.findByRole('heading', { name: 'Roll 2026-012' }),
+    ).toBeDefined();
+  });
+
+  test('keeps it when cancelled, with Cancel or Esc', async () => {
+    const archive = archiveOf();
+    openAt(`/rolls/${roll.id}/frames/${frameId('2')}`, archive);
+    await screen.findByRole('heading', { level: 1, name: 'Frame 2' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete frame' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete frame' }));
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Frame 2' }),
+    ).toBeDefined();
+    expect(archive.deleted).toEqual([]);
+  });
+
+  test('moves on through the event’s frames when opened from an event', async () => {
+    const archive = archiveOf();
+    openAt(`/events/iceland/frames/${frameId('36')}?group=roll`, archive);
+
+    await deleteShown('36');
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Frame 1' }),
+    ).toBeDefined();
+    expect(window.location.search).toBe('?group=roll');
+    await vi.waitFor(() => {
+      expect(filmstrip()).toEqual([
+        'Frame 1 of roll 2026-014 (shown)',
+        'Frame 2 of roll 2026-014',
+        'Frame 3 of roll 2026-014',
+      ]);
+    });
+  });
+
+  test('says when the roll changed elsewhere, keeping the frame', async () => {
+    const archive = archiveOf();
+    openAt(`/rolls/${roll.id}/frames/${frameId('2')}`, archive);
+    await screen.findByRole('heading', { level: 1, name: 'Frame 2' });
+    archive.changeRoll(roll.id);
+
+    await deleteShown('2');
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'This roll changed since you opened it. Reload the page.',
+    );
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Frame 2' }),
+    ).toBeDefined();
+    expect(archive.deleted).toEqual([]);
+  });
+});

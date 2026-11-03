@@ -14,10 +14,11 @@ interface ReadRoll {
 }
 
 /**
- * Saves changes to the frame shown, each against the roll's ETag as the last
- * save left it, so a roll changed elsewhere is never overwritten. Saves run
- * one after another: a title saved on leaving its field and a star clicked
- * straight after would otherwise both be sent against the same version.
+ * Saves changes to the frame shown, or deletes it, each against the roll's
+ * ETag as the last save left it, so a roll changed elsewhere is never
+ * overwritten. Saves run one after another: a title saved on leaving its
+ * field and a star clicked straight after would otherwise both be sent
+ * against the same version.
  */
 export function useSaveFrame(
   api: ApiClient,
@@ -78,14 +79,52 @@ export function useSaveFrame(
     await queryClient.invalidateQueries({ queryKey: ['rolls'], exact: true });
   }
 
-  function save(changes: FrameChanges): Promise<void> {
-    saving.current = saving.current
-      .then(() => send(changes))
-      .catch(() => {
-        setProblem("Couldn't save it. Is the service running?");
-      });
+  async function sendDelete(onDeleted: () => void) {
+    const read = queryClient.getQueryData<ReadRoll>(['rolls', rollId]);
+    if (read === undefined) {
+      return;
+    }
+    setProblem(undefined);
+    const { response } = await api.DELETE(
+      '/api/rolls/{rollId}/frames/{frameId}',
+      {
+        params: {
+          path: { rollId, frameId },
+          header: { 'if-match': read.etag },
+        },
+      },
+    );
+    if (response.status === 409) {
+      setProblem('This roll changed since you opened it. Reload the page.');
+      return;
+    }
+    if (!response.ok) {
+      setProblem("Couldn't delete it. Is the service running?");
+      return;
+    }
+    // Moved on first, so the frame view never shows the frame as missing.
+    onDeleted();
+    queryClient.setQueryData<ReadRoll>(['rolls', rollId], {
+      roll: {
+        ...read.roll,
+        frames: read.roll.frames.filter((f) => f.id !== frameId),
+      },
+      etag: response.headers.get('ETag') ?? read.etag,
+    });
+    await queryClient.invalidateQueries({ queryKey: ['rolls'], exact: true });
+  }
+
+  function queued(send: () => Promise<void>): Promise<void> {
+    saving.current = saving.current.then(send).catch(() => {
+      setProblem("Couldn't save it. Is the service running?");
+    });
     return saving.current;
   }
 
-  return { save, problem };
+  return {
+    save: (changes: FrameChanges) => queued(() => send(changes)),
+    /** Deletes the frame into the archive's deleted folder, then calls `onDeleted`. */
+    remove: (onDeleted: () => void) => queued(() => sendDelete(onDeleted)),
+    problem,
+  };
 }

@@ -320,8 +320,9 @@ select {
 }
 
 /* At the right-hand end of the bar, above the image's top right. */
-.details-toggle {
+.frame-view-actions {
   align-self: center;
+  display: flex;
   margin-left: auto;
 }
 
@@ -427,6 +428,13 @@ select {
   height: 100%;
   justify-content: center;
   min-width: 0;
+  position: relative;
+}
+
+/* A question in the middle of the frame, rather than over all of it. */
+.confirm-delete.over-frame {
+  inset: auto;
+  padding: var(--space-4) var(--space-5);
 }
 
 /* As large as fits, keeping its shape, even a scan smaller than the room. */
