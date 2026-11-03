@@ -1,3 +1,4 @@
+import type { EquipmentSlug } from '../equipment/equipment-slug.ts';
 import type { FrameId, RollId, VersionId } from '../shared/ids.ts';
 import type { FrameNumber } from './frame-number.ts';
 import type { RollNumber } from './roll-number.ts';
@@ -31,5 +32,7 @@ export interface Roll {
   readonly description: string | null;
   /** When the roll was shot, as precisely as it's known, or null. */
   readonly shot: ShotDate | null;
+  /** The camera the roll was shot on, or null. */
+  readonly camera: EquipmentSlug | null;
   readonly frames: readonly Frame[];
 }

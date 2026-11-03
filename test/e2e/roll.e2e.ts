@@ -15,13 +15,15 @@ test('catalogue a roll: create it with its details and scans, correct a number, 
     month: 'September',
     day: '14',
     time: '06:30',
+    camera: 'Nikon FE',
     scans: fixtureSets.headToTail,
   });
 
   await page.reload();
 
   await expect(page.getByText('Iceland, first day')).toBeVisible();
-  await expect(page.getByText('Shot 14 Sep 2026, 06:30')).toBeVisible();
+  await expect(page.getByText('Nikon FE')).toBeVisible();
+  await expect(page.getByText('14 Sep 2026, 06:30')).toBeVisible();
   await expect(page.getByText('Jökulsárlón at dawn.')).toBeVisible();
   await expect(framesShown(page)).toHaveText(['1', '2', '3', '4', '5', '6']);
   for (const thumbnail of await page.getByRole('img').all()) {

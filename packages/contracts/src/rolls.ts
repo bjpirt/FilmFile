@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { equipmentSlug } from './equipment.ts';
 
 // Request and response shapes for rolls, their frames and the frames' versions.
 
@@ -60,6 +61,9 @@ export const roll = z
     }),
     description: z.string().nullable(),
     shot: shotDate.nullable(),
+    camera: equipmentSlug.nullable().meta({
+      description: 'The slug of the camera the roll was shot on, or null.',
+    }),
     frames: z.array(frame),
   })
   .meta({ id: 'Roll' });
@@ -92,6 +96,7 @@ export const createRollRequest = z
     name: z.string().max(100).optional(),
     description: z.string().max(5000).optional(),
     shot: shotDate.optional(),
+    camera: equipmentSlug.optional(),
   })
   .meta({ id: 'CreateRollRequest' });
 
@@ -100,6 +105,7 @@ export const updateRollRequest = z
     name: z.string().max(100).nullable().optional(),
     description: z.string().max(5000).nullable().optional(),
     shot: shotDate.nullable().optional(),
+    camera: equipmentSlug.nullable().optional(),
   })
   .meta({
     id: 'UpdateRollRequest',

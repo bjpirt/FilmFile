@@ -2,6 +2,7 @@ import type { OpenAPIHono } from '@hono/zod-openapi';
 import { createApp } from '../adapters/inbound/http/create-app.ts';
 import { FixedClock } from '../adapters/outbound/memory/fixed-clock.ts';
 import { InMemoryBlobStore } from '../adapters/outbound/memory/in-memory-blob-store.ts';
+import { InMemoryEquipmentRepository } from '../adapters/outbound/memory/in-memory-equipment-repository.ts';
 import { InMemoryPreviewProvider } from '../adapters/outbound/memory/in-memory-preview-provider.ts';
 import { InMemoryRollRepository } from '../adapters/outbound/memory/in-memory-roll-repository.ts';
 import { SequentialIdGenerator } from '../adapters/outbound/memory/sequential-id-generator.ts';
@@ -24,6 +25,7 @@ export function composeInMemory(
     ctx: localArchive(),
     useCases: useCasesFor({
       rolls: new InMemoryRollRepository(),
+      equipment: new InMemoryEquipmentRepository(),
       blobs: new InMemoryBlobStore(),
       inspector: new SharpImageInspector(maxPixels),
       previews: new InMemoryPreviewProvider(),

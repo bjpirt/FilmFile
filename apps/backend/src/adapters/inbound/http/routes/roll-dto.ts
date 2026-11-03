@@ -16,6 +16,7 @@ export function rollDto(roll: Roll): RollDto {
     name: roll.name,
     description: roll.description,
     shot: roll.shot,
+    camera: roll.camera,
     frames: roll.frames.map((frame) => ({
       id: frame.id,
       number: frame.number,

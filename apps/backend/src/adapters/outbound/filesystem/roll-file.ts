@@ -1,5 +1,9 @@
 import { z } from 'zod';
 import {
+  isEquipmentSlug,
+  type EquipmentSlug,
+} from '../../../domain/equipment/equipment-slug.ts';
+import {
   isFrameNumber,
   type FrameNumber,
 } from '../../../domain/rolls/frame-number.ts';
@@ -73,6 +77,15 @@ const storedRoll = z.object({
   shot: branded<ShotDate>(isShotDate, 'must be a date like 2026-09-14')
     .nullable()
     .default(null),
+  // The roll's inheritable details (design section 6), by equipment slug.
+  meta: z
+    .object({
+      camera: branded<EquipmentSlug>(
+        isEquipmentSlug,
+        'must be a slug like nikon-fe',
+      ).optional(),
+    })
+    .default({}),
   frames: z.array(storedFrame),
 });
 
@@ -117,13 +130,14 @@ export function parseRollFile(text: string): Result<Roll, string> {
     );
     return err(`it doesn't match the roll format (${issues.join('; ')})`);
   }
-  const { id, roll, name, description, shot, frames } = parsed.data;
+  const { id, roll, name, description, shot, meta, frames } = parsed.data;
   return ok({
     id,
     roll,
     name,
     description,
     shot,
+    camera: meta.camera ?? null,
     frames: frames.map((frame) => ({
       ...frame,
       versions: frame.versions.map((version) => ({
@@ -143,6 +157,7 @@ export function rollFileContent(roll: Roll): string {
     name: roll.name,
     description: roll.description,
     shot: roll.shot,
+    meta: roll.camera === null ? {} : { camera: roll.camera },
     frames: roll.frames.map((frame) => ({
       id: frame.id,
       number: frame.number,

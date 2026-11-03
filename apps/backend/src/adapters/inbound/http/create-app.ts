@@ -7,8 +7,10 @@ import {
 } from './middleware/error-handler.ts';
 import { requestGuard } from './middleware/request-guard.ts';
 import { securityHeaders } from './middleware/security-headers.ts';
+import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import { docsRoutes } from './routes/docs.ts';
-import { rollRoutes } from './routes/rolls.ts';
+import { equipmentRoutes, type EquipmentUseCases } from './routes/equipment.ts';
+import { rollRoutes, type RollUseCases } from './routes/rolls.ts';
 import { uiRoutes } from './routes/ui.ts';
 
 const getHealth = createRoute({
@@ -23,14 +25,14 @@ const getHealth = createRoute({
   },
 });
 
-export function createApp(
-  config: Parameters<typeof rollRoutes>[0] & {
-    readonly uiPath?: string;
-    readonly port: number;
-    readonly uiOrigin?: string;
-    readonly reportError?: ReportError;
-  },
-): OpenAPIHono {
+export function createApp(config: {
+  readonly ctx: ArchiveContext;
+  readonly useCases: RollUseCases & EquipmentUseCases;
+  readonly uiPath?: string;
+  readonly port: number;
+  readonly uiOrigin?: string;
+  readonly reportError?: ReportError;
+}): OpenAPIHono {
   const app = new OpenAPIHono();
 
   app.use(securityHeaders());
@@ -38,6 +40,7 @@ export function createApp(
 
   app.openapi(getHealth, (c) => c.json({ status: 'ok' } as const, 200));
   app.route('/api/rolls', rollRoutes(config));
+  app.route('/api/equipment', equipmentRoutes(config));
   app.doc31('/api/openapi.json', {
     openapi: '3.1.0',
     info: { title: 'FilmFile API', version: '0.0.0' },

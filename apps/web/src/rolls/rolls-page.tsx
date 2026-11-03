@@ -2,6 +2,7 @@ import type { ApiClient } from '@filmfile/contracts/client';
 import { useQuery } from '@tanstack/react-query';
 import type { Roll } from '@filmfile/contracts/rolls';
 import { useEffect } from 'react';
+import { useCameras } from '../equipment/use-cameras.ts';
 import { Link, navigate, useSearch } from '../routing.tsx';
 import { BrowsePanel } from './browse-panel.tsx';
 import { RollCard } from './roll-card.tsx';
@@ -84,6 +85,7 @@ export function RollsPage({
     go({ view: chosen });
   }
 
+  const cameras = useCameras(api);
   const rolls = useQuery({
     queryKey: ['rolls'],
     queryFn: async () => {
@@ -190,11 +192,11 @@ export function RollsPage({
               (view === 'grid' ? (
                 <ul className="roll-grid">
                   {group.rolls.map((roll) => (
-                    <RollCard key={roll.id} roll={roll} />
+                    <RollCard key={roll.id} roll={roll} cameras={cameras} />
                   ))}
                 </ul>
               ) : (
-                <RollTable rolls={group.rolls} />
+                <RollTable rolls={group.rolls} cameras={cameras} />
               ))}
           </section>
         ))}

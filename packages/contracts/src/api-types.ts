@@ -762,6 +762,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/equipment/cameras": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the cameras */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Every camera, ordered by name. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CameraList"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Add a camera */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateCameraRequest"];
+                };
+            };
+            responses: {
+                /** @description The new camera. */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Camera"];
+                    };
+                };
+                /** @description The body is not valid JSON. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description A camera with the same slug already exists. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The body is not of the expected type. */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The request is invalid. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -790,6 +886,11 @@ export interface components {
             description: string | null;
             /** @example 2026-09-14 */
             shot: string | null;
+            /**
+             * @description The slug of the camera the roll was shot on, or null.
+             * @example nikon-fe
+             */
+            camera: string | null;
             frames: components["schemas"]["Frame"][];
         };
         Frame: {
@@ -850,6 +951,8 @@ export interface components {
             description?: string;
             /** @example 2026-09-14 */
             shot?: string;
+            /** @example nikon-fe */
+            camera?: string;
         };
         /** @description The details to change. A detail left out stays as it is; null clears it. */
         UpdateRollRequest: {
@@ -857,6 +960,8 @@ export interface components {
             description?: string | null;
             /** @example 2026-09-14 */
             shot?: string | null;
+            /** @example nikon-fe */
+            camera?: string | null;
         };
         CreateFrameRequest: {
             /** @example 12A */
@@ -879,6 +984,19 @@ export interface components {
              * @example 12A
              */
             number: string | null;
+        };
+        CameraList: {
+            cameras: components["schemas"]["Camera"][];
+        };
+        Camera: {
+            /** @example nikon-fe */
+            slug: string;
+            /** @example Nikon FE */
+            name: string;
+        };
+        CreateCameraRequest: {
+            /** @description What the camera is called; its slug is made from it. */
+            name: string;
         };
     };
     responses: never;

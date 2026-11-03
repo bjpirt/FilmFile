@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { createApiClient } from '@filmfile/contracts/client';
+import type { Camera } from '@filmfile/contracts/equipment';
 import type { Roll, UnreadableRoll } from '@filmfile/contracts/rolls';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -22,9 +23,13 @@ afterEach(() => {
 function fakeRollsService(
   rolls: Roll[] = [],
   unreadable: UnreadableRoll[] = [],
+  cameras: Camera[] = [],
 ) {
   let nextId = 0;
   return async (request: Request): Promise<Response> => {
+    if (new URL(request.url).pathname === '/api/equipment/cameras') {
+      return Response.json({ cameras });
+    }
     if (request.method === 'GET') {
       return Response.json({ rolls, unreadable });
     }
@@ -57,6 +62,7 @@ function fakeRollsService(
       name: null,
       description: null,
       shot: null,
+      camera: null,
       frames: [],
     };
     rolls.push(created);
@@ -72,6 +78,7 @@ function aRoll(roll: string, frames = 0): Roll {
     name: null,
     description: null,
     shot: null,
+    camera: null,
     frames: Array.from({ length: frames }, (_, i) => ({
       id: `01JC8Z7K3M00000000000001${String(i).padStart(2, '0')}`,
       number: null,
@@ -256,7 +263,25 @@ describe('the list view', () => {
     expect(rows[0]?.querySelectorAll('img')).toHaveLength(4);
     expect(
       screen.getAllByRole('columnheader').map((cell) => cell.textContent),
-    ).toEqual(['Roll', 'Strip', 'Name', 'Shot', 'Frames']);
+    ).toEqual(['Roll', 'Strip', 'Name', 'Camera', 'Shot', 'Frames']);
+  });
+
+  test('shows each roll’s camera, by name, on its card and in the list', async () => {
+    renderPage(
+      fakeRollsService(
+        [{ ...aRoll('2026-014'), camera: 'nikon-fe', shot: '2026-09' }],
+        [],
+        [{ slug: 'nikon-fe', name: 'Nikon FE' }],
+      ),
+    );
+
+    expect(await screen.findByText('Nikon FE · Sep 2026')).toBeDefined();
+
+    showList();
+
+    expect(
+      screen.getAllByRole('cell').map((cell) => cell.textContent),
+    ).toContain('Nikon FE');
   });
 
   test('marks which view is showing', async () => {

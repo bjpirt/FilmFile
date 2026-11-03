@@ -1,3 +1,5 @@
+import type { Camera } from '../../src/domain/equipment/camera.ts';
+import { slugFor } from '../../src/domain/equipment/equipment-slug.ts';
 import type { Frame, Roll, Version } from '../../src/domain/rolls/roll.ts';
 import { isFrameNumber } from '../../src/domain/rolls/frame-number.ts';
 import { isRollNumber } from '../../src/domain/rolls/roll-number.ts';
@@ -70,8 +72,18 @@ export function aRoll(
     name: null,
     description: null,
     shot: null,
+    camera: null,
     frames: overrides.frames ?? [],
   };
+}
+
+/** A camera with the given name, and the slug made from it. */
+export function aCamera(name: string): Camera {
+  const slug = slugFor(name);
+  if (slug === undefined) {
+    throw new Error(`bad test data: ${name}`);
+  }
+  return { slug, name };
 }
 
 /**

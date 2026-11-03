@@ -24,6 +24,7 @@ describe('POST /api/rolls', () => {
       name: null,
       description: null,
       shot: null,
+      camera: null,
       frames: [],
     });
     expect(idOf(body)).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
@@ -47,6 +48,7 @@ describe('POST /api/rolls', () => {
       name: null,
       description: null,
       shot: null,
+      meta: {},
       frames: [],
     });
   });

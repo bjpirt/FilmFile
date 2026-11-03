@@ -1,5 +1,8 @@
+import type { Camera } from '@filmfile/contracts/equipment';
 import type { Roll } from '@filmfile/contracts/rolls';
 import { useState, type SubmitEvent } from 'react';
+import { CameraField } from '../equipment/camera-field.tsx';
+import { cameraName } from '../equipment/use-cameras.ts';
 import { DateShotFields } from './date-shot-fields.tsx';
 import { shotFieldsOf, shotFrom, type ShotFields } from './shot-fields.ts';
 
@@ -8,29 +11,31 @@ export interface RollDetails {
   readonly name: string | null;
   readonly description: string | null;
   readonly shot: string;
+  /** The camera's name as typed, which may be a new camera; blank for none. */
+  readonly camera: string;
 }
-
-/** What became of saving the details; a roll changed elsewhere is said by the page. */
-export type DetailsOutcome =
-  'saved' | 'changed-elsewhere' | 'not-a-date' | 'failed';
 
 function textOrNull(text: string): string | null {
   return text.trim() === '' ? null : text.trim();
 }
 
-/** A roll's name, description and date shot, to change and save. */
+/** A roll's name, description, date shot and camera, to change and save. */
 export function EditDetailsPanel({
   roll,
+  cameras,
   save,
   cancel,
 }: {
   readonly roll: Roll;
-  readonly save: (details: RollDetails) => Promise<DetailsOutcome>;
+  readonly cameras: readonly Camera[];
+  /** Saves the details, giving what to tell the person if they weren't saved. */
+  readonly save: (details: RollDetails) => Promise<string | undefined>;
   readonly cancel: () => void;
 }) {
   const [name, setName] = useState(roll.name ?? '');
   const [description, setDescription] = useState(roll.description ?? '');
   const [shot, setShot] = useState<ShotFields>(shotFieldsOf(roll.shot));
+  const [camera, setCamera] = useState(cameraName(cameras, roll.camera) ?? '');
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | undefined>(undefined);
 
@@ -44,22 +49,15 @@ export function EditDetailsPanel({
     }
     setProblem(undefined);
     setSaving(true);
-    const outcome = await save({
+    const notSaved = await save({
       name: textOrNull(name),
       description: textOrNull(description),
       shot: entered.shot,
+      camera,
     });
     // Once saved, the panel closes.
-    if (outcome === 'saved') {
-      return;
-    }
     setSaving(false);
-    if (outcome === 'not-a-date') {
-      setProblem("That date doesn't exist. Check the day and month.");
-    }
-    if (outcome === 'failed') {
-      setProblem("Couldn't save the details. Is the service running?");
-    }
+    setProblem(notSaved);
   }
 
   return (
@@ -94,6 +92,7 @@ export function EditDetailsPanel({
         />
       </label>
       <DateShotFields shot={shot} change={setShot} />
+      <CameraField cameras={cameras} value={camera} change={setCamera} />
 
       {problem !== undefined && <p role="alert">{problem}</p>}
 

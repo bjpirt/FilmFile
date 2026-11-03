@@ -1,10 +1,18 @@
+import type { Camera } from '@filmfile/contracts/equipment';
 import type { Roll } from '@filmfile/contracts/rolls';
+import { cameraName } from '../equipment/use-cameras.ts';
 import { Link } from '../routing.tsx';
 import { formatShot } from './format-shot.ts';
 import { thumbnailUrl } from './thumbnail-url.ts';
 
-/** The rolls as a compact table: roll number, a strip of the first scans and the frame count. */
-export function RollTable({ rolls }: { readonly rolls: readonly Roll[] }) {
+/** The rolls as a compact table: roll number, a strip of the first scans, details and the frame count. */
+export function RollTable({
+  rolls,
+  cameras,
+}: {
+  readonly rolls: readonly Roll[];
+  readonly cameras: readonly Camera[];
+}) {
   return (
     <div className="table-scroll">
       <table className="roll-table">
@@ -13,6 +21,7 @@ export function RollTable({ rolls }: { readonly rolls: readonly Roll[] }) {
             <th scope="col">Roll</th>
             <th scope="col">Strip</th>
             <th scope="col">Name</th>
+            <th scope="col">Camera</th>
             <th scope="col">Shot</th>
             <th scope="col" className="number">
               Frames
@@ -38,6 +47,7 @@ export function RollTable({ rolls }: { readonly rolls: readonly Roll[] }) {
                 </div>
               </td>
               <td>{roll.name}</td>
+              <td>{cameraName(cameras, roll.camera)}</td>
               <td className="muted">
                 {roll.shot === null ? '—' : formatShot(roll.shot)}
               </td>

@@ -1,5 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, test } from 'vitest';
+import { isEquipmentSlug } from '../../../domain/equipment/equipment-slug.ts';
 import { isFrameNumber } from '../../../domain/rolls/frame-number.ts';
 import { isRollNumber } from '../../../domain/rolls/roll-number.ts';
 import { isShotDate } from '../../../domain/rolls/shot-date.ts';
@@ -47,6 +48,12 @@ const aRoll: fc.Arbitrary<Roll> = fc.record({
       .filter(isShotDate),
     { nil: null },
   ),
+  camera: fc.option(
+    fc
+      .stringMatching(/^[a-z0-9]{1,8}(-[a-z0-9]{1,8}){0,3}$/)
+      .filter(isEquipmentSlug),
+    { nil: null },
+  ),
   frames: fc.array(aFrame, { maxLength: 5 }),
 });
 
@@ -73,6 +80,23 @@ describe('roll.json', () => {
     );
   });
 
+  test('keeps the camera in the roll’s meta, by slug', () => {
+    const roll = parseRollFile(
+      JSON.stringify({
+        schema: 1,
+        id: '01M6EAAP694BKWR9HZ4N5Z54XD',
+        roll: '2026-014',
+        meta: { camera: 'nikon-fe' },
+        frames: [],
+      }),
+    );
+
+    expect(roll).toMatchObject({ ok: true, value: { camera: 'nikon-fe' } });
+    expect(roll.ok && JSON.parse(rollFileContent(roll.value))).toMatchObject({
+      meta: { camera: 'nikon-fe' },
+    });
+  });
+
   test('reads a roll written before rolls had a name, description or date as having none', () => {
     const read = parseRollFile(
       JSON.stringify({
@@ -85,7 +109,7 @@ describe('roll.json', () => {
 
     expect(read).toMatchObject({
       ok: true,
-      value: { name: null, description: null, shot: null },
+      value: { name: null, description: null, shot: null, camera: null },
     });
   });
 

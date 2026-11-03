@@ -1,8 +1,18 @@
 // @vitest-environment happy-dom
 import { createApiClient } from '@filmfile/contracts/client';
+import {
+  createCameraRequest,
+  type Camera,
+} from '@filmfile/contracts/equipment';
 import { createRollRequest, type Roll } from '@filmfile/contracts/rolls';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { NewRollPage } from './new-roll-page.tsx';
 
@@ -15,12 +25,29 @@ beforeEach(() => {
 afterEach(cleanup);
 
 /** Answers like the backend: creates the roll, its frames and their scans. */
-function fakeService({ taken = [] }: { taken?: string[] } = {}) {
+function fakeService({
+  taken = [],
+  cameras = [],
+}: { taken?: string[]; cameras?: Camera[] } = {}) {
   const created: unknown[] = [];
   const uploads: string[] = [];
+  let cameraLists = 0;
   let nextId = 100;
   async function answer(request: Request): Promise<Response> {
     const url = new URL(request.url);
+    if (url.pathname === '/api/equipment/cameras') {
+      if (request.method === 'GET') {
+        cameraLists += 1;
+        return Response.json({ cameras });
+      }
+      const { name } = createCameraRequest.parse(await request.json());
+      const camera = { slug: name.toLowerCase().replace(/\W+/g, '-'), name };
+      if (cameras.some((c) => c.slug === camera.slug)) {
+        return Response.json({ error: 'exists' }, { status: 409 });
+      }
+      cameras.push(camera);
+      return Response.json(camera, { status: 201 });
+    }
     if (url.pathname === '/api/rolls') {
       const body = createRollRequest.parse(await request.json());
       created.push(body);
@@ -33,6 +60,7 @@ function fakeService({ taken = [] }: { taken?: string[] } = {}) {
         name: body.name ?? null,
         description: body.description ?? null,
         shot: body.shot ?? null,
+        camera: body.camera ?? null,
         frames: [],
       };
       return Response.json(roll, { status: 201 });
@@ -62,7 +90,7 @@ function fakeService({ taken = [] }: { taken?: string[] } = {}) {
       { status: 201 },
     );
   }
-  return { answer, created, uploads };
+  return { answer, created, uploads, cameras, cameraLists: () => cameraLists };
 }
 
 function renderPage(service: { answer: (r: Request) => Promise<Response> }) {
@@ -146,6 +174,75 @@ test('creates the roll with its details, then opens it', async () => {
       shot: '2026-09-14T06:30',
     },
   ]);
+});
+
+describe('the camera', () => {
+  test('is picked from the archive’s cameras by name', async () => {
+    const service = fakeService({
+      cameras: [{ slug: 'nikon-fe', name: 'Nikon FE' }],
+    });
+    renderPage(service);
+
+    fill('Roll number', '2026-014');
+    fill('Camera', 'Nikon FE');
+    create();
+
+    await waitToOpen(rollId);
+    expect(service.created).toEqual([
+      { roll: '2026-014', shot: '2026', camera: 'nikon-fe' },
+    ]);
+  });
+
+  test('is the one added elsewhere since the page loaded, if it has the name typed', async () => {
+    const service = fakeService();
+    renderPage(service);
+    await waitFor(() => {
+      expect(service.cameraLists()).toBe(1);
+    });
+    service.cameras.push({ slug: 'nikon-fe', name: 'Nikon FE' });
+
+    fill('Roll number', '2026-014');
+    fill('Camera', 'Nikon FE');
+    create();
+
+    await waitToOpen(rollId);
+    expect(service.created).toEqual([
+      { roll: '2026-014', shot: '2026', camera: 'nikon-fe' },
+    ]);
+  });
+
+  test('can’t be a new one named so like another that they’d share a file', async () => {
+    const service = fakeService({
+      cameras: [{ slug: 'nikon-fe', name: 'Nikon FE' }],
+    });
+    renderPage(service);
+
+    fill('Roll number', '2026-014');
+    fill('Camera', 'Nikon-FE');
+    create();
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      "There's already a camera with a name like Nikon-FE. Choose it from the list.",
+    );
+    expect(service.created).toEqual([]);
+  });
+
+  test('is added to the archive when it’s new', async () => {
+    const service = fakeService();
+    renderPage(service);
+
+    fill('Roll number', '2026-014');
+    fill('Camera', 'Pentax K1000');
+    create();
+
+    await waitToOpen(rollId);
+    expect(service.cameras).toEqual([
+      { slug: 'pentax-k1000', name: 'Pentax K1000' },
+    ]);
+    expect(service.created).toEqual([
+      { roll: '2026-014', shot: '2026', camera: 'pentax-k1000' },
+    ]);
+  });
 });
 
 describe('the date shot', () => {

@@ -16,6 +16,8 @@ export interface NewRoll {
   readonly month?: string;
   readonly day?: string;
   readonly time?: string;
+  /** A camera's name: one the archive has, or a new one. */
+  readonly camera?: string;
   readonly scans?: FixtureSet;
 }
 
@@ -53,6 +55,9 @@ export async function createRoll(
   }
   if (details.time !== undefined) {
     await page.getByLabel('Time').fill(details.time);
+  }
+  if (details.camera !== undefined) {
+    await page.getByLabel('Camera').fill(details.camera);
   }
   if (details.scans !== undefined) {
     await page

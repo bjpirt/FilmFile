@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import { FixedClock } from '../../../src/adapters/outbound/memory/fixed-clock.ts';
 import { InMemoryBlobStore } from '../../../src/adapters/outbound/memory/in-memory-blob-store.ts';
 import { InMemoryPreviewProvider } from '../../../src/adapters/outbound/memory/in-memory-preview-provider.ts';
+import { InMemoryEquipmentRepository } from '../../../src/adapters/outbound/memory/in-memory-equipment-repository.ts';
 import { InMemoryRollRepository } from '../../../src/adapters/outbound/memory/in-memory-roll-repository.ts';
 import { SequentialIdGenerator } from '../../../src/adapters/outbound/memory/sequential-id-generator.ts';
 import { SharpImageInspector } from '../../../src/adapters/outbound/sharp/sharp-image-inspector.ts';
@@ -36,7 +37,11 @@ async function setUp() {
   const previews = new InMemoryPreviewProvider();
   const ids = new SequentialIdGenerator();
   const clock = new FixedClock('2026-11-02T12:00:00.000Z');
-  const created = await new CreateRoll(rolls, ids).execute(ctx, {
+  const created = await new CreateRoll(
+    rolls,
+    new InMemoryEquipmentRepository(),
+    ids,
+  ).execute(ctx, {
     roll: '2026-014',
   });
   if (!created.ok) {

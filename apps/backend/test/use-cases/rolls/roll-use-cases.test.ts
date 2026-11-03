@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
+import { InMemoryEquipmentRepository } from '../../../src/adapters/outbound/memory/in-memory-equipment-repository.ts';
 import { InMemoryRollRepository } from '../../../src/adapters/outbound/memory/in-memory-roll-repository.ts';
 import { SequentialIdGenerator } from '../../../src/adapters/outbound/memory/sequential-id-generator.ts';
+import { CreateCamera } from '../../../src/application/use-cases/equipment/create-camera.ts';
 import { CreateRoll } from '../../../src/application/use-cases/rolls/create-roll.ts';
 import { GetRoll } from '../../../src/application/use-cases/rolls/get-roll.ts';
 import { ListRolls } from '../../../src/application/use-cases/rolls/list-rolls.ts';
@@ -18,13 +20,15 @@ function anArchive(): ArchiveContext {
 
 function setUp() {
   const rolls = new InMemoryRollRepository();
+  const equipment = new InMemoryEquipmentRepository();
   const ids = new SequentialIdGenerator();
   return {
     ctx: anArchive(),
-    createRoll: new CreateRoll(rolls, ids),
+    createCamera: new CreateCamera(equipment),
+    createRoll: new CreateRoll(rolls, equipment, ids),
     listRolls: new ListRolls(rolls),
     getRoll: new GetRoll(rolls),
-    updateRoll: new UpdateRoll(rolls),
+    updateRoll: new UpdateRoll(rolls, equipment),
   };
 }
 
@@ -40,7 +44,33 @@ describe('CreateRoll', () => {
         name: null,
         description: null,
         shot: null,
+        camera: null,
         frames: [],
+      },
+    });
+  });
+
+  test('records the camera the roll was shot on', async () => {
+    const { ctx, createCamera, createRoll } = setUp();
+    await createCamera.execute(ctx, { name: 'Nikon FE' });
+
+    expect(
+      await createRoll.execute(ctx, { roll: '2026-014', camera: 'nikon-fe' }),
+    ).toMatchObject({ ok: true, value: { camera: 'nikon-fe' } });
+  });
+
+  test('refuses a camera the archive does not have', async () => {
+    const { ctx, createRoll } = setUp();
+
+    expect(
+      await createRoll.execute(ctx, { roll: '2026-014', camera: 'nikon-fe' }),
+    ).toEqual({
+      ok: false,
+      error: {
+        kind: 'validation-failed',
+        issues: [
+          { path: ['camera'], message: 'is not a camera in the archive' },
+        ],
       },
     });
   });
@@ -177,6 +207,49 @@ describe('UpdateRoll', () => {
           shot: '2026-09-14',
         },
       },
+    });
+  });
+
+  test('changes the camera, or clears it with null', async () => {
+    const { ctx, id, version, updateRoll, createCamera } = await aCreatedRoll();
+    await createCamera.execute(ctx, { name: 'Nikon FE' });
+
+    const changed = await updateRoll.execute(ctx, {
+      id,
+      expectedVersion: version,
+      camera: 'nikon-fe',
+    });
+    const cleared = changed.ok
+      ? await updateRoll.execute(ctx, {
+          id,
+          expectedVersion: changed.value.version,
+          camera: null,
+        })
+      : changed;
+
+    expect(changed).toMatchObject({
+      ok: true,
+      value: { roll: { camera: 'nikon-fe' } },
+    });
+    expect(cleared).toMatchObject({
+      ok: true,
+      value: { roll: { camera: null } },
+    });
+  });
+
+  test('refuses a camera the archive does not have, changing nothing', async () => {
+    const { ctx, id, version, updateRoll } = await aCreatedRoll();
+
+    expect(
+      await updateRoll.execute(ctx, {
+        id,
+        expectedVersion: version,
+        name: 'Westfjords',
+        camera: 'nikon-fe',
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { kind: 'validation-failed', issues: [{ path: ['camera'] }] },
     });
   });
 

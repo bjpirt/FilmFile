@@ -1,6 +1,10 @@
 // @vitest-environment happy-dom
 import { createApiClient } from '@filmfile/contracts/client';
 import {
+  createCameraRequest,
+  type Camera,
+} from '@filmfile/contracts/equipment';
+import {
   updateFrameNumbersRequest,
   updateRollRequest,
   type Frame,
@@ -27,7 +31,10 @@ const rollDetails: Omit<Roll, 'frames'> = {
   name: null,
   description: null,
   shot: null,
+  camera: null,
 };
+
+const nikonFe: Camera = { slug: 'nikon-fe', name: 'Nikon FE' };
 
 async function sha256(bytes: ArrayBuffer): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', bytes);
@@ -37,7 +44,11 @@ async function sha256(bytes: ArrayBuffer): Promise<string> {
 }
 
 /** Answers the roll's endpoints the way the backend does, keeping the roll in memory. */
-function fakeRollService(frames: Frame[] = [], details: Partial<Roll> = {}) {
+function fakeRollService(
+  frames: Frame[] = [],
+  details: Partial<Roll> = {},
+  cameras: Camera[] = [],
+) {
   let roll = { ...rollDetails, ...details };
   const requests: string[] = [];
   const ifMatches: (string | null)[] = [];
@@ -53,6 +64,15 @@ function fakeRollService(frames: Frame[] = [], details: Partial<Roll> = {}) {
   async function answer(request: Request): Promise<Response> {
     const url = new URL(request.url);
     requests.push(`${request.method} ${url.pathname}${url.search}`);
+    if (url.pathname === '/api/equipment/cameras') {
+      if (request.method === 'GET') {
+        return Response.json({ cameras });
+      }
+      const { name } = createCameraRequest.parse(await request.json());
+      const camera = { slug: name.toLowerCase().replace(/\W+/g, '-'), name };
+      cameras.push(camera);
+      return Response.json(camera, { status: 201 });
+    }
     if (request.method === 'GET' && url.pathname === `/api/rolls/${rollId}`) {
       const body: Roll = { ...roll, frames };
       return Response.json(body, { headers: { ETag: etag() } });
@@ -69,12 +89,14 @@ function fakeRollService(frames: Frame[] = [], details: Partial<Roll> = {}) {
       const body: unknown = await request.json();
       if (url.pathname === `/api/rolls/${rollId}`) {
         // The page always sends every detail.
-        const { name, description, shot } = updateRollRequest.parse(body);
+        const { name, description, shot, camera } =
+          updateRollRequest.parse(body);
         roll = {
           ...roll,
           name: name ?? null,
           description: description ?? null,
           shot: shot ?? null,
+          camera: camera ?? null,
         };
         changed();
         const updated: Roll = { ...roll, frames };
@@ -144,7 +166,7 @@ function fakeRollService(frames: Frame[] = [], details: Partial<Roll> = {}) {
     return Response.json({ error: 'not found' }, { status: 404 });
   }
 
-  return { answer, requests, ifMatches, frames, changed };
+  return { answer, requests, ifMatches, frames, changed, cameras };
 }
 
 function aScan(name: string, content = name): File {
@@ -208,27 +230,35 @@ test('heads the page with the roll number and how many frames it has', async () 
   expect(screen.getByText('2 frames')).toBeDefined();
 });
 
-test('shows the roll’s name, date shot and description', async () => {
-  renderPage({
-    answer: () =>
-      Promise.resolve(
-        Response.json(
-          {
-            ...rollDetails,
-            name: 'Iceland, first day',
-            description: 'Jökulsárlón at dawn.',
-            shot: '2026-09-14T06:30',
-            frames: [],
-          },
-          { headers: { ETag: '"v1"' } },
-        ),
-      ),
-  });
+test('shows the roll’s name, camera, date shot and description', async () => {
+  renderPage(
+    fakeRollService(
+      [],
+      {
+        name: 'Iceland, first day',
+        description: 'Jökulsárlón at dawn.',
+        shot: '2026-09-14T06:30',
+        camera: 'nikon-fe',
+      },
+      [nikonFe],
+    ),
+  );
 
   expect(await screen.findByText('Iceland, first day')).toBeDefined();
-  expect(screen.getByText('Shot 14 Sep 2026, 06:30')).toBeDefined();
+  expect(await screen.findByText('Nikon FE')).toBeDefined();
+  expect(details()).toEqual([
+    ['Camera', 'Nikon FE'],
+    ['Shot', '14 Sep 2026, 06:30'],
+  ]);
   expect(screen.getByText('Jökulsárlón at dawn.')).toBeDefined();
 });
+
+/** The roll's details row, as label and value pairs. */
+function details(): (string | null)[][] {
+  return Array.from(document.querySelectorAll('dl div'), (item) =>
+    Array.from(item.children, (child) => child.textContent),
+  );
+}
 
 describe('editing the details', () => {
   const iceland = {
@@ -282,10 +312,52 @@ describe('editing the details', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
 
     expect(await screen.findByText('Westfjords')).toBeDefined();
-    expect(screen.getByText('Shot 2026')).toBeDefined();
+    expect(details()).toEqual([['Shot', '2026']]);
     expect(screen.queryByText('Jökulsárlón at dawn.')).toBeNull();
     expect(screen.queryByLabelText('Name')).toBeNull();
     expect(service.ifMatches).toEqual(['"v1"']);
+  });
+
+  test('picks a camera the archive has, by name', async () => {
+    const service = fakeRollService([], iceland, [nikonFe]);
+    renderPage(service);
+    await editDetails();
+
+    fill('Camera', 'nikon fe');
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+
+    expect(await screen.findByText('Nikon FE')).toBeDefined();
+    expect(service.cameras).toEqual([nikonFe]);
+  });
+
+  test('adds a camera the archive doesn’t have yet', async () => {
+    const service = fakeRollService([], iceland, [nikonFe]);
+    renderPage(service);
+    await editDetails();
+
+    fill('Camera', 'Pentax K1000');
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+
+    expect(await screen.findByText('Pentax K1000')).toBeDefined();
+    expect(service.cameras.map((camera) => camera.name)).toEqual([
+      'Nikon FE',
+      'Pentax K1000',
+    ]);
+  });
+
+  test('offers the archive’s cameras, and shows the roll’s', async () => {
+    renderPage(
+      fakeRollService([], { ...iceland, camera: 'nikon-fe' }, [nikonFe]),
+    );
+    await screen.findByText('Nikon FE');
+    await editDetails();
+
+    expect(field('Camera').value).toBe('Nikon FE');
+    expect(
+      Array.from(document.querySelectorAll('datalist option'), (option) =>
+        option.getAttribute('value'),
+      ),
+    ).toEqual(['Nikon FE']);
   });
 
   test('asks for a year', async () => {

@@ -1,6 +1,9 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, type SubmitEvent } from 'react';
+import { CameraField } from '../equipment/camera-field.tsx';
+import { chooseCamera } from '../equipment/choose-camera.ts';
+import { useCameras } from '../equipment/use-cameras.ts';
 import { Link, navigate } from '../routing.tsx';
 import { DateShotFields } from './date-shot-fields.tsx';
 import { describeUpload } from './describe-upload.ts';
@@ -29,9 +32,11 @@ type Progress =
  */
 export function NewRollPage({ api }: { readonly api: ApiClient }) {
   const queryClient = useQueryClient();
+  const cameras = useCameras(api);
   const [rollNumber, setRollNumber] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [camera, setCamera] = useState('');
   const [shot, setShot] = useState<ShotFields>({
     year: '',
     month: '',
@@ -75,6 +80,13 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
     const shotDate = entered.shot;
     setProblem(undefined);
     setProgress({ kind: 'creating' });
+    const chosen = await chooseCamera(api, cameras, camera);
+    if (!chosen.ok) {
+      setProgress({ kind: 'editing' });
+      setProblem(chosen.problem);
+      return;
+    }
+    await queryClient.invalidateQueries({ queryKey: ['cameras'] });
     const { data, response, error } = await api.POST('/api/rolls', {
       body: {
         roll,
@@ -83,6 +95,7 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
           ? {}
           : { description: description.trim() }),
         shot: shotDate,
+        ...(chosen.slug === null ? {} : { camera: chosen.slug }),
       },
     });
     if (data === undefined) {
@@ -187,6 +200,7 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
         </label>
 
         <DateShotFields shot={shot} change={changeShot} />
+        <CameraField cameras={cameras} value={camera} change={setCamera} />
 
         <div
           className="drop-zone"
