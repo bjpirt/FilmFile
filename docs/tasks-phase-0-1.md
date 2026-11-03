@@ -28,7 +28,7 @@ Settled on 2 November 2026 and recorded in `docs/design.md`. Tasks refer to them
 | D3 | ~~Mapping warnings~~: superseded by D19, which has no numbering warnings. | — |
 | D4 | Lab scan uploads are limited to 200 MB per file, checked while streaming. | 1.3.6, 1.4.4 |
 | D5 | *Superseded by D11:* there are no import sessions or staging. | |
-| D6 | Unconfirmed numbering is shown with a badge on the roll only; frame numbers look normal. | 1b.6 |
+| D6 | ~~Unconfirmed numbering badge~~: dropped. Rolls have no "numbering confirmed" state (D20). | — |
 | D7 | Roll numbers are `YYYY-NNN` (e.g. `2026-014`), stored under `rolls/YYYY/YYYY-NNN/`. `YYYY` is the year shot; `NNN` is the next free number in that year when catalogued. No other formats. | 1.1.1, 1.2.1 |
 | D8 | The API never invents a roll number; `CreateRoll` requires one. The UI suggests the next free number for a year, worked out from the roll list, but the field starts empty. | 1.3.3, 1b.3 |
 | D9 | Roll lists sort by roll number by default, or by shot date when chosen. Roll shot dates are optional. | 1.2.4, 1.3.4, 1b.6 |
@@ -42,6 +42,11 @@ Settled on 2 November 2026 and recorded in `docs/design.md`. Tasks refer to them
 | D17 | Files are stored by version, not by kind: `frames/<frame>/<version>/<original name>`, each folder named by the last 8 characters of the ULID and unique within its parent. Same-named files never clash, sidecars sit beside their file, and deletes move one folder. NegPy can build a virtual roll from frames anywhere, so it doesn't need a `raw/` folder. | S1.5, 1.2 |
 | D18 | A `roll.json` that can't be read (invalid JSON, not matching the schema, or from a newer FilmFile) doesn't fail the roll list: it's listed under `unreadable` with the problem, and shown in the UI. It's never changed or deleted, and a new roll can't be created over it. | H.8 |
 | D19 | Frame numbering is driven from the UI. A frame number is free text of up to 9 characters, sorted naturally (leading number, negatives first, then text). Upload keeps numbering new frames in file-name order. Renumbering is a first number and a direction (plain integers, below zero if need be), worked out in the UI with a preview; the API stores only the numbers, in one save guarded by the roll's version. No anchors, overrides, skips or warnings; `00` is typed by hand. | N1–N8 |
+| D20 | No "numbering confirmed" state, badge or button: a roll's numbers are simply what they are, corrected by editing or renumbering. | N7, N8 (dropped) |
+| D21 | The interface follows design A ("light table") from the options canvas. Its fonts (Inter, IBM Plex Mono) are served by the backend from installed packages, not Google Fonts, so the CSP stays `default-src 'self'`. | U2 |
+| D22 | Browser tests cover key journeys only, written against what a person sees and does (roles, labels, text), never CSS classes, test IDs, URLs or API calls, so refactoring the internals doesn't change them. Shared steps live in journey helpers. | U1 onwards |
+| D23 | The rolls page's view (grid or list), grouping and filter are kept in the page's address; the grid or list choice is also remembered in the browser as the default. | U4, U6 |
+| D24 | For now a roll belongs to at most one event, which may be nested in another. Frames in events, and a roll in several events, wait until wanted. | U12 |
 
 **Still open** (in `docs/design.md`, section 15): how Phase 2 tells versions apart without a `kind` (D16).
 
@@ -112,10 +117,58 @@ Driven from the UI (D19). Each task is a change you can see in the browser, with
 - [x] **N4 Changed elsewhere.** When a save is refused because the roll changed since the page loaded, the page says "This roll changed since you opened it" with a Reload button. Nothing is overwritten.
 - [x] **N5 Renumber preview.** A Renumber panel on the roll page that reads as a sentence: "[First|Last] scan is frame [N], counting [up|down]", so a tail-to-head roll is "last scan is frame 1, counting down". The contact sheet shows the proposed numbers in scan order, changed ones highlighted. Plain integers, going below zero if need be. Nothing is saved. UI only.
 - [x] **N6 Save a renumber.** Save writes every proposed number in one bulk update with `If-Match`; Cancel discards the draft. API: bulk update of frame numbers.
-- [ ] **N7 Confirm numbering.** A "Numbering checked" button marks the roll's numbering confirmed; until then the rolls list and roll page show a small "numbering not confirmed" badge (D6). API: a confirmed flag on the roll.
-- [ ] **N8 Changing confirmed numbering.** Renumbering or editing a number on a confirmed roll clears the confirmation, with a note saying so.
+- [-] **N7 Confirm numbering** and **N8 Changing confirmed numbering.** *(Dropped, D20.)*
 
-**Done when:** a real roll scanned tail to head can be renumbered, a frame's number corrected, and the numbering confirmed, all in the browser.
+**Done when:** a real roll scanned tail to head can be renumbered and a frame's number corrected, all in the browser.
+
+## U: The Option A interface
+
+The "light table" design chosen from the options canvas (https://claude.ai/artifact/BfhJttJe5NC679GGg97Ay1, row A): dark and photo first, a rolls page with a Grid | List switch, Group by, and a browse panel that can be closed, and a roll page with its details above the contact sheet. Built in two stages: first the design with the data that exists today, then one layer of data at a time (shot date, camera, film stock, lens, events), each layer arriving through every level it needs and showing up wherever the design puts it.
+
+### Browser tests for key journeys
+
+The Playwright tests describe what a person does and sees, so they stay the same when the internals are refactored, and change only when the behaviour does (D22):
+
+- They find things the way a person does: by role, label and visible text (`getByRole('button', { name: 'Renumber…' })`), never by CSS class, test ID, URL structure or API call.
+- Steps shared by several journeys (create a roll, add scans, renumber) live in small helpers in `test/e2e/support/`, so a change to how the UI does a step is made in one place.
+- Each journey uses its own roll numbers and data, so journeys can run in any order against one backend.
+- Scans come from the lab scan fixtures, which show their frame numbers.
+- A journey is added or extended in the same task as the feature it covers; detail stays in the unit and component tests underneath.
+
+Key journeys, each named by the task that adds it:
+
+| Journey | What it proves |
+|---|---|
+| Catalogue a roll (exists) | Create a roll, add its scans, correct a frame number, reload and find it all there |
+| Renumber a roll (exists) | A tail-to-head roll renumbered as "last scan is frame 1, counting down", saved and reloaded |
+| Find rolls (U6) | Switch grid and list, group by year, filter by year, close and reopen the browse panel |
+| Describe a roll (U8 onwards) | Set a roll's shot date, camera, film stock and lens, then find it grouped and filtered by each |
+| Organise by event (U12) | Create an event inside another, put rolls in it, and browse to them by event |
+
+### The design, with today's data
+
+- [ ] **U1 Journeys first.** Move the shared steps of the two existing journeys into helpers in `test/e2e/support/`, and replace their CSS class selectors with roles, labels and text, adding accessible names where the UI lacks them (e.g. a frame's number as part of its list item's name). The journeys then pass unchanged through the restyling that follows.
+- [ ] **U2 Light table look.** The dark theme as tokens (colours, spacing, radii) in one stylesheet; Inter for text and IBM Plex Mono for roll and frame numbers, both served by the backend from installed packages (the CSP allows only the service's own origin, D21); the header with FilmFile and the Rolls link. Contrast checked to 4.5:1. Every existing screen restyled, with no change in behaviour: the journeys pass unchanged.
+- [ ] **U3 Rolls grid.** Roll cards: a three-frame peek of the first scans, the roll number in monospace, the frame count, and "No frames yet" for an empty roll. "New roll" opens the roll number field and Create in place.
+- [ ] **U4 Rolls list and the switch.** The compact table (roll, a four-frame strip, frames) and a Grid | List switch, remembered in the browser (D23). Columns for camera, film stock, event and shot arrive with their data.
+- [ ] **U5 Roll page layout.** The roll number heading with the frame count, Add scans in the toolbar opening the drop zone, the order choice and Renumber… beside the contact sheet, and the amber renumber bar. While renumbering, each changed frame shows its new number on an amber tag with "was N" beside it, and the bar says how many numbers will change.
+- [ ] **U6 Group by, browse panel and filters, with years.** Group by Nothing or Year (from the roll number), with a heading and count per group. The browse panel lists Years with counts; choosing one filters the rolls and the heading says so; All rolls clears it. The panel toggle in the header hides and shows it, and the grid spreads to fill the room. View, grouping and filter are kept in the page's address, so reload, back and forward, and bookmarks keep them (D23). Adds the "Find rolls" journey.
+
+**Checkpoint:** the app looks like the chosen design and every existing journey passes unchanged.
+
+### Layers of data
+
+Each layer is one vertical slice: the field in the domain, `roll.json` (an optional field with a default, so older files still read), the API and contracts, "Edit details" on the roll page, and wherever the design shows it: the roll page's details row, cards, list columns, the browse panel, Group by and filters. Each extends the "Describe a roll" journey.
+
+- [ ] **U7 Edit details.** An "Edit details" panel on the roll page for the roll's own fields, saved with `If-Match` like the frame numbers (a roll changed elsewhere is never overwritten). Its first field is notes, so the panel, the API (`PATCH /api/rolls/{rollId}`) and the conflict message exist before the first field the design groups by.
+- [ ] **U8 Shot date.** Month and year shot, shown on cards ("Sep 2026"), in the list's Shot column and in the details row; the rolls can be sorted by roll number or shot date (D9). Starts the "Describe a roll" journey.
+- [ ] **U9 Cameras.** Cameras as equipment records (make and model, a slug from them, `equipment/cameras/<slug>.json`). Edit details picks a camera, or creates one by typing a new name. Shown on cards ("Nikon FE · …"), in the list and details row; Group by Camera; a Cameras section in the browse panel with counts.
+- [ ] **U10 Film stocks.** The same pattern for film stocks (make, name, ISO, format), completing cards' "camera · film stock" line; Group by Film stock; a Film stocks section in the browse panel.
+- [ ] **U11 Lens.** A lens per roll, picked or created the same way, shown in the details row. Not a grouping: lenses can differ frame to frame later.
+- [ ] **U12 Events.** Events with a name and an optional parent event (`events/<slug>.json`), created from Edit details or an Events page listing them; a roll belongs to one event (D24). Cards and list show "Parent › Event"; Group by Event, with "No event" last; an Events section in the browse panel, nested, where choosing a parent includes its children's rolls. Adds the "Organise by event" journey.
+- [ ] **U13 Equipment page.** The Equipment link: cameras, lenses and film stocks with how many rolls use each, each linking to the rolls filtered by it.
+
+**Done when:** a real roll can be catalogued in the browser with its shot date, camera, film stock, lens and event, found again by grouping and filtering on each, and every key journey passes in CI.
 
 ## P: The rest of Phase 1
 
@@ -143,11 +196,11 @@ Built to the full standard from the start. Task IDs are the original ones; tasks
 
 - 1.3.3 `CreateRoll` and `GetRoll`, 1.3.6 `CreateFrame` and `AddVersion`, 1.3.11 `GetThumbnail` and `GetOriginal`: *in H.6 and H.7.*
 - [ ] **1.3.1 Archive.** `InitialiseArchive`, `GetArchive`, `UpdateArchive` (meta and labs, validating lab patterns compile and have `batch` and `scan` groups). Then `AddVersion` checks file names against the lab's pattern and records batch and scan index.
-- [ ] **1.3.2 Equipment.** `ListEquipment`, `CreateEquipment` (slug from make and model, `AlreadyExists` on a clash).
-- [ ] **1.3.3 `UpdateRoll` and resolved rolls.** `UpdateRoll`; `GetRoll` returns resolved metadata with provenance.
-- [ ] **1.3.4 `ListRolls` filters.** Year, camera, film and tag filters, sorted by roll number or shot date (D9), through the index.
+- [ ] **1.3.2 Equipment.** *(Cameras, film stocks and lenses: U9–U11.)* `ListEquipment`, `CreateEquipment` (slug from make and model, `AlreadyExists` on a clash).
+- [ ] **1.3.3 `UpdateRoll` and resolved rolls.** *(`UpdateRoll`: U7.)* `UpdateRoll`; `GetRoll` returns resolved metadata with provenance.
+- [ ] **1.3.4 `ListRolls` filters.** *(Year, camera, film and event filters and shot-date sorting: U6, U8–U12, in the UI first; through the index when the folder scan is too slow.)* Year, camera, film and tag filters, sorted by roll number or shot date (D9), through the index.
 - [ ] **1.3.5 Frames.** `UpdateFrame` and bulk `UpdateFrames`, with bulk as a single roll save.
-- [-] **1.3.9 Numbering.** *(Replaced by N3, N6 and N7.)* Setting frame numbers in bulk through `UpdateFrames`; confirming numbering through `UpdateRoll`. Any mapping use cases *(blocked: mapping location)*.
+- [-] **1.3.9 Numbering.** *(Replaced by N3 and N6; confirming numbering dropped, D20.)* Setting frame numbers in bulk through `UpdateFrames`; confirming numbering through `UpdateRoll`. Any mapping use cases *(blocked: mapping location)*.
 - [ ] **1.3.10 `AttachSleevePhoto`.** Through the blob store, with the signature check.
 - [ ] **1.3.12 `CheckIntegrity`.** Validate files, check every version's file exists with the right size, optional full re-hash; report dangling equipment references, unreferenced files and duplicate numbers. `deleted/` is skipped.
 - [ ] **1.3.13 `RebuildIndex`.**
@@ -172,17 +225,17 @@ Built to the full standard from the start. Task IDs are the original ones; tasks
 
 - [ ] **1b.1 Live updates.** An SSE hook that invalidates affected queries.
 - [ ] **1b.2 First-run setup.** Shown when the archive isn't initialised: name, author, copyright, first lab and its scan direction.
-- [ ] **1b.3 Roll creation in full.** Camera, lens and film pickers that can create equipment; roll number suggestion (D8); clash shown before submitting.
+- [ ] **1b.3 Roll creation in full.** *(Pickers that create equipment: U9–U11.)* Camera, lens and film pickers that can create equipment; roll number suggestion (D8); clash shown before submitting.
 - [ ] **1b.4 Robust upload.** Files not matching the lab pattern are listed and skipped; parallel uploads with retries; a 409 for a duplicate counts as done, so re-dropping a folder completes an interrupted import; leftover frames with no versions can be deleted.
-- [-] **1b.5 Numbering.** *(Replaced by N1–N8.)* Thumbnails in scan order; anchor and direction, skips and overrides, proposed numbers and warnings; save with one bulk update. A reusable component for 1c.4. *(Blocked: mapping location.)*
-- [ ] **1b.6 Rolls grid.** Sleeve photo or first frame, filters, sort (D9), "numbering not confirmed" badge (D6).
-- [ ] **1b.7 Roll view.** Contact sheet in frame-number order, roll details and sleeve photo; frames with no versions show a placeholder.
+- [-] **1b.5 Numbering.** *(Replaced by N1–N6.)* Thumbnails in scan order; anchor and direction, skips and overrides, proposed numbers and warnings; save with one bulk update. A reusable component for 1c.4. *(Blocked: mapping location.)*
+- [-] **1b.6 Rolls grid.** *(Replaced by U3, U4 and U6.)* Sleeve photo or first frame, filters, sort (D9).
+- [-] **1b.7 Roll view.** *(Replaced by U5.)* Contact sheet in frame-number order, roll details and sleeve photo; frames with no versions show a placeholder.
 - [ ] **1b.8 Frame view.** Large preview, previous/next, resolved metadata with sources, the frame's versions with "Set as default" and delete; arrow keys and Esc.
 - [ ] **1b.9 Checkpoint.** Import at least five real rolls, including one scanned in reverse, and browse them.
 - [ ] **1c.1 Frame editing.** Title, rating (keys 0–5), tags, notes, location, lens override; inherited values greyed with their source; "set on roll instead" and "clear override".
-- [ ] **1c.2 Roll editing.** All roll fields and `meta`, equipment pickers, sleeve photo upload, rename (D10), delete when empty (D12).
+- [ ] **1c.2 Roll editing.** *(Edit details and its fields: U7–U12.)* All roll fields and `meta`, equipment pickers, sleeve photo upload, rename (D10), delete when empty (D12).
 - [ ] **1c.3 Bulk edit and delete.** Select frames; set tags, location or lens in one save, or delete after confirmation.
-- [-] **1c.4 Fix numbering.** *(Replaced by N3–N8.)* The numbering component on an existing roll, then confirm.
+- [-] **1c.4 Fix numbering.** *(Replaced by N3–N6.)* The numbering component on an existing roll, then confirm.
 - [ ] **1c.5 Conflict handling.** On a 409, reload and re-apply if it doesn't clash; otherwise show what changed.
 - [ ] **1c.6 Maintenance page.** Integrity check (quick or full) and index rebuild.
 - [ ] **1c.7 End-to-end test.** Playwright against `composeLocal` with a temp archive and fixture scans: first-run setup → import → fix numbering → edit a frame → reload and see it saved. Runs in CI.

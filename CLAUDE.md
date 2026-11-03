@@ -88,7 +88,7 @@ Write tests alongside the code, not afterwards. Every bug fix starts with a fail
 | **Unit** | Domain logic: frame numbers, mapping engine, resolver, invariants | Pure functions, table-driven. Property-based tests (`fast-check`) for the mapping engine and resolver, where they earn their keep. |
 | **Integration** | Use cases through `composeInMemory`; real adapters against their **port contract suites** | Use cases: in-memory adapters, fixed clock, sequential IDs. Adapters: real filesystem and SQLite in a temp directory per test. Every port has one shared contract suite run against every adapter. |
 | **API** | HTTP behaviour | Hono `app.request` against an in-memory composition: status codes, validation errors, ETag/If-Match, uploads, security checks. A snapshot of the generated OpenAPI spec catches accidental contract changes. |
-| **End to end** | Critical user journeys only | Playwright against `composeLocal` with a temp archive and generated fixture scans: first-run setup, import, fix numbering, edit, reload. |
+| **End to end** | Key user journeys only, written against what a person sees (roles, labels, text), so they survive refactoring (D22) | Playwright against `composeLocal` with a temp archive and generated fixture scans: first-run setup, import, fix numbering, edit, reload. |
 
 - **Test behaviour, not implementation.** Assert on outcomes (returned results, saved state, HTTP responses), not on which internal functions were called.
 - **No mocking libraries for our own code.** Use the in-memory adapters and simple fakes. Mock only third-party edges if unavoidable.

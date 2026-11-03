@@ -49,7 +49,7 @@ The phased roadmap is in section 14, and the detailed plan for the first phases 
 Archive
  ├─ Equipment   cameras, lenses, films (referenced by slug)
  ├─ Event       what happened: name, dates, place; nests via parent
- └─ Roll        the physical roll: development, sleeve location, numbering
+ └─ Roll        the physical roll: development, sleeve location
      └─ Frame   one photograph: frame number, title, rating, events
          └─ Version   one file: lab scan, raw, master, edit or export, with lineage
                └─ Attachments   editor recipe sidecars (e.g. .negpy)
@@ -109,7 +109,7 @@ archive/
 All files are JSON, carry `"schema": <n>`, and validate against Zod schemas owned by the filesystem adapter (which also generate JSON Schemas for reference). Readers migrate older schema versions in memory; files are rewritten in the current version the next time they're saved. A file that can't be read (not valid JSON, not matching its schema, or written by a newer version of FilmFile) is reported, not allowed to hide the rest: the roll list names the roll and the problem, and the file is never changed or deleted. These persistence schemas are separate from the domain model and the API contracts (section 13.3).
 
 - **archive.json:** `id`, `name`, `meta` (archive-wide defaults), `labs` (per lab: name, default scan `direction`, `filePattern`), `defaultLab`, and workflow settings.
-- **roll.json:** roll fields, roll `meta`, `numbering` (confirmed; whether it also records the mapping is open), and the `frames` array, each frame holding its own fields, `meta`, `events` and `versions`. A full example is in `docs/plan-phase-0-1.md`.
+- **roll.json:** roll fields, roll `meta`, and the `frames` array, each frame holding its own fields, `meta`, `events` and `versions`. A full example is in `docs/plan-phase-0-1.md`.
 - **Equipment:** one file per item; the slug is the file name.
 - **Event:** `id`, `name`, optional `parent` (event slug), `dates`, `notes`, and `meta` defaults (e.g. `location`).
 - **.state.json:** per roll, keyed by frame ID and version, holding workflow outcomes (backed up, published URL). It can be deleted; the tool re-checks what's done.
@@ -183,7 +183,7 @@ Lab scans are low-res JPEGs of every frame named `BBBBNNNN.jpg` (batch, scan ind
 - **The API has no import workflow.** A roll is created first; then each frame is created (JSON, frame number optional), and its lab scan is uploaded (at most 200 MB) as a version of that frame, stored unchanged in the version's own folder. Frames can be added to a roll that already has frames.
 - **The UI drives the import:** drag the lab's download folder onto the import page, create a frame and upload its scan for each file, then set the numbering.
 - Upload is idempotent: a file whose hash is already in the roll is refused with a reference to the existing frame and version, so an interrupted import is completed by uploading again. An interruption between creating a frame and uploading its scan leaves a frame with no versions, which is valid and can be uploaded into or deleted.
-- **Renumbering** changes frame numbers in `roll.json` only. Frames keep their IDs, metadata and versions. A roll is marked `confirmed` once its numbering is checked against the sleeve; until then the UI shows a "numbering not confirmed" badge on the roll, and frame numbers look normal. Changing a confirmed roll's numbering clears the confirmation.
+- **Renumbering** changes frame numbers in `roll.json` only. Frames keep their IDs, metadata and versions. There's no "numbering confirmed" state: a roll's numbers are what they are, corrected by editing or renumbering (D20).
 
 ### 8.2 Own hi-res scans (camera raws), Phase 2
 
@@ -456,4 +456,4 @@ packages/
 - **Master:** a hi-res file exported from the editor.
 - **Recipe / sidecar:** the editor's edit settings stored as a file next to the raw.
 - **Preview:** a low-res rendition of a version (thumbnail or screen size), generated from the version's file and cached outside the archive. Not a version.
-- **Sleeve photo:** the sleeve photographed on a lightbox, used as the roll's contact sheet and to confirm numbering.
+- **Sleeve photo:** the sleeve photographed on a lightbox, used as the roll's contact sheet and to check numbering.

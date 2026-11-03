@@ -151,7 +151,6 @@ archive/
     "film": "kodak-portra-400",
     "tags": ["autumn"]
   },
-  "numbering": { "confirmed": false },
   "frames": [
     {
       "id": "01JC8Z9Q2P…",
@@ -185,7 +184,7 @@ archive/
 - **Inheritable `meta` fields** (archive, roll and frame level): `camera`, `lens`, `film`, `location`, `tags`, `author`, `copyright`, `licence`.
 - **Frame-only:** `id`, `number`, `title`, `rating` (0–5), `notes`, `defaultVersion` (optional version ID; when unset the newest version is shown), `versions` (may be empty).
 - **Version:** `id`, `file`, `lab` (for lab scans), `sha256`, `bytes`, `width`, `height`, `added`. No `kind` field. Low-res display images are generated previews in the cache, not versions. Phase 2 may add an optional `source` attribute to tell raws, masters and lab scans apart (D16).
-- **Roll-only:** `id`, `roll`, `developed`, `shot`, `sleeve`, `notes`, `numbering`. Whether `numbering` also records the mapping used is an open question.
+- **Roll-only:** `id`, `roll`, `developed`, `shot`, `sleeve`, `notes`.
 - `number` is a string, or `null` for a skipped or unidentified scan.
 - `frames` uses the `versions` list from day one, so Phase 2 adds entries without a format change.
 
@@ -233,7 +232,7 @@ All take `ArchiveContext` and return `Result`. Each one that writes also updates
 | `AddVersion` | Uploads one file as a version of a frame and records its pixel dimensions. Phase 1 takes lab scans only, with the lab and file name; rejects names not matching the lab pattern, files over 200 MB, and files whose signature isn't an allowed image type. Appends under the roll's lock, without a version token. A file whose hash is already in the roll returns `AlreadyExists` with the existing frame and version, so retries are safe |
 | `UpdateFrame`, `UpdateFrames` | Single and bulk edits, including frame numbers; bulk is one roll save |
 | `DeleteVersion`, `DeleteFrame`, `DeleteRoll` | Explicit deletes into the holding area; nothing is permanently deleted. Each saves the roll first, then moves the JSON and files to `deleted/`. Deleting the default version unsets `defaultVersion`. A roll can be deleted only when it has no frames |
-| Mapping use cases | Depend on where the mapping engine lives (open question). Confirming numbering is an `UpdateRoll` |
+| Mapping use cases | Depend on where the mapping engine lives (open question). |
 | `AttachSleevePhoto` | Stores the sleeve photo through the blob store |
 | `GetThumbnail`, `GetOriginal` | Stream a version's thumbnail (small or large, generated on first request and cached by content hash) and its original, both addressed by version ID |
 | `CheckIntegrity` | Validate all files, check every version's file exists with the right size; optional full re-hash; report dangling equipment references, unreferenced files and duplicate numbers |
@@ -292,7 +291,7 @@ React + Vite + TanStack Query, using only the generated client from `@filmfile/c
   1. Choose an existing roll, or create one first (roll number, camera, lens and film pickers). The roll number field starts empty; the UI offers the next free number in a year as a one-click suggestion, worked out from the roll list.
   2. Drag the lab's folder (or files) onto the page. For each scan, a frame is created and the scan uploaded as its version, with progress; files not matching the lab pattern are listed. Dropping the folder again after an interruption completes the import, since duplicates are recognised by hash.
   3. **Numbering:** thumbnails in scan order with proposed frame numbers. Set the starting anchor and direction, mark skips and overrides, see warnings live, and save the numbers with one bulk update.
-- **Rolls:** a grid of rolls (sleeve photo or first frame), filterable by year, camera, film and tag, sortable by roll number or shot date, with a "numbering not confirmed" badge.
+- **Rolls:** a grid of rolls (sleeve photo or first frame), filterable by year, camera, film and tag, sortable by roll number or shot date.
 - **Roll:** a contact sheet in frame-number order, with roll details and the sleeve photo alongside.
 - **Frame:** a large preview of the default version with previous/next, the frame's versions with "Set as default", and resolved metadata where every value shows its source (frame, roll, archive). Keyboard: arrows to move, Esc back.
 
@@ -305,11 +304,11 @@ React + Vite + TanStack Query, using only the generated client from `@filmfile/c
 - **Frame editing:** title, rating (keys 0–5), tags, notes, location, lens override. Inherited values show greyed with their source; editing creates an override, with "set on roll instead" and "clear override" actions.
 - **Roll editing:** all roll fields and roll `meta`, with equipment pickers that can create new items; upload a sleeve photo; rename the roll number as a separate, confirmed action.
 - **Bulk edit:** select frames on the contact sheet and set tags, location or lens in one save.
-- **Fix numbering:** the same mapping screen as import, on an existing roll, then confirm.
+- **Fix numbering:** the same renumbering as on import, on an existing roll.
 - **Conflict handling:** on a 409, reload the roll, re-apply the change if it doesn't clash, otherwise show what changed.
 - **Maintenance:** a small page to run the integrity check (quick or full) and rebuild the index.
 
-**Milestone 1c (and Phase 1) is done when** I catalogue a newly arrived roll end to end in the browser, from upload to confirmed numbering and metadata, without opening a JSON file.
+**Milestone 1c (and Phase 1) is done when** I catalogue a newly arrived roll end to end in the browser, from upload to correct numbering and metadata, without opening a JSON file.
 
 ---
 
