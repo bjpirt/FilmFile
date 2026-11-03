@@ -1,8 +1,8 @@
 import type { ApiClient } from '@filmfile/contracts/client';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import type { Roll } from '@filmfile/contracts/rolls';
-import { useEffect, useState, type SubmitEvent } from 'react';
-import { navigate, useSearch } from '../routing.tsx';
+import { useEffect } from 'react';
+import { Link, navigate, useSearch } from '../routing.tsx';
 import { BrowsePanel } from './browse-panel.tsx';
 import { RollCard } from './roll-card.tsx';
 import { RollTable } from './roll-table.tsx';
@@ -11,6 +11,7 @@ import {
   readAddress,
   type Grouping,
   type RollsAddress,
+  type Sorting,
 } from './rolls-address.ts';
 import {
   rememberedView,
@@ -20,6 +21,22 @@ import {
 
 function rollCount(count: number): string {
   return count === 1 ? '1 roll' : `${String(count)} rolls`;
+}
+
+/** The rolls in the order chosen; by date shot, undated rolls go last. */
+function sorted(rolls: readonly Roll[], sort: Sorting): Roll[] {
+  if (sort === 'number') {
+    return [...rolls];
+  }
+  return [...rolls].sort((a, b) => {
+    if (a.shot === b.shot) {
+      return a.roll.localeCompare(b.roll);
+    }
+    if (a.shot === null || b.shot === null) {
+      return a.shot === null ? 1 : -1;
+    }
+    return a.shot.localeCompare(b.shot);
+  });
 }
 
 /** The rolls in groups, each with its heading; one untitled group when not grouping. */
@@ -47,9 +64,6 @@ export function RollsPage({
   /** Whether the browse panel is showing; its toggle is in the header. */
   readonly browseOpen: boolean;
 }) {
-  const queryClient = useQueryClient();
-  // The roll number being typed, while New roll is open.
-  const [newRoll, setNewRoll] = useState<string | undefined>(undefined);
   const address = readAddress(useSearch());
   const view = address.view ?? rememberedView();
 
@@ -80,36 +94,6 @@ export function RollsPage({
       return data;
     },
   });
-
-  const createRoll = useMutation({
-    mutationFn: async (roll: string) => {
-      const { data, response } = await api.POST('/api/rolls', {
-        body: { roll },
-      });
-      if (data !== undefined) {
-        return data;
-      }
-      switch (response.status) {
-        case 409:
-          throw new Error(`Roll ${roll} already exists.`);
-        case 422:
-          throw new Error(
-            'Enter a roll number like 2026-014: the year it was shot, then three digits.',
-          );
-        default:
-          throw new Error("Couldn't create the roll. Is the service running?");
-      }
-    },
-    onSuccess: async () => {
-      setNewRoll(undefined);
-      await queryClient.invalidateQueries({ queryKey: ['rolls'] });
-    },
-  });
-
-  function submit(event: SubmitEvent) {
-    event.preventDefault();
-    createRoll.mutate((newRoll ?? '').trim());
-  }
 
   const all = rolls.data?.rolls ?? [];
   const shown =
@@ -152,6 +136,18 @@ export function RollsPage({
               <option value="year">Year</option>
             </select>
           </label>
+          <label className="group-by">
+            Sort by
+            <select
+              value={address.sort}
+              onChange={(event) => {
+                go({ sort: event.target.value === 'shot' ? 'shot' : 'number' });
+              }}
+            >
+              <option value="number">Roll number</option>
+              <option value="shot">Date shot</option>
+            </select>
+          </label>
           <div role="group" aria-label="View" className="segmented">
             {(['grid', 'list'] as const).map((option) => (
               <button
@@ -166,52 +162,10 @@ export function RollsPage({
               </button>
             ))}
           </div>
-          {newRoll === undefined && (
-            <button
-              type="button"
-              className="primary"
-              onClick={() => {
-                setNewRoll('');
-              }}
-            >
-              New roll
-            </button>
-          )}
+          <Link to="/rolls/new" className="button primary">
+            New roll
+          </Link>
         </div>
-
-        {newRoll !== undefined && (
-          <form className="new-roll" onSubmit={submit}>
-            <label htmlFor="roll-number">Roll number</label>
-            <input
-              id="roll-number"
-              value={newRoll}
-              placeholder="2026-014"
-              autoFocus
-              onChange={(event) => {
-                setNewRoll(event.target.value);
-              }}
-            />
-            <button
-              type="submit"
-              className="primary"
-              disabled={createRoll.isPending}
-            >
-              Create roll
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                createRoll.reset();
-                setNewRoll(undefined);
-              }}
-            >
-              Cancel
-            </button>
-            {createRoll.isError && (
-              <p role="alert">{createRoll.error.message}</p>
-            )}
-          </form>
-        )}
 
         {rolls.isPending && <p>Loading rolls…</p>}
         {rolls.isError && (
@@ -224,7 +178,7 @@ export function RollsPage({
           </p>
         ))}
         {rolls.data !== undefined && all.length === 0 && <p>No rolls yet.</p>}
-        {grouped(shown, address.group).map((group) => (
+        {grouped(sorted(shown, address.sort), address.group).map((group) => (
           <section key={group.title ?? 'all'} className="roll-group">
             {group.title !== undefined && (
               <h2>

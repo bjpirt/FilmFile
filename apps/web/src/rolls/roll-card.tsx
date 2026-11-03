@@ -1,5 +1,6 @@
 import type { Roll } from '@filmfile/contracts/rolls';
 import { Link } from '../routing.tsx';
+import { formatShot } from './format-shot.ts';
 import { frameCount } from './frame-count.ts';
 import { thumbnailUrl } from './thumbnail-url.ts';
 
@@ -26,6 +27,14 @@ export function RollCard({ roll }: { readonly roll: Roll }) {
         </Link>
         <span className="muted">{frameCount(roll.frames.length)}</span>
       </div>
+      {(roll.name !== null || roll.shot !== null) && (
+        <div className="roll-card-details">
+          {roll.name !== null && <span>{roll.name}</span>}
+          {roll.shot !== null && (
+            <span className="muted">{formatShot(roll.shot)}</span>
+          )}
+        </div>
+      )}
     </li>
   );
 }

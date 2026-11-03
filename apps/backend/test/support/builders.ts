@@ -67,6 +67,9 @@ export function aRoll(
   return {
     id: checked(overrides.id ?? ulidFor(1), isRollId),
     roll: checked(overrides.roll ?? '2026-014', isRollNumber),
+    name: null,
+    description: null,
+    shot: null,
     frames: overrides.frames ?? [],
   };
 }

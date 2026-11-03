@@ -2,16 +2,20 @@ import { expect, test } from 'vitest';
 import { addressOf, readAddress } from './rolls-address.ts';
 
 test.each([
-  ['', { view: undefined, group: 'none', year: undefined }, '/'],
+  [
+    '',
+    { view: undefined, group: 'none', sort: 'number', year: undefined },
+    '/',
+  ],
   [
     '?view=list',
-    { view: 'list', group: 'none', year: undefined },
+    { view: 'list', group: 'none', sort: 'number', year: undefined },
     '/?view=list',
   ],
   [
-    '?view=grid&group=year&year=2026',
-    { view: 'grid', group: 'year', year: '2026' },
-    '/?view=grid&group=year&year=2026',
+    '?view=grid&group=year&sort=shot&year=2026',
+    { view: 'grid', group: 'year', sort: 'shot', year: '2026' },
+    '/?view=grid&group=year&sort=shot&year=2026',
   ],
 ] as const)(
   'reads %j and writes it back the same',
@@ -22,9 +26,12 @@ test.each([
 );
 
 test('ignores what it does not recognise', () => {
-  expect(readAddress('?view=table&group=camera&year=26&other=1')).toEqual({
+  expect(
+    readAddress('?view=table&group=camera&sort=size&year=26&other=1'),
+  ).toEqual({
     view: undefined,
     group: 'none',
+    sort: 'number',
     year: undefined,
   });
 });

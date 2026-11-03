@@ -1,5 +1,6 @@
 import type { Roll } from '@filmfile/contracts/rolls';
 import { Link } from '../routing.tsx';
+import { formatShot } from './format-shot.ts';
 import { thumbnailUrl } from './thumbnail-url.ts';
 
 /** The rolls as a compact table: roll number, a strip of the first scans and the frame count. */
@@ -11,6 +12,8 @@ export function RollTable({ rolls }: { readonly rolls: readonly Roll[] }) {
           <tr>
             <th scope="col">Roll</th>
             <th scope="col">Strip</th>
+            <th scope="col">Name</th>
+            <th scope="col">Shot</th>
             <th scope="col" className="number">
               Frames
             </th>
@@ -33,6 +36,10 @@ export function RollTable({ rolls }: { readonly rolls: readonly Roll[] }) {
                       : [<img key={frame.id} src={src} alt="" />];
                   })}
                 </div>
+              </td>
+              <td>{roll.name}</td>
+              <td className="muted">
+                {roll.shot === null ? '—' : formatShot(roll.shot)}
               </td>
               <td className="number muted">
                 {roll.frames.length === 0 ? '—' : roll.frames.length}

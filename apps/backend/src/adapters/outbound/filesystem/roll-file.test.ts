@@ -2,6 +2,7 @@ import fc from 'fast-check';
 import { describe, expect, test } from 'vitest';
 import { isFrameNumber } from '../../../domain/rolls/frame-number.ts';
 import { isRollNumber } from '../../../domain/rolls/roll-number.ts';
+import { isShotDate } from '../../../domain/rolls/shot-date.ts';
 import type { Roll } from '../../../domain/rolls/roll.ts';
 import {
   isFrameId,
@@ -38,6 +39,14 @@ const aFrame = fc.record({
 const aRoll: fc.Arbitrary<Roll> = fc.record({
   id: ulid.filter(isRollId),
   roll: fc.stringMatching(/^\d{4}-\d{3}$/).filter(isRollNumber),
+  name: fc.option(fc.string(), { nil: null }),
+  description: fc.option(fc.string(), { nil: null }),
+  shot: fc.option(
+    fc
+      .constantFrom<string>('2026', '2026-09', '2026-09-14', '2026-09-14T15:30')
+      .filter(isShotDate),
+    { nil: null },
+  ),
   frames: fc.array(aFrame, { maxLength: 5 }),
 });
 
@@ -62,6 +71,22 @@ describe('roll.json', () => {
         expect(read.ok && rollFileContent(read.value)).toBe(written);
       }),
     );
+  });
+
+  test('reads a roll written before rolls had a name, description or date as having none', () => {
+    const read = parseRollFile(
+      JSON.stringify({
+        schema: 1,
+        id: '01M6EAAP694BKWR9HZ4N5Z54XD',
+        roll: '2026-014',
+        frames: [],
+      }),
+    );
+
+    expect(read).toMatchObject({
+      ok: true,
+      value: { name: null, description: null, shot: null },
+    });
   });
 
   test.each([

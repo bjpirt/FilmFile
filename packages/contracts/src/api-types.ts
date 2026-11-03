@@ -696,6 +696,14 @@ export interface components {
              * @example 2026-014
              */
             roll: string;
+            /**
+             * @description A name for the roll, or null.
+             * @example Iceland, first day
+             */
+            name: string | null;
+            description: string | null;
+            /** @example 2026-09-14 */
+            shot: string | null;
             frames: components["schemas"]["Frame"][];
         };
         Frame: {
@@ -752,6 +760,10 @@ export interface components {
              * @example 2026-014
              */
             roll: string;
+            name?: string;
+            description?: string;
+            /** @example 2026-09-14 */
+            shot?: string;
         };
         CreateFrameRequest: {
             /** @example 12A */

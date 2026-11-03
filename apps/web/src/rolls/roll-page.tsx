@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from '../routing.tsx';
 import { droppedFiles } from './dropped-files.ts';
+import { formatShot } from './format-shot.ts';
 import { frameCount } from './frame-count.ts';
 import { FrameNumberEditor, type SaveOutcome } from './frame-number-editor.tsx';
 import { inFrameOrder } from './frame-order.ts';
@@ -14,6 +15,7 @@ import {
   renumberingOf,
   type RenumberSettings,
 } from './renumber-panel.tsx';
+import { describeUpload } from './describe-upload.ts';
 import { uploadScans, type UploadReport } from './upload-scans.ts';
 
 type Upload =
@@ -27,22 +29,6 @@ type Upload =
   | { readonly kind: 'finished'; readonly report: UploadReport };
 
 class RollNotFound extends Error {}
-
-function describe(report: UploadReport): string {
-  const parts = [
-    `Uploaded ${String(report.uploaded)} ${report.uploaded === 1 ? 'scan' : 'scans'}.`,
-  ];
-  if (report.alreadyInRoll > 0) {
-    parts.push(
-      `${String(report.alreadyInRoll)} ${report.alreadyInRoll === 1 ? 'was' : 'were'} already in the roll.`,
-    );
-  }
-  if (report.failed.length > 0) {
-    const failures = report.failed.map((f) => `${f.file} (${f.reason})`);
-    parts.push(`Not uploaded: ${failures.join(', ')}.`);
-  }
-  return parts.join(' ');
-}
 
 function Thumbnail({
   rollId,
@@ -287,6 +273,22 @@ export function RollPage({
         )}
       </div>
 
+      {(roll.data.roll.name !== null ||
+        roll.data.roll.shot !== null ||
+        roll.data.roll.description !== null) && (
+        <div className="roll-about">
+          {roll.data.roll.name !== null && (
+            <p className="roll-name">{roll.data.roll.name}</p>
+          )}
+          {roll.data.roll.shot !== null && (
+            <p className="muted">Shot {formatShot(roll.data.roll.shot)}</p>
+          )}
+          {roll.data.roll.description !== null && (
+            <p className="roll-description">{roll.data.roll.description}</p>
+          )}
+        </div>
+      )}
+
       {changedElsewhere && (
         <p role="alert" className="changed-elsewhere">
           This roll changed since you opened it.{' '}
@@ -308,9 +310,9 @@ export function RollPage({
             void droppedFiles(event.dataTransfer).then(addScans);
           }}
         >
-          <p>Drop lab scans or a folder of them here, or choose them:</p>
+          <p>Drop individual scans here</p>
           <label>
-            Choose lab scans
+            Choose scans
             <input
               type="file"
               accept="image/jpeg"
@@ -335,7 +337,7 @@ export function RollPage({
             </p>
           )}
           {upload.kind === 'finished' && (
-            <p role="status">{describe(upload.report)}</p>
+            <p role="status">{describeUpload(upload.report)}</p>
           )}
         </div>
       )}

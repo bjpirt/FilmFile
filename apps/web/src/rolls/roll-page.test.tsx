@@ -20,6 +20,14 @@ afterEach(cleanup);
 
 const rollId = '01JC8Z7K3M0000000000000001';
 
+const rollDetails = {
+  id: rollId,
+  roll: '2026-014',
+  name: null,
+  description: null,
+  shot: null,
+};
+
 async function sha256(bytes: ArrayBuffer): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return Array.from(new Uint8Array(digest), (b) =>
@@ -44,7 +52,7 @@ function fakeRollService(frames: Frame[] = []) {
     const url = new URL(request.url);
     requests.push(`${request.method} ${url.pathname}${url.search}`);
     if (request.method === 'GET' && url.pathname === `/api/rolls/${rollId}`) {
-      const roll: Roll = { id: rollId, roll: '2026-014', frames };
+      const roll: Roll = { ...rollDetails, frames };
       return Response.json(roll, { headers: { ETag: etag() } });
     }
     if (request.method === 'PATCH') {
@@ -67,7 +75,7 @@ function fakeRollService(frames: Frame[] = []) {
           }
         }
         changed();
-        const roll: Roll = { id: rollId, roll: '2026-014', frames };
+        const roll: Roll = { ...rollDetails, frames };
         return Response.json(roll, { headers: { ETag: etag() } });
       }
       const number =
@@ -163,10 +171,10 @@ function renderPage(service: { answer: (r: Request) => Promise<Response> }) {
 
 function chooseScans(...files: File[]) {
   // On a roll with frames, the drop zone opens from Add scans.
-  if (screen.queryByLabelText('Choose lab scans') === null) {
+  if (screen.queryByLabelText('Choose scans') === null) {
     fireEvent.click(screen.getByRole('button', { name: 'Add scans' }));
   }
-  fireEvent.change(screen.getByLabelText('Choose lab scans'), {
+  fireEvent.change(screen.getByLabelText('Choose scans'), {
     target: { files },
   });
 }
@@ -185,23 +193,45 @@ test('heads the page with the roll number and how many frames it has', async () 
   expect(screen.getByText('2 frames')).toBeDefined();
 });
 
+test('shows the roll’s name, date shot and description', async () => {
+  renderPage({
+    answer: () =>
+      Promise.resolve(
+        Response.json(
+          {
+            ...rollDetails,
+            name: 'Iceland, first day',
+            description: 'Jökulsárlón at dawn.',
+            shot: '2026-09-14T06:30',
+            frames: [],
+          },
+          { headers: { ETag: '"v1"' } },
+        ),
+      ),
+  });
+
+  expect(await screen.findByText('Iceland, first day')).toBeDefined();
+  expect(screen.getByText('Shot 14 Sep 2026, 06:30')).toBeDefined();
+  expect(screen.getByText('Jökulsárlón at dawn.')).toBeDefined();
+});
+
 describe('adding scans', () => {
   test('opens the drop zone from Add scans on a roll with frames', async () => {
     renderPage(fakeRollService([aFrameWithScan('1', '12340001.jpg')]));
     const addScans = await screen.findByRole('button', { name: 'Add scans' });
-    expect(screen.queryByLabelText('Choose lab scans')).toBeNull();
+    expect(screen.queryByLabelText('Choose scans')).toBeNull();
     expect(addScans.getAttribute('aria-expanded')).toBe('false');
 
     fireEvent.click(addScans);
 
-    expect(screen.getByLabelText('Choose lab scans')).toBeDefined();
+    expect(screen.getByLabelText('Choose scans')).toBeDefined();
     expect(addScans.getAttribute('aria-expanded')).toBe('true');
   });
 
   test('shows the drop zone straight away on a roll with no frames', async () => {
     renderPage(fakeRollService());
 
-    expect(await screen.findByLabelText('Choose lab scans')).toBeDefined();
+    expect(await screen.findByLabelText('Choose scans')).toBeDefined();
   });
 });
 
@@ -360,6 +390,9 @@ describe('editing a frame number', () => {
                 {
                   id: rollId,
                   roll: '2026-014',
+                  name: null,
+                  description: null,
+                  shot: null,
                   frames: [aFrameWithScan('1', '12340001.jpg')],
                 },
                 { headers: { ETag: '"v1"' } },
@@ -539,6 +572,9 @@ describe('renumbering', () => {
                 {
                   id: rollId,
                   roll: '2026-014',
+                  name: null,
+                  description: null,
+                  shot: null,
                   frames: [aFrameWithScan('1', '12340001.jpg')],
                 },
                 { headers: { ETag: '"v1"' } },
@@ -646,7 +682,7 @@ test('accepts scans dropped onto the page', async () => {
   renderPage(service);
   await screen.findByText('No frames yet.');
 
-  fireEvent.drop(screen.getByText(/Drop lab scans/), {
+  fireEvent.drop(screen.getByText(/Drop individual scans/), {
     dataTransfer: { files: [aScan('12340001.jpg')] },
   });
 
@@ -678,7 +714,7 @@ test('uploads the scans in a folder dropped onto the page', async () => {
     },
   };
 
-  fireEvent.drop(screen.getByText(/Drop lab scans/), {
+  fireEvent.drop(screen.getByText(/Drop individual scans/), {
     dataTransfer: {
       files: [],
       items: [{ kind: 'file', webkitGetAsEntry: () => folder }],
@@ -692,7 +728,7 @@ test('says when a drop holds no scans', async () => {
   renderPage(fakeRollService());
   await screen.findByText('No frames yet.');
 
-  fireEvent.drop(screen.getByText(/Drop lab scans/), {
+  fireEvent.drop(screen.getByText(/Drop individual scans/), {
     dataTransfer: { files: [] },
   });
 

@@ -32,7 +32,41 @@ describe('CreateRoll', () => {
 
     expect(await createRoll.execute(ctx, { roll: '2026-014' })).toEqual({
       ok: true,
-      value: { id: '00000000000000000000000001', roll: '2026-014', frames: [] },
+      value: {
+        id: '00000000000000000000000001',
+        roll: '2026-014',
+        name: null,
+        description: null,
+        shot: null,
+        frames: [],
+      },
+    });
+  });
+
+  test('keeps the details given, trimmed, and leaves out blank ones', async () => {
+    const { ctx, createRoll } = setUp();
+
+    const created = await createRoll.execute(ctx, {
+      roll: '2026-014',
+      name: ' Iceland ',
+      description: '   ',
+      shot: '2026-09',
+    });
+
+    expect(created).toMatchObject({
+      ok: true,
+      value: { name: 'Iceland', description: null, shot: '2026-09' },
+    });
+  });
+
+  test('refuses a date shot that is not a real date', async () => {
+    const { ctx, createRoll } = setUp();
+
+    expect(
+      await createRoll.execute(ctx, { roll: '2026-014', shot: '2026-02-30' }),
+    ).toMatchObject({
+      ok: false,
+      error: { kind: 'validation-failed', issues: [{ path: ['shot'] }] },
     });
   });
 

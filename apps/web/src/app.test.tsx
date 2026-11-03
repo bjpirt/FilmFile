@@ -5,7 +5,14 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import { App } from './app.tsx';
 
-const roll = { id: '01JC8Z7K3M0000000000000001', roll: '2026-014', frames: [] };
+const roll = {
+  id: '01JC8Z7K3M0000000000000001',
+  roll: '2026-014',
+  name: null,
+  description: null,
+  shot: null,
+  frames: [],
+};
 
 beforeEach(() => {
   window.history.pushState(null, '', '/');

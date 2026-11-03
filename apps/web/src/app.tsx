@@ -1,4 +1,5 @@
 import type { ApiClient } from '@filmfile/contracts/client';
+import { NewRollPage } from './rolls/new-roll-page.tsx';
 import { RollPage } from './rolls/roll-page.tsx';
 import { useState } from 'react';
 import { RollsPage } from './rolls/rolls-page.tsx';
@@ -21,6 +22,9 @@ function Page({
 }) {
   if (path === '/') {
     return <RollsPage api={api} browseOpen={browseOpen} />;
+  }
+  if (path === '/rolls/new') {
+    return <NewRollPage api={api} />;
   }
   const rollId = rollPath.exec(path)?.[1];
   if (rollId !== undefined) {

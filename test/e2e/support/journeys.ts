@@ -8,16 +8,58 @@ import {
 // label and visible text. When the UI changes how a step is done, it changes
 // here, and the journeys read the same (D22).
 
-/** Creates a roll from the rolls page and opens it. */
+/** A new roll's details, all optional; the date as the new roll page asks for it. */
+export interface NewRoll {
+  readonly name?: string;
+  readonly description?: string;
+  readonly year?: string;
+  readonly month?: string;
+  readonly day?: string;
+  readonly time?: string;
+  readonly scans?: FixtureSet;
+}
+
+async function scanFiles(set: FixtureSet) {
+  return (await labScans(set)).map(({ name, bytes }) => ({
+    name,
+    mimeType: 'image/jpeg',
+    buffer: Buffer.from(bytes),
+  }));
+}
+
+/** Creates a roll on the new roll page, with any details and scans given, and opens it. */
 export async function createRoll(
   page: Page,
   rollNumber: string,
+  details: NewRoll = {},
 ): Promise<void> {
   await page.goto('/');
-  await page.getByRole('button', { name: 'New roll' }).click();
+  await page.getByRole('link', { name: 'New roll' }).click();
   await page.getByLabel('Roll number').fill(rollNumber);
+  if (details.name !== undefined) {
+    await page.getByLabel('Name').fill(details.name);
+  }
+  if (details.description !== undefined) {
+    await page.getByLabel('Description').fill(details.description);
+  }
+  if (details.year !== undefined) {
+    await page.getByLabel('Year').fill(details.year);
+  }
+  if (details.month !== undefined) {
+    await page.getByLabel('Month').selectOption({ label: details.month });
+  }
+  if (details.day !== undefined) {
+    await page.getByLabel('Day').selectOption({ label: details.day });
+  }
+  if (details.time !== undefined) {
+    await page.getByLabel('Time').fill(details.time);
+  }
+  if (details.scans !== undefined) {
+    await page
+      .getByLabel('Choose scans')
+      .setInputFiles(await scanFiles(details.scans));
+  }
   await page.getByRole('button', { name: 'Create roll' }).click();
-  await page.getByRole('link', { name: rollNumber }).click();
   await expect(
     page.getByRole('heading', { name: `Roll ${rollNumber}` }),
   ).toBeVisible();
@@ -25,21 +67,14 @@ export async function createRoll(
 
 /** Adds a fixture set's lab scans to the open roll. */
 export async function addScans(page: Page, set: FixtureSet): Promise<void> {
-  const scans = await labScans(set);
-  const chooser = page.getByLabel('Choose lab scans');
+  const chooser = page.getByLabel('Choose scans');
   // On a roll with frames, the drop zone opens from Add scans.
   if (!(await chooser.isVisible())) {
     await page.getByRole('button', { name: 'Add scans' }).click();
   }
-  await chooser.setInputFiles(
-    scans.map(({ name, bytes }) => ({
-      name,
-      mimeType: 'image/jpeg',
-      buffer: Buffer.from(bytes),
-    })),
-  );
+  await chooser.setInputFiles(await scanFiles(set));
   await expect(
-    page.getByText(`Uploaded ${String(scans.length)} scans.`),
+    page.getByText(`Uploaded ${String(set.scans.length)} scans.`),
   ).toBeVisible();
 }
 

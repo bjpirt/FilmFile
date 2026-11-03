@@ -8,6 +8,7 @@ import {
   type RollNumber,
 } from '../../../domain/rolls/roll-number.ts';
 import type { Roll } from '../../../domain/rolls/roll.ts';
+import { isShotDate, type ShotDate } from '../../../domain/rolls/shot-date.ts';
 import {
   isFrameId,
   isRollId,
@@ -66,6 +67,12 @@ const storedRoll = z.object({
     isRollNumber,
     'must be a roll number like 2026-014',
   ),
+  // Added after the first rolls were written, which read as having none.
+  name: z.string().nullable().default(null),
+  description: z.string().nullable().default(null),
+  shot: branded<ShotDate>(isShotDate, 'must be a date like 2026-09-14')
+    .nullable()
+    .default(null),
   frames: z.array(storedFrame),
 });
 
@@ -110,10 +117,13 @@ export function parseRollFile(text: string): Result<Roll, string> {
     );
     return err(`it doesn't match the roll format (${issues.join('; ')})`);
   }
-  const { id, roll, frames } = parsed.data;
+  const { id, roll, name, description, shot, frames } = parsed.data;
   return ok({
     id,
     roll,
+    name,
+    description,
+    shot,
     frames: frames.map((frame) => ({
       ...frame,
       versions: frame.versions.map((version) => ({
@@ -130,6 +140,9 @@ export function rollFileContent(roll: Roll): string {
     schema: currentSchema,
     id: roll.id,
     roll: roll.roll,
+    name: roll.name,
+    description: roll.description,
+    shot: roll.shot,
     frames: roll.frames.map((frame) => ({
       id: frame.id,
       number: frame.number,

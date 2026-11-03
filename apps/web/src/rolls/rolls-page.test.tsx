@@ -54,6 +54,9 @@ function fakeRollsService(
     const created = {
       id: `01JC8Z7K3M00000000000000${String(nextId).padStart(2, '0')}`,
       roll,
+      name: null,
+      description: null,
+      shot: null,
       frames: [],
     };
     rolls.push(created);
@@ -66,6 +69,9 @@ function aRoll(roll: string, frames = 0): Roll {
     // Unique per roll number, e.g. 2026-014 → 01JC8Z7K3M0000000002026014.
     id: `01JC8Z7K3M000000000${roll.replace('-', '')}`,
     roll,
+    name: null,
+    description: null,
+    shot: null,
     frames: Array.from({ length: frames }, (_, i) => ({
       id: `01JC8Z7K3M00000000000001${String(i).padStart(2, '0')}`,
       number: null,
@@ -112,18 +118,6 @@ function aRollWithScans(roll: string, scans: number): Roll {
       };
     }),
   };
-}
-
-function openNewRoll() {
-  fireEvent.click(screen.getByRole('button', { name: 'New roll' }));
-}
-
-function createRoll(roll: string) {
-  openNewRoll();
-  fireEvent.change(screen.getByLabelText('Roll number'), {
-    target: { value: roll },
-  });
-  fireEvent.click(screen.getByRole('button', { name: 'Create roll' }));
 }
 
 test('shows each roll as a card with its first three scans', async () => {
@@ -256,13 +250,13 @@ describe('the list view', () => {
 
     const rows = screen.getAllByRole('row').slice(1);
     expect(rows.map((row) => row.textContent)).toEqual([
-      '2026-0145',
-      '2026-015—',
+      '2026-014—5',
+      '2026-015——',
     ]);
     expect(rows[0]?.querySelectorAll('img')).toHaveLength(4);
     expect(
       screen.getAllByRole('columnheader').map((cell) => cell.textContent),
-    ).toEqual(['Roll', 'Strip', 'Frames']);
+    ).toEqual(['Roll', 'Strip', 'Name', 'Shot', 'Frames']);
   });
 
   test('marks which view is showing', async () => {
@@ -293,6 +287,40 @@ describe('the list view', () => {
 
     expect(await screen.findByRole('table')).toBeDefined();
   });
+});
+
+test('shows each roll’s name and when it was shot', async () => {
+  renderPage(
+    fakeRollsService([
+      { ...aRoll('2026-014', 2), name: 'Iceland, first day', shot: '2026-09' },
+    ]),
+  );
+
+  expect(await screen.findByText('Iceland, first day')).toBeDefined();
+  expect(screen.getByText('Sep 2026')).toBeDefined();
+});
+
+test('sorts by date shot when chosen, undated rolls last, kept in the address', async () => {
+  renderPage(
+    fakeRollsService([
+      { ...aRoll('2026-001'), shot: '2026-10' },
+      { ...aRoll('2026-002') },
+      { ...aRoll('2026-003'), shot: '2026-03-14' },
+    ]),
+  );
+  await screen.findByText('2026-001');
+
+  fireEvent.change(screen.getByLabelText('Sort by'), {
+    target: { value: 'shot' },
+  });
+
+  expect(
+    screen
+      .getAllByRole('link')
+      .map((link) => link.textContent)
+      .filter((text) => /^\d{4}-\d{3}$/.test(text)),
+  ).toEqual(['2026-003', '2026-001', '2026-002']);
+  expect(window.location.search).toBe('?view=grid&sort=shot');
 });
 
 test('says when a roll has no frames yet', async () => {
@@ -340,57 +368,11 @@ test('says so when the rolls cannot be loaded', async () => {
   ).toBeDefined();
 });
 
-test('creates a roll and shows it in the list', async () => {
+test('opens the new roll page from New roll', async () => {
   renderPage(fakeRollsService());
   await screen.findByText('No rolls yet.');
-
-  createRoll('2026-014');
-
-  expect(await screen.findByText('2026-014')).toBeDefined();
-  expect(screen.queryByLabelText('Roll number')).toBeNull();
-});
-
-test('asks for a roll number only after New roll, starting empty', async () => {
-  renderPage(fakeRollsService([aRoll('2026-014')]));
-  await screen.findByText('2026-014');
-  expect(screen.queryByLabelText('Roll number')).toBeNull();
-
-  openNewRoll();
-
-  expect(screen.getByLabelText<HTMLInputElement>('Roll number').value).toBe('');
-});
-
-test('puts New roll away on Cancel', async () => {
-  renderPage(fakeRollsService());
-  await screen.findByText('No rolls yet.');
-  openNewRoll();
-
-  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-
-  expect(screen.queryByLabelText('Roll number')).toBeNull();
-  expect(screen.getByRole('button', { name: 'New roll' })).toBeDefined();
-});
-
-test('explains why a roll number was refused', async () => {
-  renderPage(fakeRollsService());
-  await screen.findByText('No rolls yet.');
-
-  createRoll('26-14');
 
   expect(
-    await screen.findByText(
-      'Enter a roll number like 2026-014: the year it was shot, then three digits.',
-    ),
-  ).toBeDefined();
-});
-
-test('says when the roll number is already taken', async () => {
-  renderPage(fakeRollsService([aRoll('2026-014')]));
-  await screen.findByText('2026-014');
-
-  createRoll('2026-014');
-
-  expect(
-    await screen.findByText('Roll 2026-014 already exists.'),
-  ).toBeDefined();
+    screen.getByRole('link', { name: 'New roll' }).getAttribute('href'),
+  ).toBe('/rolls/new');
 });

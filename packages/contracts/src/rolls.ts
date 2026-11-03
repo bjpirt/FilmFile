@@ -41,8 +41,27 @@ export const frame = z
   })
   .meta({ id: 'Frame' });
 
+/** When a roll was shot: a year, then optionally month, day and local time (D27). */
+export const shotDate = z
+  .string()
+  .regex(
+    /^\d{4}(-\d{2}(-\d{2}(T\d{2}:\d{2})?)?)?$/,
+    'must be a year, optionally with month, day and time, like 2026, 2026-09, 2026-09-14 or 2026-09-14T15:30',
+  )
+  .meta({ example: '2026-09-14' });
+
 export const roll = z
-  .object({ id: ulid, roll: rollNumber, frames: z.array(frame) })
+  .object({
+    id: ulid,
+    roll: rollNumber,
+    name: z.string().nullable().meta({
+      description: 'A name for the roll, or null.',
+      example: 'Iceland, first day',
+    }),
+    description: z.string().nullable(),
+    shot: shotDate.nullable(),
+    frames: z.array(frame),
+  })
   .meta({ id: 'Roll' });
 
 export const unreadableRoll = z
@@ -68,7 +87,12 @@ export const frameParams = rollParams.extend({ frameId: ulid });
 export const versionParams = frameParams.extend({ versionId: ulid });
 
 export const createRollRequest = z
-  .object({ roll: rollNumber })
+  .object({
+    roll: rollNumber,
+    name: z.string().max(100).optional(),
+    description: z.string().max(5000).optional(),
+    shot: shotDate.optional(),
+  })
   .meta({ id: 'CreateRollRequest' });
 
 /** The number printed on the film beside a frame: any text of 1 to 9 characters (D19). */

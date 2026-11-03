@@ -18,7 +18,14 @@ describe('POST /api/rolls', () => {
     const body: unknown = await response.json();
 
     expect(response.status).toBe(201);
-    expect(body).toEqual({ id: idOf(body), roll: '2026-014', frames: [] });
+    expect(body).toEqual({
+      id: idOf(body),
+      roll: '2026-014',
+      name: null,
+      description: null,
+      shot: null,
+      frames: [],
+    });
     expect(idOf(body)).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
   });
 
@@ -37,9 +44,40 @@ describe('POST /api/rolls', () => {
       schema: 1,
       id: idOf(created),
       roll: '2026-014',
+      name: null,
+      description: null,
+      shot: null,
       frames: [],
     });
   });
+
+  test('creates a roll with its name, description and date shot', async () => {
+    const response = await post('/api/rolls', {
+      roll: '2026-014',
+      name: '  Iceland, first day ',
+      description: 'Jökulsárlón at dawn.',
+      shot: '2026-09-14T06:30',
+    });
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      name: 'Iceland, first day',
+      description: 'Jökulsárlón at dawn.',
+      shot: '2026-09-14T06:30',
+    });
+  });
+
+  test.each(['2026-02-30', '2026-13', '26'])(
+    'refuses a date shot of %j',
+    async (shot) => {
+      const response = await post('/api/rolls', { roll: '2026-014', shot });
+
+      expect(response.status).toBe(422);
+      expect(await response.json()).toMatchObject({
+        issues: [{ path: ['shot'] }],
+      });
+    },
+  );
 
   test('refuses a roll number that already exists', async () => {
     await createRoll('2026-014');
