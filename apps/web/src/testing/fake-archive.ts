@@ -156,6 +156,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   const created: unknown[] = [];
   /** The file name of every scan uploaded. */
   const uploads: string[] = [];
+  /** Every frame deleted, as it was. */
+  const deleted: Frame[] = [];
   // Each roll's and event's version, sent as its ETag: "v1", then up by one per change.
   const versions = new Map<string, number>();
   let nextId = 0;
@@ -397,6 +399,19 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     if (frame === undefined) {
       return notFound();
     }
+    if (versions === undefined && request.method === 'DELETE') {
+      const refused = checkIfMatch(request, roll.id);
+      if (refused !== undefined) {
+        return refused;
+      }
+      roll.frames = roll.frames.filter((f) => f.id !== frameId);
+      deleted.push(frame);
+      change(roll.id);
+      return new Response(null, {
+        status: 204,
+        headers: { ETag: etagOf(roll.id) },
+      });
+    }
     if (versions === undefined) {
       const refused = checkIfMatch(request, roll.id);
       if (refused !== undefined) {
@@ -491,6 +506,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     ifMatches,
     created,
     uploads,
+    deleted,
     /** Stops answering, as a stopped service behind a proxy would: every request gets a 502. */
     stop() {
       stopped = true;

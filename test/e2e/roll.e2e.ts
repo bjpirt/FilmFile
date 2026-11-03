@@ -3,10 +3,11 @@ import { fixtureSets } from '../../apps/backend/test/support/lab-scans.ts';
 import {
   changeFrameNumber,
   createRoll,
+  deleteFrame,
   framesShown,
 } from './support/journeys.ts';
 
-test('catalogue a roll: create it with its details and scans, correct a number, and find it all still there after a reload', async ({
+test('catalogue a roll: create it with its details and scans, correct a number, delete a frame, and find it all still there after a reload', async ({
   page,
 }) => {
   await createRoll(page, '2026-014', {
@@ -53,4 +54,9 @@ test('catalogue a roll: create it with its details and scans, correct a number, 
   await page.reload();
 
   await expect(framesShown(page)).toHaveText(['1', '2', '3', '4', '5', '6A']);
+
+  await deleteFrame(page, '6A');
+  await page.reload();
+
+  await expect(framesShown(page)).toHaveText(['1', '2', '3', '4', '5']);
 });

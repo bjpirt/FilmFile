@@ -8,7 +8,7 @@ import {
   isRollNumber,
   type RollNumber,
 } from '../../../domain/rolls/roll-number.ts';
-import type { Roll } from '../../../domain/rolls/roll.ts';
+import type { Frame, Roll } from '../../../domain/rolls/roll.ts';
 import { isShotDate, type ShotDate } from '../../../domain/rolls/shot-date.ts';
 import {
   isFrameId,
@@ -52,7 +52,8 @@ const storedVersion = z.object({
   added: z.iso.datetime(),
 });
 
-const storedFrame = z.object({
+/** A frame as roll.json (and a deleted frame's frame.json) holds it. */
+export const storedFrame = z.object({
   id: branded<FrameId>(isFrameId, 'must be a ULID'),
   number: branded<FrameNumber>(
     isFrameNumber,
@@ -147,14 +148,36 @@ export function parseRollFile(text: string): Result<Roll, string> {
     camera: meta.camera ?? null,
     film: meta.film ?? null,
     lens: meta.lens ?? null,
-    frames: frames.map((frame) => ({
-      ...frame,
-      versions: frame.versions.map((version) => ({
-        ...version,
-        added: new Date(version.added),
-      })),
-    })),
+    frames: frames.map(frameFromStored),
   });
+}
+
+/** A frame as read from its stored form. */
+export function frameFromStored(stored: z.output<typeof storedFrame>): Frame {
+  return {
+    ...stored,
+    versions: stored.versions.map((version) => ({
+      ...version,
+      added: new Date(version.added),
+    })),
+  };
+}
+
+/** A frame in its stored form, keys in a fixed order. */
+export function storedFrameOf(frame: Frame): z.input<typeof storedFrame> {
+  return {
+    id: frame.id,
+    number: frame.number,
+    versions: frame.versions.map((version) => ({
+      id: version.id,
+      file: version.file,
+      sha256: version.sha256,
+      bytes: version.bytes,
+      width: version.width,
+      height: version.height,
+      added: version.added.toISOString(),
+    })),
+  };
 }
 
 /** A roll as roll.json text: keys in a fixed order, two-space indent, trailing newline. */
@@ -173,19 +196,7 @@ export function rollFileContent(roll: Roll): string {
       ...(roll.film === null ? {} : { film: roll.film }),
       ...(roll.lens === null ? {} : { lens: roll.lens }),
     },
-    frames: roll.frames.map((frame) => ({
-      id: frame.id,
-      number: frame.number,
-      versions: frame.versions.map((version) => ({
-        id: version.id,
-        file: version.file,
-        sha256: version.sha256,
-        bytes: version.bytes,
-        width: version.width,
-        height: version.height,
-        added: version.added.toISOString(),
-      })),
-    })),
+    frames: roll.frames.map(storedFrameOf),
   };
   return `${JSON.stringify(stored, null, 2)}\n`;
 }

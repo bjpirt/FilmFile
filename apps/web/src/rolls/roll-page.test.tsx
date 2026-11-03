@@ -401,6 +401,81 @@ describe('editing the details', () => {
   });
 });
 
+describe('deleting a frame', () => {
+  const twoFrames = () => [
+    aFrameWithScan('1', '12340001.jpg'),
+    aFrameWithScan('2', '12340002.jpg'),
+  ];
+
+  test('asks to confirm, then deletes the frame, sending the roll’s ETag', async () => {
+    const service = archiveWith(twoFrames());
+    renderPage(service);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Delete frame 2' }),
+    );
+
+    const confirm = screen.getByRole('alertdialog', { name: 'Delete frame 2' });
+    expect(confirm.textContent).toBe('Delete this frame?DeleteCancel');
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(framesOf(service).map((frame) => frame.number)).toEqual(['1']);
+    });
+    expect(service.ifMatches).toEqual(['"v1"']);
+    await waitFor(() => {
+      expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    });
+  });
+
+  test('keeps the frame on Cancel', async () => {
+    const service = archiveWith(twoFrames());
+    renderPage(service);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Delete frame 2' }),
+    );
+
+    fireEvent.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', {
+        name: 'Cancel',
+      }),
+    );
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(framesOf(service)).toHaveLength(2);
+  });
+
+  test('refuses to delete from a roll changed since the page loaded', async () => {
+    const service = archiveWith(twoFrames());
+    renderPage(service);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Delete frame 2' }),
+    );
+    service.changeRoll(rollId);
+
+    fireEvent.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', {
+        name: 'Delete',
+      }),
+    );
+
+    expect(
+      (await screen.findByText(/This roll changed since you opened it/))
+        .textContent,
+    ).toContain('Reload');
+    expect(framesOf(service)).toHaveLength(2);
+  });
+
+  test('names a frame with no number as such', async () => {
+    renderPage(archiveWith([aFrameWithScan(null, '12340001.jpg')]));
+
+    expect(
+      await screen.findByRole('button', {
+        name: 'Delete the frame with no number',
+      }),
+    ).toBeDefined();
+  });
+});
+
 describe('adding scans', () => {
   test('opens the drop zone from Add scans on a roll with frames', async () => {
     renderPage(archiveWith([aFrameWithScan('1', '12340001.jpg')]));

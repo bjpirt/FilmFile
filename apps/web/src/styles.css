@@ -14,6 +14,8 @@
   --accent-ink: #111214;
   --accent-surface: #1f1a12;
   --accent-border: #6b4a17;
+  /* Destructive actions; dark text on it, as on the accent. */
+  --danger: #ef7d6d;
   --scan-placeholder: #24272c;
 
   --space-1: 0.25rem;
@@ -276,6 +278,69 @@ select {
   border-radius: var(--radius-small);
   height: auto;
   width: 100%;
+}
+
+.frame-picture {
+  position: relative;
+}
+
+/* Shown on the frame being pointed at or tabbed to, so the sheet stays calm. */
+.frame-delete {
+  align-items: center;
+  display: flex;
+  min-height: 0;
+  opacity: 0;
+  padding: var(--space-1);
+  position: absolute;
+  right: var(--space-2);
+  top: var(--space-2);
+}
+
+.contact-sheet li:hover .frame-delete,
+.frame-delete:focus-visible {
+  opacity: 1;
+}
+
+/* Covers the frame's thumbnail, the same size, so the sheet doesn't move. */
+.confirm-delete {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-small);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  inset: 0;
+  justify-content: center;
+  padding: var(--space-2);
+  position: absolute;
+  text-align: center;
+}
+
+.confirm-delete p {
+  margin: 0;
+}
+
+.confirm-question {
+  font-weight: 600;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.confirm-actions button {
+  font-size: 0.85rem;
+  min-height: 2rem;
+  padding: 0 var(--space-3);
+}
+
+button.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--bg);
 }
 
 .no-scan {

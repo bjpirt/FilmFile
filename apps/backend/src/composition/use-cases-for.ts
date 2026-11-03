@@ -5,6 +5,7 @@ import type { BlobStore } from '../application/ports/blob-store.ts';
 import type { Clock } from '../application/ports/clock.ts';
 import type { EquipmentRepository } from '../application/ports/equipment-repository.ts';
 import type { EventRepository } from '../application/ports/event-repository.ts';
+import type { HoldingArea } from '../application/ports/holding-area.ts';
 import type { IdGenerator } from '../application/ports/id-generator.ts';
 import type { ImageInspector } from '../application/ports/image-inspector.ts';
 import type { PreviewProvider } from '../application/ports/preview-provider.ts';
@@ -21,6 +22,7 @@ import { ListEvents } from '../application/use-cases/events/list-events.ts';
 import { UpdateEvent } from '../application/use-cases/events/update-event.ts';
 import { AddVersion } from '../application/use-cases/frames/add-version.ts';
 import { CreateFrame } from '../application/use-cases/frames/create-frame.ts';
+import { DeleteFrame } from '../application/use-cases/frames/delete-frame.ts';
 import { GetOriginal } from '../application/use-cases/frames/get-original.ts';
 import { GetThumbnail } from '../application/use-cases/frames/get-thumbnail.ts';
 import { UpdateFrame } from '../application/use-cases/frames/update-frame.ts';
@@ -36,6 +38,7 @@ export interface Adapters {
   readonly equipment: EquipmentRepository;
   readonly events: EventRepository;
   readonly blobs: BlobStore;
+  readonly holding: HoldingArea;
   readonly inspector: ImageInspector;
   readonly previews: PreviewProvider;
   readonly ids: IdGenerator;
@@ -48,6 +51,7 @@ export function useCasesFor({
   equipment,
   events,
   blobs,
+  holding,
   inspector,
   previews,
   ids,
@@ -61,6 +65,7 @@ export function useCasesFor({
     createFrame: new CreateFrame(rolls, ids),
     updateFrame: new UpdateFrame(rolls),
     updateFrameNumbers: new UpdateFrameNumbers(rolls),
+    deleteFrame: new DeleteFrame(rolls, holding, clock),
     addVersion: new AddVersion(rolls, blobs, inspector, ids, clock),
     getOriginal: new GetOriginal(rolls, blobs),
     getThumbnail: new GetThumbnail(rolls, blobs, previews),

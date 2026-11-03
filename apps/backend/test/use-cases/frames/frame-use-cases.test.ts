@@ -4,12 +4,15 @@ import { FixedClock } from '../../../src/adapters/outbound/memory/fixed-clock.ts
 import { InMemoryBlobStore } from '../../../src/adapters/outbound/memory/in-memory-blob-store.ts';
 import { InMemoryPreviewProvider } from '../../../src/adapters/outbound/memory/in-memory-preview-provider.ts';
 import { InMemoryEquipmentRepository } from '../../../src/adapters/outbound/memory/in-memory-equipment-repository.ts';
+import { InMemoryHoldingArea } from '../../../src/adapters/outbound/memory/in-memory-holding-area.ts';
 import { InMemoryEventRepository } from '../../../src/adapters/outbound/memory/in-memory-event-repository.ts';
 import { InMemoryRollRepository } from '../../../src/adapters/outbound/memory/in-memory-roll-repository.ts';
 import { SequentialIdGenerator } from '../../../src/adapters/outbound/memory/sequential-id-generator.ts';
 import { SharpImageInspector } from '../../../src/adapters/outbound/sharp/sharp-image-inspector.ts';
+import type { HoldingArea } from '../../../src/application/ports/holding-area.ts';
 import { AddVersion } from '../../../src/application/use-cases/frames/add-version.ts';
 import { CreateFrame } from '../../../src/application/use-cases/frames/create-frame.ts';
+import { DeleteFrame } from '../../../src/application/use-cases/frames/delete-frame.ts';
 import { GetOriginal } from '../../../src/application/use-cases/frames/get-original.ts';
 import { GetThumbnail } from '../../../src/application/use-cases/frames/get-thumbnail.ts';
 import { UpdateFrame } from '../../../src/application/use-cases/frames/update-frame.ts';
@@ -38,6 +41,7 @@ async function setUp() {
   const previews = new InMemoryPreviewProvider();
   const ids = new SequentialIdGenerator();
   const clock = new FixedClock('2026-11-02T12:00:00.000Z');
+  const holding: HoldingArea = new InMemoryHoldingArea();
   const created = await new CreateRoll(
     rolls,
     new InMemoryEquipmentRepository(),
@@ -52,7 +56,9 @@ async function setUp() {
   return {
     rolls,
     previews,
+    holding,
     roll: created.value,
+    deleteFrame: new DeleteFrame(rolls, holding, clock),
     createFrame: new CreateFrame(rolls, ids),
     addVersion: new AddVersion(
       rolls,
@@ -205,6 +211,85 @@ describe('UpdateFrame', () => {
         number: '1',
       }),
     ).toEqual({ ok: false, error: { kind: 'not-found', entity, id: missing } });
+  });
+});
+
+describe('DeleteFrame', () => {
+  async function withTwoFrames() {
+    const setup = await setUp();
+    const kept = await aFrameIn(setup.createFrame, setup.roll.id);
+    const frameId = await aFrameIn(setup.createFrame, setup.roll.id);
+    const read = await setup.rolls.get(ctx, setup.roll.id);
+    return { ...setup, kept, frameId, version: read?.version ?? '' };
+  }
+
+  test('takes the frame out of the roll and holds it, with when and where from', async () => {
+    const { rolls, holding, roll, kept, frameId, version, deleteFrame } =
+      await withTwoFrames();
+    const frame = (await rolls.get(ctx, roll.id))?.roll.frames.find(
+      (f) => f.id === frameId,
+    );
+
+    const deleted = await deleteFrame.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      expectedVersion: version,
+    });
+
+    const after = await rolls.get(ctx, roll.id);
+    expect(deleted).toEqual({ ok: true, value: { version: after?.version } });
+    expect(after?.roll.frames.map((f) => f.id)).toEqual([kept]);
+    expect(await holding.list(ctx)).toEqual([
+      {
+        kind: 'frame',
+        rollId: roll.id,
+        roll: roll.roll,
+        frame,
+        at: new Date('2026-11-02T12:00:00.000Z'),
+      },
+    ]);
+  });
+
+  test('refuses when the roll changed since it was read, holding nothing', async () => {
+    const { holding, roll, frameId, deleteFrame, createFrame } =
+      await withTwoFrames();
+    const stale = 'stale';
+    await aFrameIn(createFrame, roll.id);
+
+    expect(
+      await deleteFrame.execute(ctx, {
+        rollId: roll.id,
+        frameId,
+        expectedVersion: stale,
+      }),
+    ).toMatchObject({ ok: false, error: { kind: 'concurrency-conflict' } });
+    expect(await holding.list(ctx)).toEqual([]);
+  });
+
+  test('says when the roll or the frame does not exist', async () => {
+    const { roll, version, deleteFrame } = await withTwoFrames();
+    const nowhere = checked(missing, isFrameId);
+
+    expect(
+      await deleteFrame.execute(ctx, {
+        rollId: checked(missing, isRollId),
+        frameId: nowhere,
+        expectedVersion: version,
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { kind: 'not-found', entity: 'roll' },
+    });
+    expect(
+      await deleteFrame.execute(ctx, {
+        rollId: roll.id,
+        frameId: nowhere,
+        expectedVersion: version,
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { kind: 'not-found', entity: 'frame' },
+    });
   });
 });
 

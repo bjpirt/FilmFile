@@ -1,4 +1,7 @@
+import { glob, readdir, readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { describe, expect, test } from 'vitest';
+import { aJpeg } from '../support/a-jpeg.ts';
 import { apiFor, idOf } from '../support/api.ts';
 import { useTempArchive } from '../support/temp-archive.ts';
 
@@ -282,5 +285,112 @@ describe('PATCH /api/rolls/{id}/frames', () => {
     );
 
     expect(response.status).toBe(404);
+  });
+});
+
+describe('DELETE /api/rolls/{id}/frames/{frameId}', () => {
+  /** A roll with one scanned frame: its URL, the roll's ETag, and the scan's bytes. */
+  async function aScannedFrame() {
+    const rollId = await aRoll();
+    const frameId = String(
+      idOf(
+        await (
+          await post(`/api/rolls/${rollId}/frames`, { number: '12' })
+        ).json(),
+      ),
+    );
+    const scan = new Uint8Array(await aJpeg());
+    await request(
+      `/api/rolls/${rollId}/frames/${frameId}/versions?file=12340012.jpg`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'image/jpeg' },
+        body: scan,
+      },
+    );
+    const etag = (await request(`/api/rolls/${rollId}`)).headers.get('ETag');
+    return {
+      rollId,
+      frameId,
+      url: `/api/rolls/${rollId}/frames/${frameId}`,
+      etag: etag ?? '',
+      scan,
+    };
+  }
+
+  function deleteFrame(url: string, ifMatch?: string) {
+    return request(url, {
+      method: 'DELETE',
+      headers: ifMatch === undefined ? {} : { 'If-Match': ifMatch },
+    });
+  }
+
+  test('takes the frame out of the roll, with the roll’s new version as its ETag', async () => {
+    const { rollId, url, etag } = await aScannedFrame();
+
+    const response = await deleteFrame(url, etag);
+
+    const roll = await request(`/api/rolls/${rollId}`);
+    expect(response.status).toBe(204);
+    expect(response.headers.get('ETag')).toBe(roll.headers.get('ETag'));
+    expect(await roll.json()).toMatchObject({ frames: [] });
+  });
+
+  test('moves the frame’s folder and its JSON into deleted/, the scan unchanged', async () => {
+    const { frameId, url, etag, scan } = await aScannedFrame();
+
+    await deleteFrame(url, etag);
+
+    const [held] = await readdir(path.join(archive.path(), 'deleted'));
+    const folder = path.join(archive.path(), 'deleted', held ?? '');
+    expect(held).toMatch(
+      new RegExp(`^\\d{4}-\\d{2}-\\d{2}T\\d{6}Z-frame-${frameId}$`),
+    );
+    expect(
+      JSON.parse(await readFile(path.join(folder, 'frame.json'), 'utf8')),
+    ).toMatchObject({
+      schema: 1,
+      roll: { roll: '2026-014' },
+      frame: { id: frameId, number: '12' },
+    });
+    const scans: string[] = [];
+    for await (const file of glob('**/12340012.jpg', { cwd: folder })) {
+      scans.push(file);
+    }
+    expect(scans).toHaveLength(1);
+    expect(
+      new Uint8Array(await readFile(path.join(folder, scans[0] ?? ''))),
+    ).toEqual(scan);
+    expect(
+      await readdir(path.join(archive.path(), 'rolls/2026/2026-014/frames')),
+    ).toEqual([]);
+  });
+
+  test('requires If-Match', async () => {
+    const { url } = await aScannedFrame();
+
+    expect((await deleteFrame(url)).status).toBe(428);
+  });
+
+  test('refuses a stale If-Match, keeping the frame', async () => {
+    const { rollId, url, etag } = await aScannedFrame();
+    await post(`/api/rolls/${rollId}/frames`, {});
+
+    expect((await deleteFrame(url, etag)).status).toBe(409);
+    const roll: unknown = await (await request(`/api/rolls/${rollId}`)).json();
+    expect(roll).toMatchObject({ frames: [{ number: '12' }, {}] });
+  });
+
+  test('returns 404 for a frame the roll does not have', async () => {
+    const { rollId, etag } = await aScannedFrame();
+
+    expect(
+      (
+        await deleteFrame(
+          `/api/rolls/${rollId}/frames/01JC8Z7K3M0000000000000000`,
+          etag,
+        )
+      ).status,
+    ).toBe(404);
   });
 });

@@ -1401,6 +1401,87 @@
             }
           }
         }
+      },
+      "delete": {
+        "summary": "Delete a frame",
+        "description": "Send the roll's ETag as If-Match: the delete is refused if the roll has changed since. The frame's files and JSON move into the archive's deleted/ folder; nothing is lost. The response's ETag is the roll's new version.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "rollId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "frameId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The roll's ETag, from when it was read."
+            },
+            "required": false,
+            "description": "The roll's ETag, from when it was read.",
+            "name": "if-match",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The frame was deleted."
+          },
+          "404": {
+            "description": "The roll has no frame with that ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The roll has changed since it was read.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/rolls/{rollId}/frames/{frameId}/versions": {

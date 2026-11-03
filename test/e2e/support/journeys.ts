@@ -193,6 +193,20 @@ export async function changeFrameNumber(
   ).toBeVisible();
 }
 
+/** Deletes a frame of the open roll, by its number, confirming when asked. */
+export async function deleteFrame(page: Page, number: string): Promise<void> {
+  const frame = framesShown(page).filter({ hasText: number });
+  await frame.hover();
+  await frame.getByRole('button', { name: `Delete frame ${number}` }).click();
+  await page
+    .getByRole('alertdialog', { name: `Delete frame ${number}` })
+    .getByRole('button', { name: 'Delete' })
+    .click();
+  await expect(
+    page.getByRole('button', { name: `Change frame number ${number}` }),
+  ).toBeHidden();
+}
+
 /** The open roll's frames, in the order shown; each one's text is its frame number. */
 export function framesShown(page: Page): Locator {
   return page

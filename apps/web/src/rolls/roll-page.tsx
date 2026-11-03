@@ -39,6 +39,13 @@ type Upload =
 
 class RollNotFound extends Error {}
 
+/** A frame as a sentence names it: "frame 12", or "the frame with no number". */
+function frameName(frame: Frame): string {
+  return frame.number === null
+    ? 'the frame with no number'
+    : `frame ${frame.number}`;
+}
+
 /** A frame's number as renumbering would leave it, highlighted if it changes. */
 function ProposedNumber({
   current,
@@ -134,6 +141,11 @@ export function RollPage({
   const [order, setOrder] = useState<'frame' | 'scan'>('frame');
   const [changedElsewhere, setChangedElsewhere] = useState(false);
   const [addingScans, setAddingScans] = useState(false);
+  // The frame whose delete is being confirmed, if any.
+  const [confirmingDelete, setConfirmingDelete] = useState<string | undefined>(
+    undefined,
+  );
+  const [deleteFailed, setDeleteFailed] = useState(false);
   const [editingDetails, setEditingDetails] = useState(false);
   const [savingNumbers, setSavingNumbers] = useState(false);
   const [numbersNotSaved, setNumbersNotSaved] = useState(false);
@@ -203,6 +215,34 @@ export function RollPage({
     }
     await queryClient.invalidateQueries({ queryKey: ['rolls', rollId] });
     return 'saved';
+  }
+
+  /** Deletes a frame, into the archive's deleted folder, if the roll hasn't changed since it loaded. */
+  async function deleteFrame(frameId: string) {
+    if (roll.data === undefined) {
+      return;
+    }
+    setDeleteFailed(false);
+    const { response } = await api.DELETE(
+      '/api/rolls/{rollId}/frames/{frameId}',
+      {
+        params: {
+          path: { rollId, frameId },
+          header: { 'if-match': roll.data.etag },
+        },
+      },
+    );
+    setConfirmingDelete(undefined);
+    if (response.status === 409) {
+      setChangedElsewhere(true);
+      return;
+    }
+    if (!response.ok) {
+      setDeleteFailed(true);
+      return;
+    }
+    // The rolls list counts frames too.
+    await queryClient.invalidateQueries({ queryKey: ['rolls'] });
   }
 
   /** Saves every frame's proposed number in one update, closing the panel if it's saved. */
@@ -407,6 +447,10 @@ export function RollPage({
         />
       )}
 
+      {deleteFailed && (
+        <p role="alert">Couldn't delete the frame. Is the service running?</p>
+      )}
+
       {changedElsewhere && (
         <p role="alert" className="changed-elsewhere">
           This roll changed since you opened it.{' '}
@@ -521,7 +565,64 @@ export function RollPage({
           <ol className="contact-sheet" aria-label="Contact sheet">
             {shown.map((frame, i) => (
               <li key={frame.id}>
-                <Thumbnail rollId={rollId} frame={frame} />
+                <div className="frame-picture">
+                  <Thumbnail rollId={rollId} frame={frame} />
+                  {confirmingDelete === frame.id && (
+                    // Over the thumbnail, the same size, so nothing else moves.
+                    <div
+                      role="alertdialog"
+                      aria-label={`Delete ${frameName(frame)}`}
+                      className="confirm-delete"
+                    >
+                      <p className="confirm-question">Delete this frame?</p>
+                      <div className="confirm-actions">
+                        <button
+                          type="button"
+                          className="danger"
+                          onClick={() => void deleteFrame(frame.id)}
+                        >
+                          Delete
+                        </button>
+                        <button
+                          type="button"
+                          autoFocus
+                          onClick={() => {
+                            setConfirmingDelete(undefined);
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {renumbering === undefined &&
+                    confirmingDelete !== frame.id && (
+                      <button
+                        type="button"
+                        className="frame-delete"
+                        aria-label={`Delete ${frameName(frame)}`}
+                        title={`Delete ${frameName(frame)}`}
+                        onClick={() => {
+                          setConfirmingDelete(frame.id);
+                        }}
+                      >
+                        {/* A bin, so the button adds no text to the frame's caption. */}
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+                        </svg>
+                      </button>
+                    )}
+                </div>
                 {renumbering === undefined ? (
                   <FrameNumberEditor
                     number={frame.number}

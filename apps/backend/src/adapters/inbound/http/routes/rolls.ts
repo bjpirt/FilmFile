@@ -23,6 +23,7 @@ import {
 import { bodyLimit } from 'hono/body-limit';
 import type { AddVersion } from '../../../../application/use-cases/frames/add-version.ts';
 import type { CreateFrame } from '../../../../application/use-cases/frames/create-frame.ts';
+import type { DeleteFrame } from '../../../../application/use-cases/frames/delete-frame.ts';
 import type { GetOriginal } from '../../../../application/use-cases/frames/get-original.ts';
 import type { GetThumbnail } from '../../../../application/use-cases/frames/get-thumbnail.ts';
 import type { UpdateFrame } from '../../../../application/use-cases/frames/update-frame.ts';
@@ -205,6 +206,22 @@ const updateFrame = createRoute({
   },
 });
 
+const deleteFrame = createRoute({
+  method: 'delete',
+  path: '/{rollId}/frames/{frameId}',
+  summary: 'Delete a frame',
+  description:
+    "Send the roll's ETag as If-Match: the delete is refused if the roll has changed since. The frame's files and JSON move into the archive's deleted/ folder; nothing is lost. The response's ETag is the roll's new version.",
+  request: { params: frameParams, headers: ifMatchHeader },
+  responses: {
+    204: { description: 'The frame was deleted.' },
+    404: json(errorResponse, 'The roll has no frame with that ID.'),
+    409: json(errorResponse, 'The roll has changed since it was read.'),
+    422: invalid,
+    428: json(errorResponse, 'If-Match is missing.'),
+  },
+});
+
 const addVersion = createRoute({
   method: 'post',
   path: '/{rollId}/frames/{frameId}/versions',
@@ -276,6 +293,7 @@ export interface RollUseCases {
   readonly createFrame: CreateFrame;
   readonly updateFrame: UpdateFrame;
   readonly updateFrameNumbers: UpdateFrameNumbers;
+  readonly deleteFrame: DeleteFrame;
   readonly addVersion: AddVersion;
   readonly getOriginal: GetOriginal;
   readonly getThumbnail: GetThumbnail;
@@ -407,6 +425,27 @@ export function rollRoutes({
     }
     c.header('ETag', etagOf(updated.value.version));
     return c.json({ ...updated.value.frame, versions: [] }, 200);
+  });
+
+  routes.openapi(deleteFrame, async (c) => {
+    const { rollId, frameId } = c.req.valid('param');
+    if (!isRollId(rollId) || !isFrameId(frameId)) {
+      return c.json(notFound, 404);
+    }
+    const ifMatch = c.req.valid('header')['if-match'];
+    if (ifMatch === undefined) {
+      return c.json({ error: 'send the roll’s ETag as If-Match' }, 428);
+    }
+    const deleted = await useCases.deleteFrame.execute(ctx, {
+      rollId,
+      frameId,
+      expectedVersion: versionFrom(ifMatch),
+    });
+    if (!deleted.ok) {
+      return domainErrorResponse(c, deleted.error);
+    }
+    c.header('ETag', etagOf(deleted.value.version));
+    return c.body(null, 204);
   });
 
   routes.openapi(addVersion, async (c) => {

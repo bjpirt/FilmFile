@@ -57,7 +57,7 @@ Change them here if they're wrong.
 
 ### 0.4 Repository ports and adapters (M)
 
-- Port interfaces: `ArchiveRepository`, `RollRepository`, `EquipmentRepository`. `RollRepository` also has `rename(ctx, id, newRollId, expectedVersion)`, which moves the roll's folder, and `delete(ctx, id, expectedVersion)` for empty rolls, which moves the folder into the holding area.
+- Port interfaces: `ArchiveRepository`, `RollRepository`, `EquipmentRepository`. `RollRepository` also has `rename(ctx, id, newRollId, expectedVersion)`, which moves the roll's folder, and `delete(ctx, id, expectedVersion)`, which moves the roll's folder, frames and all, into the holding area (D38).
 - **Version tokens:** every read returns `{ value, version }`. `save(ctx, value, expectedVersion)` returns `ConcurrencyConflict` if the stored version differs. `create` returns `AlreadyExists` if present.
 - **In-memory adapters** for all three.
 - **Filesystem adapters:**
@@ -219,7 +219,7 @@ All take `ArchiveContext` and return `Result`. Each one that writes also updates
 | `CreateFrame` | Appends a frame (JSON: frame number and other fields optional) to an existing roll. No version token needed: the service locks the roll and appends |
 | `AddVersion` | Uploads one file as a version of a frame and records its pixel dimensions. Phase 1 takes lab scans only, kept under their file names; rejects names the service doesn't accept, files over 200 MB, and files whose signature isn't an allowed image type. Appends under the roll's lock, without a version token. A file whose hash is already in the roll returns `AlreadyExists` with the existing frame and version, so retries are safe |
 | `UpdateFrame`, `UpdateFrames` | Single and bulk edits, including frame numbers; bulk is one roll save |
-| `DeleteVersion`, `DeleteFrame`, `DeleteRoll` | Explicit deletes into the holding area; nothing is permanently deleted. Each saves the roll first, then moves the JSON and files to `deleted/`. Deleting the default version unsets `defaultVersion`. A roll can be deleted only when it has no frames |
+| `DeleteVersion`, `DeleteFrame`, `DeleteRoll` | Explicit deletes into the holding area; nothing is permanently deleted. Each saves the roll first, then moves the JSON and files to `deleted/`. Deleting the default version unsets `defaultVersion`. Any roll can be deleted, with its frames (D38) |
 | Mapping use cases | Depend on where the mapping engine lives (open question). |
 | `GetThumbnail`, `GetOriginal` | Stream a version's thumbnail (small or large, generated on first request and cached by content hash) and its original, both addressed by version ID |
 | `CheckIntegrity` | Validate all files, check every version's file exists with the right size; optional full re-hash; report dangling equipment references, unreferenced files and duplicate numbers |
@@ -242,7 +242,7 @@ GET    /api/rolls/{rollId}                   resolved roll + ETag
 PATCH  /api/rolls/{rollId}                   If-Match required
 PATCH  /api/rolls/{rollId}/frames/{frameId}  If-Match required
 PATCH  /api/rolls/{rollId}/frames            bulk, If-Match required
-DELETE /api/rolls/{rollId}                   only when empty, If-Match required
+DELETE /api/rolls/{rollId}                   with its frames (D38), If-Match required
 POST   /api/rolls/{rollId}/frames            JSON → new frame (no image)
 DELETE /api/rolls/{rollId}/frames/{frameId}  If-Match required
 POST   /api/rolls/{rollId}/frames/{frameId}/versions?lab=&file=   raw image body → new version

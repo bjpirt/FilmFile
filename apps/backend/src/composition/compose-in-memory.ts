@@ -4,6 +4,7 @@ import { FixedClock } from '../adapters/outbound/memory/fixed-clock.ts';
 import { InMemoryBlobStore } from '../adapters/outbound/memory/in-memory-blob-store.ts';
 import { InMemoryEquipmentRepository } from '../adapters/outbound/memory/in-memory-equipment-repository.ts';
 import { InMemoryEventRepository } from '../adapters/outbound/memory/in-memory-event-repository.ts';
+import { InMemoryHoldingArea } from '../adapters/outbound/memory/in-memory-holding-area.ts';
 import { InMemoryPreviewProvider } from '../adapters/outbound/memory/in-memory-preview-provider.ts';
 import { InMemoryRollRepository } from '../adapters/outbound/memory/in-memory-roll-repository.ts';
 import { SequentialIdGenerator } from '../adapters/outbound/memory/sequential-id-generator.ts';
@@ -29,6 +30,7 @@ export function composeInMemory(
       equipment: new InMemoryEquipmentRepository(),
       events: new InMemoryEventRepository(),
       blobs: new InMemoryBlobStore(),
+      holding: new InMemoryHoldingArea(),
       inspector: new SharpImageInspector(maxPixels),
       previews: new InMemoryPreviewProvider(),
       ids: new SequentialIdGenerator(),

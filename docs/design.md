@@ -313,7 +313,7 @@ Outbound ports, defined in `application/ports/` and implemented by outbound adap
 | `RollRepository` | Get, list, create, save and rename rolls. Every read returns a **version token**; `save(roll, expectedVersion)` fails with `ConcurrencyConflict` if it changed; `create` and `rename` fail if the roll number is taken | JSON files: lock, ETag check, temp file + rename | S3 `If-Match` / `If-None-Match` conditional writes |
 | `EquipmentRepository` | Cameras, lenses, films | JSON files | S3 objects |
 | `BlobStore` | Write-once storage of image files: `put` (streams, returns SHA-256 and size), `get`, `stat`. Never overwrites | A folder per version in the archive | S3 with Standard-IA / Deep Archive classes |
-| `HoldingArea` | Receives deleted versions and frames (their files plus their JSON) and deleted empty rolls (the whole folder), for me to empty by hand. Never deletes | `deleted/` in the archive | S3 prefix |
+| `HoldingArea` | Receives deleted versions and frames (their files plus their JSON) and deleted rolls (the whole folder, frames and all), for me to empty by hand. Never deletes | `deleted/` in the archive | S3 prefix |
 | `CatalogueIndex` | Read model for listing and filtering: upsert a resolved roll, remove, query, rebuild | SQLite in the cache directory | SQLite or Postgres |
 | `PreviewProvider` | Thumbnails and previews by content hash, generated lazily | sharp + cache folder | sharp + S3 cache |
 | `ImageInspector` | Reads an uploaded image's pixel dimensions from its header, within the input pixel limit | sharp (exiftool for raws, Phase 2) | same |
