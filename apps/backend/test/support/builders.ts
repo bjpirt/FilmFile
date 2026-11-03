@@ -1,3 +1,4 @@
+import type { Archive } from '../../src/domain/archive/archive.ts';
 import { cameraLabel, type Camera } from '../../src/domain/equipment/camera.ts';
 import { slugFor } from '../../src/domain/shared/slug.ts';
 import { isEventDate } from '../../src/domain/events/event-date.ts';
@@ -179,4 +180,17 @@ export function labScanFrames(count: number): Frame[] {
       ],
     });
   });
+}
+
+/** An archive with the given name and details, by default with no author or copyright. */
+export function anArchive(
+  name = 'Ben’s film archive',
+  details: { readonly author?: string; readonly copyright?: string } = {},
+): Archive {
+  return {
+    id: checked(ulidFor(9), isArchiveId),
+    name,
+    author: details.author ?? null,
+    copyright: details.copyright ?? null,
+  };
 }

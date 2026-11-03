@@ -14,12 +14,12 @@ Each task is about one commit: small enough to review in one sitting, with its t
 
 ### 1. Archive settings
 
-The archive's name, author, copyright and licence, set on first run and changed later; no labs (D35).
+The archive's name, author and copyright, set on first run and changed later; no labs (D35), and no licence yet (D42).
 
-- [ ] **ArchiveRepository.** *(`EquipmentRepository` and `EventRepository`: U9–U12b.)* Port, filesystem and in-memory adapters, contract suite. *(The rest of 0.4.1.)*
-- [ ] **1.3.1 Archive.** `InitialiseArchive`, `GetArchive` and `UpdateArchive`: the archive's name and its archive-wide `meta` (author, copyright, licence). No labs are stored (D35).
-- [ ] **1.4.2 Archive routes.** *(Equipment and events routes: U9–U12b.)*
-- [ ] **1b.2 First-run setup.** Shown when the archive isn't initialised: its name, author, copyright and licence, changeable later on a settings page.
+- [x] **ArchiveRepository.** *(`EquipmentRepository` and `EventRepository`: U9–U12b.)* Port, filesystem and in-memory adapters, contract suite: the archive's ID, name, author and copyright, kept in `archive.json` (author and copyright in its `meta`). *(The rest of 0.4.1.)*
+- [ ] **1.3.1 Archive.** `InitialiseArchive`, `GetArchive` and `UpdateArchive`: the archive's name and its archive-wide `meta` (author, copyright). No labs are stored (D35), and no licence yet (D42).
+- [ ] **1.4.2 Archive routes.** *(Equipment and events routes: U9–U12b.)* `GET /api/archive` (404 until it's set up), `POST /api/archive` to set it up, and `PATCH /api/archive` with `If-Match`.
+- [ ] **1b.2 First-run setup.** Until the archive is set up, every page shows "Set up your archive" instead: its name (required), author and copyright (D43). Afterwards a Settings page, linked from the header, changes them. Adds a journey.
 
 ### 2. Frames' own details, bulk editing and locations
 
@@ -148,6 +148,8 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D39 | A frame's rating is one to five stars, or none; there's no zero-star rating, and 0 (the key) clears it. | U29 |
 | D40 | A roll has notes, not a description, as a frame does; neither inherits from the other. Notes are about the record they're on (how a roll was developed, what a frame shows), so they sit outside the inherited `meta` fields. | U32 |
 | D41 | Rotating a frame turns the version shown, by quarter turns kept in the version's `transform.rotate`, as the design's non-destructive crop and rotate; the image file is never changed, and thumbnails are made turned. | U33 |
+| D42 | No licence for now: the archive holds a name, author and copyright only. A licence (and how it's chosen) is decided when exports need one. | 1.3.1, 1b.2 |
+| D43 | First-run setup is required: until `archive.json` exists, every page shows the setup form, since what's set there (author, copyright) is what frames will inherit. | 1b.2 |
 
 **Still open:** see `docs/design.md`, section 15.
 
