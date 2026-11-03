@@ -439,6 +439,7 @@ packages/
 ## 15. Open questions
 
 - **Telling versions apart (Phase 2):** versions have no `kind`. When raws and masters arrive, decide how the service knows a version is a raw (never write metadata into it), a master (has parents and a recipe) or a lab scan (has a batch and scan index): an explicit field, or inferred from the file type and fields present (the folder no longer says). The likely answer is an optional `source` attribute recording where the file came from (e.g. lab scan, camera scan, editor export), added when it's first needed.
+- **Choosing locations on a map:** a map picker (and showing frames on a map) needs map tiles from an outside service, which means loosening the CSP and calling out to the network. Until then locations are typed or pasted as coordinates (D26).
 - **Name clearance:** check the domain, GitHub organisation and UK IPO register for FilmFile, noting the Print File sleeve brand.
 - **NegPy sidecars:** confirm the `.negpy` file name and where it's written.
 - **Masters in Standard-IA too?** Whether hi-res files should be fetchable from other devices.

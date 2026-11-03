@@ -46,7 +46,9 @@ Settled on 2 November 2026 and recorded in `docs/design.md`. Tasks refer to them
 | D21 | The interface follows design A ("light table") from the options canvas. Its fonts (Inter, IBM Plex Mono) are served by the backend from installed packages, not Google Fonts, so the CSP stays `default-src 'self'`. | U2 |
 | D22 | Browser tests cover key journeys only, written against what a person sees and does (roles, labels, text), never CSS classes, test IDs, URLs or API calls, so refactoring the internals doesn't change them. Shared steps live in journey helpers. | U1 onwards |
 | D23 | The rolls page's view (grid or list), grouping and filter are kept in the page's address; the grid or list choice is also remembered in the browser as the default. | U4, U6 |
-| D24 | For now a roll belongs to at most one event, which may be nested in another. Frames in events, and a roll in several events, wait until wanted. | U12 |
+| D24 | A roll belongs to at most one event, which may be nested in another. Frames can be in events too (D25). | U12 |
+| D25 | Frames inherit their roll's camera, film stock, lens and events and can have their own, set in bulk on selected frames. A roll has at most one event; a frame can be in several. Grouping and filtering rolls use the roll's own values; an event's page shows frames from every roll. | U14–U17 |
+| D26 | Locations are a place name with optional latitude and longitude, settable on events, rolls and frames, and inherited like the other details (design section 6). Coordinates are entered as text for now: a map picker would need map tiles from outside, which the CSP blocks (D21). | U18 |
 
 **Still open** (in `docs/design.md`, section 15): how Phase 2 tells versions apart without a `kind` (D16).
 
@@ -144,6 +146,7 @@ Key journeys, each named by the task that adds it:
 | Find rolls (U6) | Switch grid and list, group by year, filter by year, close and reopen the browse panel |
 | Describe a roll (U8 onwards) | Set a roll's shot date, camera, film stock and lens, then find it grouped and filtered by each |
 | Organise by event (U12) | Create an event inside another, put rolls in it, and browse to them by event |
+| Bulk edit (U16) | Select some of a roll's frames, put them in an event and give them another camera, then find them under that event with the roll's other frames left as they were |
 
 ### The design, with today's data
 
@@ -168,7 +171,19 @@ Each layer is one vertical slice: the field in the domain, `roll.json` (an optio
 - [ ] **U12 Events.** Events with a name and an optional parent event (`events/<slug>.json`), created from Edit details or an Events page listing them; a roll belongs to one event (D24). Cards and list show "Parent › Event"; Group by Event, with "No event" last; an Events section in the browse panel, nested, where choosing a parent includes its children's rolls. Adds the "Organise by event" journey.
 - [ ] **U13 Equipment page.** The Equipment link: cameras, lenses and film stocks with how many rolls use each, each linking to the rolls filtered by it.
 
-**Done when:** a real roll can be catalogued in the browser with its shot date, camera, film stock, lens and event, found again by grouping and filtering on each, and every key journey passes in CI.
+**Checkpoint:** a real roll can be catalogued in the browser with its shot date, camera, film stock, lens and event, found again by grouping and filtering on each.
+
+### Bulk editing and locations
+
+Selecting frames on a roll and giving them all an event, camera, film stock or lens at once. Frames inherit these from their roll and can have their own, as the design's metadata layering describes (section 6): a frame shot on a second camera, or the few frames of a roll that belong to a particular event (D25).
+
+- [ ] **U14 Select frames.** A Select mode on the roll page: a checkbox on each frame, click to toggle and shift-click for a run, Select all and Clear, a count ("4 frames selected"), and Esc to leave. Works from the keyboard. Nothing is saved; the selection is the start of the bulk actions.
+- [ ] **U15 Frames' own details.** Frames gain their own camera, film stock, lens and events, each empty unless set, in which case the roll's applies (resolved as in the design, recording where each value came from). The contact sheet marks frames whose details differ from the roll's. A frame may be in several events.
+- [ ] **U16 Assign to selected frames.** With frames selected, a bar offers "Set event", "Set camera", "Set film stock" and "Set lens" for them, or "Use the roll's" to clear their own; the change is one save with `If-Match`, so a roll changed elsewhere isn't overwritten. Adds the "Bulk edit" journey.
+- [ ] **U17 Events across rolls.** An event's page shows its frames from every roll, whether the frame is in the event itself or through its roll; browsing by event includes a roll when any of its frames is in that event.
+- [ ] **U18 Locations.** A location (a place name, with latitude and longitude if known) can be set on an event, a roll or a frame, and is inherited down the design's layers: roll, then its events (parent before child), then the frame (D26). Set in Edit details for a roll, on an event's page, and with "Set location" for selected frames (U16's bar). Shown in the roll's details row and for each frame, with where it came from ("Jökulsárlón — event"). Coordinates are typed or pasted, e.g. from a maps app; picking on a map is an open question.
+
+**Done when:** a real roll can be catalogued in the browser with its shot date, camera, film stock, lens, event and location, frames that differ can be selected and given their own, everything can be found again by grouping and filtering, and every key journey passes in CI.
 
 ## P: The rest of Phase 1
 
@@ -181,7 +196,7 @@ Built to the full standard from the start. Task IDs are the original ones; tasks
 - [-] **1.1.3 Mapping engine.** *(Replaced by the renumber in N5, D19.)* Pure function from sorted scans and a `Mapping` (direction, anchors, overrides, skips) to a frame number per scan, following the rules in the plan. Rejects non-numeric anchors with `MappingInvalid`. Table-driven and property tests. *(Blocked: mapping location, for where it runs.)*
 - [-] **1.1.4 Mapping warnings.** *(Dropped, D19.)* Duplicate numbers and below `00` (D3), as warnings alongside the result.
 - [-] **1.1.5 Remap.** *(Replaced by N5 and N6.)* Applying a new mapping to a roll updates frame numbers only; IDs, metadata and versions stay with their scans.
-- [ ] **1.1.6 Meta resolver.** `archive.meta` → `roll.meta` → `frame.meta`, with scalars replacing, maps merging, arrays replacing, `{ add, remove }` modifying and `null` clearing. Every value records its source layer and ID. Equipment slugs resolve to records, and dangling slugs are reported, not thrown.
+- [ ] **1.1.6 Meta resolver.** *(For camera, film stock, lens and events: U15.)* `archive.meta` → `roll.meta` → `frame.meta`, with scalars replacing, maps merging, arrays replacing, `{ add, remove }` modifying and `null` clearing. Every value records its source layer and ID. Equipment slugs resolve to records, and dangling slugs are reported, not thrown.
 - [ ] **1.1.7 Invariants.** Rating 0–5, frame and version IDs unique within a roll, no two versions in a roll with the same SHA-256, `defaultVersion` (if set) references a version of that frame.
 
 ### Ports and adapters
@@ -234,7 +249,7 @@ Built to the full standard from the start. Task IDs are the original ones; tasks
 - [ ] **1b.9 Checkpoint.** Import at least five real rolls, including one scanned in reverse, and browse them.
 - [ ] **1c.1 Frame editing.** Title, rating (keys 0–5), tags, notes, location, lens override; inherited values greyed with their source; "set on roll instead" and "clear override".
 - [ ] **1c.2 Roll editing.** *(Edit details and its fields: U7–U12.)* All roll fields and `meta`, equipment pickers, sleeve photo upload, rename (D10), delete when empty (D12).
-- [ ] **1c.3 Bulk edit and delete.** Select frames; set tags, location or lens in one save, or delete after confirmation.
+- [ ] **1c.3 Bulk edit and delete.** *(Selecting frames and setting event, camera, film stock or lens: U14 and U16; tags, location and bulk delete remain.)* Select frames; set tags, location or lens in one save, or delete after confirmation.
 - [-] **1c.4 Fix numbering.** *(Replaced by N3–N6.)* The numbering component on an existing roll, then confirm.
 - [ ] **1c.5 Conflict handling.** On a 409, reload and re-apply if it doesn't clash; otherwise show what changed.
 - [ ] **1c.6 Maintenance page.** Integrity check (quick or full) and index rebuild.
