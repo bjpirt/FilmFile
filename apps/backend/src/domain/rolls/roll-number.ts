@@ -4,7 +4,7 @@ import { err, ok, type Result } from '../shared/result.ts';
 declare const brand: unique symbol;
 
 /**
- * A roll's label, `YYYY-NNN`, as written on its sleeve: the year it was shot
+ * A roll's label, `YYYY-NNN`: the year it was shot
  * and the next free number that year. Unlike the roll's ULID, it can change
  * through a rename.
  */

@@ -2,7 +2,7 @@
 
 *Last updated 2 November 2026. Read alongside `docs/design.md`, especially section 13 (Architecture).*
 
-**Delivery order:** this plan describes what Phases 0 and 1 contain. The work is delivered slice first, as set out in `docs/tasks-phase-0-1.md`: rolls and scans through the API (S1), then a basic UI (S2), then hardening to the standards below (H), then the rest of Phase 1 (P). The "done when" criteria here still apply by the end.
+**Delivery order:** this was the first plan. The work, what's left and in what order, is now in `docs/roadmap.md`, grouped by feature.
 
 ## Outcome
 
@@ -104,7 +104,6 @@ archive/
     2026/
       2026-014/
         roll.json
-        sleeve.jpg            # optional
         frames/
           Q2P7RM4K/           # a frame: the last 8 characters of its ULID
             8F3WXB1C/         # a version, likewise
@@ -122,15 +121,7 @@ archive/
     "author": "Ben",
     "copyright": "© Ben. All rights reserved.",
     "licence": "all-rights-reserved"
-  },
-  "labs": {
-    "local-lab": {
-      "name": "Local lab",
-      "direction": "down",
-      "filePattern": "^(?<batch>\\d{4})(?<scan>\\d{4})\\.jpe?g$"
-    }
-  },
-  "defaultLab": "local-lab"
+  }
 }
 ```
 
@@ -141,9 +132,8 @@ archive/
   "schema": 1,
   "id": "01JC8Z7K3M…",
   "roll": "2026-014",
-  "developed": { "lab": "local-lab", "batch": "1234", "date": "2026-10-20" },
+  "developed": { "date": "2026-10-20" },
   "shot": { "from": "2026-09-28", "to": "2026-10-12" },
-  "sleeve": { "binder": 3, "page": 14, "photo": "sleeve.jpg" },
   "notes": "Autumn walks",
   "meta": {
     "camera": "nikon-fe",
@@ -166,7 +156,6 @@ archive/
         {
           "id": "01JC8ZB7TQ…",
           "file": "frames/Q2P7RM4K/8F3WXB1C/12340014.jpg",
-          "lab": { "lab": "local-lab", "batch": "1234", "scan": 14 },
           "sha256": "9f2c…",
           "bytes": 1843021,
           "width": 3089,
@@ -184,7 +173,7 @@ archive/
 - **Inheritable `meta` fields** (archive, roll and frame level): `camera`, `lens`, `film`, `location`, `tags`, `author`, `copyright`, `licence`.
 - **Frame-only:** `id`, `number`, `title`, `rating` (0–5), `notes`, `defaultVersion` (optional version ID; when unset the newest version is shown), `versions` (may be empty).
 - **Version:** `id`, `file`, `lab` (for lab scans), `sha256`, `bytes`, `width`, `height`, `added`. No `kind` field. Low-res display images are generated previews in the cache, not versions. Phase 2 may add an optional `source` attribute to tell raws, masters and lab scans apart (D16).
-- **Roll-only:** `id`, `roll`, `developed`, `shot`, `sleeve`, `notes`.
+- **Roll-only:** `id`, `roll`, `developed`, `shot`, `notes`.
 - `number` is a string, or `null` for a skipped or unidentified scan.
 - `frames` uses the `versions` list from day one, so Phase 2 adds entries without a format change.
 
@@ -216,28 +205,25 @@ Everything works through the API and its docs page. No UI yet.
 - `CatalogueIndex`: SQLite adapter (`better-sqlite3`, in the cache directory) with tables for rolls, frames, frame tags and equipment; upsert a resolved roll, query, rebuild. In-memory adapter. Contract suite.
 - `ImageInspector`: reads pixel dimensions from an image's header, with sharp's input pixel limit. sharp adapter and a fake for tests. Contract suite.
 - `PreviewProvider`: sharp adapter producing a 400 px thumbnail and a 2048 px preview as WebP, keyed by SHA-256 and cached; generated lazily. A trivial in-memory adapter for tests.
-- `Notifier`: SSE adapter; a recording adapter for tests.
 
 #### 1.3 Use cases (L)
 
-All take `ArchiveContext` and return `Result`. Each one that writes also updates the index and notifies.
+All take `ArchiveContext` and return `Result`. Each one that writes also updates the index.
 
 | Use case | Notes |
 |---|---|
-| `InitialiseArchive`, `GetArchive`, `UpdateArchive` | First run creates `archive.json`; update covers meta and labs |
+| `InitialiseArchive`, `GetArchive`, `UpdateArchive` | First run creates `archive.json`; update covers its name and meta (no labs, D35) |
 | `ListEquipment`, `CreateEquipment` | |
 | `CreateRoll`, `UpdateRoll`, `GetResolvedRoll`, `ListRolls` | `CreateRoll` requires an explicit roll number. `ListRolls` queries the index with filters (year, camera, film, tag) and sorts by roll number (default) or shot date |
 | `RenameRoll` | Changes the roll number: checks it's free, moves the folder, re-indexes. The ULID is unchanged |
 | `CreateFrame` | Appends a frame (JSON: frame number and other fields optional) to an existing roll. No version token needed: the service locks the roll and appends |
-| `AddVersion` | Uploads one file as a version of a frame and records its pixel dimensions. Phase 1 takes lab scans only, with the lab and file name; rejects names not matching the lab pattern, files over 200 MB, and files whose signature isn't an allowed image type. Appends under the roll's lock, without a version token. A file whose hash is already in the roll returns `AlreadyExists` with the existing frame and version, so retries are safe |
+| `AddVersion` | Uploads one file as a version of a frame and records its pixel dimensions. Phase 1 takes lab scans only, kept under their file names; rejects names the service doesn't accept, files over 200 MB, and files whose signature isn't an allowed image type. Appends under the roll's lock, without a version token. A file whose hash is already in the roll returns `AlreadyExists` with the existing frame and version, so retries are safe |
 | `UpdateFrame`, `UpdateFrames` | Single and bulk edits, including frame numbers; bulk is one roll save |
 | `DeleteVersion`, `DeleteFrame`, `DeleteRoll` | Explicit deletes into the holding area; nothing is permanently deleted. Each saves the roll first, then moves the JSON and files to `deleted/`. Deleting the default version unsets `defaultVersion`. A roll can be deleted only when it has no frames |
 | Mapping use cases | Depend on where the mapping engine lives (open question). |
-| `AttachSleevePhoto` | Stores the sleeve photo through the blob store |
 | `GetThumbnail`, `GetOriginal` | Stream a version's thumbnail (small or large, generated on first request and cached by content hash) and its original, both addressed by version ID |
 | `CheckIntegrity` | Validate all files, check every version's file exists with the right size; optional full re-hash; report dangling equipment references, unreferenced files and duplicate numbers |
 | `RebuildIndex` | Rebuild the index from the repositories |
-| `ReconcileExternalChange` | Called by the watcher: re-read the changed roll, validate, re-index, notify; invalid files are reported, not loaded |
 
 #### 1.4 HTTP API (M)
 
@@ -263,20 +249,14 @@ POST   /api/rolls/{rollId}/frames/{frameId}/versions?lab=&file=   raw image body
 DELETE /api/rolls/{rollId}/frames/{frameId}/versions/{versionId}   If-Match required
 GET    /api/rolls/{rollId}/frames/{frameId}/versions/{versionId}/file   original, read-only
 GET    /api/rolls/{rollId}/frames/{frameId}/versions/{versionId}/thumbnail?size=small|large   400 px or 2048 px WebP
-PUT    /api/rolls/{rollId}/sleeve            upload sleeve photo
 POST   /api/rolls/{rollId}/rename            { roll }, If-Match required
 
 (mapping routes depend on where the mapping engine lives)
 
-GET    /api/changes                          server-sent events
 
 POST   /api/maintenance/check                { full?: boolean }
 POST   /api/maintenance/reindex
 ```
-
-#### 1.5 File watcher (S)
-
-`chokidar` on the archive folder, ignoring `deleted/`. A change to a `roll.json` not made by the service calls `ReconcileExternalChange`. The service ignores events caused by its own writes (by comparing version tokens), including the folder move from a rename.
 
 **Milestone 1a is done when** the use-case tests (in-memory) and HTTP tests pass, and I've initialised an archive, created a roll, created frames and uploaded real scans as their versions through the API docs page, renumbered them, and run the integrity check successfully.
 
@@ -284,15 +264,15 @@ POST   /api/maintenance/reindex
 
 ### Milestone 1b: Web UI, import and browse
 
-React + Vite + TanStack Query, using only the generated client from `@filmfile/contracts`. SSE events invalidate cached queries so changes appear live.
+React + Vite + TanStack Query, using only the generated client from `@filmfile/contracts`.
 
-- **First run:** a setup screen when the archive isn't initialised (name, author, copyright, first lab and its scan direction).
+- **First run:** a setup screen when the archive isn't initialised (name, author, copyright and licence).
 - **Import:**
   1. Choose an existing roll, or create one first (roll number, camera, lens and film pickers). The roll number field starts empty; the UI offers the next free number in a year as a one-click suggestion, worked out from the roll list.
-  2. Drag the lab's folder (or files) onto the page. For each scan, a frame is created and the scan uploaded as its version, with progress; files not matching the lab pattern are listed. Dropping the folder again after an interruption completes the import, since duplicates are recognised by hash.
+  2. Drag the lab's folder (or files) onto the page. For each scan, a frame is created and the scan uploaded as its version, with progress; files the service wouldn't accept are listed. Dropping the folder again after an interruption completes the import, since duplicates are recognised by hash.
   3. **Numbering:** thumbnails in scan order with proposed frame numbers. Set the starting anchor and direction, mark skips and overrides, see warnings live, and save the numbers with one bulk update.
-- **Rolls:** a grid of rolls (sleeve photo or first frame), filterable by year, camera, film and tag, sortable by roll number or shot date.
-- **Roll:** a contact sheet in frame-number order, with roll details and the sleeve photo alongside.
+- **Rolls:** a grid of rolls (their first frames), filterable by year, camera, film and tag, sortable by roll number or shot date.
+- **Roll:** a contact sheet in frame-number order, with the roll's details.
 - **Frame:** a large preview of the default version with previous/next, the frame's versions with "Set as default", and resolved metadata where every value shows its source (frame, roll, archive). Keyboard: arrows to move, Esc back.
 
 **Milestone 1b is done when** I've imported at least five real rolls through the browser, including one the lab scanned in reverse, and can browse them all.
@@ -302,7 +282,7 @@ React + Vite + TanStack Query, using only the generated client from `@filmfile/c
 ### Milestone 1c: Editing and maintenance in the UI
 
 - **Frame editing:** title, rating (keys 0–5), tags, notes, location, lens override. Inherited values show greyed with their source; editing creates an override, with "set on roll instead" and "clear override" actions.
-- **Roll editing:** all roll fields and roll `meta`, with equipment pickers that can create new items; upload a sleeve photo; rename the roll number as a separate, confirmed action.
+- **Roll editing:** all roll fields and roll `meta`, with equipment pickers that can create new items; rename the roll number as a separate, confirmed action.
 - **Bulk edit:** select frames on the contact sheet and set tags, location or lens in one save.
 - **Fix numbering:** the same renumbering as on import, on an existing roll.
 - **Conflict handling:** on a 409, reload the roll, re-apply the change if it doesn't clash, otherwise show what changed.
@@ -329,7 +309,7 @@ A CLI, raws and hi-res masters, multiple versions per frame, the NegPy integrati
 - **Lab file names vary.** The pattern is configurable per lab, and unmatched files are listed and skipped before upload.
 - **Large uploads in the browser.** One file per request with retries; an interrupted import is completed by uploading again, because scans already in the roll are recognised by hash.
 - **`sharp` native install problems.** Pin a version and check in CI on macOS.
-- **Index drift.** All writes go through use cases that update the index; the watcher and rebuild cover anything else.
+- **Index drift.** All writes go through use cases that update the index; a rebuild covers anything else, such as a file changed by hand or by sync.
 - **Mapping layers between domain, files and API feels like duplication.** Keep shapes close in Phase 1 and the mapping thin; the separation pays off when formats evolve.
 
 ## Open questions

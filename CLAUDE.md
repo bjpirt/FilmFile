@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **FilmFile** is a local-first tool for cataloguing film photographs: rolls, frames and multiple versions of each image, organised by roll and by nested events, with metadata as JSON on the filesystem, S3 backup and sync, and workflows that run when things change.
 
 - **Design:** `docs/design.md`; section 13 defines the architecture. Read it before design decisions, and raise any conflict rather than silently diverging. When a design decision is made or changed, update it and remove it from the open questions.
-- **Plan:** `docs/plan-phase-0-1.md` (what and why), as ordered tasks in `docs/tasks-phase-0-1.md`. Work through them in order and keep the plan true (the `write-task` skill).
+- **Roadmap:** `docs/roadmap.md`, the work still to do grouped by feature in order, then what's parked, the decisions, and what's done. Work through it in order and keep it true (the `write-task` skill). `docs/plan-phase-0-1.md` was the first plan, with formats, fields and routes in detail.
 
 ## Skills
 
@@ -25,7 +25,7 @@ Simple first (the design's ports are the only planned abstractions; three simila
 ## Architecture in brief
 
 - A **backend** (`apps/backend`) owns all archive data and serves the built UI; the browser UI (`apps/web`) is only an API client. No CLI.
-- **Hexagonal**, layers as folders: `domain/` → `application/` (use cases + `ports/`) → `adapters/` (inbound: HTTP, watcher; outbound: filesystem, SQLite, sharp, node, SSE, memory) → `composition/`, enforced by `eslint-plugin-boundaries`. `domain/` imports nothing outside itself (no I/O, time or randomness); `application/` only `domain/`; only `main.ts` imports `composition/`; `apps/web` only `@filmfile/contracts`.
+- **Hexagonal**, layers as folders: `domain/` → `application/` (use cases + `ports/`) → `adapters/` (inbound: HTTP; outbound: filesystem, SQLite, sharp, node, memory) → `composition/`, enforced by `eslint-plugin-boundaries`. `domain/` imports nothing outside itself (no I/O, time or randomness); `application/` only `domain/`; only `main.ts` imports `composition/`; `apps/web` only `@filmfile/contracts`.
 - **Pure DI:** constructor injection, no container or decorators; adapters built only in `composeLocal` and `composeInMemory`.
 - **Three models** mapped explicitly at the adapter: domain types, persistence schemas (filesystem adapter), API contracts (`@filmfile/contracts`).
 - Use cases have one `execute(ctx, input)` taking an `ArchiveContext`, returning `Result<T, E>` for expected failures. REST + OpenAPI from Zod; the web UI uses the generated client.
@@ -60,4 +60,4 @@ Full rules in the `testing-conventions` and `security-rules` skills.
 
 ## Stack
 
-pnpm workspaces, TypeScript strict, Node LTS (`.nvmrc`). Hono + `@hono/zod-openapi`, Zod, `openapi-typescript` + `openapi-fetch`, sharp, better-sqlite3, chokidar, ULID, React + Vite + TanStack Query. Vitest, fast-check, Playwright. ESLint (`typescript-eslint`, `eslint-plugin-boundaries`), Prettier. Packages are scoped `@filmfile/*`.
+pnpm workspaces, TypeScript strict, Node LTS (`.nvmrc`). Hono + `@hono/zod-openapi`, Zod, `openapi-typescript` + `openapi-fetch`, sharp, better-sqlite3, ULID, React + Vite + TanStack Query. Vitest, fast-check, Playwright. ESLint (`typescript-eslint`, `eslint-plugin-boundaries`), Prettier. Packages are scoped `@filmfile/*`.
