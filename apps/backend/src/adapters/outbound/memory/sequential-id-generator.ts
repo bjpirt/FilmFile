@@ -1,8 +1,10 @@
 import type { IdGenerator } from '../../../application/ports/id-generator.ts';
 import {
+  isArchiveId,
   isFrameId,
   isRollId,
   isVersionId,
+  type ArchiveId,
   type FrameId,
   type RollId,
   type VersionId,
@@ -22,6 +24,10 @@ export class SequentialIdGenerator implements IdGenerator {
       throw new Error(`${id} is not a ULID`);
     }
     return id;
+  }
+
+  newArchiveId(): ArchiveId {
+    return this.#next(isArchiveId);
   }
 
   newRollId(): RollId {

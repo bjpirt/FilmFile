@@ -17,7 +17,7 @@ Each task is about one commit: small enough to review in one sitting, with its t
 The archive's name, author and copyright, set on first run and changed later; no labs (D35), and no licence yet (D42).
 
 - [x] **ArchiveRepository.** *(`EquipmentRepository` and `EventRepository`: U9–U12b.)* Port, filesystem and in-memory adapters, contract suite: the archive's ID, name, author and copyright, kept in `archive.json` (author and copyright in its `meta`). *(The rest of 0.4.1.)*
-- [ ] **1.3.1 Archive.** `InitialiseArchive`, `GetArchive` and `UpdateArchive`: the archive's name and its archive-wide `meta` (author, copyright). No labs are stored (D35), and no licence yet (D42).
+- [x] **1.3.1 Archive.** `InitialiseArchive`, `GetArchive` and `UpdateArchive`: the archive's name and its archive-wide `meta` (author, copyright). No labs are stored (D35), and no licence yet (D42).
 - [ ] **1.4.2 Archive routes.** *(Equipment and events routes: U9–U12b.)* `GET /api/archive` (404 until it's set up), `POST /api/archive` to set it up, and `PATCH /api/archive` with `If-Match`.
 - [ ] **1b.2 First-run setup.** Until the archive is set up, every page shows "Set up your archive" instead: its name (required), author and copyright (D43). Afterwards a Settings page, linked from the header, changes them. Adds a journey.
 

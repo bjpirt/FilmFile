@@ -1,8 +1,10 @@
 import type { IdGenerator } from '../../../application/ports/id-generator.ts';
 import {
+  isArchiveId,
   isFrameId,
   isRollId,
   isVersionId,
+  type ArchiveId,
   type FrameId,
   type RollId,
   type VersionId,
@@ -21,6 +23,10 @@ function brandedUlid<Id extends string>(
 
 /** ULIDs from the system clock and random numbers. */
 export class UlidGenerator implements IdGenerator {
+  newArchiveId(): ArchiveId {
+    return brandedUlid(isArchiveId);
+  }
+
   newRollId(): RollId {
     return brandedUlid(isRollId);
   }
