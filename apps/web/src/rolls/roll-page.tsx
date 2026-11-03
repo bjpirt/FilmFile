@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from '../routing.tsx';
 import { droppedFiles } from './dropped-files.ts';
+import { frameCount } from './frame-count.ts';
 import { FrameNumberEditor, type SaveOutcome } from './frame-number-editor.tsx';
 import { inFrameOrder } from './frame-order.ts';
 import { renumber } from './renumber.ts';
@@ -83,8 +84,16 @@ function ProposedNumber({
   }
   const changes = proposed !== undefined && proposed !== current;
   return (
-    <span className={changes ? 'frame-number changed' : 'frame-number'}>
-      {shown}
+    <span className="proposed-number">
+      <span className={changes ? 'frame-number changed' : 'frame-number'}>
+        {shown}
+      </span>
+      {changes && (
+        <del className="previous-number">
+          <span className="visually-hidden">previously </span>
+          {current ?? '—'}
+        </del>
+      )}
     </span>
   );
 }
@@ -100,6 +109,7 @@ export function RollPage({
   const [upload, setUpload] = useState<Upload>({ kind: 'idle' });
   const [order, setOrder] = useState<'frame' | 'scan'>('frame');
   const [changedElsewhere, setChangedElsewhere] = useState(false);
+  const [addingScans, setAddingScans] = useState(false);
   const [savingNumbers, setSavingNumbers] = useState(false);
   const [numbersNotSaved, setNumbersNotSaved] = useState(false);
   const [renumbering, setRenumbering] = useState<RenumberSettings | undefined>(
@@ -126,6 +136,8 @@ export function RollPage({
     if (roll.data === undefined) {
       return;
     }
+    // Keep the drop zone open, with its progress, once the roll has frames.
+    setAddingScans(true);
     if (files.length === 0) {
       setUpload({ kind: 'nothing-to-upload' });
       return;
@@ -241,13 +253,39 @@ export function RollPage({
   const settings = renumbering && renumberingOf(renumbering);
   const proposed =
     settings === undefined ? undefined : renumber(frames.length, settings);
+  const changing = proposed?.filter(
+    (number, i) => number !== frames[i]?.number,
+  ).length;
+  // An empty roll is waiting for its scans, so the drop zone is open from the start.
+  const dropZoneOpen = addingScans || frames.length === 0;
 
   return (
     <section>
-      <p>
-        <Link to="/">All rolls</Link>
-      </p>
-      <h1>Roll {roll.data.roll.roll}</h1>
+      <div className="page-heading">
+        <div className="roll-title">
+          <Link to="/">All rolls</Link>
+          <span className="muted" aria-hidden="true">
+            /
+          </span>
+          <h1>
+            <span className="visually-hidden">Roll </span>
+            <span className="roll-number">{roll.data.roll.roll}</span>
+          </h1>
+          <span className="muted">{frameCount(frames.length)}</span>
+        </div>
+        {frames.length > 0 && (
+          <button
+            type="button"
+            aria-expanded={dropZoneOpen}
+            aria-controls="drop-zone"
+            onClick={() => {
+              setAddingScans(!addingScans);
+            }}
+          >
+            Add scans
+          </button>
+        )}
+      </div>
 
       {changedElsewhere && (
         <p role="alert" className="changed-elsewhere">
@@ -258,46 +296,49 @@ export function RollPage({
         </p>
       )}
 
-      <div
-        className="drop-zone"
-        onDragOver={(event) => {
-          event.preventDefault();
-        }}
-        onDrop={(event) => {
-          event.preventDefault();
-          void droppedFiles(event.dataTransfer).then(addScans);
-        }}
-      >
-        <p>Drop lab scans or a folder of them here, or choose them:</p>
-        <label>
-          Choose lab scans
-          <input
-            type="file"
-            accept="image/jpeg"
-            multiple
-            disabled={upload.kind === 'uploading'}
-            onChange={(event) => {
-              void addScans(Array.from(event.target.files ?? []));
-              event.target.value = '';
-            }}
-          />
-        </label>
-        {upload.kind === 'uploading' && (
-          <p role="status">
-            Uploading {Math.min(upload.done + 1, upload.total)} of{' '}
-            {upload.total}…
-          </p>
-        )}
-        {upload.kind === 'nothing-to-upload' && (
-          <p role="status">
-            No JPEG scans found. In a folder, only scans directly inside it are
-            picked up, not those in folders within it.
-          </p>
-        )}
-        {upload.kind === 'finished' && (
-          <p role="status">{describe(upload.report)}</p>
-        )}
-      </div>
+      {dropZoneOpen && (
+        <div
+          id="drop-zone"
+          className="drop-zone"
+          onDragOver={(event) => {
+            event.preventDefault();
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            void droppedFiles(event.dataTransfer).then(addScans);
+          }}
+        >
+          <p>Drop lab scans or a folder of them here, or choose them:</p>
+          <label>
+            Choose lab scans
+            <input
+              type="file"
+              accept="image/jpeg"
+              multiple
+              disabled={upload.kind === 'uploading'}
+              onChange={(event) => {
+                void addScans(Array.from(event.target.files ?? []));
+                event.target.value = '';
+              }}
+            />
+          </label>
+          {upload.kind === 'uploading' && (
+            <p role="status">
+              Uploading {Math.min(upload.done + 1, upload.total)} of{' '}
+              {upload.total}…
+            </p>
+          )}
+          {upload.kind === 'nothing-to-upload' && (
+            <p role="status">
+              No JPEG scans found. In a folder, only scans directly inside it
+              are picked up, not those in folders within it.
+            </p>
+          )}
+          {upload.kind === 'finished' && (
+            <p role="status">{describe(upload.report)}</p>
+          )}
+        </div>
+      )}
 
       {frames.length === 0 ? (
         <p>No frames yet.</p>
@@ -342,6 +383,7 @@ export function RollPage({
           ) : (
             <RenumberPanel
               settings={renumbering}
+              changing={changing}
               change={setRenumbering}
               saving={savingNumbers}
               notSaved={numbersNotSaved}

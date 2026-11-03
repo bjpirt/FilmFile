@@ -17,12 +17,22 @@ export function renumberingOf(
     : undefined;
 }
 
+function numbersChanging(count: number): string {
+  if (count === 0) {
+    return 'No numbers will change';
+  }
+  return count === 1
+    ? '1 number will change'
+    : `${String(count)} numbers will change`;
+}
+
 /**
  * Renumbering as a sentence: "[First] scan is frame [6], counting [down]",
  * previewed on the contact sheet.
  */
 export function RenumberPanel({
   settings,
+  changing,
   change,
   save,
   saving,
@@ -30,6 +40,8 @@ export function RenumberPanel({
   cancel,
 }: {
   readonly settings: RenumberSettings;
+  /** How many frame numbers the preview changes, while the settings are valid. */
+  readonly changing: number | undefined;
   readonly change: (settings: RenumberSettings) => void;
   readonly save: () => void;
   readonly saving: boolean;
@@ -83,6 +95,9 @@ export function RenumberPanel({
           <option value="down">down</option>
         </select>
       </span>
+      {changing !== undefined && (
+        <span className="changing">{numbersChanging(changing)}</span>
+      )}
       <button
         type="button"
         className="primary"

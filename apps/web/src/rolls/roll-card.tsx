@@ -1,13 +1,7 @@
 import type { Roll } from '@filmfile/contracts/rolls';
 import { Link } from '../routing.tsx';
+import { frameCount } from './frame-count.ts';
 import { thumbnailUrl } from './thumbnail-url.ts';
-
-function frameCount(frames: number): string {
-  if (frames === 0) {
-    return 'No frames yet';
-  }
-  return frames === 1 ? '1 frame' : `${String(frames)} frames`;
-}
 
 /** A roll on the rolls page: a peek at its first three scans, its number and how many frames it has. */
 export function RollCard({ roll }: { readonly roll: Roll }) {

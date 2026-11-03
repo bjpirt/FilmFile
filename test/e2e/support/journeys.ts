@@ -26,7 +26,12 @@ export async function createRoll(
 /** Adds a fixture set's lab scans to the open roll. */
 export async function addScans(page: Page, set: FixtureSet): Promise<void> {
   const scans = await labScans(set);
-  await page.getByLabel('Choose lab scans').setInputFiles(
+  const chooser = page.getByLabel('Choose lab scans');
+  // On a roll with frames, the drop zone opens from Add scans.
+  if (!(await chooser.isVisible())) {
+    await page.getByRole('button', { name: 'Add scans' }).click();
+  }
+  await chooser.setInputFiles(
     scans.map(({ name, bytes }) => ({
       name,
       mimeType: 'image/jpeg',

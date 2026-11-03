@@ -468,3 +468,46 @@ select {
   object-fit: cover;
   width: 36px;
 }
+
+.visually-hidden {
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.roll-title {
+  align-items: baseline;
+  display: flex;
+  flex-grow: 1;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.roll-title h1 {
+  flex-grow: 0;
+}
+
+.roll-title .roll-number {
+  font-size: 1.75rem;
+}
+
+.proposed-number {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.previous-number {
+  color: var(--text-muted);
+  font-family: var(--font-numbers);
+  font-size: 1rem;
+  text-decoration: line-through;
+}
+
+.renumber .changing {
+  color: #c9a46a;
+  font-size: 0.9rem;
+}

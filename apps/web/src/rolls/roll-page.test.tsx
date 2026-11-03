@@ -162,10 +162,48 @@ function renderPage(service: { answer: (r: Request) => Promise<Response> }) {
 }
 
 function chooseScans(...files: File[]) {
+  // On a roll with frames, the drop zone opens from Add scans.
+  if (screen.queryByLabelText('Choose lab scans') === null) {
+    fireEvent.click(screen.getByRole('button', { name: 'Add scans' }));
+  }
   fireEvent.change(screen.getByLabelText('Choose lab scans'), {
     target: { files },
   });
 }
+
+test('heads the page with the roll number and how many frames it has', async () => {
+  renderPage(
+    fakeRollService([
+      aFrameWithScan('1', '12340001.jpg'),
+      aFrameWithScan('2', '12340002.jpg'),
+    ]),
+  );
+
+  expect(
+    await screen.findByRole('heading', { name: 'Roll 2026-014' }),
+  ).toBeDefined();
+  expect(screen.getByText('2 frames')).toBeDefined();
+});
+
+describe('adding scans', () => {
+  test('opens the drop zone from Add scans on a roll with frames', async () => {
+    renderPage(fakeRollService([aFrameWithScan('1', '12340001.jpg')]));
+    const addScans = await screen.findByRole('button', { name: 'Add scans' });
+    expect(screen.queryByLabelText('Choose lab scans')).toBeNull();
+    expect(addScans.getAttribute('aria-expanded')).toBe('false');
+
+    fireEvent.click(addScans);
+
+    expect(screen.getByLabelText('Choose lab scans')).toBeDefined();
+    expect(addScans.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  test('shows the drop zone straight away on a roll with no frames', async () => {
+    renderPage(fakeRollService());
+
+    expect(await screen.findByLabelText('Choose lab scans')).toBeDefined();
+  });
+});
 
 test('shows a thumbnail of each frame, labelled with its frame number', async () => {
   renderPage(
@@ -389,6 +427,23 @@ describe('renumbering', () => {
     expect(captions()).toEqual(['3', '2', '1']);
     expect(changed()).toEqual(['3', '1']);
     expect(service.ifMatches).toEqual([]);
+  });
+
+  test('shows the old number struck through beside each one that changes, and how many change', async () => {
+    await aTailToHeadRoll();
+
+    renumberSo('first', '3', 'down');
+
+    const struckThrough = Array.from(
+      document.querySelectorAll('.contact-sheet del'),
+      (previous) => previous.textContent,
+    );
+    expect(struckThrough).toEqual(['previously 1', 'previously 3']);
+    expect(screen.getByText('2 numbers will change')).toBeDefined();
+
+    renumberSo('first', '1', 'up');
+
+    expect(screen.getByText('No numbers will change')).toBeDefined();
   });
 
   test('numbers back from the last scan when that is the one chosen', async () => {
