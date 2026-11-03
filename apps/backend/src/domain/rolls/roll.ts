@@ -36,7 +36,8 @@ export interface Roll {
   readonly roll: RollNumber;
   /** A name for the roll, e.g. "Iceland, first day", or null. */
   readonly name: string | null;
-  readonly description: string | null;
+  /** The roll's own notes, e.g. how it was developed; its frames don't inherit them (D40). */
+  readonly notes: string | null;
   /** When the roll was shot, as precisely as it's known, or null. */
   readonly shot: ShotDate | null;
   /** The event the roll was shot at (D24), or null. */

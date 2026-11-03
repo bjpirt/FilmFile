@@ -13,7 +13,7 @@ test('catalogue a roll: create it with its details and scans, correct a number, 
 }) => {
   await createRoll(page, '2026-014', {
     name: 'Iceland, first day',
-    description: 'Jökulsárlón at dawn.',
+    notes: 'Jökulsárlón at dawn.',
     month: 'September',
     day: '14',
     time: '06:30',

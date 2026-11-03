@@ -84,14 +84,14 @@ async function waitToOpen(id: string) {
   });
 }
 
-test('asks for the roll number, name, description and date shot', () => {
+test('asks for the roll number, name, notes and date shot', () => {
   renderPage(fakeArchive());
 
   expect(screen.getByRole('heading', { name: 'New roll' })).toBeDefined();
   for (const label of [
     'Roll number',
     'Name',
-    'Description',
+    'Notes',
     'Year',
     'Month',
     'Day',
@@ -107,7 +107,7 @@ test('creates the roll with its details, then opens it', async () => {
 
   fill('Roll number', '2026-014');
   fill('Name', 'Iceland, first day');
-  fill('Description', 'Jökulsárlón at dawn.');
+  fill('Notes', 'Jökulsárlón at dawn.');
   fill('Month', '09');
   fill('Day', '14');
   fill('Time', '06:30');
@@ -118,7 +118,7 @@ test('creates the roll with its details, then opens it', async () => {
     {
       roll: '2026-014',
       name: 'Iceland, first day',
-      description: 'Jökulsárlón at dawn.',
+      notes: 'Jökulsárlón at dawn.',
       shot: '2026-09-14T06:30',
     },
   ]);

@@ -11,7 +11,7 @@ import {
 /** A new roll's details, all optional; the date as the new roll page asks for it. */
 export interface NewRoll {
   readonly name?: string;
-  readonly description?: string;
+  readonly notes?: string;
   readonly year?: string;
   readonly month?: string;
   readonly day?: string;
@@ -63,8 +63,8 @@ export async function createRoll(
   if (details.name !== undefined) {
     await page.getByLabel('Name').fill(details.name);
   }
-  if (details.description !== undefined) {
-    await page.getByLabel('Description').fill(details.description);
+  if (details.notes !== undefined) {
+    await page.getByLabel('Notes').fill(details.notes);
   }
   if (details.year !== undefined) {
     await page.getByLabel('Year').fill(details.year);

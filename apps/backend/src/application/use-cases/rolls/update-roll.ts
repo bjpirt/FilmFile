@@ -20,7 +20,7 @@ import { knownLens } from './known-lens.ts';
 import { textOrNull } from './text-or-null.ts';
 
 /**
- * Changes a roll's details: name, description, date shot, event, camera,
+ * Changes a roll's details: name, notes, date shot, event, camera,
  * film stock and lens. A detail left
  * out stays as it is; null or blank clears it. Saved only if the roll hasn't
  * changed since the caller read it at `expectedVersion`.
@@ -46,7 +46,7 @@ export class UpdateRoll {
       readonly id: RollId;
       readonly expectedVersion: string;
       readonly name?: string | null | undefined;
-      readonly description?: string | null | undefined;
+      readonly notes?: string | null | undefined;
       readonly shot?: string | null | undefined;
       /** The event's slug. */
       readonly event?: string | null | undefined;
@@ -102,9 +102,7 @@ export class UpdateRoll {
     const roll = {
       ...current.roll,
       ...(input.name === undefined ? {} : { name: textOrNull(input.name) }),
-      ...(input.description === undefined
-        ? {}
-        : { description: textOrNull(input.description) }),
+      ...(input.notes === undefined ? {} : { notes: textOrNull(input.notes) }),
       ...(shot.value === undefined ? {} : { shot: shot.value }),
       ...(event.value === undefined ? {} : { event: event.value }),
       ...(camera.value === undefined ? {} : { camera: camera.value }),

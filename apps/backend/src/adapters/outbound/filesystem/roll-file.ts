@@ -24,14 +24,29 @@ import { err, ok, type Result } from '../../../domain/shared/result.ts';
 // The persistence model: what roll.json holds, parsed with Zod when read and
 // mapped explicitly to and from the domain types.
 
-const currentSchema = 1;
+const currentSchema = 2;
 
 /**
  * Upgrades a roll.json from the schema version it's keyed by to the next one.
  * Files are upgraded in memory when read, and written in the current schema
- * the next time the roll is saved. None yet: schema 1 is the first.
+ * the next time the roll is saved.
  */
-const migrations = new Map<number, (old: object) => object>();
+const migrations = new Map<number, (old: object) => object>([
+  // Schema 1 called a roll's notes its description (D40).
+  [
+    1,
+    (old) => {
+      const { description, ...rest } = z
+        .looseObject({ description: z.unknown().optional() })
+        .parse(old);
+      return {
+        ...rest,
+        schema: 2,
+        ...(description === undefined ? {} : { notes: description }),
+      };
+    },
+  ],
+]);
 
 function branded<T extends string>(
   is: (value: string) => value is T,
@@ -85,7 +100,7 @@ const storedRoll = z.object({
   ),
   // Added after the first rolls were written, which read as having none.
   name: z.string().nullable().default(null),
-  description: z.string().nullable().default(null),
+  notes: z.string().nullable().default(null),
   shot: branded<ShotDate>(isShotDate, 'must be a date like 2026-09-14')
     .nullable()
     .default(null),
@@ -150,13 +165,12 @@ export function parseRollFile(text: string): Result<Roll, string> {
     );
     return err(`it doesn't match the roll format (${issues.join('; ')})`);
   }
-  const { id, roll, name, description, shot, event, meta, frames } =
-    parsed.data;
+  const { id, roll, name, notes, shot, event, meta, frames } = parsed.data;
   return ok({
     id,
     roll,
     name,
-    description,
+    notes,
     shot,
     event,
     camera: meta.camera ?? null,
@@ -205,7 +219,7 @@ export function rollFileContent(roll: Roll): string {
     id: roll.id,
     roll: roll.roll,
     name: roll.name,
-    description: roll.description,
+    notes: roll.notes,
     shot: roll.shot,
     event: roll.event,
     // Only the details a roll has, so its file says nothing of the rest.

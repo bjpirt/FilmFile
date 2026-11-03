@@ -120,13 +120,13 @@ test('heads the page with the roll number and how many frames it has', async () 
   expect(screen.getByText('2 frames')).toBeDefined();
 });
 
-test('shows the roll’s name, camera, lens, film stock, date shot and description', async () => {
+test('shows the roll’s name, camera, lens, film stock, date shot and notes', async () => {
   renderPage(
     archiveWith(
       [],
       {
         name: 'Iceland, first day',
-        description: 'Jökulsárlón at dawn.',
+        notes: 'Jökulsárlón at dawn.',
         shot: '2026-09-14T06:30',
         camera: 'nikon-fe',
         film: 'kodak-portra-400',
@@ -159,7 +159,7 @@ function details(): (string | null)[][] {
 describe('editing the details', () => {
   const iceland = {
     name: 'Iceland',
-    description: 'Jökulsárlón at dawn.',
+    notes: 'Jökulsárlón at dawn.',
     shot: '2026-09-14',
   };
 
@@ -194,7 +194,7 @@ describe('editing the details', () => {
     await editDetails();
 
     expect(field('Name').value).toBe('Iceland');
-    expect(field('Description').value).toBe('Jökulsárlón at dawn.');
+    expect(field('Notes').value).toBe('Jökulsárlón at dawn.');
     expect(field('Year').value).toBe('2026');
     expect(field('Month').value).toBe('09');
     expect(field('Day').value).toBe('14');
@@ -212,7 +212,7 @@ describe('editing the details', () => {
     await editDetails();
 
     fill('Name', 'Westfjords');
-    fill('Description', '');
+    fill('Notes', '');
     fill('Month', '');
     fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
 

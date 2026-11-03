@@ -23,7 +23,7 @@ describe('POST /api/rolls', () => {
       id: idOf(body),
       roll: '2026-014',
       name: null,
-      description: null,
+      notes: null,
       shot: null,
       event: null,
       camera: null,
@@ -46,11 +46,11 @@ describe('POST /api/rolls', () => {
     );
 
     expect(saved).toEqual({
-      schema: 1,
+      schema: 2,
       id: idOf(created),
       roll: '2026-014',
       name: null,
-      description: null,
+      notes: null,
       shot: null,
       event: null,
       meta: {},
@@ -58,18 +58,18 @@ describe('POST /api/rolls', () => {
     });
   });
 
-  test('creates a roll with its name, description and date shot', async () => {
+  test('creates a roll with its name, notes and date shot', async () => {
     const response = await post('/api/rolls', {
       roll: '2026-014',
       name: '  Iceland, first day ',
-      description: 'Jökulsárlón at dawn.',
+      notes: 'Jökulsárlón at dawn.',
       shot: '2026-09-14T06:30',
     });
 
     expect(response.status).toBe(201);
     expect(await response.json()).toMatchObject({
       name: 'Iceland, first day',
-      description: 'Jökulsárlón at dawn.',
+      notes: 'Jökulsárlón at dawn.',
       shot: '2026-09-14T06:30',
     });
   });
@@ -214,14 +214,14 @@ describe('PATCH /api/rolls/{id}', () => {
 
     const response = await patch(
       url,
-      { description: 'Jökulsárlón at dawn.', shot: '2026-09' },
+      { notes: 'Jökulsárlón at dawn.', shot: '2026-09' },
       etag,
     );
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
       name: 'Iceland',
-      description: 'Jökulsárlón at dawn.',
+      notes: 'Jökulsárlón at dawn.',
       shot: '2026-09',
     });
     expect(response.headers.get('ETag')).toBe(

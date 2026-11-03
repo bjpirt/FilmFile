@@ -365,6 +365,19 @@ describe('describing a frame', () => {
     expect(archive.ifMatches).toEqual(['"v1"', '"v2"']);
   });
 
+  test('starts with the frame’s own notes, not its roll’s (D40)', async () => {
+    const archive = fakeArchive({
+      rolls: [{ ...structuredClone(roll), notes: 'Developed in HC-110.' }],
+    });
+    openAt(`/rolls/${roll.id}/frames/${first?.id ?? ''}`, archive);
+    const details = await showDetails();
+
+    expect(
+      within(details).getByRole('textbox', { name: 'Notes' }),
+    ).toHaveProperty('value', '');
+    expect(within(details).queryByText('Developed in HC-110.')).toBeNull();
+  });
+
   test('saves nothing when a field is left unchanged', async () => {
     const archive = openFirst();
     const details = await showDetails();

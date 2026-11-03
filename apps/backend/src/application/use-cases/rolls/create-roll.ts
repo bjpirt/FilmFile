@@ -41,7 +41,7 @@ export class CreateRoll {
     input: {
       readonly roll: string;
       readonly name?: string | undefined;
-      readonly description?: string | undefined;
+      readonly notes?: string | undefined;
       readonly shot?: string | undefined;
       /** The event's slug. */
       readonly event?: string | undefined;
@@ -94,7 +94,7 @@ export class CreateRoll {
       id: this.#ids.newRollId(),
       roll: rollNumber.value,
       name: textOrNull(input.name),
-      description: textOrNull(input.description),
+      notes: textOrNull(input.notes),
       shot: shot.value,
       event: event.value,
       camera: camera.value,

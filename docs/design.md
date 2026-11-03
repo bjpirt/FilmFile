@@ -153,6 +153,7 @@ Equipment slugs resolve to their records, whose fields can be overridden by more
 | `{ "add": [...], "remove": [...] }` | Modifies the inherited list. |
 | `null` | Clears the inherited value. |
 
+- **Not inherited:** a record's own descriptive fields, such as a roll's name and notes and a frame's title, rating and notes (D40).
 - **Version-level overrides are narrow:** scan settings, licence, and transforms (crop and rotate).
 - **Multiple events setting the same field:** the frame's event order decides (first wins), and the tool flags the clash.
 - **Provenance:** the resolver records which layer and ID set each value. The UI shows it ("lens: Nikkor 105mm — frame"), and the resolved record is exactly what workflows and exported EXIF/XMP use.

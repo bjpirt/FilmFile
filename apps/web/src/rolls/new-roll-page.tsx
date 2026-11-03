@@ -52,7 +52,7 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
   const events = useEvents(api);
   const [rollNumber, setRollNumber] = useState('');
   const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  const [notes, setNotes] = useState('');
   const [camera, setCamera] = useState<CameraChoice>(nothingPicked);
   const [film, setFilm] = useState<FilmChoice>(nothingPicked);
   const [lens, setLens] = useState<LensChoice>(nothingPicked);
@@ -132,9 +132,7 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
       body: {
         roll,
         ...(name.trim() === '' ? {} : { name: name.trim() }),
-        ...(description.trim() === ''
-          ? {}
-          : { description: description.trim() }),
+        ...(notes.trim() === '' ? {} : { notes: notes.trim() }),
         shot: shotDate,
         ...(chosen.slug === null ? {} : { camera: chosen.slug }),
         ...(chosenFilm.slug === null ? {} : { film: chosenFilm.slug }),
@@ -232,13 +230,13 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
           />
         </label>
         <label>
-          Description
+          Notes
           <textarea
-            value={description}
+            value={notes}
             rows={3}
             maxLength={5000}
             onChange={(event) => {
-              setDescription(event.target.value);
+              setNotes(event.target.value);
             }}
           />
         </label>

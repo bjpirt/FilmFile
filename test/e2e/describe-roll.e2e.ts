@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { addCamera, createRoll } from './support/journeys.ts';
 
-test('describe a roll: add its name, description, date shot and a new camera later, and find them on the roll and in the rolls list', async ({
+test('describe a roll: add its name, notes, date shot and a new camera later, and find them on the roll and in the rolls list', async ({
   page,
 }) => {
   await createRoll(page, '2025-401');
@@ -9,7 +9,7 @@ test('describe a roll: add its name, description, date shot and a new camera lat
   await page.getByRole('button', { name: 'Edit details' }).click();
   const details = page.getByRole('form', { name: 'Roll details' });
   await details.getByLabel('Name').fill('Westfjords');
-  await details.getByLabel('Description').fill('Puffins at Látrabjarg.');
+  await details.getByLabel('Notes').fill('Puffins at Látrabjarg.');
   await details.getByLabel('Month').selectOption({ label: 'June' });
   await addCamera(page, { make: 'Olympus', model: 'OM-1' });
   await details.getByRole('button', { name: 'Save details' }).click();

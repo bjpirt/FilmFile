@@ -47,7 +47,7 @@ const aRoll: fc.Arbitrary<Roll> = fc.record({
   id: ulid.filter(isRollId),
   roll: fc.stringMatching(/^\d{4}-\d{3}$/).filter(isRollNumber),
   name: fc.option(fc.string(), { nil: null }),
-  description: fc.option(fc.string(), { nil: null }),
+  notes: fc.option(fc.string(), { nil: null }),
   shot: fc.option(
     fc
       .constantFrom<string>('2026', '2026-09', '2026-09-14', '2026-09-14T15:30')
@@ -128,7 +128,27 @@ describe('roll.json', () => {
     });
   });
 
-  test('reads a roll written before rolls had a name, description or date as having none', () => {
+  test('reads a schema 1 roll’s description as its notes, and writes it back as notes', () => {
+    const read = parseRollFile(
+      JSON.stringify({
+        schema: 1,
+        id: '01M6EAAP694BKWR9HZ4N5Z54XD',
+        roll: '2026-014',
+        description: 'Developed in HC-110.',
+        frames: [],
+      }),
+    );
+
+    expect(read).toMatchObject({
+      ok: true,
+      value: { notes: 'Developed in HC-110.' },
+    });
+    const written: unknown = read.ok && JSON.parse(rollFileContent(read.value));
+    expect(written).toMatchObject({ schema: 2, notes: 'Developed in HC-110.' });
+    expect(written).not.toHaveProperty('description');
+  });
+
+  test('reads a roll written before rolls had a name, notes or date as having none', () => {
     const read = parseRollFile(
       JSON.stringify({
         schema: 1,
@@ -142,7 +162,7 @@ describe('roll.json', () => {
       ok: true,
       value: {
         name: null,
-        description: null,
+        notes: null,
         shot: null,
         event: null,
         camera: null,
@@ -177,8 +197,8 @@ describe('roll.json', () => {
     ],
     [
       'was written by a newer FilmFile',
-      JSON.stringify({ schema: 2 }),
-      'written by a newer version of FilmFile (schema 2)',
+      JSON.stringify({ schema: 3 }),
+      'written by a newer version of FilmFile (schema 3)',
     ],
     ['has no schema version', JSON.stringify({}), 'has no schema version'],
   ])('is reported, not read, when it %s', (_case, text, problem) => {

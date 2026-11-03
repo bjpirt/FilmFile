@@ -69,7 +69,7 @@ export const roll = z
       description: 'A name for the roll, or null.',
       example: 'Iceland, first day',
     }),
-    description: z.string().nullable(),
+    notes: z.string().nullable(),
     shot: shotDate.nullable(),
     event: slug.nullable().meta({
       description: 'The slug of the event the roll was shot at, or null.',
@@ -113,7 +113,7 @@ export const createRollRequest = z
   .object({
     roll: rollNumber,
     name: z.string().max(100).optional(),
-    description: z.string().max(5000).optional(),
+    notes: z.string().max(5000).optional(),
     shot: shotDate.optional(),
     event: slug.optional(),
     camera: slug.optional(),
@@ -125,7 +125,7 @@ export const createRollRequest = z
 export const updateRollRequest = z
   .object({
     name: z.string().max(100).nullable().optional(),
-    description: z.string().max(5000).nullable().optional(),
+    notes: z.string().max(5000).nullable().optional(),
     shot: shotDate.nullable().optional(),
     event: slug.nullable().optional(),
     camera: slug.nullable().optional(),

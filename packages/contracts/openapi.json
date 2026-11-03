@@ -63,7 +63,7 @@
             "description": "A name for the roll, or null.",
             "example": "Iceland, first day"
           },
-          "description": {
+          "notes": {
             "type": [
               "string",
               "null"
@@ -128,7 +128,7 @@
           "id",
           "roll",
           "name",
-          "description",
+          "notes",
           "shot",
           "event",
           "camera",
@@ -327,7 +327,7 @@
             "type": "string",
             "maxLength": 100
           },
-          "description": {
+          "notes": {
             "type": "string",
             "maxLength": 5000
           },
@@ -375,7 +375,7 @@
             ],
             "maxLength": 100
           },
-          "description": {
+          "notes": {
             "type": [
               "string",
               "null"

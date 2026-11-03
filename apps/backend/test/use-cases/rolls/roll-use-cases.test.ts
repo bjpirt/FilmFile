@@ -61,7 +61,7 @@ describe('CreateRoll', () => {
         id: '00000000000000000000000001',
         roll: '2026-014',
         name: null,
-        description: null,
+        notes: null,
         shot: null,
         event: null,
         camera: null,
@@ -188,13 +188,13 @@ describe('CreateRoll', () => {
     const created = await createRoll.execute(ctx, {
       roll: '2026-014',
       name: ' Iceland ',
-      description: '   ',
+      notes: '   ',
       shot: '2026-09',
     });
 
     expect(created).toMatchObject({
       ok: true,
-      value: { name: 'Iceland', description: null, shot: '2026-09' },
+      value: { name: 'Iceland', notes: null, shot: '2026-09' },
     });
   });
 
@@ -300,7 +300,7 @@ describe('UpdateRoll', () => {
     const updated = await updateRoll.execute(ctx, {
       id,
       expectedVersion: version,
-      description: ' Jökulsárlón at dawn. ',
+      notes: ' Jökulsárlón at dawn. ',
       shot: '2026-09-14',
     });
 
@@ -310,7 +310,7 @@ describe('UpdateRoll', () => {
       value: {
         roll: {
           name: 'Iceland',
-          description: 'Jökulsárlón at dawn.',
+          notes: 'Jökulsárlón at dawn.',
           shot: '2026-09-14',
         },
       },

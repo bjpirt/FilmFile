@@ -78,7 +78,7 @@ function ProposedNumber({
   );
 }
 
-/** The roll's name, then a row of its details, then its description: whichever it has. */
+/** The roll's name, then a row of its details, then its notes: whichever it has. */
 function RollAbout({
   roll,
   camera,
@@ -102,7 +102,7 @@ function RollAbout({
       value: roll.shot === null ? undefined : formatShot(roll.shot),
     },
   ].filter((fact) => fact.value !== undefined);
-  if (roll.name === null && facts.length === 0 && roll.description === null) {
+  if (roll.name === null && facts.length === 0 && roll.notes === null) {
     return null;
   }
   return (
@@ -118,9 +118,7 @@ function RollAbout({
           ))}
         </dl>
       )}
-      {roll.description !== null && (
-        <p className="roll-description">{roll.description}</p>
-      )}
+      {roll.notes !== null && <p className="roll-notes">{roll.notes}</p>}
     </div>
   );
 }

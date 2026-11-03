@@ -32,11 +32,11 @@ test('creates roll.json in the roll year’s folder', async () => {
   expect(await readFile(rollFile('2026-014'), 'utf8')).toBe(
     `${JSON.stringify(
       {
-        schema: 1,
+        schema: 2,
         id: '00000000000000000000000001',
         roll: '2026-014',
         name: null,
-        description: null,
+        notes: null,
         shot: null,
         event: null,
         meta: {},

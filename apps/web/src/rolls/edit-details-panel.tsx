@@ -17,7 +17,7 @@ import { shotFieldsOf, shotFrom, type ShotFields } from './shot-fields.ts';
 /** A roll's details as the panel saves them: all of them, blank ones as null. */
 export interface RollDetails {
   readonly name: string | null;
-  readonly description: string | null;
+  readonly notes: string | null;
   readonly shot: string;
   /** The camera chosen, which may be a new one. */
   readonly camera: CameraChoice;
@@ -33,7 +33,7 @@ function textOrNull(text: string): string | null {
   return text.trim() === '' ? null : text.trim();
 }
 
-/** A roll's name, description, date shot, camera, lens, film stock and event, to change and save. */
+/** A roll's name, notes, date shot, camera, lens, film stock and event, to change and save. */
 export function EditDetailsPanel({
   roll,
   cameras,
@@ -53,7 +53,7 @@ export function EditDetailsPanel({
   readonly cancel: () => void;
 }) {
   const [name, setName] = useState(roll.name ?? '');
-  const [description, setDescription] = useState(roll.description ?? '');
+  const [notes, setNotes] = useState(roll.notes ?? '');
   const [shot, setShot] = useState<ShotFields>(shotFieldsOf(roll.shot));
   const [camera, setCamera] = useState<CameraChoice>(choiceOf(roll.camera));
   const [film, setFilm] = useState<FilmChoice>(choiceOf(roll.film));
@@ -76,7 +76,7 @@ export function EditDetailsPanel({
     setSaving(true);
     const notSaved = await save({
       name: textOrNull(name),
-      description: textOrNull(description),
+      notes: textOrNull(notes),
       shot: entered.shot,
       camera,
       film,
@@ -109,13 +109,13 @@ export function EditDetailsPanel({
         />
       </label>
       <label>
-        Description
+        Notes
         <textarea
-          value={description}
+          value={notes}
           rows={3}
           maxLength={5000}
           onChange={(event) => {
-            setDescription(event.target.value);
+            setNotes(event.target.value);
           }}
         />
       </label>

@@ -1441,7 +1441,7 @@ export interface components {
              * @example Iceland, first day
              */
             name: string | null;
-            description: string | null;
+            notes: string | null;
             /** @example 2026-09-14 */
             shot: string | null;
             /**
@@ -1531,7 +1531,7 @@ export interface components {
              */
             roll: string;
             name?: string;
-            description?: string;
+            notes?: string;
             /** @example 2026-09-14 */
             shot?: string;
             /** @example nikon-fe */
@@ -1546,7 +1546,7 @@ export interface components {
         /** @description The details to change. A detail left out stays as it is; null clears it. */
         UpdateRollRequest: {
             name?: string | null;
-            description?: string | null;
+            notes?: string | null;
             /** @example 2026-09-14 */
             shot?: string | null;
             /** @example nikon-fe */
