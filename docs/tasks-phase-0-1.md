@@ -49,6 +49,7 @@ Settled on 2 November 2026 and recorded in `docs/design.md`. Tasks refer to them
 | D24 | A roll belongs to at most one event, which may be nested in another. Frames can be in events too (D25). | U12 |
 | D25 | Frames inherit their roll's camera, film stock, lens and events and can have their own, set in bulk on selected frames. A roll has at most one event; a frame can be in several. Grouping and filtering rolls use the roll's own values; an event's page shows frames from every roll. | U14–U17 |
 | D26 | Locations are a place name with optional latitude and longitude, settable on events, rolls and frames, and inherited like the other details (design section 6). Coordinates are entered as text for now: a map picker would need map tiles from outside, which the CSP blocks (D21). | U18 |
+| D27 | A roll has an optional name and description, and an optional date shot of varying precision: a year at least, then month, day and time (`2026`, `2026-09`, `2026-09-14`, `2026-09-14T15:30`, local time). The new roll page starts its year from the roll number. Rolls are created on their own page with their details and scans, not from a field on the rolls page. | U7 |
 
 **Still open** (in `docs/design.md`, section 15): how Phase 2 tells versions apart without a `kind` (D16).
 
@@ -144,7 +145,7 @@ Key journeys, each named by the task that adds it:
 | Catalogue a roll (exists) | Create a roll, add its scans, correct a frame number, reload and find it all there |
 | Renumber a roll (exists) | A tail-to-head roll renumbered as "last scan is frame 1, counting down", saved and reloaded |
 | Find rolls (U6) | Switch grid and list, group by year, filter by year, close and reopen the browse panel |
-| Describe a roll (U8 onwards) | Set a roll's shot date, camera, film stock and lens, then find it grouped and filtered by each |
+| Describe a roll (U7 onwards) | Create a roll with its name, description, date, scans, camera, film stock and lens, then find it grouped and filtered by each |
 | Organise by event (U12) | Create an event inside another, put rolls in it, and browse to them by event |
 | Bulk edit (U16) | Select some of a roll's frames, put them in an event and give them another camera, then find them under that event with the roll's other frames left as they were |
 
@@ -161,17 +162,17 @@ Key journeys, each named by the task that adds it:
 
 ### Layers of data
 
-Each layer is one vertical slice: the field in the domain, `roll.json` (an optional field with a default, so older files still read), the API and contracts, "Edit details" on the roll page, and wherever the design shows it: the roll page's details row, cards, list columns, the browse panel, Group by and filters. Each extends the "Describe a roll" journey.
+Each layer is one vertical slice: the field in the domain, `roll.json` (an optional field with a default, so older files still read), the API and contracts, the new roll page and "Edit details", and wherever the design shows it: the roll page's details row, cards, list columns, the browse panel, Group by and filters. Each extends the "Describe a roll" journey.
 
-- [ ] **U7 Edit details.** An "Edit details" panel on the roll page for the roll's own fields, saved with `If-Match` like the frame numbers (a roll changed elsewhere is never overwritten). Its first field is notes, so the panel, the API (`PATCH /api/rolls/{rollId}`) and the conflict message exist before the first field the design groups by.
-- [ ] **U8 Shot date.** Month and year shot, shown on cards ("Sep 2026"), in the list's Shot column and in the details row; the rolls can be sorted by roll number or shot date (D9). Starts the "Describe a roll" journey.
-- [ ] **U9 Cameras.** Cameras as equipment records (make and model, a slug from them, `equipment/cameras/<slug>.json`). Edit details picks a camera, or creates one by typing a new name. Shown on cards ("Nikon FE · …"), in the list and details row; Group by Camera; a Cameras section in the browse panel with counts.
+- [ ] **U7 New roll page.** New roll opens its own page (`/rolls/new`) instead of a field on the rolls page. It asks for the roll's details: roll number, name, description, and the date it was shot, which needs a year at least and can add month, day and time (D27). Scans can be dropped or chosen on the same page, and are listed until the roll is created. Create roll saves the roll with its details, uploads the scans with progress, and opens the roll's page. The details show on cards (name, and the date as "Sep 2026"), in the list (Name and Shot columns) and on the roll page. Rolls can also be sorted by roll number or date shot (D9). Starts the "Describe a roll" journey. Later layers (camera, film stock, lens, event) add their fields to this page.
+- [ ] **U8 Edit details.** An "Edit details" panel on the roll page for the same fields, saved with `If-Match` like the frame numbers (a roll changed elsewhere is never overwritten). API: `PATCH /api/rolls/{rollId}`.
+- [ ] **U9 Cameras.** Cameras as equipment records (make and model, a slug from them, `equipment/cameras/<slug>.json`). The new roll page and Edit details pick a camera, or create one by typing a new name. Shown on cards ("Nikon FE · …"), in the list and details row; Group by Camera; a Cameras section in the browse panel with counts.
 - [ ] **U10 Film stocks.** The same pattern for film stocks (make, name, ISO, format), completing cards' "camera · film stock" line; Group by Film stock; a Film stocks section in the browse panel.
 - [ ] **U11 Lens.** A lens per roll, picked or created the same way, shown in the details row. Not a grouping: lenses can differ frame to frame later.
-- [ ] **U12 Events.** Events with a name and an optional parent event (`events/<slug>.json`), created from Edit details or an Events page listing them; a roll belongs to one event (D24). Cards and list show "Parent › Event"; Group by Event, with "No event" last; an Events section in the browse panel, nested, where choosing a parent includes its children's rolls. Adds the "Organise by event" journey.
+- [ ] **U12 Events.** Events with a name and an optional parent event (`events/<slug>.json`), created from the new roll page, Edit details or an Events page listing them; a roll belongs to one event (D24). Cards and list show "Parent › Event"; Group by Event, with "No event" last; an Events section in the browse panel, nested, where choosing a parent includes its children's rolls. Adds the "Organise by event" journey.
 - [ ] **U13 Equipment page.** The Equipment link: cameras, lenses and film stocks with how many rolls use each, each linking to the rolls filtered by it.
 
-**Checkpoint:** a real roll can be catalogued in the browser with its shot date, camera, film stock, lens and event, found again by grouping and filtering on each.
+**Checkpoint:** a real roll can be catalogued in the browser with its name, description, date shot, camera, film stock, lens and event, found again by grouping and filtering on each.
 
 ### Bulk editing and locations
 
