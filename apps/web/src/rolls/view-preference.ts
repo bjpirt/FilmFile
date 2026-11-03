@@ -13,6 +13,24 @@ export function rememberedView(): RollsView {
   }
 }
 
+const browseKey = 'filmfile.browsePanelOpen';
+
+export function rememberedBrowseOpen(): boolean {
+  try {
+    return localStorage.getItem(browseKey) !== 'false';
+  } catch {
+    return true;
+  }
+}
+
+export function rememberBrowseOpen(open: boolean): void {
+  try {
+    localStorage.setItem(browseKey, String(open));
+  } catch {
+    // Not remembered this time; the toggle still works.
+  }
+}
+
 export function rememberView(view: RollsView): void {
   try {
     localStorage.setItem(key, view);

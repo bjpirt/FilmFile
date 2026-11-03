@@ -2,13 +2,20 @@
 import { createApiClient } from '@filmfile/contracts/client';
 import type { Roll, UnreadableRoll } from '@filmfile/contracts/rolls';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { RollsPage } from './rolls-page.tsx';
 
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  window.history.replaceState(null, '', '/');
 });
 
 /** Answers the rolls endpoints the way the backend does, keeping rolls in memory. */
@@ -56,7 +63,8 @@ function fakeRollsService(
 
 function aRoll(roll: string, frames = 0): Roll {
   return {
-    id: '01JC8Z7K3M0000000000000099',
+    // Unique per roll number, e.g. 2026-014 → 01JC8Z7K3M0000000002026014.
+    id: `01JC8Z7K3M000000000${roll.replace('-', '')}`,
     roll,
     frames: Array.from({ length: frames }, (_, i) => ({
       id: `01JC8Z7K3M00000000000001${String(i).padStart(2, '0')}`,
@@ -66,14 +74,17 @@ function aRoll(roll: string, frames = 0): Roll {
   };
 }
 
-function renderPage(service: (request: Request) => Promise<Response>) {
+function renderPage(
+  service: (request: Request) => Promise<Response>,
+  { browseOpen = true }: { browseOpen?: boolean } = {},
+) {
   const api = createApiClient({ baseUrl: 'http://localhost', fetch: service });
   const queries = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   render(
     <QueryClientProvider client={queries}>
-      <RollsPage api={api} />
+      <RollsPage api={api} browseOpen={browseOpen} />
     </QueryClientProvider>,
   );
 }
@@ -126,10 +137,108 @@ test('shows each roll as a card with its first three scans', async () => {
   expect(peek).toEqual(
     ['00', '01', '02'].map(
       (n) =>
-        `/api/rolls/01JC8Z7K3M0000000000000099/frames/01JC8Z7K3M00000000000001${n}/versions/01JC8Z7K3M00000000000002${n}/thumbnail?size=small`,
+        `/api/rolls/01JC8Z7K3M0000000002026014/frames/01JC8Z7K3M00000000000001${n}/versions/01JC8Z7K3M00000000000002${n}/thumbnail?size=small`,
     ),
   );
   expect(screen.getByText('5 frames')).toBeDefined();
+});
+
+describe('grouping, browsing and the address', () => {
+  const someRolls = () =>
+    fakeRollsService([
+      aRoll('2025-003', 1),
+      aRoll('2026-001', 2),
+      aRoll('2026-014', 3),
+    ]);
+
+  /** The rolls shown, by roll number, in order. */
+  function rollsShown(): string[] {
+    return screen
+      .getAllByRole('link')
+      .map((link) => link.textContent)
+      .filter((text) => /^\d{4}-\d{3}$/.test(text));
+  }
+
+  test('groups rolls by year, newest first, with a count for each', async () => {
+    renderPage(someRolls());
+    await screen.findByText('2026-014');
+
+    fireEvent.change(screen.getByLabelText('Group by'), {
+      target: { value: 'year' },
+    });
+
+    const groupHeadings = screen
+      .getAllByRole('heading', { level: 2 })
+      .filter((heading) => heading.closest('aside') === null);
+    expect(groupHeadings.map((h) => h.textContent)).toEqual([
+      '2026 2 rolls',
+      '2025 1 roll',
+    ]);
+    expect(window.location.search).toBe('?view=grid&group=year');
+  });
+
+  test('lists the years in the browse panel, and filters by the one chosen', async () => {
+    renderPage(someRolls());
+    const browse = await screen.findByRole('complementary', {
+      name: 'Browse rolls',
+    });
+
+    fireEvent.click(within(browse).getByRole('button', { name: /^2025/ }));
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Rolls from 2025' }),
+    ).toBeDefined();
+    expect(rollsShown()).toEqual(['2025-003']);
+    expect(window.location.search).toBe('?view=grid&year=2025');
+    expect(
+      within(browse)
+        .getByRole('button', { name: /^2025/ })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
+  });
+
+  test('shows every roll again from All rolls', async () => {
+    window.history.replaceState(null, '', '/?year=2025');
+    renderPage(someRolls());
+    await screen.findByText('2025-003');
+
+    fireEvent.click(screen.getByRole('button', { name: /^All rolls/ }));
+
+    expect(rollsShown()).toEqual(['2025-003', '2026-001', '2026-014']);
+    expect(window.location.search).toBe('?view=grid');
+  });
+
+  test('opens with the view, grouping and filter in the address', async () => {
+    window.history.replaceState(null, '', '/?view=list&group=year&year=2026');
+
+    renderPage(someRolls());
+
+    expect(await screen.findByRole('table')).toBeDefined();
+    expect(rollsShown()).toEqual(['2026-001', '2026-014']);
+    expect(screen.getByLabelText<HTMLSelectElement>('Group by').value).toBe(
+      'year',
+    );
+  });
+
+  test('counts the rolls in each year in the browse panel', async () => {
+    renderPage(someRolls());
+    const browse = await screen.findByRole('complementary', {
+      name: 'Browse rolls',
+    });
+
+    expect(
+      within(browse)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['All rolls3', '20262', '20251']);
+  });
+
+  test('leaves out the browse panel when it is closed', async () => {
+    renderPage(someRolls(), { browseOpen: false });
+    await screen.findByText('2026-014');
+
+    expect(screen.queryByRole('complementary')).toBeNull();
+  });
 });
 
 describe('the list view', () => {

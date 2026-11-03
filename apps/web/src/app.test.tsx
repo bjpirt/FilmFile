@@ -9,6 +9,7 @@ const roll = { id: '01JC8Z7K3M0000000000000001', roll: '2026-014', frames: [] };
 
 beforeEach(() => {
   window.history.pushState(null, '', '/');
+  localStorage.clear();
 });
 
 afterEach(cleanup);
@@ -54,6 +55,25 @@ test('opens the roll in the address bar', async () => {
 
   expect(
     await screen.findByRole('heading', { name: 'Roll 2026-014' }),
+  ).toBeDefined();
+});
+
+test('hides and shows the browse panel from the header', async () => {
+  renderApp();
+  await screen.findByRole('complementary', { name: 'Browse rolls' });
+
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Hide the browse panel' }),
+  );
+
+  expect(screen.queryByRole('complementary')).toBeNull();
+
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Show the browse panel' }),
+  );
+
+  expect(
+    screen.getByRole('complementary', { name: 'Browse rolls' }),
   ).toBeDefined();
 });
 

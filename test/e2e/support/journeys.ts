@@ -82,3 +82,8 @@ export function framesShown(page: Page): Locator {
     .getByRole('list', { name: 'Contact sheet' })
     .getByRole('listitem');
 }
+
+/** The rolls shown on the rolls page, by roll number, in order. */
+export function rollsShown(page: Page): Locator {
+  return page.getByRole('main').getByRole('link', { name: /^\d{4}-\d{3}$/ });
+}

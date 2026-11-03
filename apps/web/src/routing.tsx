@@ -19,8 +19,21 @@ export function usePath(): string {
   return useSyncExternalStore(subscribe, () => window.location.pathname);
 }
 
-export function navigate(to: string): void {
-  window.history.pushState(null, '', to);
+/** The query part of the address, e.g. `?view=list&year=2026`, re-rendering when it changes. */
+export function useSearch(): string {
+  return useSyncExternalStore(subscribe, () => window.location.search);
+}
+
+/** Goes to `to`, as a new history entry, or in place of the current one with `replace`. */
+export function navigate(
+  to: string,
+  { replace = false }: { readonly replace?: boolean } = {},
+): void {
+  if (replace) {
+    window.history.replaceState(null, '', to);
+  } else {
+    window.history.pushState(null, '', to);
+  }
   window.dispatchEvent(new Event(navigated));
 }
 
