@@ -26,6 +26,9 @@ describe('POST /api/rolls/{id}/frames', () => {
     expect(frame).toEqual({
       id: idOf(frame),
       number: null,
+      title: null,
+      rating: null,
+      notes: null,
       defaultVersion: null,
       versions: [],
     });
@@ -116,6 +119,9 @@ describe('PATCH /api/rolls/{id}/frames/{frameId}', () => {
     expect(await response.json()).toEqual({
       id: frameId,
       number: '12A',
+      title: null,
+      rating: null,
+      notes: null,
       defaultVersion: null,
       versions: [],
     });
@@ -131,6 +137,30 @@ describe('PATCH /api/rolls/{id}/frames/{frameId}', () => {
     const response = await patch(url, { number: null }, etag);
 
     expect(await response.json()).toMatchObject({ number: null });
+  });
+
+  test('describes the frame with a title, rating and notes', async () => {
+    const { rollId, url, etag } = await aRollWithAFrame();
+
+    const response = await patch(
+      url,
+      { title: 'Mill pond', rating: 5, notes: 'Early fog' },
+      etag,
+    );
+
+    const described = { title: 'Mill pond', rating: 5, notes: 'Early fog' };
+    expect(await response.json()).toMatchObject(described);
+    expect(await (await request(`/api/rolls/${rollId}`)).json()).toMatchObject({
+      frames: [described],
+    });
+  });
+
+  test.each([0, 6, 2.5])('refuses a rating of %d', async (rating) => {
+    const { url, etag } = await aRollWithAFrame();
+
+    const response = await patch(url, { rating }, etag);
+
+    expect(response.status).toBe(422);
   });
 
   test('requires If-Match', async () => {

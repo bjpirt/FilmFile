@@ -100,6 +100,9 @@ describe('CreateFrame', () => {
       value: {
         id: '00000000000000000000000003',
         number: '2',
+        title: null,
+        rating: null,
+        notes: null,
         defaultVersion: null,
         versions: [],
       },
@@ -154,6 +157,9 @@ describe('UpdateFrame', () => {
         frame: {
           id: frameId,
           number: '12A',
+          title: null,
+          rating: null,
+          notes: null,
           defaultVersion: null,
           versions: [],
         },
@@ -187,6 +193,77 @@ describe('UpdateFrame', () => {
         number: '1234567890',
       }),
     ).toMatchObject({ ok: false, error: { kind: 'validation-failed' } });
+  });
+
+  test('describes the frame with a title, rating and notes, trimmed', async () => {
+    const { rolls, roll, frameId, version, updateFrame } = await withAFrame();
+
+    const updated = await updateFrame.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      expectedVersion: version,
+      title: '  Mill pond, early fog ',
+      rating: 4,
+      notes: 'Pushed a stop.\n',
+    });
+
+    expect(updated).toMatchObject({
+      ok: true,
+      value: {
+        frame: {
+          title: 'Mill pond, early fog',
+          rating: 4,
+          notes: 'Pushed a stop.',
+        },
+      },
+    });
+    expect((await rolls.get(ctx, roll.id))?.roll.frames[0]).toMatchObject({
+      title: 'Mill pond, early fog',
+      rating: 4,
+      notes: 'Pushed a stop.',
+    });
+  });
+
+  test('clears the title, rating and notes with null or blank', async () => {
+    const { roll, frameId, version, updateFrame } = await withAFrame();
+    const described = await updateFrame.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      expectedVersion: version,
+      title: 'Mill pond',
+      rating: 2,
+      notes: 'Foggy',
+    });
+
+    const cleared = await updateFrame.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      expectedVersion: described.ok ? described.value.version : '',
+      title: ' ',
+      rating: null,
+      notes: null,
+    });
+
+    expect(cleared).toMatchObject({
+      ok: true,
+      value: { frame: { title: null, rating: null, notes: null } },
+    });
+  });
+
+  test.each([0, 6, 3.5])('refuses a rating of %d', async (rating) => {
+    const { roll, frameId, version, updateFrame } = await withAFrame();
+
+    expect(
+      await updateFrame.execute(ctx, {
+        rollId: roll.id,
+        frameId,
+        expectedVersion: version,
+        rating,
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { kind: 'validation-failed', issues: [{ path: ['rating'] }] },
+    });
   });
 
   test('refuses when the roll changed since it was read', async () => {

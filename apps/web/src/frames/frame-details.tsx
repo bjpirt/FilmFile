@@ -1,6 +1,5 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { cameraName, useCameras } from '../equipment/use-cameras.ts';
 import { filmStockName, useFilmStocks } from '../equipment/use-film-stocks.ts';
@@ -8,6 +7,7 @@ import { lensName, useLenses } from '../equipment/use-lenses.ts';
 import { eventName, useEvents } from '../events/use-events.ts';
 import { formatShot } from '../rolls/format-shot.ts';
 import { shownVersion } from '../rolls/shown-version.ts';
+import type { FrameChanges } from './use-save-frame.ts';
 
 const months = [
   'Jan',
@@ -41,64 +41,94 @@ function formatAdded(added: string): string {
   return `${String(date.getUTCDate())} ${months[date.getUTCMonth()] ?? ''} ${String(date.getUTCFullYear())}`;
 }
 
+/** Text saved when its field is left, if it changed: a frame's title or notes. */
+function TextField({
+  label,
+  saved,
+  multiline,
+  onSave,
+}: {
+  readonly label: string;
+  readonly saved: string | null;
+  readonly multiline?: boolean;
+  readonly onSave: (text: string | null) => void;
+}) {
+  const [text, setText] = useState(saved ?? '');
+  const props = {
+    value: text,
+    onChange: (
+      change: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    ) => {
+      setText(change.target.value);
+    },
+    onBlur: () => {
+      if (text.trim() !== (saved ?? '')) {
+        onSave(text.trim() === '' ? null : text);
+      }
+    },
+  };
+  return (
+    <label className="field">
+      {label}
+      {multiline === true ? (
+        <textarea rows={4} {...props} />
+      ) : (
+        <input {...props} />
+      )}
+    </label>
+  );
+}
+
+/** One to five stars (D39); clicking the rating given clears it. */
+function Stars({
+  rating,
+  onRate,
+}: {
+  readonly rating: number | null;
+  readonly onRate: (rating: number | null) => void;
+}) {
+  return (
+    <div className="stars" role="group" aria-label="Rating">
+      {[1, 2, 3, 4, 5].map((stars) => (
+        <button
+          key={stars}
+          type="button"
+          className="icon-button star"
+          aria-label={stars === 1 ? '1 star' : `${String(stars)} stars`}
+          aria-pressed={rating === stars}
+          onClick={() => {
+            onRate(rating === stars ? null : stars);
+          }}
+        >
+          <span aria-hidden="true">
+            {rating !== null && stars <= rating ? '★' : '☆'}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /**
- * Beside a frame in the frame view: its details (for now, its roll's) and its
- * versions, any of which can be chosen as the one shown (D15).
+ * Beside a frame in the frame view: how it's described (title, rating and
+ * notes), its roll's details, and its versions, any of which can be chosen
+ * as the one shown (D15).
  */
 export function FrameDetails({
   api,
   roll,
   frame,
+  save,
 }: {
   readonly api: ApiClient;
   readonly roll: Roll;
   readonly frame: Frame;
+  readonly save: (changes: FrameChanges) => Promise<void>;
 }) {
-  const queryClient = useQueryClient();
   const cameras = useCameras(api);
   const films = useFilmStocks(api);
   const lenses = useLenses(api);
   const events = useEvents(api);
-  const [problem, setProblem] = useState<string | undefined>(undefined);
-  // The roll as read, for its version: a change is sent against it.
-  const read = useQuery({
-    queryKey: ['rolls', roll.id],
-    queryFn: async () => {
-      const { data, response } = await api.GET('/api/rolls/{rollId}', {
-        params: { path: { rollId: roll.id } },
-      });
-      if (data === undefined) {
-        throw new Error("Couldn't load the roll.");
-      }
-      return { roll: data, etag: response.headers.get('ETag') ?? '' };
-    },
-  });
-
-  async function setAsDefault(versionId: string) {
-    if (read.data === undefined) {
-      return;
-    }
-    setProblem(undefined);
-    const { response } = await api.PATCH(
-      '/api/rolls/{rollId}/frames/{frameId}',
-      {
-        params: {
-          path: { rollId: roll.id, frameId: frame.id },
-          header: { 'if-match': read.data.etag },
-        },
-        body: { defaultVersion: versionId },
-      },
-    );
-    if (response.status === 409) {
-      setProblem('This roll changed since you opened it. Reload the page.');
-      return;
-    }
-    if (!response.ok) {
-      setProblem("Couldn't change it. Is the service running?");
-      return;
-    }
-    await queryClient.invalidateQueries({ queryKey: ['rolls'] });
-  }
 
   const facts = [
     { label: 'Camera', value: cameraName(cameras, roll.camera) },
@@ -118,6 +148,18 @@ export function FrameDetails({
       className="frame-details"
       aria-label="About this frame"
     >
+      <TextField
+        label="Title"
+        saved={frame.title}
+        onSave={(title) => void save({ title })}
+      />
+      <Stars rating={frame.rating} onRate={(rating) => void save({ rating })} />
+      <TextField
+        label="Notes"
+        saved={frame.notes}
+        multiline
+        onSave={(notes) => void save({ notes })}
+      />
       {facts.length > 0 && (
         <dl className="roll-facts">
           {facts.map((fact) => (
@@ -147,7 +189,7 @@ export function FrameDetails({
               ) : (
                 <button
                   type="button"
-                  onClick={() => void setAsDefault(version.id)}
+                  onClick={() => void save({ defaultVersion: version.id })}
                 >
                   Set as default
                 </button>
@@ -156,7 +198,6 @@ export function FrameDetails({
           ))}
         </ol>
       )}
-      {problem !== undefined && <p role="alert">{problem}</p>}
     </aside>
   );
 }

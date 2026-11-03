@@ -1,4 +1,5 @@
 import { parseFrameNumber } from '../../../domain/rolls/frame-number.ts';
+import { parseRating } from '../../../domain/rolls/rating.ts';
 import type { Frame } from '../../../domain/rolls/roll.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type {
@@ -9,11 +10,13 @@ import type {
 import type { FrameId, RollId } from '../../../domain/shared/ids.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
 import type { RollRepository } from '../../ports/roll-repository.ts';
+import { textOrNull } from '../rolls/text-or-null.ts';
 
 /**
- * Changes a frame's number or the version shown for it (D15), if the roll
- * hasn't changed since the caller read it at `expectedVersion`. A detail
- * left out stays as it is; null clears it.
+ * Changes a frame's number, the version shown for it (D15), or how it's
+ * described: its title, rating and notes. Saved only if the roll hasn't
+ * changed since the caller read it at `expectedVersion`. A detail left out
+ * stays as it is; null, or blank text, clears it.
  */
 export class UpdateFrame {
   readonly #rolls: RollRepository;
@@ -31,6 +34,10 @@ export class UpdateFrame {
       readonly number?: string | null | undefined;
       /** The ID of one of the frame's own versions. */
       readonly defaultVersion?: string | null | undefined;
+      readonly title?: string | null | undefined;
+      /** One to five stars (D39). */
+      readonly rating?: number | null | undefined;
+      readonly notes?: string | null | undefined;
     },
   ): Promise<
     Result<
@@ -44,6 +51,13 @@ export class UpdateFrame {
         : parseFrameNumber(input.number);
     if (!number.ok) {
       return number;
+    }
+    const rating =
+      input.rating === undefined || input.rating === null
+        ? ok(input.rating)
+        : parseRating(input.rating);
+    if (!rating.ok) {
+      return rating;
     }
     const current = await this.#rolls.get(ctx, input.rollId);
     if (current === undefined) {
@@ -73,6 +87,9 @@ export class UpdateFrame {
       ...frame,
       ...(number.value === undefined ? {} : { number: number.value }),
       ...(shown === undefined ? {} : { defaultVersion: shown }),
+      ...(input.title === undefined ? {} : { title: textOrNull(input.title) }),
+      ...(rating.value === undefined ? {} : { rating: rating.value }),
+      ...(input.notes === undefined ? {} : { notes: textOrNull(input.notes) }),
     };
     // Saved against the version the caller read, so a change made since is never overwritten.
     const saved = await this.#rolls.save(

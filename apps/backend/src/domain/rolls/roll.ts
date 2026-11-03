@@ -1,6 +1,7 @@
 import type { Slug } from '../shared/slug.ts';
 import type { FrameId, RollId, VersionId } from '../shared/ids.ts';
 import type { FrameNumber } from './frame-number.ts';
+import type { Rating } from './rating.ts';
 import type { RollNumber } from './roll-number.ts';
 import type { ShotDate } from './shot-date.ts';
 
@@ -21,6 +22,10 @@ export interface Frame {
   readonly id: FrameId;
   /** The frame number printed on the film, or null if not known yet. */
   readonly number: FrameNumber | null;
+  /** A title for the photograph, e.g. "Mill pond, early fog", or null. */
+  readonly title: string | null;
+  readonly rating: Rating | null;
+  readonly notes: string | null;
   /** The version shown for the frame; when null, its newest (D15). */
   readonly defaultVersion: VersionId | null;
   readonly versions: readonly Version[];

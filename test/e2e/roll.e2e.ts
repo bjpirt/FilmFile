@@ -8,7 +8,7 @@ import {
   framesShown,
 } from './support/journeys.ts';
 
-test('catalogue a roll: create it with its details and scans, correct a number, delete a frame, find it all still there after a reload, look through it frame by frame, then delete the roll', async ({
+test('catalogue a roll: create it with its details and scans, correct a number, delete a frame, find it all still there after a reload, look through it frame by frame, describe a frame, then delete the roll', async ({
   page,
 }) => {
   await createRoll(page, '2026-014', {
@@ -77,10 +77,20 @@ test('catalogue a roll: create it with its details and scans, correct a number, 
   await expect(
     page.getByRole('heading', { level: 1, name: 'Frame 5' }),
   ).toBeVisible();
+  // Describe it: a title, saved on leaving the field, and a rating from the keys.
+  await page.getByRole('button', { name: 'Show details' }).click();
+  await page.getByRole('textbox', { name: 'Title' }).fill('Ice on black sand');
+  await page.getByRole('textbox', { name: 'Notes' }).focus();
+  await expect(page.getByText('Ice on black sand')).toBeVisible();
+  await page.getByRole('textbox', { name: 'Notes' }).blur();
+  await page.keyboard.press('4');
+  await expect(page.getByLabel('Rated 4 of 5')).toBeVisible();
   await page.reload();
   await expect(
     page.getByRole('heading', { level: 1, name: 'Frame 5' }),
   ).toBeVisible();
+  await expect(page.getByText('Ice on black sand')).toBeVisible();
+  await expect(page.getByLabel('Rated 4 of 5')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(
     page.getByRole('heading', { name: 'Roll 2026-014' }),

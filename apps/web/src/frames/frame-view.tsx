@@ -8,6 +8,7 @@ import {
   rememberedDetailsOpen,
 } from './details-preference.ts';
 import { FrameDetails } from './frame-details.tsx';
+import { useSaveFrame } from './use-save-frame.ts';
 
 /** A frame in the collection being stepped through, with the roll it's on. */
 export interface CollectionFrame {
@@ -64,7 +65,8 @@ function DetailsToggle({
 /**
  * One frame, large, with a filmstrip of the collection it was opened from
  * (a roll, or an event's frames) to step through: by the arrows on screen,
- * the ← and → keys, or a click on the filmstrip. Esc goes back.
+ * the ← and → keys, or a click on the filmstrip. Esc goes back, and the 1 to
+ * 5 keys rate the frame, 0 clearing its rating (D39).
  */
 export function FrameView({
   api,
@@ -90,6 +92,7 @@ export function FrameView({
   const next = frames[current + 1];
   const currentInStrip = useRef<HTMLLIElement>(null);
   const [detailsOpen, setDetailsOpen] = useState(rememberedDetailsOpen);
+  const { save, problem } = useSaveFrame(api, shown);
 
   useEffect(() => {
     // happy-dom, which the page tests run in, has no scrollIntoView, though
@@ -118,6 +121,8 @@ export function FrameView({
         navigate(addressOf(next), { replace: true });
       } else if (event.key === 'Escape') {
         navigate(back.to);
+      } else if (/^[0-5]$/.test(event.key)) {
+        void save({ rating: event.key === '0' ? null : Number(event.key) });
       } else {
         return;
       }
@@ -127,7 +132,7 @@ export function FrameView({
     return () => {
       window.removeEventListener('keydown', onKey);
     };
-  }, [previous, next, back.to, addressOf]);
+  }, [previous, next, back.to, addressOf, save]);
 
   if (shown === undefined) {
     return (
@@ -143,6 +148,14 @@ export function FrameView({
         <Link to={back.to}>{back.label}</Link>
         <h1>Frame {shown.frame.number ?? 'with no number'}</h1>
         <span className="muted numbers">{shown.roll.roll}</span>
+        {shown.frame.rating !== null && (
+          <span
+            className="rating"
+            aria-label={`Rated ${String(shown.frame.rating)} of 5`}
+          >
+            {'★'.repeat(shown.frame.rating)}
+          </span>
+        )}
         <span className="muted">
           {current + 1} of {frames.length}
         </span>
@@ -154,6 +167,9 @@ export function FrameView({
           }}
         />
       </div>
+      {shown.frame.title !== null && (
+        <p className="frame-title">{shown.frame.title}</p>
+      )}
 
       <div
         className={
@@ -196,9 +212,17 @@ export function FrameView({
           </button>
         </div>
         {detailsOpen && (
-          <FrameDetails api={api} roll={shown.roll} frame={shown.frame} />
+          <FrameDetails
+            // A fresh panel for each frame, so a field's text is that frame's.
+            key={shown.frame.id}
+            api={api}
+            roll={shown.roll}
+            frame={shown.frame}
+            save={save}
+          />
         )}
       </div>
+      {problem !== undefined && <p role="alert">{problem}</p>}
 
       <ol className="filmstrip" aria-label="Filmstrip">
         {frames.map((item, i) => (

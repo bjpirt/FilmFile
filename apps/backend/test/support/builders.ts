@@ -63,6 +63,9 @@ export function aFrame(
       overrides.number === undefined || overrides.number === null
         ? null
         : checked(overrides.number, isFrameNumber),
+    title: null,
+    rating: null,
+    notes: null,
     defaultVersion:
       overrides.defaultVersion === undefined
         ? null

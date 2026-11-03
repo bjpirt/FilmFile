@@ -30,6 +30,11 @@ const aVersion = fc.record({
 
 const aFrame = fc.record({
   id: ulid.filter(isFrameId),
+  title: fc.option(fc.string(), { nil: null }),
+  rating: fc.option(fc.constantFrom<1 | 2 | 3 | 4 | 5>(1, 2, 3, 4, 5), {
+    nil: null,
+  }),
+  notes: fc.option(fc.string(), { nil: null }),
   defaultVersion: fc.option(ulid.filter(isVersionId), { nil: null }),
   number: fc.option(
     fc.string({ minLength: 1, maxLength: 9 }).filter(isFrameNumber),

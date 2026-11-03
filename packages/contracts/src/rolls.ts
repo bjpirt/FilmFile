@@ -38,6 +38,13 @@ export const frame = z
       description: 'The frame number, or null if not known yet.',
       example: '12A',
     }),
+    title: z.string().nullable().meta({ example: 'Mill pond, early fog' }),
+    rating: z
+      .number()
+      .int()
+      .nullable()
+      .meta({ description: '1 to 5 stars, or null for none (D39).' }),
+    notes: z.string().nullable(),
     defaultVersion: ulid.nullable().meta({
       description: 'The version shown for the frame, or null for its newest.',
     }),
@@ -148,6 +155,16 @@ export const updateFrameRequest = z
       .nullable()
       .optional()
       .meta({ description: 'The new frame number, or null to clear it.' }),
+    title: z.string().max(200).nullable().optional(),
+    rating: z
+      .number()
+      .int()
+      .min(1)
+      .max(5)
+      .nullable()
+      .optional()
+      .meta({ description: '1 to 5 stars, or null to clear the rating.' }),
+    notes: z.string().max(5000).nullable().optional(),
     defaultVersion: ulid.nullable().optional().meta({
       description:
         'The version to show for the frame, one of its own, or null to show its newest.',

@@ -153,6 +153,26 @@
             "description": "The frame number, or null if not known yet.",
             "example": "12A"
           },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "Mill pond, early fog"
+          },
+          "rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "1 to 5 stars, or null for none (D39)."
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "defaultVersion": {
             "type": [
               "string",
@@ -172,6 +192,9 @@
         "required": [
           "id",
           "number",
+          "title",
+          "rating",
+          "notes",
           "defaultVersion",
           "versions"
         ]
@@ -464,6 +487,29 @@
             "maxLength": 9,
             "example": "12A",
             "description": "The new frame number, or null to clear it."
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 200
+          },
+          "rating": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 5,
+            "description": "1 to 5 stars, or null to clear the rating."
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 5000
           },
           "defaultVersion": {
             "type": [

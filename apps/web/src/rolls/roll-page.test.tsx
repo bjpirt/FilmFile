@@ -67,6 +67,9 @@ function aFrameWithScan(number: string | null, file: string): Frame {
   return {
     id: `01JC8Z7K3M00000000000000${file.slice(6, 8)}`,
     number,
+    title: null,
+    rating: null,
+    notes: null,
     defaultVersion: null,
     versions: [
       {
@@ -915,6 +918,9 @@ test('shows a placeholder for a frame with no scan', async () => {
       {
         id: rollId.replace('01', '02'),
         number: '5',
+        title: null,
+        rating: null,
+        notes: null,
         defaultVersion: null,
         versions: [],
       },

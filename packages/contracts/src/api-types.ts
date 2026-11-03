@@ -1474,6 +1474,11 @@ export interface components {
              * @example 12A
              */
             number: string | null;
+            /** @example Mill pond, early fog */
+            title: string | null;
+            /** @description 1 to 5 stars, or null for none (D39). */
+            rating: number | null;
+            notes: string | null;
             /**
              * @description The version shown for the frame, or null for its newest.
              * @example 01M6EAAP694BKWR9HZ4N5Z54XD
@@ -1575,6 +1580,10 @@ export interface components {
              * @example 12A
              */
             number?: string | null;
+            title?: string | null;
+            /** @description 1 to 5 stars, or null to clear the rating. */
+            rating?: number | null;
+            notes?: string | null;
             /**
              * @description The version to show for the frame, one of its own, or null to show its newest.
              * @example 01M6EAAP694BKWR9HZ4N5Z54XD

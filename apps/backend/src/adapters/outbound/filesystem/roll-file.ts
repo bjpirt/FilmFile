@@ -8,6 +8,7 @@ import {
   isRollNumber,
   type RollNumber,
 } from '../../../domain/rolls/roll-number.ts';
+import { isRating, type Rating } from '../../../domain/rolls/rating.ts';
 import type { Frame, Roll } from '../../../domain/rolls/roll.ts';
 import { isShotDate, type ShotDate } from '../../../domain/rolls/shot-date.ts';
 import {
@@ -60,6 +61,15 @@ export const storedFrame = z.object({
     'must be 1 to 9 characters',
   ).nullable(),
   // Added after the first frames were written, which read as having none.
+  title: z.string().nullable().default(null),
+  rating: z
+    .custom<Rating>(
+      (value) => typeof value === 'number' && isRating(value),
+      'must be 1 to 5 stars',
+    )
+    .nullable()
+    .default(null),
+  notes: z.string().nullable().default(null),
   defaultVersion: branded<VersionId>(isVersionId, 'must be a ULID')
     .nullable()
     .default(null),
@@ -172,6 +182,9 @@ export function storedFrameOf(frame: Frame): z.input<typeof storedFrame> {
   return {
     id: frame.id,
     number: frame.number,
+    title: frame.title,
+    rating: frame.rating,
+    notes: frame.notes,
     defaultVersion: frame.defaultVersion,
     versions: frame.versions.map((version) => ({
       id: version.id,

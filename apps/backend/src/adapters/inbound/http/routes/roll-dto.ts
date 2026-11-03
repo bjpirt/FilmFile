@@ -13,6 +13,9 @@ export function frameDto(frame: Frame): RollDto['frames'][number] {
   return {
     id: frame.id,
     number: frame.number,
+    title: frame.title,
+    rating: frame.rating,
+    notes: frame.notes,
     defaultVersion: frame.defaultVersion,
     versions: frame.versions.map(versionDto),
   };

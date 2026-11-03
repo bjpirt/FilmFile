@@ -345,6 +345,38 @@ select {
   text-transform: uppercase;
 }
 
+.frame-details > .field {
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.frame-details > .field input,
+.frame-details > .field textarea {
+  color: var(--text);
+  resize: vertical;
+}
+
+.stars {
+  display: flex;
+}
+
+.stars .star {
+  color: var(--accent);
+  font-size: 1.4rem;
+  height: 2.25rem;
+  width: 2.25rem;
+}
+
+.frame-view-bar .rating {
+  color: var(--accent);
+}
+
+.frame-title {
+  margin: calc(-1 * var(--space-3)) 0 0;
+}
+
 .versions {
   display: flex;
   flex-direction: column;

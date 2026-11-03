@@ -64,6 +64,9 @@ export function aFrame(number: string | null, file: string): Frame {
   return {
     id: `01JC8Z7K3M00000000000F${n}`,
     number,
+    title: null,
+    rating: null,
+    notes: null,
     defaultVersion: null,
     versions: [
       {
@@ -378,6 +381,9 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         const frame: Frame = {
           id: newId(),
           number: body.value.number ?? null,
+          title: null,
+          rating: null,
+          notes: null,
           defaultVersion: null,
           versions: [],
         };
@@ -427,11 +433,12 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       if (!body.ok) {
         return body.response;
       }
-      const { number, defaultVersion } = body.value;
+      // A detail left out stays as it is.
       const updated = {
         ...frame,
-        ...(number === undefined ? {} : { number }),
-        ...(defaultVersion === undefined ? {} : { defaultVersion }),
+        ...Object.fromEntries(
+          Object.entries(body.value).filter(([, value]) => value !== undefined),
+        ),
       };
       roll.frames = roll.frames.map((f) => (f.id === frameId ? updated : f));
       change(roll.id);

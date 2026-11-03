@@ -7,7 +7,7 @@ import {
   screen,
   within,
 } from '@testing-library/react';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../app.tsx';
 import {
   aFrame,
@@ -320,5 +320,120 @@ describe('the frame’s details and versions', () => {
     expect(archive.rolls[0]?.frames[0]?.defaultVersion).toBe(
       aFrame('1', '12340001.jpg').versions[0]?.id,
     );
+  });
+});
+
+describe('describing a frame', () => {
+  const first = roll.frames[1];
+
+  function openFirst(): FakeArchive {
+    const archive = fakeArchive({ rolls: [structuredClone(roll)] });
+    openAt(`/rolls/${roll.id}/frames/${first?.id ?? ''}`, archive);
+    return archive;
+  }
+
+  async function showDetails() {
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Show details' }),
+    );
+    return screen.findByRole('complementary', { name: 'About this frame' });
+  }
+
+  function savedFrame(archive: FakeArchive) {
+    return archive.rolls[0]?.frames.find((f) => f.id === first?.id);
+  }
+
+  test('saves the title and notes on leaving each field, showing the title under the heading', async () => {
+    const archive = openFirst();
+    const details = await showDetails();
+
+    const title = within(details).getByRole('textbox', { name: 'Title' });
+    fireEvent.change(title, { target: { value: 'Mill pond' } });
+    fireEvent.blur(title);
+    expect(
+      await screen.findByText('Mill pond', { selector: 'p' }),
+    ).toBeDefined();
+    const notes = within(details).getByRole('textbox', { name: 'Notes' });
+    fireEvent.change(notes, { target: { value: 'Early fog' } });
+    fireEvent.blur(notes);
+
+    await vi.waitFor(() => {
+      expect(savedFrame(archive)?.notes).toBe('Early fog');
+    });
+    expect(savedFrame(archive)?.title).toBe('Mill pond');
+    // Each save is sent against the roll as the last one left it.
+    expect(archive.ifMatches).toEqual(['"v1"', '"v2"']);
+  });
+
+  test('saves nothing when a field is left unchanged', async () => {
+    const archive = openFirst();
+    const details = await showDetails();
+
+    fireEvent.blur(within(details).getByRole('textbox', { name: 'Title' }));
+
+    expect(archive.ifMatches).toEqual([]);
+  });
+
+  test('rates the frame by clicking a star, and clears it by clicking it again', async () => {
+    const archive = openFirst();
+    const details = await showDetails();
+
+    fireEvent.click(within(details).getByRole('button', { name: '4 stars' }));
+
+    await vi.waitFor(() => {
+      expect(
+        within(details)
+          .getByRole('button', { name: '4 stars' })
+          .getAttribute('aria-pressed'),
+      ).toBe('true');
+    });
+    expect(savedFrame(archive)?.rating).toBe(4);
+
+    fireEvent.click(within(details).getByRole('button', { name: '4 stars' }));
+
+    await vi.waitFor(() => {
+      expect(savedFrame(archive)?.rating).toBeNull();
+    });
+  });
+
+  test('rates the frame with the 1 to 5 keys, details shown or not, and clears it with 0', async () => {
+    const archive = openFirst();
+    await screen.findByRole('heading', { name: 'Frame 1' });
+
+    fireEvent.keyDown(window, { key: '3' });
+
+    expect(await screen.findByLabelText('Rated 3 of 5')).toBeDefined();
+    expect(savedFrame(archive)?.rating).toBe(3);
+
+    fireEvent.keyDown(window, { key: '0' });
+
+    await vi.waitFor(() => {
+      expect(screen.queryByLabelText(/^Rated/)).toBeNull();
+    });
+    expect(savedFrame(archive)?.rating).toBeNull();
+  });
+
+  test('ignores the number keys while typing in a field', async () => {
+    const archive = openFirst();
+    const details = await showDetails();
+
+    fireEvent.keyDown(within(details).getByRole('textbox', { name: 'Title' }), {
+      key: '3',
+    });
+
+    expect(archive.ifMatches).toEqual([]);
+  });
+
+  test('says when the roll changed elsewhere, keeping it as it is', async () => {
+    const archive = openFirst();
+    await screen.findByRole('heading', { name: 'Frame 1' });
+    archive.changeRoll(roll.id);
+
+    fireEvent.keyDown(window, { key: '5' });
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'This roll changed since you opened it. Reload the page.',
+    );
+    expect(savedFrame(archive)?.rating).toBeNull();
   });
 });

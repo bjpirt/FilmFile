@@ -37,6 +37,9 @@ export class CreateFrame {
           () => this.#ids.newFrameId(),
         ),
         number: number.value,
+        title: null,
+        rating: null,
+        notes: null,
         defaultVersion: null,
         versions: [],
       };

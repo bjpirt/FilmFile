@@ -30,6 +30,9 @@ function aRollOf(roll: string, frames: number): Roll {
     frames: Array.from({ length: frames }, (_, i) => ({
       id: `01JC8Z7K3M00000000000001${String(i).padStart(2, '0')}`,
       number: null,
+      title: null,
+      rating: null,
+      notes: null,
       defaultVersion: null,
       versions: [],
     })),
@@ -63,6 +66,9 @@ function aRollWithScans(roll: string, scans: number): Roll {
       return {
         id: `01JC8Z7K3M00000000000001${n}`,
         number: String(i + 1),
+        title: null,
+        rating: null,
+        notes: null,
         defaultVersion: null,
         versions: [
           {
