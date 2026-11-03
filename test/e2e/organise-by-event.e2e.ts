@@ -4,7 +4,7 @@ import { createRoll, rollsShown } from './support/journeys.ts';
 // An event and rolls from a year no other journey uses, so its counts are
 // its own.
 
-test('organise by event: put rolls in an event, then find them from the Events page and the browse panel', async ({
+test('organise by event: put rolls in an event, give it a date and add another on the Events page, and find the rolls from both ways in', async ({
   page,
 }) => {
   await createRoll(page, '2021-501', { newEvent: 'Faroe Islands' });
@@ -13,9 +13,22 @@ test('organise by event: put rolls in an event, then find them from the Events p
   await createRoll(page, '2021-503');
 
   await page.getByRole('link', { name: 'Events' }).click();
+  await page.getByRole('button', { name: 'Edit Faroe Islands' }).click();
+  const edit = page.getByRole('form', { name: 'Edit Faroe Islands' });
+  await edit.getByLabel('Year').fill('2021');
+  await edit.getByLabel('Month').selectOption({ label: 'June' });
+  await edit.getByRole('button', { name: 'Save event' }).click();
   await expect(
     page.getByRole('listitem').filter({ hasText: 'Faroe Islands' }),
-  ).toHaveText('Faroe Islands2 rolls');
+  ).toHaveText('Faroe Islands · Jun 20212 rollsEdit');
+
+  await page.getByRole('button', { name: 'New event' }).click();
+  const add = page.getByRole('form', { name: 'New event' });
+  await add.getByLabel('Name').fill('Shetland 2021');
+  await add.getByRole('button', { name: 'Add event' }).click();
+  await expect(
+    page.getByRole('listitem').filter({ hasText: 'Shetland 2021' }),
+  ).toHaveText('Shetland 20210 rollsEdit');
 
   await page.getByRole('link', { name: 'Faroe Islands' }).click();
   await expect(

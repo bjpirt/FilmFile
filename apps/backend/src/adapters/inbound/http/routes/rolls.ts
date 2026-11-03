@@ -38,19 +38,10 @@ import {
   isVersionId,
 } from '../../../../domain/shared/ids.ts';
 import { domainErrorResponse } from '../domain-error-response.ts';
+import { etagOf, versionFrom } from '../etag.ts';
 import { requireContentType } from '../middleware/require-content-type.ts';
 import { invalidRequestHook } from './invalid-request-hook.ts';
 import { rollDto, versionDto } from './roll-dto.ts';
-
-/** A roll's version as an ETag: quoted, as HTTP requires. */
-function etagOf(version: string): string {
-  return `"${version}"`;
-}
-
-/** The version in an If-Match header, which may be quoted and marked weak. */
-function versionFrom(ifMatch: string): string {
-  return ifMatch.replace(/^W\//, '').replace(/^"(.*)"$/, '$1');
-}
 
 // D4: lab scans are a few MB; this leaves room for large scans to come.
 const maxUploadMegabytes = 200;

@@ -116,7 +116,12 @@ export function BrowsePanel({
   const rollEvents = counted(
     rolls.flatMap((roll) => (roll.event === null ? [] : [roll.event])),
     (slug) => eventName(events, slug) ?? slug,
-  ).sort(byLabel);
+  ).sort(
+    // As the events list orders them: newest first (D32).
+    (a, b) =>
+      events.findIndex((e) => e.slug === a.key) -
+      events.findIndex((e) => e.slug === b.key),
+  );
   const rollLenses = counted(
     rolls.flatMap((roll) => (roll.lens === null ? [] : [roll.lens])),
     (slug) => lensName(lenses, slug) ?? slug,

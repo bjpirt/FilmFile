@@ -590,9 +590,10 @@ describe('finding rolls by lens', () => {
 });
 
 describe('finding rolls by event', () => {
+  // As the service lists them: newest first.
   const events: Event[] = [
-    { slug: 'westfjords', name: 'Westfjords' },
-    { slug: 'iceland-2026', name: 'Iceland 2026' },
+    { slug: 'iceland-2026', name: 'Iceland 2026', date: '2026-09' },
+    { slug: 'westfjords', name: 'Westfjords', date: '2025-06' },
   ];
   const someRolls = () =>
     fakeRollsService(
@@ -631,7 +632,7 @@ describe('finding rolls by event', () => {
     ).toContain('Westfjords');
   });
 
-  test('groups rolls by event, by name, with rolls that have none last', async () => {
+  test('groups rolls by event, newest first, with rolls that have none last', async () => {
     renderPage(someRolls());
     await screen.findByRole('region', { name: 'Events' });
 

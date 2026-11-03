@@ -71,8 +71,12 @@ function fakeService({
       if (request.method === 'GET') {
         return Response.json({ events });
       }
-      const { name } = createEventRequest.parse(await request.json());
-      const event = { slug: name.toLowerCase().replace(/\W+/g, '-'), name };
+      const { name, date } = createEventRequest.parse(await request.json());
+      const event = {
+        slug: name.toLowerCase().replace(/\W+/g, '-'),
+        name,
+        date: date ?? null,
+      };
       events.push(event);
       return Response.json(event, { status: 201 });
     }
@@ -469,7 +473,7 @@ describe('the film stock', () => {
 describe('the event', () => {
   test('is picked from the archive’s events', async () => {
     const service = fakeService({
-      events: [{ slug: 'iceland-2026', name: 'Iceland 2026' }],
+      events: [{ slug: 'iceland-2026', name: 'Iceland 2026', date: null }],
     });
     renderPage(service);
     await screen.findByRole('option', { name: 'Iceland 2026' });
@@ -501,7 +505,7 @@ describe('the event', () => {
 
     await waitToOpen(rollId);
     expect(service.events).toEqual([
-      { slug: 'westfjords', name: 'Westfjords' },
+      { slug: 'westfjords', name: 'Westfjords', date: null },
     ]);
     expect(service.created).toEqual([
       { roll: '2026-014', shot: '2026', event: 'westfjords' },

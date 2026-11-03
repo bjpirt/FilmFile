@@ -16,7 +16,9 @@ import { ListFilmStocks } from '../application/use-cases/equipment/list-film-sto
 import { CreateLens } from '../application/use-cases/equipment/create-lens.ts';
 import { ListLenses } from '../application/use-cases/equipment/list-lenses.ts';
 import { CreateEvent } from '../application/use-cases/events/create-event.ts';
+import { GetEvent } from '../application/use-cases/events/get-event.ts';
 import { ListEvents } from '../application/use-cases/events/list-events.ts';
+import { UpdateEvent } from '../application/use-cases/events/update-event.ts';
 import { AddVersion } from '../application/use-cases/frames/add-version.ts';
 import { CreateFrame } from '../application/use-cases/frames/create-frame.ts';
 import { GetOriginal } from '../application/use-cases/frames/get-original.ts';
@@ -70,5 +72,7 @@ export function useCasesFor({
     createLens: new CreateLens(equipment),
     listEvents: new ListEvents(events),
     createEvent: new CreateEvent(events),
+    getEvent: new GetEvent(events),
+    updateEvent: new UpdateEvent(events),
   };
 }

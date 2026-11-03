@@ -16,15 +16,22 @@ const months = [
 ];
 
 /**
- * The date a roll was shot: a year, then optionally a month, day and time,
- * each offered once the one before it is given.
+ * A date of varying precision: a year, then optionally a month, day and,
+ * for a roll's date shot, time, each offered once the one before it is
+ * given.
  */
 export function DateShotFields({
   shot,
   change,
+  legend = 'Date shot',
+  yearRequired = true,
+  withTime = true,
 }: {
   readonly shot: ShotFields;
   readonly change: (shot: ShotFields) => void;
+  readonly legend?: string;
+  readonly yearRequired?: boolean;
+  readonly withTime?: boolean;
 }) {
   function changePart(part: Partial<ShotFields>) {
     const next = { ...shot, ...part };
@@ -38,16 +45,18 @@ export function DateShotFields({
 
   return (
     <fieldset className="date-shot">
-      <legend>Date shot</legend>
+      <legend>{legend}</legend>
       <label>
         <span>
           Year{' '}
-          <span className="required" aria-hidden="true">
-            *
-          </span>
+          {yearRequired && (
+            <span className="required" aria-hidden="true">
+              *
+            </span>
+          )}
         </span>
         <input
-          required
+          required={yearRequired}
           className="numbers"
           inputMode="numeric"
           size={4}
@@ -91,17 +100,19 @@ export function DateShotFields({
           ))}
         </select>
       </label>
-      <label>
-        Time
-        <input
-          type="time"
-          value={shot.time}
-          disabled={shot.day === ''}
-          onChange={(event) => {
-            changePart({ time: event.target.value });
-          }}
-        />
-      </label>
+      {withTime && (
+        <label>
+          Time
+          <input
+            type="time"
+            value={shot.time}
+            disabled={shot.day === ''}
+            onChange={(event) => {
+              changePart({ time: event.target.value });
+            }}
+          />
+        </label>
+      )}
     </fieldset>
   );
 }

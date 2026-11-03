@@ -62,26 +62,31 @@ function groupedBy(
   return [...groups].map(([title, members]) => ({ title, rolls: members }));
 }
 
-/** Groups titled by name, in name order, with the group of rolls that have none last. */
+/** Names in order, ignoring case, with numbers by value. */
+function byName(a: string, b: string): number {
+  return a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true });
+}
+
+/** Groups titled by name, in name order (or the order given), with the group of rolls that have none last. */
 function namedGroups(
   rolls: readonly Roll[],
   nameOf: (roll: Roll) => string | undefined,
   none: string,
+  order: (a: string, b: string) => number = byName,
 ): RollGroup[] {
   return groupedBy(rolls, (roll) => nameOf(roll) ?? none).sort((a, b) => {
     if (a.title === none || b.title === none) {
       return a.title === none ? 1 : -1;
     }
-    return (a.title ?? '').localeCompare(b.title ?? '', undefined, {
-      sensitivity: 'base',
-      numeric: true,
-    });
+    return order(a.title ?? '', b.title ?? '');
   });
 }
 
 /** What each event, camera, film stock and lens a roll has is called, by slug. */
 interface Names {
   readonly event: (slug: string | null) => string | undefined;
+  /** Orders events by name as the events list does: newest first (D32). */
+  readonly eventOrder: (a: string, b: string) => number;
   readonly camera: (slug: string | null) => string | undefined;
   readonly film: (slug: string | null) => string | undefined;
   readonly lens: (slug: string | null) => string | undefined;
@@ -105,7 +110,12 @@ function grouped(
         (b.title ?? '').localeCompare(a.title ?? ''),
       );
     case 'event':
-      return namedGroups(rolls, (roll) => names.event(roll.event), 'No event');
+      return namedGroups(
+        rolls,
+        (roll) => names.event(roll.event),
+        'No event',
+        names.eventOrder,
+      );
     case 'camera':
       return namedGroups(
         rolls,
@@ -193,6 +203,9 @@ export function RollsPage({
   const events = useEvents(api);
   const names: Names = {
     event: (slug) => eventName(events, slug),
+    eventOrder: (a, b) =>
+      events.findIndex((e) => e.name === a) -
+      events.findIndex((e) => e.name === b),
     camera: (slug) => cameraName(cameras, slug),
     film: (slug) => filmStockName(films, slug),
     lens: (slug) => lensName(lenses, slug),

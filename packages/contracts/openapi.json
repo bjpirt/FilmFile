@@ -778,11 +778,20 @@
           "name": {
             "type": "string",
             "example": "Iceland 2026"
+          },
+          "date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
+            "example": "2026-09"
           }
         },
         "required": [
           "slug",
-          "name"
+          "name",
+          "date"
         ]
       },
       "CreateEventRequest": {
@@ -793,11 +802,38 @@
             "minLength": 1,
             "maxLength": 100,
             "description": "What the event is called; its slug is made from it."
+          },
+          "date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
+            "example": "2026-09"
           }
         },
         "required": [
           "name"
         ]
+      },
+      "UpdateEventRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
+            "example": "2026-09"
+          }
+        },
+        "description": "The details to change. A detail left out stays as it is; a null date clears it. The slug never changes."
       }
     },
     "parameters": {}
@@ -1905,7 +1941,7 @@
         "summary": "List the events",
         "responses": {
           "200": {
-            "description": "Every event, ordered by name.",
+            "description": "Every event, newest first; undated events last.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1975,6 +2011,166 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/events/{slug}": {
+      "get": {
+        "summary": "Get an event",
+        "description": "The response's ETag is the event's version, for If-Match.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "example": "nikon-fe"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The event.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "There is no event with that slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The slug is not a slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Change an event's name or date",
+        "description": "Send the event's ETag as If-Match: the change is refused if the event has changed since. The response's ETag is the event's new version.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "example": "nikon-fe"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The event's ETag, from when it was read."
+            },
+            "required": false,
+            "description": "The event's ETag, from when it was read.",
+            "name": "if-match",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEventRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated event.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Event"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not valid JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "There is no event with that slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The event has changed since it was read.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "The body is not of the expected type.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }

@@ -34,7 +34,15 @@ function renderApp() {
           request.url.endsWith('/api/rolls')
             ? { rolls: [{ ...roll, event: 'iceland-2026' }], unreadable: [] }
             : request.url.endsWith('/api/events')
-              ? { events: [{ slug: 'iceland-2026', name: 'Iceland 2026' }] }
+              ? {
+                  events: [
+                    {
+                      slug: 'iceland-2026',
+                      name: 'Iceland 2026',
+                      date: '2026-09',
+                    },
+                  ],
+                }
               : roll,
         ),
       ),
@@ -99,7 +107,7 @@ test('lists the events from the header, with their rolls, and opens an event’s
     await screen.findByRole('heading', { level: 1, name: 'Events' }),
   ).toBeDefined();
   const event = await screen.findByRole('listitem');
-  expect(event.textContent).toBe('Iceland 20261 roll');
+  expect(event.textContent).toBe('Iceland 2026 · Sep 20261 rollEdit');
 
   fireEvent.click(screen.getByRole('link', { name: 'Iceland 2026' }));
 

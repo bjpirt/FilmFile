@@ -1067,7 +1067,7 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Every event, ordered by name. */
+                /** @description Every event, newest first; undated events last. */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -1144,6 +1144,151 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/events/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get an event
+         * @description The response's ETag is the event's version, for If-Match.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The event. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Event"];
+                    };
+                };
+                /** @description There is no event with that slug. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The slug is not a slug. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change an event's name or date
+         * @description Send the event's ETag as If-Match: the change is refused if the event has changed since. The response's ETag is the event's new version.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: {
+                    /** @description The event's ETag, from when it was read. */
+                    "if-match"?: string;
+                };
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateEventRequest"];
+                };
+            };
+            responses: {
+                /** @description The updated event. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Event"];
+                    };
+                };
+                /** @description The body is not valid JSON. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description There is no event with that slug. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The event has changed since it was read. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The body is not of the expected type. */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The request is invalid. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+                /** @description If-Match is missing. */
+                428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
 }
@@ -1397,10 +1542,20 @@ export interface components {
             slug: string;
             /** @example Iceland 2026 */
             name: string;
+            /** @example 2026-09 */
+            date: string | null;
         };
         CreateEventRequest: {
             /** @description What the event is called; its slug is made from it. */
             name: string;
+            /** @example 2026-09 */
+            date?: string | null;
+        };
+        /** @description The details to change. A detail left out stays as it is; a null date clears it. The slug never changes. */
+        UpdateEventRequest: {
+            name?: string;
+            /** @example 2026-09 */
+            date?: string | null;
         };
     };
     responses: never;

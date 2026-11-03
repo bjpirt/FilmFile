@@ -110,8 +110,12 @@ function fakeRollService(
       if (request.method === 'GET') {
         return Response.json({ events });
       }
-      const { name } = createEventRequest.parse(await request.json());
-      const event = { slug: name.toLowerCase().replace(/\W+/g, '-'), name };
+      const { name, date } = createEventRequest.parse(await request.json());
+      const event = {
+        slug: name.toLowerCase().replace(/\W+/g, '-'),
+        name,
+        date: date ?? null,
+      };
       events.push(event);
       return Response.json(event, { status: 201 });
     }
@@ -563,7 +567,7 @@ describe('editing the details', () => {
       [],
       [],
       [],
-      [{ slug: 'iceland-2026', name: 'Iceland 2026' }],
+      [{ slug: 'iceland-2026', name: 'Iceland 2026', date: null }],
     );
     renderPage(service);
     await editDetails();

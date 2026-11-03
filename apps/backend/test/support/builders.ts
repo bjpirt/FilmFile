@@ -1,5 +1,6 @@
 import { cameraLabel, type Camera } from '../../src/domain/equipment/camera.ts';
 import { slugFor } from '../../src/domain/shared/slug.ts';
+import { isEventDate } from '../../src/domain/events/event-date.ts';
 import type { Event } from '../../src/domain/events/event.ts';
 import { lensLabel, type Lens } from '../../src/domain/equipment/lens.ts';
 import {
@@ -126,13 +127,17 @@ export function aLens(
   return { slug, ...lens };
 }
 
-/** An event with the given name, and the slug made from it. */
-export function anEvent(name: string): Event {
+/** An event with the given name, the slug made from it, and any date given. */
+export function anEvent(name: string, date: string | null = null): Event {
   const slug = slugFor(name);
   if (slug === undefined) {
     throw new Error(`bad test data: ${name}`);
   }
-  return { slug, name };
+  return {
+    slug,
+    name,
+    date: date === null ? null : checked(date, isEventDate),
+  };
 }
 
 /** A camera by make and model, e.g. aCamera('Nikon', 'FE'), with the slug made from them. */

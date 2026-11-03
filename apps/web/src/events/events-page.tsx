@@ -1,13 +1,122 @@
 import type { ApiClient } from '@filmfile/contracts/client';
-import { useQuery } from '@tanstack/react-query';
+import type { Event } from '@filmfile/contracts/events';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { formatShot } from '../rolls/format-shot.ts';
 import { Link } from '../routing.tsx';
+import { EventForm, type EventDetails } from './event-form.tsx';
 
 function rollCount(count: number): string {
   return count === 1 ? '1 roll' : `${String(count)} rolls`;
 }
 
-/** Every event, with how many rolls were shot at it, each leading to those rolls. */
+/** What to say when the service refuses an event's details. */
+function problemWith(status: number, name: string): string {
+  switch (status) {
+    case 409:
+      return `There's already an event with a name like ${name}.`;
+    case 422:
+      return "That date doesn't exist. Check the day and month.";
+    default:
+      return "Couldn't save the event. Is the service running?";
+  }
+}
+
+/** The form for changing an event, once the event as it is now has loaded. */
+function EventEditor({
+  api,
+  slug,
+  close,
+}: {
+  readonly api: ApiClient;
+  readonly slug: string;
+  readonly close: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const event = useQuery({
+    queryKey: ['events', slug],
+    queryFn: async () => {
+      const { data, response } = await api.GET('/api/events/{slug}', {
+        params: { path: { slug } },
+      });
+      if (data === undefined) {
+        throw new Error("Couldn't load the event.");
+      }
+      // The version the event was read at, sent back as If-Match with a change.
+      return { event: data, etag: response.headers.get('ETag') ?? '' };
+    },
+  });
+
+  async function save(details: EventDetails): Promise<string | undefined> {
+    if (event.data === undefined) {
+      return undefined;
+    }
+    const { response } = await api.PATCH('/api/events/{slug}', {
+      params: { path: { slug }, header: { 'if-match': event.data.etag } },
+      body: details,
+    });
+    if (response.status === 409) {
+      return 'This event changed since you opened it. Cancel and edit it again.';
+    }
+    if (!response.ok) {
+      return problemWith(response.status, details.name);
+    }
+    await queryClient.invalidateQueries({ queryKey: ['events'] });
+    close();
+    return undefined;
+  }
+
+  if (event.isPending) {
+    return <p>Loading the event…</p>;
+  }
+  if (event.isError) {
+    return <p role="alert">Couldn't load the event. Is the service running?</p>;
+  }
+  return (
+    <EventForm
+      label={`Edit ${event.data.event.name}`}
+      initial={event.data.event}
+      submit="Save event"
+      save={save}
+      cancel={close}
+    />
+  );
+}
+
+/** One event in the list: its name, date and how many rolls it has. */
+function EventRow({
+  event,
+  rolls,
+  edit,
+}: {
+  readonly event: Event;
+  readonly rolls: number;
+  readonly edit: () => void;
+}) {
+  return (
+    <>
+      <span className="event-name">
+        <Link to={`/?event=${event.slug}`}>{event.name}</Link>
+        {event.date !== null && (
+          <span className="muted"> · {formatShot(event.date)}</span>
+        )}
+      </span>
+      <span className="muted">{rollCount(rolls)}</span>
+      <button type="button" aria-label={`Edit ${event.name}`} onClick={edit}>
+        Edit
+      </button>
+    </>
+  );
+}
+
+/**
+ * Every event, newest first, with how many rolls were shot at it, each
+ * leading to those rolls. Events are added and changed here (D32).
+ */
 export function EventsPage({ api }: { readonly api: ApiClient }) {
+  const queryClient = useQueryClient();
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<string | undefined>(undefined);
   const events = useQuery({
     queryKey: ['events'],
     queryFn: async () => {
@@ -29,6 +138,16 @@ export function EventsPage({ api }: { readonly api: ApiClient }) {
     },
   });
 
+  async function add(details: EventDetails): Promise<string | undefined> {
+    const { response } = await api.POST('/api/events', { body: details });
+    if (!response.ok) {
+      return problemWith(response.status, details.name);
+    }
+    await queryClient.invalidateQueries({ queryKey: ['events'] });
+    setAdding(false);
+    return undefined;
+  }
+
   if (events.isPending || rolls.isPending) {
     return <p>Loading the events…</p>;
   }
@@ -39,23 +158,55 @@ export function EventsPage({ api }: { readonly api: ApiClient }) {
     <section>
       <div className="page-heading">
         <h1>Events</h1>
+        {!adding && (
+          <button
+            type="button"
+            className="primary"
+            onClick={() => {
+              setAdding(true);
+            }}
+          >
+            New event
+          </button>
+        )}
       </div>
-      {events.data.length === 0 ? (
-        <p>
-          No events yet. Add one to a roll from its details, with Event and Add
-          new….
-        </p>
+      {adding && (
+        <EventForm
+          label="New event"
+          initial={{ name: '', date: null }}
+          submit="Add event"
+          save={add}
+          cancel={() => {
+            setAdding(false);
+          }}
+        />
+      )}
+      {events.data.length === 0 && !adding ? (
+        <p>No events yet. Add one with New event.</p>
       ) : (
         <ul className="event-list">
           {events.data.map((event) => (
             <li key={event.slug}>
-              <Link to={`/?event=${event.slug}`}>{event.name}</Link>
-              <span className="muted">
-                {rollCount(
-                  rolls.data.rolls.filter((roll) => roll.event === event.slug)
-                    .length,
-                )}
-              </span>
+              {editing === event.slug ? (
+                <EventEditor
+                  api={api}
+                  slug={event.slug}
+                  close={() => {
+                    setEditing(undefined);
+                  }}
+                />
+              ) : (
+                <EventRow
+                  event={event}
+                  rolls={
+                    rolls.data.rolls.filter((roll) => roll.event === event.slug)
+                      .length
+                  }
+                  edit={() => {
+                    setEditing(event.slug);
+                  }}
+                />
+              )}
             </li>
           ))}
         </ul>
