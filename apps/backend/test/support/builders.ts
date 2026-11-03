@@ -1,5 +1,9 @@
 import type { Camera } from '../../src/domain/equipment/camera.ts';
 import { slugFor } from '../../src/domain/equipment/equipment-slug.ts';
+import {
+  filmStockLabel,
+  type FilmStock,
+} from '../../src/domain/equipment/film-stock.ts';
 import type { Frame, Roll, Version } from '../../src/domain/rolls/roll.ts';
 import { isFrameNumber } from '../../src/domain/rolls/frame-number.ts';
 import { isRollNumber } from '../../src/domain/rolls/roll-number.ts';
@@ -73,7 +77,29 @@ export function aRoll(
     description: null,
     shot: null,
     camera: null,
+    film: null,
     frames: overrides.frames ?? [],
+  };
+}
+
+/** A film stock by make and name, e.g. aFilmStock('Kodak', 'Portra', { iso: 400 }), with the slug made from them. */
+export function aFilmStock(
+  make: string,
+  name: string,
+  details: Partial<Pick<FilmStock, 'iso' | 'type' | 'format'>> = {},
+): FilmStock {
+  const iso = details.iso ?? null;
+  const slug = slugFor(filmStockLabel({ make, name, iso }));
+  if (slug === undefined) {
+    throw new Error(`bad test data: ${make} ${name}`);
+  }
+  return {
+    slug,
+    make,
+    name,
+    iso,
+    type: details.type ?? null,
+    format: details.format ?? null,
   };
 }
 

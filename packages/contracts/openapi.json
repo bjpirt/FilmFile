@@ -87,6 +87,16 @@
             "example": "nikon-fe",
             "description": "The slug of the camera the roll was shot on, or null."
           },
+          "film": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe",
+            "description": "The slug of the film stock the roll is, or null."
+          },
           "frames": {
             "type": "array",
             "items": {
@@ -101,6 +111,7 @@
           "description",
           "shot",
           "camera",
+          "film",
           "frames"
         ]
       },
@@ -275,6 +286,12 @@
             "maxLength": 60,
             "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
             "example": "nikon-fe"
+          },
+          "film": {
+            "type": "string",
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe"
           }
         },
         "required": [
@@ -307,6 +324,15 @@
             "example": "2026-09-14"
           },
           "camera": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe"
+          },
+          "film": {
             "type": [
               "string",
               "null"
@@ -428,6 +454,144 @@
         "required": [
           "name"
         ]
+      },
+      "FilmStockList": {
+        "type": "object",
+        "properties": {
+          "films": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FilmStock"
+            }
+          }
+        },
+        "required": [
+          "films"
+        ]
+      },
+      "FilmStock": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe"
+          },
+          "make": {
+            "type": "string",
+            "example": "Kodak"
+          },
+          "name": {
+            "type": "string",
+            "example": "Portra 400"
+          },
+          "iso": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "example": 400
+          },
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "black-and-white",
+              "colour-negative",
+              "colour-slide",
+              null
+            ],
+            "description": "What kind of picture the film gives."
+          },
+          "format": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "110",
+              "120",
+              "127",
+              "220",
+              "35mm",
+              "4x5",
+              "8x10",
+              null
+            ],
+            "description": "The size of film."
+          }
+        },
+        "required": [
+          "slug",
+          "make",
+          "name",
+          "iso",
+          "type",
+          "format"
+        ]
+      },
+      "CreateFilmStockRequest": {
+        "type": "object",
+        "properties": {
+          "make": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50,
+            "example": "Kodak"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "example": "Portra 400"
+          },
+          "iso": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "maximum": 100000
+          },
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "black-and-white",
+              "colour-negative",
+              "colour-slide",
+              null
+            ],
+            "description": "What kind of picture the film gives."
+          },
+          "format": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "110",
+              "120",
+              "127",
+              "220",
+              "35mm",
+              "4x5",
+              "8x10",
+              null
+            ],
+            "description": "The size of film."
+          }
+        },
+        "required": [
+          "make",
+          "name"
+        ],
+        "description": "Its slug is made from its make and name."
       }
     },
     "parameters": {}
@@ -1335,6 +1499,88 @@
           },
           "409": {
             "description": "A camera with the same slug already exists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "The body is not of the expected type.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/equipment/films": {
+      "get": {
+        "summary": "List the film stocks",
+        "responses": {
+          "200": {
+            "description": "Every film stock, ordered by make and name.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilmStockList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Add a film stock",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFilmStockRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new film stock.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilmStock"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not valid JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A film stock with the same slug already exists.",
             "content": {
               "application/json": {
                 "schema": {

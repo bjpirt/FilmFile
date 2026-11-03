@@ -59,6 +59,99 @@ describe('GET /api/equipment/cameras', () => {
   });
 });
 
+describe('POST /api/equipment/films', () => {
+  test('adds a film stock, saved as its own file named by its slug', async () => {
+    const response = await post('/api/equipment/films', {
+      make: 'Kodak',
+      name: 'Portra',
+      iso: 400,
+      type: 'colour-negative',
+      format: '35mm',
+    });
+
+    const film = {
+      slug: 'kodak-portra-400',
+      make: 'Kodak',
+      name: 'Portra',
+      iso: 400,
+      type: 'colour-negative',
+      format: '35mm',
+    };
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual(film);
+    expect(
+      JSON.parse(
+        await readFile(
+          path.join(archive.path(), 'equipment/films/kodak-portra-400.json'),
+          'utf8',
+        ),
+      ),
+    ).toEqual({
+      schema: 1,
+      make: 'Kodak',
+      name: 'Portra',
+      iso: 400,
+      type: 'colour-negative',
+      format: '35mm',
+    });
+    expect(await (await request('/api/equipment/films')).json()).toEqual({
+      films: [film],
+    });
+  });
+
+  test('refuses a film stock whose slug another has', async () => {
+    await post('/api/equipment/films', { make: 'Kodak', name: 'Portra 400' });
+
+    const response = await post('/api/equipment/films', {
+      make: 'KODAK',
+      name: 'Portra 400',
+    });
+
+    expect(response.status).toBe(409);
+  });
+
+  test.each([
+    ['no make', { name: 'Portra 400' }],
+    ['a blank name', { make: 'Kodak', name: '  ' }],
+    ['an ISO that is not a whole number', { make: 'K', name: 'P', iso: 4.5 }],
+    ['a type it does not know', { make: 'K', name: 'P', type: 'infrared' }],
+    ['a format it does not know', { make: 'K', name: 'P', format: '70mm' }],
+  ])('refuses %s', async (_, body) => {
+    expect((await post('/api/equipment/films', body)).status).toBe(422);
+  });
+});
+
+describe('a roll’s film stock', () => {
+  test('is recorded when the roll is created, and cleared with its details', async () => {
+    await post('/api/equipment/films', { make: 'Kodak', name: 'Portra 400' });
+    const created: unknown = await (
+      await post('/api/rolls', { roll: '2026-014', film: 'kodak-portra-400' })
+    ).json();
+    const url = `/api/rolls/${String(idOf(created))}`;
+    const etag = (await request(url)).headers.get('ETag') ?? '';
+
+    const changed = await request(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'If-Match': etag },
+      body: JSON.stringify({ film: null }),
+    });
+
+    expect(created).toMatchObject({ film: 'kodak-portra-400' });
+    expect(await changed.json()).toMatchObject({ film: null });
+  });
+
+  test('must be a film stock in the archive', async () => {
+    const response = await post('/api/rolls', {
+      roll: '2026-014',
+      film: 'kodak-portra-400',
+    });
+
+    expect(await response.json()).toMatchObject({
+      issues: [{ path: ['film'] }],
+    });
+  });
+});
+
 describe('a roll’s camera', () => {
   test('is recorded when the roll is created, and changed with its details', async () => {
     await post('/api/equipment/cameras', { name: 'Nikon FE' });

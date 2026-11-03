@@ -3,13 +3,18 @@ import {
   camera,
   cameraList,
   createCameraRequest,
+  createFilmStockRequest,
+  filmStock,
+  filmStockList,
 } from '@filmfile/contracts/equipment';
 import {
   errorResponse,
   invalidRequestResponse,
 } from '@filmfile/contracts/errors';
 import type { CreateCamera } from '../../../../application/use-cases/equipment/create-camera.ts';
+import type { CreateFilmStock } from '../../../../application/use-cases/equipment/create-film-stock.ts';
 import type { ListCameras } from '../../../../application/use-cases/equipment/list-cameras.ts';
+import type { ListFilmStocks } from '../../../../application/use-cases/equipment/list-film-stocks.ts';
 import type { ArchiveContext } from '../../../../domain/shared/archive-context.ts';
 import { domainErrorResponse } from '../domain-error-response.ts';
 import { requireContentType } from '../middleware/require-content-type.ts';
@@ -48,12 +53,43 @@ const createCamera = createRoute({
   },
 });
 
+const listFilmStocks = createRoute({
+  method: 'get',
+  path: '/films',
+  summary: 'List the film stocks',
+  responses: {
+    200: json(filmStockList, 'Every film stock, ordered by make and name.'),
+  },
+});
+
+const createFilmStock = createRoute({
+  method: 'post',
+  path: '/films',
+  summary: 'Add a film stock',
+  middleware: [requireContentType('application/json')] as const,
+  request: {
+    body: {
+      required: true,
+      content: { 'application/json': { schema: createFilmStockRequest } },
+    },
+  },
+  responses: {
+    201: json(filmStock, 'The new film stock.'),
+    400: json(errorResponse, 'The body is not valid JSON.'),
+    409: json(errorResponse, 'A film stock with the same slug already exists.'),
+    415: json(errorResponse, 'The body is not of the expected type.'),
+    422: json(invalidRequestResponse, 'The request is invalid.'),
+  },
+});
+
 export interface EquipmentUseCases {
   readonly listCameras: ListCameras;
   readonly createCamera: CreateCamera;
+  readonly listFilmStocks: ListFilmStocks;
+  readonly createFilmStock: CreateFilmStock;
 }
 
-/** The archive's equipment: cameras so far. */
+/** The archive's equipment: cameras and film stocks. */
 export function equipmentRoutes({
   ctx,
   useCases,
@@ -70,6 +106,21 @@ export function equipmentRoutes({
 
   routes.openapi(createCamera, async (c) => {
     const created = await useCases.createCamera.execute(
+      ctx,
+      c.req.valid('json'),
+    );
+    return created.ok
+      ? c.json(created.value, 201)
+      : domainErrorResponse(c, created.error);
+  });
+
+  routes.openapi(listFilmStocks, async (c) => {
+    const films = await useCases.listFilmStocks.execute(ctx);
+    return c.json({ films: [...films] }, 200);
+  });
+
+  routes.openapi(createFilmStock, async (c) => {
+    const created = await useCases.createFilmStock.execute(
       ctx,
       c.req.valid('json'),
     );

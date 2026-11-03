@@ -6,6 +6,8 @@ import { Link } from '../routing.tsx';
 import { droppedFiles } from './dropped-files.ts';
 import { chooseCamera } from '../equipment/choose-camera.ts';
 import { cameraName, useCameras } from '../equipment/use-cameras.ts';
+import { chooseFilmStock } from '../equipment/choose-film-stock.ts';
+import { filmStockName, useFilmStocks } from '../equipment/use-film-stocks.ts';
 import { EditDetailsPanel, type RollDetails } from './edit-details-panel.tsx';
 import { formatShot } from './format-shot.ts';
 import { frameCount } from './frame-count.ts';
@@ -91,35 +93,34 @@ function ProposedNumber({
 function RollAbout({
   roll,
   camera,
+  film,
 }: {
   readonly roll: Roll;
   readonly camera: string | undefined;
+  readonly film: string | undefined;
 }) {
-  if (
-    roll.name === null &&
-    camera === undefined &&
-    roll.shot === null &&
-    roll.description === null
-  ) {
+  const facts = [
+    { label: 'Camera', value: camera },
+    { label: 'Film stock', value: film },
+    {
+      label: 'Shot',
+      value: roll.shot === null ? undefined : formatShot(roll.shot),
+    },
+  ].filter((fact) => fact.value !== undefined);
+  if (roll.name === null && facts.length === 0 && roll.description === null) {
     return null;
   }
   return (
     <div className="roll-about">
       {roll.name !== null && <p className="roll-name">{roll.name}</p>}
-      {(camera !== undefined || roll.shot !== null) && (
+      {facts.length > 0 && (
         <dl className="roll-facts">
-          {camera !== undefined && (
-            <div>
-              <dt>Camera</dt>
-              <dd>{camera}</dd>
+          {facts.map((fact) => (
+            <div key={fact.label}>
+              <dt>{fact.label}</dt>
+              <dd>{fact.value}</dd>
             </div>
-          )}
-          {roll.shot !== null && (
-            <div>
-              <dt>Shot</dt>
-              <dd>{formatShot(roll.shot)}</dd>
-            </div>
-          )}
+          ))}
         </dl>
       )}
       {roll.description !== null && (
@@ -138,6 +139,7 @@ export function RollPage({
 }) {
   const queryClient = useQueryClient();
   const cameras = useCameras(api);
+  const films = useFilmStocks(api);
   const [upload, setUpload] = useState<Upload>({ kind: 'idle' });
   const [order, setOrder] = useState<'frame' | 'scan'>('frame');
   const [changedElsewhere, setChangedElsewhere] = useState(false);
@@ -260,19 +262,24 @@ export function RollPage({
       return camera.problem;
     }
     await queryClient.invalidateQueries({ queryKey: ['cameras'] });
+    const film = await chooseFilmStock(api, details.film);
+    if (!film.ok) {
+      return film.problem;
+    }
+    await queryClient.invalidateQueries({ queryKey: ['films'] });
     const { response } = await api.PATCH('/api/rolls/{rollId}', {
       params: {
         path: { rollId },
         header: { 'if-match': roll.data.etag },
       },
-      body: { ...details, camera: camera.slug },
+      body: { ...details, camera: camera.slug, film: film.slug },
     });
     if (response.status === 409) {
       // Said by the banner, with its Reload.
       setChangedElsewhere(true);
       return undefined;
     }
-    // The panel checks the year and the camera exists, so the date is all
+    // The panel checks the year and the equipment exists, so the date is all
     // the service can refuse.
     if (response.status === 422) {
       return "That date doesn't exist. Check the day and month.";
@@ -374,6 +381,7 @@ export function RollPage({
         <EditDetailsPanel
           roll={roll.data.roll}
           cameras={cameras}
+          films={films}
           save={saveDetails}
           cancel={() => {
             setEditingDetails(false);
@@ -385,6 +393,7 @@ export function RollPage({
         <RollAbout
           roll={roll.data.roll}
           camera={cameraName(cameras, roll.data.roll.camera)}
+          film={filmStockName(films, roll.data.roll.film)}
         />
       )}
 

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { EquipmentRepository } from '../../src/application/ports/equipment-repository.ts';
 import { err, ok } from '../../src/domain/shared/result.ts';
-import { aCamera, ctx } from '../support/builders.ts';
+import { aCamera, aFilmStock, ctx } from '../support/builders.ts';
 
 /** What every EquipmentRepository must do, run against each adapter. */
 export function equipmentRepositoryContract(
@@ -51,6 +51,87 @@ export function equipmentRepositoryContract(
       expect(
         await makeRepository().getCamera(ctx, aCamera('Nikon FE').slug),
       ).toBeUndefined();
+    });
+
+    test('gets back exactly the film stock created', async () => {
+      const equipment = makeRepository();
+      const film = aFilmStock('Kodak', 'Portra', {
+        iso: 400,
+        type: 'colour-negative',
+        format: '120',
+      });
+
+      expect(await equipment.createFilmStock(ctx, film)).toEqual(ok(undefined));
+      expect(await equipment.getFilmStock(ctx, film.slug)).toEqual(film);
+    });
+
+    test('keeps a film stock with no ISO, type or format', async () => {
+      const equipment = makeRepository();
+      const film = aFilmStock('Kodak', 'Portra 400');
+      await equipment.createFilmStock(ctx, film);
+
+      expect(await equipment.getFilmStock(ctx, film.slug)).toEqual(film);
+    });
+
+    test('refuses to create a film stock whose slug is taken, keeping the first', async () => {
+      const equipment = makeRepository();
+      await equipment.createFilmStock(ctx, aFilmStock('Kodak', 'Portra 400'));
+
+      expect(
+        await equipment.createFilmStock(
+          ctx,
+          aFilmStock('Kodak', 'Portra 400', { type: 'colour-negative' }),
+        ),
+      ).toEqual(
+        err({
+          kind: 'already-exists',
+          entity: 'equipment',
+          id: 'kodak-portra-400',
+        }),
+      );
+      expect(await equipment.listFilmStocks(ctx)).toEqual([
+        aFilmStock('Kodak', 'Portra 400'),
+      ]);
+    });
+
+    test('lists film stocks by make, then name', async () => {
+      const equipment = makeRepository();
+      for (const [make, name] of [
+        ['Kodak', 'Tri-X 400'],
+        ['Ilford', 'HP5 Plus'],
+        ['Kodak', 'Portra 400'],
+      ] as const) {
+        await equipment.createFilmStock(ctx, aFilmStock(make, name));
+      }
+
+      expect(
+        (await equipment.listFilmStocks(ctx)).map((f) => `${f.make} ${f.name}`),
+      ).toEqual(['Ilford HP5 Plus', 'Kodak Portra 400', 'Kodak Tri-X 400']);
+    });
+
+    test('lists film stocks differing only in speed slowest first', async () => {
+      const equipment = makeRepository();
+      for (const iso of [800, 1600, 160]) {
+        await equipment.createFilmStock(
+          ctx,
+          aFilmStock('Kodak', 'Portra', { iso }),
+        );
+      }
+
+      expect((await equipment.listFilmStocks(ctx)).map((f) => f.slug)).toEqual([
+        'kodak-portra-160',
+        'kodak-portra-800',
+        'kodak-portra-1600',
+      ]);
+    });
+
+    test('keeps cameras and film stocks apart, even with the same slug', async () => {
+      const equipment = makeRepository();
+      await equipment.createCamera(ctx, aCamera('Kodak Retina'));
+      await equipment.createFilmStock(ctx, aFilmStock('Kodak', 'Retina'));
+
+      expect(await equipment.listCameras(ctx)).toHaveLength(1);
+      expect(await equipment.listFilmStocks(ctx)).toHaveLength(1);
     });
   });
 }

@@ -858,6 +858,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/equipment/films": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the film stocks */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Every film stock, ordered by make and name. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FilmStockList"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Add a film stock */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateFilmStockRequest"];
+                };
+            };
+            responses: {
+                /** @description The new film stock. */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FilmStock"];
+                    };
+                };
+                /** @description The body is not valid JSON. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description A film stock with the same slug already exists. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The body is not of the expected type. */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The request is invalid. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -891,6 +987,11 @@ export interface components {
              * @example nikon-fe
              */
             camera: string | null;
+            /**
+             * @description The slug of the film stock the roll is, or null.
+             * @example nikon-fe
+             */
+            film: string | null;
             frames: components["schemas"]["Frame"][];
         };
         Frame: {
@@ -953,6 +1054,8 @@ export interface components {
             shot?: string;
             /** @example nikon-fe */
             camera?: string;
+            /** @example nikon-fe */
+            film?: string;
         };
         /** @description The details to change. A detail left out stays as it is; null clears it. */
         UpdateRollRequest: {
@@ -962,6 +1065,8 @@ export interface components {
             shot?: string | null;
             /** @example nikon-fe */
             camera?: string | null;
+            /** @example nikon-fe */
+            film?: string | null;
         };
         CreateFrameRequest: {
             /** @example 12A */
@@ -997,6 +1102,47 @@ export interface components {
         CreateCameraRequest: {
             /** @description What the camera is called; its slug is made from it. */
             name: string;
+        };
+        FilmStockList: {
+            films: components["schemas"]["FilmStock"][];
+        };
+        FilmStock: {
+            /** @example nikon-fe */
+            slug: string;
+            /** @example Kodak */
+            make: string;
+            /** @example Portra 400 */
+            name: string;
+            /** @example 400 */
+            iso: number | null;
+            /**
+             * @description What kind of picture the film gives.
+             * @enum {string|null}
+             */
+            type: "black-and-white" | "colour-negative" | "colour-slide" | null;
+            /**
+             * @description The size of film.
+             * @enum {string|null}
+             */
+            format: "110" | "120" | "127" | "220" | "35mm" | "4x5" | "8x10" | null;
+        };
+        /** @description Its slug is made from its make and name. */
+        CreateFilmStockRequest: {
+            /** @example Kodak */
+            make: string;
+            /** @example Portra 400 */
+            name: string;
+            iso?: number | null;
+            /**
+             * @description What kind of picture the film gives.
+             * @enum {string|null}
+             */
+            type?: "black-and-white" | "colour-negative" | "colour-slide" | null;
+            /**
+             * @description The size of film.
+             * @enum {string|null}
+             */
+            format?: "110" | "120" | "127" | "220" | "35mm" | "4x5" | "8x10" | null;
         };
     };
     responses: never;

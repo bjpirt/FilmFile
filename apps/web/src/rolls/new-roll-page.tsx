@@ -4,6 +4,10 @@ import { useState, type SubmitEvent } from 'react';
 import { CameraField } from '../equipment/camera-field.tsx';
 import { chooseCamera } from '../equipment/choose-camera.ts';
 import { useCameras } from '../equipment/use-cameras.ts';
+import { chooseFilmStock } from '../equipment/choose-film-stock.ts';
+import { noFilmStock, type FilmChoice } from '../equipment/film-choice.ts';
+import { FilmStockField } from '../equipment/film-stock-field.tsx';
+import { useFilmStocks } from '../equipment/use-film-stocks.ts';
 import { Link, navigate } from '../routing.tsx';
 import { DateShotFields } from './date-shot-fields.tsx';
 import { describeUpload } from './describe-upload.ts';
@@ -33,10 +37,12 @@ type Progress =
 export function NewRollPage({ api }: { readonly api: ApiClient }) {
   const queryClient = useQueryClient();
   const cameras = useCameras(api);
+  const films = useFilmStocks(api);
   const [rollNumber, setRollNumber] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [camera, setCamera] = useState('');
+  const [film, setFilm] = useState<FilmChoice>(noFilmStock);
   const [shot, setShot] = useState<ShotFields>({
     year: '',
     month: '',
@@ -87,6 +93,13 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
       return;
     }
     await queryClient.invalidateQueries({ queryKey: ['cameras'] });
+    const chosenFilm = await chooseFilmStock(api, film);
+    if (!chosenFilm.ok) {
+      setProgress({ kind: 'editing' });
+      setProblem(chosenFilm.problem);
+      return;
+    }
+    await queryClient.invalidateQueries({ queryKey: ['films'] });
     const { data, response, error } = await api.POST('/api/rolls', {
       body: {
         roll,
@@ -96,6 +109,7 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
           : { description: description.trim() }),
         shot: shotDate,
         ...(chosen.slug === null ? {} : { camera: chosen.slug }),
+        ...(chosenFilm.slug === null ? {} : { film: chosenFilm.slug }),
       },
     });
     if (data === undefined) {
@@ -201,6 +215,7 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
 
         <DateShotFields shot={shot} change={changeShot} />
         <CameraField cameras={cameras} value={camera} change={setCamera} />
+        <FilmStockField films={films} choice={film} change={setFilm} />
 
         <div
           className="drop-zone"

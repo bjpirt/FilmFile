@@ -2,7 +2,9 @@
 import { createApiClient } from '@filmfile/contracts/client';
 import {
   createCameraRequest,
+  createFilmStockRequest,
   type Camera,
+  type FilmStock,
 } from '@filmfile/contracts/equipment';
 import { createRollRequest, type Roll } from '@filmfile/contracts/rolls';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -12,6 +14,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { NewRollPage } from './new-roll-page.tsx';
@@ -28,7 +31,8 @@ afterEach(cleanup);
 function fakeService({
   taken = [],
   cameras = [],
-}: { taken?: string[]; cameras?: Camera[] } = {}) {
+  films = [],
+}: { taken?: string[]; cameras?: Camera[]; films?: FilmStock[] } = {}) {
   const created: unknown[] = [];
   const uploads: string[] = [];
   let cameraLists = 0;
@@ -48,6 +52,26 @@ function fakeService({
       cameras.push(camera);
       return Response.json(camera, { status: 201 });
     }
+    if (url.pathname === '/api/equipment/films') {
+      if (request.method === 'GET') {
+        return Response.json({ films });
+      }
+      const body = createFilmStockRequest.parse(await request.json());
+      const film: FilmStock = {
+        slug: [body.make, body.name, body.iso ?? '']
+          .join(' ')
+          .trim()
+          .toLowerCase()
+          .replace(/\W+/g, '-'),
+        make: body.make,
+        name: body.name,
+        iso: body.iso ?? null,
+        type: body.type ?? null,
+        format: body.format ?? null,
+      };
+      films.push(film);
+      return Response.json(film, { status: 201 });
+    }
     if (url.pathname === '/api/rolls') {
       const body = createRollRequest.parse(await request.json());
       created.push(body);
@@ -61,6 +85,7 @@ function fakeService({
         description: body.description ?? null,
         shot: body.shot ?? null,
         camera: body.camera ?? null,
+        film: body.film ?? null,
         frames: [],
       };
       return Response.json(roll, { status: 201 });
@@ -90,7 +115,14 @@ function fakeService({
       { status: 201 },
     );
   }
-  return { answer, created, uploads, cameras, cameraLists: () => cameraLists };
+  return {
+    answer,
+    created,
+    uploads,
+    cameras,
+    films,
+    cameraLists: () => cameraLists,
+  };
 }
 
 function renderPage(service: { answer: (r: Request) => Promise<Response> }) {
@@ -114,6 +146,26 @@ function field(label: string): HTMLInputElement {
 
 function fill(label: string, value: string) {
   fireEvent.change(field(label), { target: { value } });
+}
+
+/** The new film stock's name; the roll has a Name field too. */
+function fillNewStockName(value: string) {
+  const details = screen.getByRole('group', { name: 'New film stock' });
+  fireEvent.change(
+    within(details).getByLabelText('Name', {
+      normalizer: (text) => text.replace('*', '').trim(),
+    }),
+    { target: { value } },
+  );
+}
+
+/** Chooses an option in a dropdown by the text it shows. */
+function choose(label: string, option: string) {
+  const select = field(label);
+  const chosen = within(select).getByRole<HTMLOptionElement>('option', {
+    name: option,
+  });
+  fireEvent.change(select, { target: { value: chosen.value } });
 }
 
 function create() {
@@ -242,6 +294,103 @@ describe('the camera', () => {
     expect(service.created).toEqual([
       { roll: '2026-014', shot: '2026', camera: 'pentax-k1000' },
     ]);
+  });
+});
+
+describe('the film stock', () => {
+  const portra: FilmStock = {
+    slug: 'kodak-portra-400',
+    make: 'Kodak',
+    name: 'Portra',
+    iso: 400,
+    type: 'colour-negative',
+    format: '35mm',
+  };
+
+  test('offers the archive’s film stocks, then Add new…', async () => {
+    renderPage(fakeService({ films: [portra] }));
+
+    await screen.findByRole('option', { name: 'Kodak Portra 400' });
+    expect(
+      within(field('Film stock'))
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['—', 'Kodak Portra 400', 'Add new…']);
+  });
+
+  test('is picked from the archive’s film stocks', async () => {
+    const service = fakeService({ films: [portra] });
+    renderPage(service);
+    await screen.findByRole('option', { name: 'Kodak Portra 400' });
+
+    fill('Roll number', '2026-014');
+    choose('Film stock', 'Kodak Portra 400');
+    create();
+
+    await waitToOpen(rollId);
+    expect(service.created).toEqual([
+      { roll: '2026-014', shot: '2026', film: 'kodak-portra-400' },
+    ]);
+  });
+
+  test('can be a new one, added to the archive with the details given', async () => {
+    const service = fakeService();
+    renderPage(service);
+
+    fill('Roll number', '2026-014');
+    choose('Film stock', 'Add new…');
+    fill('Make', 'Ilford');
+    fillNewStockName('HP5 Plus');
+    fill('ISO', '400');
+    choose('Type', 'Black and white');
+    choose('Format', '120');
+    create();
+
+    await waitToOpen(rollId);
+    expect(service.films).toEqual([
+      {
+        slug: 'ilford-hp5-plus-400',
+        make: 'Ilford',
+        name: 'HP5 Plus',
+        iso: 400,
+        type: 'black-and-white',
+        format: '120',
+      },
+    ]);
+    expect(service.created).toEqual([
+      { roll: '2026-014', shot: '2026', film: 'ilford-hp5-plus-400' },
+    ]);
+  });
+
+  test('asks for a new one’s make and name', async () => {
+    const service = fakeService();
+    renderPage(service);
+
+    fill('Roll number', '2026-014');
+    choose('Film stock', 'Add new…');
+    create();
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      "Enter the new film stock's make, like Kodak.",
+    );
+    expect(service.created).toEqual([]);
+  });
+
+  test('asks for a whole-number ISO for a new one', async () => {
+    const service = fakeService();
+    renderPage(service);
+
+    fill('Roll number', '2026-014');
+    choose('Film stock', 'Add new…');
+    fill('Make', 'Kodak');
+    fillNewStockName('Portra');
+    fill('ISO', '400 ASA');
+    create();
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Enter the ISO as a whole number, like 400.',
+    );
+    expect(service.created).toEqual([]);
   });
 });
 

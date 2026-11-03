@@ -1,6 +1,7 @@
-import type { Camera } from '@filmfile/contracts/equipment';
+import type { Camera, FilmStock } from '@filmfile/contracts/equipment';
 import type { Roll } from '@filmfile/contracts/rolls';
 import { cameraName } from '../equipment/use-cameras.ts';
+import { filmStockName } from '../equipment/use-film-stocks.ts';
 import { Link } from '../routing.tsx';
 import { formatShot } from './format-shot.ts';
 import { frameCount } from './frame-count.ts';
@@ -10,13 +11,18 @@ import { thumbnailUrl } from './thumbnail-url.ts';
 export function RollCard({
   roll,
   cameras,
+  films,
 }: {
   readonly roll: Roll;
   readonly cameras: readonly Camera[];
+  readonly films: readonly FilmStock[];
 }) {
-  const camera = cameraName(cameras, roll.camera);
-  // e.g. "Nikon FE · Sep 2026"
-  const about = [camera, roll.shot === null ? undefined : formatShot(roll.shot)]
+  // e.g. "Nikon FE · Kodak Portra 400 · Sep 2026"
+  const about = [
+    cameraName(cameras, roll.camera),
+    filmStockName(films, roll.film),
+    roll.shot === null ? undefined : formatShot(roll.shot),
+  ]
     .filter((part) => part !== undefined)
     .join(' · ');
   const peek = [0, 1, 2].map((i) => {

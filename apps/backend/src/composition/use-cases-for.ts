@@ -8,7 +8,9 @@ import type { ImageInspector } from '../application/ports/image-inspector.ts';
 import type { PreviewProvider } from '../application/ports/preview-provider.ts';
 import type { RollRepository } from '../application/ports/roll-repository.ts';
 import { CreateCamera } from '../application/use-cases/equipment/create-camera.ts';
+import { CreateFilmStock } from '../application/use-cases/equipment/create-film-stock.ts';
 import { ListCameras } from '../application/use-cases/equipment/list-cameras.ts';
+import { ListFilmStocks } from '../application/use-cases/equipment/list-film-stocks.ts';
 import { AddVersion } from '../application/use-cases/frames/add-version.ts';
 import { CreateFrame } from '../application/use-cases/frames/create-frame.ts';
 import { GetOriginal } from '../application/use-cases/frames/get-original.ts';
@@ -54,5 +56,7 @@ export function useCasesFor({
     getThumbnail: new GetThumbnail(rolls, blobs, previews),
     listCameras: new ListCameras(equipment),
     createCamera: new CreateCamera(equipment),
+    listFilmStocks: new ListFilmStocks(equipment),
+    createFilmStock: new CreateFilmStock(equipment),
   };
 }

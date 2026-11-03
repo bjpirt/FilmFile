@@ -18,6 +18,13 @@ export interface NewRoll {
   readonly time?: string;
   /** A camera's name: one the archive has, or a new one. */
   readonly camera?: string;
+  /** A film stock to add, from Add new…. */
+  readonly newFilmStock?: {
+    readonly make: string;
+    readonly name: string;
+    readonly iso?: string;
+    readonly format?: string;
+  };
   readonly scans?: FixtureSet;
 }
 
@@ -58,6 +65,19 @@ export async function createRoll(
   }
   if (details.camera !== undefined) {
     await page.getByLabel('Camera').fill(details.camera);
+  }
+  if (details.newFilmStock !== undefined) {
+    const { make, name, iso, format } = details.newFilmStock;
+    await page.getByLabel('Film stock').selectOption({ label: 'Add new…' });
+    const newFilmStock = page.getByRole('group', { name: 'New film stock' });
+    await newFilmStock.getByLabel('Make').fill(make);
+    await newFilmStock.getByLabel('Name').fill(name);
+    if (iso !== undefined) {
+      await newFilmStock.getByLabel('ISO').fill(iso);
+    }
+    if (format !== undefined) {
+      await newFilmStock.getByLabel('Format').selectOption({ label: format });
+    }
   }
   if (details.scans !== undefined) {
     await page

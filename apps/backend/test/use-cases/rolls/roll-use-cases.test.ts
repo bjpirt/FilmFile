@@ -3,6 +3,7 @@ import { InMemoryEquipmentRepository } from '../../../src/adapters/outbound/memo
 import { InMemoryRollRepository } from '../../../src/adapters/outbound/memory/in-memory-roll-repository.ts';
 import { SequentialIdGenerator } from '../../../src/adapters/outbound/memory/sequential-id-generator.ts';
 import { CreateCamera } from '../../../src/application/use-cases/equipment/create-camera.ts';
+import { CreateFilmStock } from '../../../src/application/use-cases/equipment/create-film-stock.ts';
 import { CreateRoll } from '../../../src/application/use-cases/rolls/create-roll.ts';
 import { GetRoll } from '../../../src/application/use-cases/rolls/get-roll.ts';
 import { ListRolls } from '../../../src/application/use-cases/rolls/list-rolls.ts';
@@ -25,6 +26,7 @@ function setUp() {
   return {
     ctx: anArchive(),
     createCamera: new CreateCamera(equipment),
+    createFilmStock: new CreateFilmStock(equipment),
     createRoll: new CreateRoll(rolls, equipment, ids),
     listRolls: new ListRolls(rolls),
     getRoll: new GetRoll(rolls),
@@ -45,6 +47,7 @@ describe('CreateRoll', () => {
         description: null,
         shot: null,
         camera: null,
+        film: null,
         frames: [],
       },
     });
@@ -57,6 +60,37 @@ describe('CreateRoll', () => {
     expect(
       await createRoll.execute(ctx, { roll: '2026-014', camera: 'nikon-fe' }),
     ).toMatchObject({ ok: true, value: { camera: 'nikon-fe' } });
+  });
+
+  test('records the film stock the roll is', async () => {
+    const { ctx, createFilmStock, createRoll } = setUp();
+    await createFilmStock.execute(ctx, { make: 'Kodak', name: 'Portra 400' });
+
+    expect(
+      await createRoll.execute(ctx, {
+        roll: '2026-014',
+        film: 'kodak-portra-400',
+      }),
+    ).toMatchObject({ ok: true, value: { film: 'kodak-portra-400' } });
+  });
+
+  test('refuses a film stock the archive does not have', async () => {
+    const { ctx, createRoll } = setUp();
+
+    expect(
+      await createRoll.execute(ctx, {
+        roll: '2026-014',
+        film: 'kodak-portra-400',
+      }),
+    ).toEqual({
+      ok: false,
+      error: {
+        kind: 'validation-failed',
+        issues: [
+          { path: ['film'], message: 'is not a film stock in the archive' },
+        ],
+      },
+    });
   });
 
   test('refuses a camera the archive does not have', async () => {
@@ -234,6 +268,49 @@ describe('UpdateRoll', () => {
     expect(cleared).toMatchObject({
       ok: true,
       value: { roll: { camera: null } },
+    });
+  });
+
+  test('changes the film stock, or clears it with null', async () => {
+    const { ctx, id, version, updateRoll, createFilmStock } =
+      await aCreatedRoll();
+    await createFilmStock.execute(ctx, { make: 'Kodak', name: 'Portra 400' });
+
+    const changed = await updateRoll.execute(ctx, {
+      id,
+      expectedVersion: version,
+      film: 'kodak-portra-400',
+    });
+    const cleared = changed.ok
+      ? await updateRoll.execute(ctx, {
+          id,
+          expectedVersion: changed.value.version,
+          film: null,
+        })
+      : changed;
+
+    expect(changed).toMatchObject({
+      ok: true,
+      value: { roll: { film: 'kodak-portra-400' } },
+    });
+    expect(cleared).toMatchObject({
+      ok: true,
+      value: { roll: { film: null } },
+    });
+  });
+
+  test('refuses a film stock the archive does not have, changing nothing', async () => {
+    const { ctx, id, version, updateRoll } = await aCreatedRoll();
+
+    expect(
+      await updateRoll.execute(ctx, {
+        id,
+        expectedVersion: version,
+        film: 'kodak-portra-400',
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { kind: 'validation-failed', issues: [{ path: ['film'] }] },
     });
   });
 

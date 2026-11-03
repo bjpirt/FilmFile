@@ -16,6 +16,12 @@ test('catalogue a roll: create it with its details and scans, correct a number, 
     day: '14',
     time: '06:30',
     camera: 'Nikon FE',
+    newFilmStock: {
+      make: 'Kodak',
+      name: 'Portra',
+      iso: '400',
+      format: '35mm',
+    },
     scans: fixtureSets.headToTail,
   });
 
@@ -23,6 +29,7 @@ test('catalogue a roll: create it with its details and scans, correct a number, 
 
   await expect(page.getByText('Iceland, first day')).toBeVisible();
   await expect(page.getByText('Nikon FE')).toBeVisible();
+  await expect(page.getByText('Kodak Portra 400')).toBeVisible();
   await expect(page.getByText('14 Sep 2026, 06:30')).toBeVisible();
   await expect(page.getByText('Jökulsárlón at dawn.')).toBeVisible();
   await expect(framesShown(page)).toHaveText(['1', '2', '3', '4', '5', '6']);

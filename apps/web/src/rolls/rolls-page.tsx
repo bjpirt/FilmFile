@@ -4,6 +4,7 @@ import type { Camera } from '@filmfile/contracts/equipment';
 import type { Roll } from '@filmfile/contracts/rolls';
 import { useEffect } from 'react';
 import { cameraName, useCameras } from '../equipment/use-cameras.ts';
+import { useFilmStocks } from '../equipment/use-film-stocks.ts';
 import { Link, navigate, useSearch } from '../routing.tsx';
 import { BrowsePanel } from './browse-panel.tsx';
 import { RollCard } from './roll-card.tsx';
@@ -133,6 +134,7 @@ export function RollsPage({
   }
 
   const cameras = useCameras(api);
+  const films = useFilmStocks(api);
   const rolls = useQuery({
     queryKey: ['rolls'],
     queryFn: async () => {
@@ -248,11 +250,20 @@ export function RollsPage({
                 (view === 'grid' ? (
                   <ul className="roll-grid">
                     {group.rolls.map((roll) => (
-                      <RollCard key={roll.id} roll={roll} cameras={cameras} />
+                      <RollCard
+                        key={roll.id}
+                        roll={roll}
+                        cameras={cameras}
+                        films={films}
+                      />
                     ))}
                   </ul>
                 ) : (
-                  <RollTable rolls={group.rolls} cameras={cameras} />
+                  <RollTable
+                    rolls={group.rolls}
+                    cameras={cameras}
+                    films={films}
+                  />
                 ))}
             </section>
           ),

@@ -2,7 +2,9 @@
 import { createApiClient } from '@filmfile/contracts/client';
 import {
   createCameraRequest,
+  createFilmStockRequest,
   type Camera,
+  type FilmStock,
 } from '@filmfile/contracts/equipment';
 import {
   updateFrameNumbersRequest,
@@ -17,6 +19,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { RollPage } from './roll-page.tsx';
@@ -32,9 +35,19 @@ const rollDetails: Omit<Roll, 'frames'> = {
   description: null,
   shot: null,
   camera: null,
+  film: null,
 };
 
 const nikonFe: Camera = { slug: 'nikon-fe', name: 'Nikon FE' };
+
+const portra: FilmStock = {
+  slug: 'kodak-portra-400',
+  make: 'Kodak',
+  name: 'Portra',
+  iso: 400,
+  type: 'colour-negative',
+  format: '35mm',
+};
 
 async function sha256(bytes: ArrayBuffer): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', bytes);
@@ -48,6 +61,7 @@ function fakeRollService(
   frames: Frame[] = [],
   details: Partial<Roll> = {},
   cameras: Camera[] = [],
+  films: FilmStock[] = [],
 ) {
   let roll = { ...rollDetails, ...details };
   const requests: string[] = [];
@@ -73,6 +87,26 @@ function fakeRollService(
       cameras.push(camera);
       return Response.json(camera, { status: 201 });
     }
+    if (url.pathname === '/api/equipment/films') {
+      if (request.method === 'GET') {
+        return Response.json({ films });
+      }
+      const body = createFilmStockRequest.parse(await request.json());
+      const film: FilmStock = {
+        slug: [body.make, body.name, body.iso ?? '']
+          .join(' ')
+          .trim()
+          .toLowerCase()
+          .replace(/\W+/g, '-'),
+        make: body.make,
+        name: body.name,
+        iso: body.iso ?? null,
+        type: body.type ?? null,
+        format: body.format ?? null,
+      };
+      films.push(film);
+      return Response.json(film, { status: 201 });
+    }
     if (request.method === 'GET' && url.pathname === `/api/rolls/${rollId}`) {
       const body: Roll = { ...roll, frames };
       return Response.json(body, { headers: { ETag: etag() } });
@@ -89,7 +123,7 @@ function fakeRollService(
       const body: unknown = await request.json();
       if (url.pathname === `/api/rolls/${rollId}`) {
         // The page always sends every detail.
-        const { name, description, shot, camera } =
+        const { name, description, shot, camera, film } =
           updateRollRequest.parse(body);
         roll = {
           ...roll,
@@ -97,6 +131,7 @@ function fakeRollService(
           description: description ?? null,
           shot: shot ?? null,
           camera: camera ?? null,
+          film: film ?? null,
         };
         changed();
         const updated: Roll = { ...roll, frames };
@@ -166,7 +201,7 @@ function fakeRollService(
     return Response.json({ error: 'not found' }, { status: 404 });
   }
 
-  return { answer, requests, ifMatches, frames, changed, cameras };
+  return { answer, requests, ifMatches, frames, changed, cameras, films };
 }
 
 function aScan(name: string, content = name): File {
@@ -230,7 +265,7 @@ test('heads the page with the roll number and how many frames it has', async () 
   expect(screen.getByText('2 frames')).toBeDefined();
 });
 
-test('shows the roll’s name, camera, date shot and description', async () => {
+test('shows the roll’s name, camera, film stock, date shot and description', async () => {
   renderPage(
     fakeRollService(
       [],
@@ -239,15 +274,19 @@ test('shows the roll’s name, camera, date shot and description', async () => {
         description: 'Jökulsárlón at dawn.',
         shot: '2026-09-14T06:30',
         camera: 'nikon-fe',
+        film: 'kodak-portra-400',
       },
       [nikonFe],
+      [portra],
     ),
   );
 
   expect(await screen.findByText('Iceland, first day')).toBeDefined();
   expect(await screen.findByText('Nikon FE')).toBeDefined();
+  expect(await screen.findByText('Kodak Portra 400')).toBeDefined();
   expect(details()).toEqual([
     ['Camera', 'Nikon FE'],
+    ['Film stock', 'Kodak Portra 400'],
     ['Shot', '14 Sep 2026, 06:30'],
   ]);
   expect(screen.getByText('Jökulsárlón at dawn.')).toBeDefined();
@@ -282,6 +321,15 @@ describe('editing the details', () => {
 
   function fill(label: string, value: string) {
     fireEvent.change(field(label), { target: { value } });
+  }
+
+  /** Chooses an option in a dropdown by the text it shows. */
+  function choose(label: string, option: string) {
+    const select = field(label);
+    const chosen = within(select).getByRole<HTMLOptionElement>('option', {
+      name: option,
+    });
+    fireEvent.change(select, { target: { value: chosen.value } });
   }
 
   test('opens with the roll’s details filled in', async () => {
@@ -358,6 +406,62 @@ describe('editing the details', () => {
         option.getAttribute('value'),
       ),
     ).toEqual(['Nikon FE']);
+  });
+
+  test('adds a film stock the archive doesn’t have yet, with its details', async () => {
+    const service = fakeRollService([], iceland, [], [portra]);
+    renderPage(service);
+    await editDetails();
+
+    await screen.findByRole('option', { name: 'Kodak Portra 400' });
+    choose('Film stock', 'Add new…');
+    fill('Make', 'Fuji');
+    fireEvent.change(
+      within(
+        screen.getByRole('group', { name: 'New film stock' }),
+      ).getByLabelText('Name', {
+        normalizer: (text) => text.replace('*', '').trim(),
+      }),
+      { target: { value: 'Velvia' } },
+    );
+    fill('ISO', '50');
+    choose('Type', 'Colour slide');
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+
+    expect(await screen.findByText('Fuji Velvia 50')).toBeDefined();
+    expect(service.films.at(-1)).toEqual({
+      slug: 'fuji-velvia-50',
+      make: 'Fuji',
+      name: 'Velvia',
+      iso: 50,
+      type: 'colour-slide',
+      format: null,
+    });
+  });
+
+  test('shows the roll’s film stock chosen, and can clear it', async () => {
+    const service = fakeRollService(
+      [],
+      { ...iceland, film: 'kodak-portra-400' },
+      [],
+      [portra],
+    );
+    renderPage(service);
+    await screen.findByText('Kodak Portra 400');
+    await editDetails();
+
+    expect(
+      within(field('Film stock')).getByRole<HTMLOptionElement>('option', {
+        name: 'Kodak Portra 400',
+      }).selected,
+    ).toBe(true);
+
+    choose('Film stock', '—');
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Kodak Portra 400')).toBeNull();
+    });
   });
 
   test('asks for a year', async () => {

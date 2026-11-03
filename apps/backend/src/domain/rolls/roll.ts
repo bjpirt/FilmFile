@@ -34,5 +34,7 @@ export interface Roll {
   readonly shot: ShotDate | null;
   /** The camera the roll was shot on, or null. */
   readonly camera: EquipmentSlug | null;
+  /** The film stock the roll is, or null. */
+  readonly film: EquipmentSlug | null;
   readonly frames: readonly Frame[];
 }

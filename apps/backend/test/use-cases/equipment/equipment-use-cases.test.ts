@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import { InMemoryEquipmentRepository } from '../../../src/adapters/outbound/memory/in-memory-equipment-repository.ts';
 import { CreateCamera } from '../../../src/application/use-cases/equipment/create-camera.ts';
+import { CreateFilmStock } from '../../../src/application/use-cases/equipment/create-film-stock.ts';
 import { ListCameras } from '../../../src/application/use-cases/equipment/list-cameras.ts';
+import { ListFilmStocks } from '../../../src/application/use-cases/equipment/list-film-stocks.ts';
 import { ctx } from '../../support/builders.ts';
 
 function setUp() {
@@ -9,6 +11,8 @@ function setUp() {
   return {
     createCamera: new CreateCamera(equipment),
     listCameras: new ListCameras(equipment),
+    createFilmStock: new CreateFilmStock(equipment),
+    listFilmStocks: new ListFilmStocks(equipment),
   };
 }
 
@@ -43,6 +47,102 @@ describe('CreateCamera', () => {
     expect(await createCamera.execute(ctx, { name: ' -- ' })).toMatchObject({
       ok: false,
       error: { kind: 'validation-failed', issues: [{ path: ['name'] }] },
+    });
+  });
+});
+
+describe('CreateFilmStock', () => {
+  test('creates a film stock with a slug made from its make and name, trimmed', async () => {
+    const { createFilmStock, listFilmStocks } = setUp();
+
+    const created = await createFilmStock.execute(ctx, {
+      make: ' Kodak ',
+      name: 'Portra ',
+      iso: 400,
+      type: 'colour-negative',
+      format: '35mm',
+    });
+
+    const film = {
+      slug: 'kodak-portra-400',
+      make: 'Kodak',
+      name: 'Portra',
+      iso: 400,
+      type: 'colour-negative',
+      format: '35mm',
+    };
+    expect(created).toEqual({ ok: true, value: film });
+    expect(await listFilmStocks.execute(ctx)).toEqual([film]);
+  });
+
+  test('leaves out the ISO, type and format when not given', async () => {
+    const { createFilmStock } = setUp();
+
+    expect(
+      await createFilmStock.execute(ctx, { make: 'Ilford', name: 'HP5 Plus' }),
+    ).toMatchObject({
+      ok: true,
+      value: { iso: null, type: null, format: null },
+    });
+  });
+
+  test('refuses a film stock whose slug another has', async () => {
+    const { createFilmStock } = setUp();
+    await createFilmStock.execute(ctx, {
+      make: 'Kodak',
+      name: 'Portra',
+      iso: 400,
+    });
+
+    expect(
+      await createFilmStock.execute(ctx, {
+        make: 'kodak',
+        name: 'portra',
+        iso: 400,
+      }),
+    ).toEqual({
+      ok: false,
+      error: {
+        kind: 'already-exists',
+        entity: 'equipment',
+        id: 'kodak-portra-400',
+      },
+    });
+  });
+
+  test('tells apart film stocks differing only in speed', async () => {
+    const { createFilmStock } = setUp();
+
+    const slower = await createFilmStock.execute(ctx, {
+      make: 'Kodak',
+      name: 'Portra',
+      iso: 160,
+    });
+    const faster = await createFilmStock.execute(ctx, {
+      make: 'Kodak',
+      name: 'Portra',
+      iso: 400,
+    });
+
+    expect(slower).toMatchObject({
+      ok: true,
+      value: { slug: 'kodak-portra-160' },
+    });
+    expect(faster).toMatchObject({
+      ok: true,
+      value: { slug: 'kodak-portra-400' },
+    });
+  });
+
+  test.each([
+    ['make', { make: ' ', name: 'Portra 400' }],
+    ['name', { make: 'Kodak', name: '' }],
+  ])('needs a %s', async (field, input) => {
+    const { createFilmStock } = setUp();
+
+    expect(await createFilmStock.execute(ctx, input)).toMatchObject({
+      ok: false,
+      error: { kind: 'validation-failed', issues: [{ path: [field] }] },
     });
   });
 });

@@ -1,8 +1,10 @@
-import type { Camera } from '@filmfile/contracts/equipment';
+import type { Camera, FilmStock } from '@filmfile/contracts/equipment';
 import type { Roll } from '@filmfile/contracts/rolls';
 import { useState, type SubmitEvent } from 'react';
 import { CameraField } from '../equipment/camera-field.tsx';
 import { cameraName } from '../equipment/use-cameras.ts';
+import { filmChoiceOf, type FilmChoice } from '../equipment/film-choice.ts';
+import { FilmStockField } from '../equipment/film-stock-field.tsx';
 import { DateShotFields } from './date-shot-fields.tsx';
 import { shotFieldsOf, shotFrom, type ShotFields } from './shot-fields.ts';
 
@@ -13,21 +15,25 @@ export interface RollDetails {
   readonly shot: string;
   /** The camera's name as typed, which may be a new camera; blank for none. */
   readonly camera: string;
+  /** The film stock chosen, which may be a new one. */
+  readonly film: FilmChoice;
 }
 
 function textOrNull(text: string): string | null {
   return text.trim() === '' ? null : text.trim();
 }
 
-/** A roll's name, description, date shot and camera, to change and save. */
+/** A roll's name, description, date shot, camera and film stock, to change and save. */
 export function EditDetailsPanel({
   roll,
   cameras,
+  films,
   save,
   cancel,
 }: {
   readonly roll: Roll;
   readonly cameras: readonly Camera[];
+  readonly films: readonly FilmStock[];
   /** Saves the details, giving what to tell the person if they weren't saved. */
   readonly save: (details: RollDetails) => Promise<string | undefined>;
   readonly cancel: () => void;
@@ -36,6 +42,7 @@ export function EditDetailsPanel({
   const [description, setDescription] = useState(roll.description ?? '');
   const [shot, setShot] = useState<ShotFields>(shotFieldsOf(roll.shot));
   const [camera, setCamera] = useState(cameraName(cameras, roll.camera) ?? '');
+  const [film, setFilm] = useState(filmChoiceOf(roll.film));
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | undefined>(undefined);
 
@@ -54,6 +61,7 @@ export function EditDetailsPanel({
       description: textOrNull(description),
       shot: entered.shot,
       camera,
+      film,
     });
     // Once saved, the panel closes.
     setSaving(false);
@@ -93,6 +101,7 @@ export function EditDetailsPanel({
       </label>
       <DateShotFields shot={shot} change={setShot} />
       <CameraField cameras={cameras} value={camera} change={setCamera} />
+      <FilmStockField films={films} choice={film} change={setFilm} />
 
       {problem !== undefined && <p role="alert">{problem}</p>}
 

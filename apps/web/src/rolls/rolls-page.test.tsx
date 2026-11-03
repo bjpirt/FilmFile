@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { createApiClient } from '@filmfile/contracts/client';
-import type { Camera } from '@filmfile/contracts/equipment';
+import type { Camera, FilmStock } from '@filmfile/contracts/equipment';
 import type { Roll, UnreadableRoll } from '@filmfile/contracts/rolls';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
@@ -24,11 +24,15 @@ function fakeRollsService(
   rolls: Roll[] = [],
   unreadable: UnreadableRoll[] = [],
   cameras: Camera[] = [],
+  films: FilmStock[] = [],
 ) {
   let nextId = 0;
   return async (request: Request): Promise<Response> => {
     if (new URL(request.url).pathname === '/api/equipment/cameras') {
       return Response.json({ cameras });
+    }
+    if (new URL(request.url).pathname === '/api/equipment/films') {
+      return Response.json({ films });
     }
     if (request.method === 'GET') {
       return Response.json({ rolls, unreadable });
@@ -63,6 +67,7 @@ function fakeRollsService(
       description: null,
       shot: null,
       camera: null,
+      film: null,
       frames: [],
     };
     rolls.push(created);
@@ -79,6 +84,7 @@ function aRoll(roll: string, frames = 0): Roll {
     description: null,
     shot: null,
     camera: null,
+    film: null,
     frames: Array.from({ length: frames }, (_, i) => ({
       id: `01JC8Z7K3M00000000000001${String(i).padStart(2, '0')}`,
       number: null,
@@ -358,25 +364,52 @@ describe('the list view', () => {
     expect(rows[0]?.querySelectorAll('img')).toHaveLength(4);
     expect(
       screen.getAllByRole('columnheader').map((cell) => cell.textContent),
-    ).toEqual(['Roll', 'Strip', 'Name', 'Camera', 'Shot', 'Frames']);
+    ).toEqual([
+      'Roll',
+      'Strip',
+      'Name',
+      'Camera',
+      'Film stock',
+      'Shot',
+      'Frames',
+    ]);
   });
 
-  test('shows each roll’s camera, by name, on its card and in the list', async () => {
+  test('shows each roll’s camera and film stock, by name, on its card and in the list', async () => {
     renderPage(
       fakeRollsService(
-        [{ ...aRoll('2026-014'), camera: 'nikon-fe', shot: '2026-09' }],
+        [
+          {
+            ...aRoll('2026-014'),
+            camera: 'nikon-fe',
+            film: 'kodak-portra-400',
+            shot: '2026-09',
+          },
+        ],
         [],
         [{ slug: 'nikon-fe', name: 'Nikon FE' }],
+        [
+          {
+            slug: 'kodak-portra-400',
+            make: 'Kodak',
+            name: 'Portra',
+            iso: 400,
+            type: 'colour-negative',
+            format: '35mm',
+          },
+        ],
       ),
     );
 
-    expect(await screen.findByText('Nikon FE · Sep 2026')).toBeDefined();
+    expect(
+      await screen.findByText('Nikon FE · Kodak Portra 400 · Sep 2026'),
+    ).toBeDefined();
 
     showList();
 
-    expect(
-      screen.getAllByRole('cell').map((cell) => cell.textContent),
-    ).toContain('Nikon FE');
+    const cells = screen.getAllByRole('cell').map((cell) => cell.textContent);
+    expect(cells).toContain('Nikon FE');
+    expect(cells).toContain('Kodak Portra 400');
   });
 
   test('marks which view is showing', async () => {

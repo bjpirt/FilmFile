@@ -84,6 +84,10 @@ const storedRoll = z.object({
         isEquipmentSlug,
         'must be a slug like nikon-fe',
       ).optional(),
+      film: branded<EquipmentSlug>(
+        isEquipmentSlug,
+        'must be a slug like kodak-portra-400',
+      ).optional(),
     })
     .default({}),
   frames: z.array(storedFrame),
@@ -138,6 +142,7 @@ export function parseRollFile(text: string): Result<Roll, string> {
     description,
     shot,
     camera: meta.camera ?? null,
+    film: meta.film ?? null,
     frames: frames.map((frame) => ({
       ...frame,
       versions: frame.versions.map((version) => ({
@@ -157,7 +162,11 @@ export function rollFileContent(roll: Roll): string {
     name: roll.name,
     description: roll.description,
     shot: roll.shot,
-    meta: roll.camera === null ? {} : { camera: roll.camera },
+    // Only the details a roll has, so its file says nothing of the rest.
+    meta: {
+      ...(roll.camera === null ? {} : { camera: roll.camera }),
+      ...(roll.film === null ? {} : { film: roll.film }),
+    },
     frames: roll.frames.map((frame) => ({
       id: frame.id,
       number: frame.number,
