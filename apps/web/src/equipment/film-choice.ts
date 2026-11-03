@@ -1,4 +1,5 @@
 import type { FilmFormat, FilmType } from '@filmfile/contracts/equipment';
+import type { EquipmentChoice } from './equipment-choice.ts';
 
 /** A new film stock's details as entered: the ISO as typed, blanks for none. */
 export interface NewFilmStock {
@@ -9,13 +10,7 @@ export interface NewFilmStock {
   readonly format: FilmFormat | '';
 }
 
-/** The film stock chosen for a roll: none, one the archive has, or a new one. */
-export type FilmChoice =
-  | { readonly kind: 'none' }
-  | { readonly kind: 'existing'; readonly slug: string }
-  | { readonly kind: 'new'; readonly details: NewFilmStock };
-
-export const noFilmStock: FilmChoice = { kind: 'none' };
+export type FilmChoice = EquipmentChoice<NewFilmStock>;
 
 export const blankFilmStock: NewFilmStock = {
   make: '',
@@ -24,8 +19,3 @@ export const blankFilmStock: NewFilmStock = {
   type: '',
   format: '',
 };
-
-/** The choice for a roll's film stock, by slug. */
-export function filmChoiceOf(slug: string | null): FilmChoice {
-  return slug === null ? noFilmStock : { kind: 'existing', slug };
-}

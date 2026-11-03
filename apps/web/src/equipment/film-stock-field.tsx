@@ -5,12 +5,13 @@ import {
   type FilmStock,
   type FilmType,
 } from '@filmfile/contracts/equipment';
+import { EquipmentSelect } from './equipment-select.tsx';
 import {
   blankFilmStock,
-  noFilmStock,
   type FilmChoice,
   type NewFilmStock,
 } from './film-choice.ts';
+import { RequiredMarker } from './required-marker.tsx';
 import { filmStockLabel } from './use-film-stocks.ts';
 
 // The options come from the contract's enums; every value needs a label.
@@ -31,17 +32,6 @@ const formatLabels: Record<FilmFormat, string> = {
   '8x10': '8×10',
 };
 
-// Option values: '' for none, a slug, or this, which no slug can be.
-const addNew = '+new';
-
-function Required() {
-  return (
-    <span className="required" aria-hidden="true">
-      *
-    </span>
-  );
-}
-
 /** The new film stock's details, all on one row where they fit. */
 function NewFilmStockFields({
   details,
@@ -55,11 +45,11 @@ function NewFilmStockFields({
   }
 
   return (
-    <fieldset className="new-film-stock">
+    <fieldset className="new-equipment">
       <legend>New film stock</legend>
       <label>
         <span>
-          Make <Required />
+          Make <RequiredMarker />
         </span>
         <input
           value={details.make}
@@ -73,7 +63,7 @@ function NewFilmStockFields({
       </label>
       <label>
         <span>
-          Name <Required />
+          Name <RequiredMarker />
         </span>
         <input
           value={details.name}
@@ -148,47 +138,18 @@ export function FilmStockField({
   readonly choice: FilmChoice;
   readonly change: (choice: FilmChoice) => void;
 }) {
-  const value =
-    choice.kind === 'none'
-      ? ''
-      : choice.kind === 'existing'
-        ? choice.slug
-        : addNew;
-  // A roll's film stock not among those loaded (yet) still shows, by slug.
-  const unlisted =
-    choice.kind === 'existing' && !films.some((f) => f.slug === choice.slug)
-      ? choice.slug
-      : undefined;
-
   return (
     <>
-      <label>
-        Film stock
-        <select
-          value={value}
-          onChange={(event) => {
-            const chosen = event.target.value;
-            change(
-              chosen === ''
-                ? noFilmStock
-                : chosen === addNew
-                  ? { kind: 'new', details: blankFilmStock }
-                  : { kind: 'existing', slug: chosen },
-            );
-          }}
-        >
-          <option value="">—</option>
-          {unlisted !== undefined && (
-            <option value={unlisted}>{unlisted}</option>
-          )}
-          {films.map((film) => (
-            <option key={film.slug} value={film.slug}>
-              {filmStockLabel(film)}
-            </option>
-          ))}
-          <option value={addNew}>Add new…</option>
-        </select>
-      </label>
+      <EquipmentSelect
+        label="Film stock"
+        options={films.map((film) => ({
+          slug: film.slug,
+          label: filmStockLabel(film),
+        }))}
+        choice={choice}
+        blank={blankFilmStock}
+        change={change}
+      />
       {choice.kind === 'new' && (
         <NewFilmStockFields
           details={choice.details}

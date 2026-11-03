@@ -753,7 +753,7 @@ textarea {
   margin: calc(-1 * var(--space-3)) 0 var(--space-5);
 }
 
-.new-film-stock {
+.new-equipment {
   border: 1px solid var(--border);
   border-radius: 6px;
   display: flex;
@@ -763,12 +763,12 @@ textarea {
   padding: var(--space-3) var(--space-4) var(--space-4);
 }
 
-.new-film-stock legend {
+.new-equipment legend {
   color: var(--text-muted);
   padding: 0 var(--space-1);
 }
 
-.new-film-stock label {
+.new-equipment label {
   color: var(--text-muted);
   display: flex;
   flex-direction: column;
@@ -776,8 +776,8 @@ textarea {
   gap: var(--space-1);
 }
 
-.new-film-stock input,
-.new-film-stock select {
+.new-equipment input,
+.new-equipment select {
   color: var(--text);
 }
 

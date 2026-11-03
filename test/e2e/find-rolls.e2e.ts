@@ -8,7 +8,7 @@ test('find rolls: group by year, filter by year, camera or film stock, switch vi
   page,
 }) => {
   await createRoll(page, '2023-301', {
-    camera: 'Leica M6',
+    newCamera: { make: 'Leica', model: 'M6' },
     newFilmStock: { make: 'Agfa', name: 'Vista', iso: '200' },
   });
   await createRoll(page, '2024-302', { camera: 'Leica M6' });

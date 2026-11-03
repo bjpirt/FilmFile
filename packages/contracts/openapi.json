@@ -431,29 +431,42 @@
             "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
             "example": "nikon-fe"
           },
-          "name": {
+          "make": {
             "type": "string",
-            "example": "Nikon FE"
+            "example": "Nikon"
+          },
+          "model": {
+            "type": "string",
+            "example": "FE"
           }
         },
         "required": [
           "slug",
-          "name"
+          "make",
+          "model"
         ]
       },
       "CreateCameraRequest": {
         "type": "object",
         "properties": {
-          "name": {
+          "make": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50,
+            "example": "Nikon"
+          },
+          "model": {
             "type": "string",
             "minLength": 1,
             "maxLength": 100,
-            "description": "What the camera is called; its slug is made from it."
+            "example": "FE"
           }
         },
         "required": [
-          "name"
-        ]
+          "make",
+          "model"
+        ],
+        "description": "Its slug is made from its make and model."
       },
       "FilmStockList": {
         "type": "object",

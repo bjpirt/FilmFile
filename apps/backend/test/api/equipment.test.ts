@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { apiFor, idOf } from '../support/api.ts';
@@ -9,12 +9,16 @@ const { request, post } = apiFor(archive);
 
 describe('POST /api/equipment/cameras', () => {
   test('adds a camera, saved as its own file named by its slug', async () => {
-    const response = await post('/api/equipment/cameras', { name: 'Nikon FE' });
+    const response = await post('/api/equipment/cameras', {
+      make: 'Nikon',
+      model: 'FE',
+    });
 
     expect(response.status).toBe(201);
     expect(await response.json()).toEqual({
       slug: 'nikon-fe',
-      name: 'Nikon FE',
+      make: 'Nikon',
+      model: 'FE',
     });
     expect(
       JSON.parse(
@@ -23,37 +27,58 @@ describe('POST /api/equipment/cameras', () => {
           'utf8',
         ),
       ),
-    ).toEqual({ schema: 1, name: 'Nikon FE' });
+    ).toEqual({ schema: 2, make: 'Nikon', model: 'FE' });
   });
 
   test('refuses a camera whose slug another camera has', async () => {
-    await post('/api/equipment/cameras', { name: 'Nikon FE' });
+    await post('/api/equipment/cameras', { make: 'Nikon', model: 'FE' });
 
-    const response = await post('/api/equipment/cameras', { name: 'NIKON FE' });
+    const response = await post('/api/equipment/cameras', {
+      make: 'NIKON',
+      model: 'FE',
+    });
 
     expect(response.status).toBe(409);
   });
 
   test.each([
-    ['no name', {}],
-    ['a name with no letters or digits', { name: '--' }],
-    ['a name that is too long', { name: 'x'.repeat(101) }],
+    ['no make', { model: 'FE' }],
+    ['a blank model', { make: 'Nikon', model: ' ' }],
+    ['a make that is too long', { make: 'x'.repeat(51), model: 'FE' }],
   ])('refuses %s', async (_, body) => {
     expect((await post('/api/equipment/cameras', body)).status).toBe(422);
   });
 });
 
 describe('GET /api/equipment/cameras', () => {
-  test('lists the cameras by name', async () => {
-    await post('/api/equipment/cameras', { name: 'Pentax K1000' });
-    await post('/api/equipment/cameras', { name: 'Nikon FE' });
+  test('lists the cameras by make and model', async () => {
+    await post('/api/equipment/cameras', { make: 'Pentax', model: 'K1000' });
+    await post('/api/equipment/cameras', { make: 'Nikon', model: 'FE' });
 
     const response = await request('/api/equipment/cameras');
 
     expect(await response.json()).toEqual({
       cameras: [
-        { slug: 'nikon-fe', name: 'Nikon FE' },
-        { slug: 'pentax-k1000', name: 'Pentax K1000' },
+        { slug: 'nikon-fe', make: 'Nikon', model: 'FE' },
+        { slug: 'pentax-k1000', make: 'Pentax', model: 'K1000' },
+      ],
+    });
+  });
+
+  test('reads a camera saved before makes and models were kept apart', async () => {
+    await mkdir(path.join(archive.path(), 'equipment/cameras'), {
+      recursive: true,
+    });
+    await writeFile(
+      path.join(archive.path(), 'equipment/cameras/canon-ae-1-program.json'),
+      JSON.stringify({ schema: 1, name: 'Canon AE-1 Program' }),
+    );
+
+    const response = await request('/api/equipment/cameras');
+
+    expect(await response.json()).toEqual({
+      cameras: [
+        { slug: 'canon-ae-1-program', make: 'Canon', model: 'AE-1 Program' },
       ],
     });
   });
@@ -154,8 +179,8 @@ describe('a roll’s film stock', () => {
 
 describe('a roll’s camera', () => {
   test('is recorded when the roll is created, and changed with its details', async () => {
-    await post('/api/equipment/cameras', { name: 'Nikon FE' });
-    await post('/api/equipment/cameras', { name: 'Pentax K1000' });
+    await post('/api/equipment/cameras', { make: 'Nikon', model: 'FE' });
+    await post('/api/equipment/cameras', { make: 'Pentax', model: 'K1000' });
     const created: unknown = await (
       await post('/api/rolls', { roll: '2026-014', camera: 'nikon-fe' })
     ).json();

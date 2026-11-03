@@ -10,7 +10,7 @@ import type { Result } from '../../domain/shared/result.ts';
  * stock in the archive, or memory in tests. Equipment is found by its slug.
  */
 export interface EquipmentRepository {
-  /** Every camera, ordered by name. */
+  /** Every camera, ordered by make and model. */
   listCameras(ctx: ArchiveContext): Promise<readonly Camera[]>;
 
   getCamera(

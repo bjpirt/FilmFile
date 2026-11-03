@@ -44,8 +44,12 @@ function fakeService({
         cameraLists += 1;
         return Response.json({ cameras });
       }
-      const { name } = createCameraRequest.parse(await request.json());
-      const camera = { slug: name.toLowerCase().replace(/\W+/g, '-'), name };
+      const { make, model } = createCameraRequest.parse(await request.json());
+      const camera = {
+        slug: `${make} ${model}`.toLowerCase().replace(/\W+/g, '-'),
+        make,
+        model,
+      };
       if (cameras.some((c) => c.slug === camera.slug)) {
         return Response.json({ error: 'exists' }, { status: 409 });
       }
@@ -229,14 +233,15 @@ test('creates the roll with its details, then opens it', async () => {
 });
 
 describe('the camera', () => {
-  test('is picked from the archive’s cameras by name', async () => {
-    const service = fakeService({
-      cameras: [{ slug: 'nikon-fe', name: 'Nikon FE' }],
-    });
+  const nikonFe = { slug: 'nikon-fe', make: 'Nikon', model: 'FE' };
+
+  test('is picked from the archive’s cameras', async () => {
+    const service = fakeService({ cameras: [nikonFe] });
     renderPage(service);
+    await screen.findByRole('option', { name: 'Nikon FE' });
 
     fill('Roll number', '2026-014');
-    fill('Camera', 'Nikon FE');
+    choose('Camera', 'Nikon FE');
     create();
 
     await waitToOpen(rollId);
@@ -245,16 +250,52 @@ describe('the camera', () => {
     ]);
   });
 
-  test('is the one added elsewhere since the page loaded, if it has the name typed', async () => {
+  test('can be a new one, added to the archive with its make and model', async () => {
+    const service = fakeService();
+    renderPage(service);
+
+    fill('Roll number', '2026-014');
+    choose('Camera', 'Add new…');
+    fill('Make', 'Pentax');
+    fill('Model', 'K1000');
+    create();
+
+    await waitToOpen(rollId);
+    expect(service.cameras).toEqual([
+      { slug: 'pentax-k1000', make: 'Pentax', model: 'K1000' },
+    ]);
+    expect(service.created).toEqual([
+      { roll: '2026-014', shot: '2026', camera: 'pentax-k1000' },
+    ]);
+  });
+
+  test('asks for a new one’s make and model', async () => {
+    const service = fakeService();
+    renderPage(service);
+
+    fill('Roll number', '2026-014');
+    choose('Camera', 'Add new…');
+    fill('Make', 'Pentax');
+    create();
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      "Enter the new camera's model, like FE.",
+    );
+    expect(service.created).toEqual([]);
+  });
+
+  test('is the one the archive has when a new one is the same, added since the page loaded', async () => {
     const service = fakeService();
     renderPage(service);
     await waitFor(() => {
       expect(service.cameraLists()).toBe(1);
     });
-    service.cameras.push({ slug: 'nikon-fe', name: 'Nikon FE' });
+    service.cameras.push(nikonFe);
 
     fill('Roll number', '2026-014');
-    fill('Camera', 'Nikon FE');
+    choose('Camera', 'Add new…');
+    fill('Make', 'nikon');
+    fill('Model', 'FE');
     create();
 
     await waitToOpen(rollId);
@@ -264,36 +305,19 @@ describe('the camera', () => {
   });
 
   test('can’t be a new one named so like another that they’d share a file', async () => {
-    const service = fakeService({
-      cameras: [{ slug: 'nikon-fe', name: 'Nikon FE' }],
-    });
+    const service = fakeService({ cameras: [nikonFe] });
     renderPage(service);
 
     fill('Roll number', '2026-014');
-    fill('Camera', 'Nikon-FE');
+    choose('Camera', 'Add new…');
+    fill('Make', 'Nikon');
+    fill('Model', '-FE');
     create();
 
     expect((await screen.findByRole('alert')).textContent).toBe(
-      "There's already a camera with a name like Nikon-FE. Choose it from the list.",
+      "There's already a camera with a name like Nikon -FE. Choose it from the list.",
     );
     expect(service.created).toEqual([]);
-  });
-
-  test('is added to the archive when it’s new', async () => {
-    const service = fakeService();
-    renderPage(service);
-
-    fill('Roll number', '2026-014');
-    fill('Camera', 'Pentax K1000');
-    create();
-
-    await waitToOpen(rollId);
-    expect(service.cameras).toEqual([
-      { slug: 'pentax-k1000', name: 'Pentax K1000' },
-    ]);
-    expect(service.created).toEqual([
-      { roll: '2026-014', shot: '2026', camera: 'pentax-k1000' },
-    ]);
   });
 });
 

@@ -250,9 +250,9 @@ describe('grouping, browsing and the address', () => {
 
 describe('finding rolls by camera', () => {
   const cameras = [
-    { slug: 'nikon-fe', name: 'Nikon FE' },
-    { slug: 'leica-m6', name: 'Leica M6' },
-    { slug: 'pentax-k1000', name: 'Pentax K1000' },
+    { slug: 'nikon-fe', make: 'Nikon', model: 'FE' },
+    { slug: 'leica-m6', make: 'Leica', model: 'M6' },
+    { slug: 'pentax-k1000', make: 'Pentax', model: 'K1000' },
   ];
   const someRolls = () =>
     fakeRollsService(
@@ -458,7 +458,7 @@ describe('finding rolls by film stock', () => {
           },
         ],
         [],
-        [{ slug: 'nikon-fe', name: 'Nikon FE' }],
+        [{ slug: 'nikon-fe', make: 'Nikon', model: 'FE' }],
         films,
       ),
     );
@@ -516,7 +516,7 @@ describe('the list view', () => {
           },
         ],
         [],
-        [{ slug: 'nikon-fe', name: 'Nikon FE' }],
+        [{ slug: 'nikon-fe', make: 'Nikon', model: 'FE' }],
         [
           {
             slug: 'kodak-portra-400',

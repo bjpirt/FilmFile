@@ -17,36 +17,51 @@ function setUp() {
 }
 
 describe('CreateCamera', () => {
-  test('creates a camera with a slug made from its name, trimmed', async () => {
+  test('creates a camera with a slug made from its make and model, trimmed', async () => {
     const { createCamera, listCameras } = setUp();
 
-    const created = await createCamera.execute(ctx, { name: ' Nikon FE ' });
-
-    expect(created).toEqual({
-      ok: true,
-      value: { slug: 'nikon-fe', name: 'Nikon FE' },
+    const created = await createCamera.execute(ctx, {
+      make: ' Nikon ',
+      model: 'FE ',
     });
-    expect(await listCameras.execute(ctx)).toEqual([
-      { slug: 'nikon-fe', name: 'Nikon FE' },
-    ]);
+
+    const camera = { slug: 'nikon-fe', make: 'Nikon', model: 'FE' };
+    expect(created).toEqual({ ok: true, value: camera });
+    expect(await listCameras.execute(ctx)).toEqual([camera]);
   });
 
   test('refuses a camera whose slug another camera has', async () => {
     const { createCamera } = setUp();
-    await createCamera.execute(ctx, { name: 'Nikon FE' });
+    await createCamera.execute(ctx, { make: 'Nikon', model: 'FE' });
 
-    expect(await createCamera.execute(ctx, { name: 'nikon  fe' })).toEqual({
+    expect(
+      await createCamera.execute(ctx, { make: 'nikon', model: 'fe' }),
+    ).toEqual({
       ok: false,
       error: { kind: 'already-exists', entity: 'equipment', id: 'nikon-fe' },
     });
   });
 
-  test('refuses a name with no letters or digits', async () => {
+  test.each([
+    ['make', { make: ' ', model: 'FE' }],
+    ['model', { make: 'Nikon', model: '' }],
+  ])('needs a %s', async (field, input) => {
     const { createCamera } = setUp();
 
-    expect(await createCamera.execute(ctx, { name: ' -- ' })).toMatchObject({
+    expect(await createCamera.execute(ctx, input)).toMatchObject({
       ok: false,
-      error: { kind: 'validation-failed', issues: [{ path: ['name'] }] },
+      error: { kind: 'validation-failed', issues: [{ path: [field] }] },
+    });
+  });
+
+  test('refuses a camera with no letters or digits', async () => {
+    const { createCamera } = setUp();
+
+    expect(
+      await createCamera.execute(ctx, { make: '--', model: '!' }),
+    ).toMatchObject({
+      ok: false,
+      error: { kind: 'validation-failed', issues: [{ path: ['model'] }] },
     });
   });
 });

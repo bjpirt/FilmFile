@@ -257,7 +257,7 @@ export function RollPage({
     if (roll.data === undefined) {
       return undefined;
     }
-    const camera = await chooseCamera(api, cameras, details.camera);
+    const camera = await chooseCamera(api, details.camera);
     if (!camera.ok) {
       return camera.problem;
     }

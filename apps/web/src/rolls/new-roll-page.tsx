@@ -1,11 +1,13 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, type SubmitEvent } from 'react';
+import type { CameraChoice } from '../equipment/camera-choice.ts';
 import { CameraField } from '../equipment/camera-field.tsx';
 import { chooseCamera } from '../equipment/choose-camera.ts';
 import { useCameras } from '../equipment/use-cameras.ts';
 import { chooseFilmStock } from '../equipment/choose-film-stock.ts';
-import { noFilmStock, type FilmChoice } from '../equipment/film-choice.ts';
+import { noEquipment } from '../equipment/equipment-choice.ts';
+import type { FilmChoice } from '../equipment/film-choice.ts';
 import { FilmStockField } from '../equipment/film-stock-field.tsx';
 import { useFilmStocks } from '../equipment/use-film-stocks.ts';
 import { Link, navigate } from '../routing.tsx';
@@ -41,8 +43,8 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
   const [rollNumber, setRollNumber] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [camera, setCamera] = useState('');
-  const [film, setFilm] = useState<FilmChoice>(noFilmStock);
+  const [camera, setCamera] = useState<CameraChoice>(noEquipment);
+  const [film, setFilm] = useState<FilmChoice>(noEquipment);
   const [shot, setShot] = useState<ShotFields>({
     year: '',
     month: '',
@@ -86,7 +88,7 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
     const shotDate = entered.shot;
     setProblem(undefined);
     setProgress({ kind: 'creating' });
-    const chosen = await chooseCamera(api, cameras, camera);
+    const chosen = await chooseCamera(api, camera);
     if (!chosen.ok) {
       setProgress({ kind: 'editing' });
       setProblem(chosen.problem);
@@ -214,7 +216,7 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
         </label>
 
         <DateShotFields shot={shot} change={changeShot} />
-        <CameraField cameras={cameras} value={camera} change={setCamera} />
+        <CameraField cameras={cameras} choice={camera} change={setCamera} />
         <FilmStockField films={films} choice={film} change={setFilm} />
 
         <div

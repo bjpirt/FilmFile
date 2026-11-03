@@ -15,7 +15,7 @@ test('catalogue a roll: create it with its details and scans, correct a number, 
     month: 'September',
     day: '14',
     time: '06:30',
-    camera: 'Nikon FE',
+    newCamera: { make: 'Nikon', model: 'FE' },
     newFilmStock: {
       make: 'Kodak',
       name: 'Portra',

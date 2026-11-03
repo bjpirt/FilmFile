@@ -1,5 +1,5 @@
 import type { EquipmentRepository } from '../../../application/ports/equipment-repository.ts';
-import type { Camera } from '../../../domain/equipment/camera.ts';
+import { cameraLabel, type Camera } from '../../../domain/equipment/camera.ts';
 import type { EquipmentSlug } from '../../../domain/equipment/equipment-slug.ts';
 import {
   filmStockLabel,
@@ -35,7 +35,9 @@ export class InMemoryEquipmentRepository implements EquipmentRepository {
 
   listCameras(): Promise<readonly Camera[]> {
     return Promise.resolve(
-      [...this.#cameras.values()].sort((a, b) => byName(a.name, b.name)),
+      [...this.#cameras.values()].sort((a, b) =>
+        byName(cameraLabel(a), cameraLabel(b)),
+      ),
     );
   }
 

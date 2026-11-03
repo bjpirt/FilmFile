@@ -12,7 +12,8 @@ export const equipmentSlug = z
 export const camera = z
   .object({
     slug: equipmentSlug,
-    name: z.string().meta({ example: 'Nikon FE' }),
+    make: z.string().meta({ example: 'Nikon' }),
+    model: z.string().meta({ example: 'FE' }),
   })
   .meta({ id: 'Camera' });
 
@@ -22,11 +23,13 @@ export const cameraList = z
 
 export const createCameraRequest = z
   .object({
-    name: z.string().min(1).max(100).meta({
-      description: 'What the camera is called; its slug is made from it.',
-    }),
+    make: z.string().min(1).max(50).meta({ example: 'Nikon' }),
+    model: z.string().min(1).max(100).meta({ example: 'FE' }),
   })
-  .meta({ id: 'CreateCameraRequest' });
+  .meta({
+    id: 'CreateCameraRequest',
+    description: 'Its slug is made from its make and model.',
+  });
 
 export const filmType = z
   .enum(['black-and-white', 'colour-negative', 'colour-slide'])

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createRoll } from './support/journeys.ts';
+import { addCamera, createRoll } from './support/journeys.ts';
 
 test('describe a roll: add its name, description, date shot and a new camera later, and find them on the roll and in the rolls list', async ({
   page,
@@ -11,7 +11,7 @@ test('describe a roll: add its name, description, date shot and a new camera lat
   await details.getByLabel('Name').fill('Westfjords');
   await details.getByLabel('Description').fill('Puffins at Látrabjarg.');
   await details.getByLabel('Month').selectOption({ label: 'June' });
-  await details.getByLabel('Camera').fill('Olympus OM-1');
+  await addCamera(page, { make: 'Olympus', model: 'OM-1' });
   await details.getByRole('button', { name: 'Save details' }).click();
 
   await expect(details).toBeHidden();

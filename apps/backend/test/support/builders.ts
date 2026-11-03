@@ -1,4 +1,4 @@
-import type { Camera } from '../../src/domain/equipment/camera.ts';
+import { cameraLabel, type Camera } from '../../src/domain/equipment/camera.ts';
 import { slugFor } from '../../src/domain/equipment/equipment-slug.ts';
 import {
   filmStockLabel,
@@ -103,13 +103,13 @@ export function aFilmStock(
   };
 }
 
-/** A camera with the given name, and the slug made from it. */
-export function aCamera(name: string): Camera {
-  const slug = slugFor(name);
+/** A camera by make and model, e.g. aCamera('Nikon', 'FE'), with the slug made from them. */
+export function aCamera(make: string, model: string): Camera {
+  const slug = slugFor(cameraLabel({ make, model }));
   if (slug === undefined) {
-    throw new Error(`bad test data: ${name}`);
+    throw new Error(`bad test data: ${make} ${model}`);
   }
-  return { slug, name };
+  return { slug, make, model };
 }
 
 /**

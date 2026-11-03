@@ -17,6 +17,11 @@ export function useCameras(api: ApiClient): readonly Camera[] {
   return cameras.data ?? [];
 }
 
+/** A camera as it's shown: make and model, e.g. "Nikon FE". */
+export function cameraLabel(camera: Pick<Camera, 'make' | 'model'>): string {
+  return [camera.make, camera.model].filter((part) => part !== '').join(' ');
+}
+
 /** What a roll's camera is called; its slug if the camera isn't known. */
 export function cameraName(
   cameras: readonly Camera[],
@@ -25,5 +30,6 @@ export function cameraName(
   if (slug === null) {
     return undefined;
   }
-  return cameras.find((camera) => camera.slug === slug)?.name ?? slug;
+  const camera = cameras.find((c) => c.slug === slug);
+  return camera === undefined ? slug : cameraLabel(camera);
 }

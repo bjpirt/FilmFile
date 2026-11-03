@@ -55,7 +55,7 @@ describe('CreateRoll', () => {
 
   test('records the camera the roll was shot on', async () => {
     const { ctx, createCamera, createRoll } = setUp();
-    await createCamera.execute(ctx, { name: 'Nikon FE' });
+    await createCamera.execute(ctx, { make: 'Nikon', model: 'FE' });
 
     expect(
       await createRoll.execute(ctx, { roll: '2026-014', camera: 'nikon-fe' }),
@@ -246,7 +246,7 @@ describe('UpdateRoll', () => {
 
   test('changes the camera, or clears it with null', async () => {
     const { ctx, id, version, updateRoll, createCamera } = await aCreatedRoll();
-    await createCamera.execute(ctx, { name: 'Nikon FE' });
+    await createCamera.execute(ctx, { make: 'Nikon', model: 'FE' });
 
     const changed = await updateRoll.execute(ctx, {
       id,

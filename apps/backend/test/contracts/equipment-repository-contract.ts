@@ -11,7 +11,7 @@ export function equipmentRepositoryContract(
   describe(`${name} meets the EquipmentRepository contract`, () => {
     test('gets back exactly the camera created', async () => {
       const equipment = makeRepository();
-      const camera = aCamera('Nikon FE');
+      const camera = aCamera('Nikon', 'FE');
 
       expect(await equipment.createCamera(ctx, camera)).toEqual(ok(undefined));
       expect(await equipment.getCamera(ctx, camera.slug)).toEqual(camera);
@@ -19,28 +19,35 @@ export function equipmentRepositoryContract(
 
     test('refuses to create a camera whose slug is taken, keeping the first', async () => {
       const equipment = makeRepository();
-      await equipment.createCamera(ctx, aCamera('Nikon FE'));
+      await equipment.createCamera(ctx, aCamera('Nikon', 'FE'));
 
       expect(
         await equipment.createCamera(ctx, {
-          ...aCamera('Nikon FE'),
-          name: 'nikon fe',
+          ...aCamera('Nikon', 'FE'),
+          make: 'nikon',
         }),
       ).toEqual(
         err({ kind: 'already-exists', entity: 'equipment', id: 'nikon-fe' }),
       );
-      expect(await equipment.listCameras(ctx)).toEqual([aCamera('Nikon FE')]);
+      expect(await equipment.listCameras(ctx)).toEqual([
+        aCamera('Nikon', 'FE'),
+      ]);
     });
 
-    test('lists cameras in name order', async () => {
+    test('lists cameras by make and model', async () => {
       const equipment = makeRepository();
-      for (const name of ['Pentax K1000', 'leica M6', 'Nikon FE']) {
-        await equipment.createCamera(ctx, aCamera(name));
+      for (const [make, model] of [
+        ['Pentax', 'K1000'],
+        ['leica', 'M6'],
+        ['Nikon', 'FE'],
+        ['Nikon', 'F3'],
+      ] as const) {
+        await equipment.createCamera(ctx, aCamera(make, model));
       }
 
       expect(
-        (await equipment.listCameras(ctx)).map((camera) => camera.name),
-      ).toEqual(['leica M6', 'Nikon FE', 'Pentax K1000']);
+        (await equipment.listCameras(ctx)).map((c) => `${c.make} ${c.model}`),
+      ).toEqual(['leica M6', 'Nikon F3', 'Nikon FE', 'Pentax K1000']);
     });
 
     test('lists nothing when there are no cameras', async () => {
@@ -49,7 +56,7 @@ export function equipmentRepositoryContract(
 
     test('gets nothing for a slug no camera has', async () => {
       expect(
-        await makeRepository().getCamera(ctx, aCamera('Nikon FE').slug),
+        await makeRepository().getCamera(ctx, aCamera('Nikon', 'FE').slug),
       ).toBeUndefined();
     });
 
@@ -127,7 +134,7 @@ export function equipmentRepositoryContract(
 
     test('keeps cameras and film stocks apart, even with the same slug', async () => {
       const equipment = makeRepository();
-      await equipment.createCamera(ctx, aCamera('Kodak Retina'));
+      await equipment.createCamera(ctx, aCamera('Kodak', 'Retina'));
       await equipment.createFilmStock(ctx, aFilmStock('Kodak', 'Retina'));
 
       expect(await equipment.listCameras(ctx)).toHaveLength(1);

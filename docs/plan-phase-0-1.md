@@ -188,7 +188,7 @@ archive/
 - `number` is a string, or `null` for a skipped or unidentified scan.
 - `frames` uses the `versions` list from day one, so Phase 2 adds entries without a format change.
 
-**Equipment** (one file each; slug = file name): camera (`name`; D28), lens (`make`, `model`, `focalLength`, `maxAperture`, `mount`, `notes`), film (`make`, `name`, `iso`, `type`, `format`; D29). Fields arrive when the UI uses them.
+**Equipment** (one file each; slug = file name): camera (`make`, `model`; D28), lens (`make`, `model`, `focalLength`, `maxAperture`, `mount`, `notes`), film (`make`, `name`, `iso`, `type`, `format`; D29). Fields arrive when the UI uses them.
 
 ---
 

@@ -1096,12 +1096,17 @@ export interface components {
         Camera: {
             /** @example nikon-fe */
             slug: string;
-            /** @example Nikon FE */
-            name: string;
+            /** @example Nikon */
+            make: string;
+            /** @example FE */
+            model: string;
         };
+        /** @description Its slug is made from its make and model. */
         CreateCameraRequest: {
-            /** @description What the camera is called; its slug is made from it. */
-            name: string;
+            /** @example Nikon */
+            make: string;
+            /** @example FE */
+            model: string;
         };
         FilmStockList: {
             films: components["schemas"]["FilmStock"][];

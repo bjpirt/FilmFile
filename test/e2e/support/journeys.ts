@@ -16,8 +16,10 @@ export interface NewRoll {
   readonly month?: string;
   readonly day?: string;
   readonly time?: string;
-  /** A camera's name: one the archive has, or a new one. */
+  /** A camera the archive has, as the list shows it, e.g. "Nikon FE". */
   readonly camera?: string;
+  /** A camera to add, from Add new…. */
+  readonly newCamera?: { readonly make: string; readonly model: string };
   /** A film stock the archive has, as the list shows it, e.g. "Kodak Portra 400". */
   readonly filmStock?: string;
   /** A film stock to add, from Add new…. */
@@ -66,7 +68,10 @@ export async function createRoll(
     await page.getByLabel('Time').fill(details.time);
   }
   if (details.camera !== undefined) {
-    await page.getByLabel('Camera').fill(details.camera);
+    await page.getByLabel('Camera').selectOption({ label: details.camera });
+  }
+  if (details.newCamera !== undefined) {
+    await addCamera(page, details.newCamera);
   }
   if (details.filmStock !== undefined) {
     await page
@@ -95,6 +100,17 @@ export async function createRoll(
   await expect(
     page.getByRole('heading', { name: `Roll ${rollNumber}` }),
   ).toBeVisible();
+}
+
+/** Chooses Add new… for the camera and gives the new camera's make and model. */
+export async function addCamera(
+  page: Page,
+  { make, model }: { readonly make: string; readonly model: string },
+): Promise<void> {
+  await page.getByLabel('Camera').selectOption({ label: 'Add new…' });
+  const newCamera = page.getByRole('group', { name: 'New camera' });
+  await newCamera.getByLabel('Make').fill(make);
+  await newCamera.getByLabel('Model').fill(model);
 }
 
 /** Adds a fixture set's lab scans to the open roll. */

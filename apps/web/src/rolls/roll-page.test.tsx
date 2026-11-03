@@ -38,7 +38,7 @@ const rollDetails: Omit<Roll, 'frames'> = {
   film: null,
 };
 
-const nikonFe: Camera = { slug: 'nikon-fe', name: 'Nikon FE' };
+const nikonFe: Camera = { slug: 'nikon-fe', make: 'Nikon', model: 'FE' };
 
 const portra: FilmStock = {
   slug: 'kodak-portra-400',
@@ -82,8 +82,12 @@ function fakeRollService(
       if (request.method === 'GET') {
         return Response.json({ cameras });
       }
-      const { name } = createCameraRequest.parse(await request.json());
-      const camera = { slug: name.toLowerCase().replace(/\W+/g, '-'), name };
+      const { make, model } = createCameraRequest.parse(await request.json());
+      const camera = {
+        slug: `${make} ${model}`.toLowerCase().replace(/\W+/g, '-'),
+        make,
+        model,
+      };
       cameras.push(camera);
       return Response.json(camera, { status: 201 });
     }
@@ -366,12 +370,13 @@ describe('editing the details', () => {
     expect(service.ifMatches).toEqual(['"v1"']);
   });
 
-  test('picks a camera the archive has, by name', async () => {
+  test('picks a camera from the archive’s', async () => {
     const service = fakeRollService([], iceland, [nikonFe]);
     renderPage(service);
     await editDetails();
+    await screen.findByRole('option', { name: 'Nikon FE' });
 
-    fill('Camera', 'nikon fe');
+    choose('Camera', 'Nikon FE');
     fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
 
     expect(await screen.findByText('Nikon FE')).toBeDefined();
@@ -383,29 +388,34 @@ describe('editing the details', () => {
     renderPage(service);
     await editDetails();
 
-    fill('Camera', 'Pentax K1000');
+    choose('Camera', 'Add new…');
+    fill('Make', 'Pentax');
+    fill('Model', 'K1000');
     fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
 
     expect(await screen.findByText('Pentax K1000')).toBeDefined();
-    expect(service.cameras.map((camera) => camera.name)).toEqual([
-      'Nikon FE',
-      'Pentax K1000',
+    expect(service.cameras.map((camera) => camera.slug)).toEqual([
+      'nikon-fe',
+      'pentax-k1000',
     ]);
   });
 
-  test('offers the archive’s cameras, and shows the roll’s', async () => {
+  test('offers the archive’s cameras, then Add new…, with the roll’s chosen', async () => {
     renderPage(
       fakeRollService([], { ...iceland, camera: 'nikon-fe' }, [nikonFe]),
     );
     await screen.findByText('Nikon FE');
     await editDetails();
 
-    expect(field('Camera').value).toBe('Nikon FE');
-    expect(
-      Array.from(document.querySelectorAll('datalist option'), (option) =>
-        option.getAttribute('value'),
-      ),
-    ).toEqual(['Nikon FE']);
+    const options = within(field('Camera')).getAllByRole<HTMLOptionElement>(
+      'option',
+    );
+    expect(options.map((option) => option.textContent)).toEqual([
+      '—',
+      'Nikon FE',
+      'Add new…',
+    ]);
+    expect(options[1]?.selected).toBe(true);
   });
 
   test('adds a film stock the archive doesn’t have yet, with its details', async () => {

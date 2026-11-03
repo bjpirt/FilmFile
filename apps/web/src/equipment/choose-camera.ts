@@ -1,58 +1,75 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import type { Camera } from '@filmfile/contracts/equipment';
+import type { CameraChoice, NewCamera } from './camera-choice.ts';
+import { cameraLabel } from './use-cameras.ts';
 
-/** The camera a typed name stands for, by slug (null for none), or why there isn't one. */
+/** The camera chosen, by slug (null for none), or why there isn't one. */
 export type ChosenCamera =
   | { readonly ok: true; readonly slug: string | null }
   | { readonly ok: false; readonly problem: string };
 
-function named(cameras: readonly Camera[], name: string): Camera | undefined {
+function labelled(
+  cameras: readonly Camera[],
+  label: string,
+): Camera | undefined {
   return cameras.find(
-    (camera) => camera.name.toLowerCase() === name.toLowerCase(),
+    (camera) => cameraLabel(camera).toLowerCase() === label.toLowerCase(),
   );
 }
 
-/**
- * The camera with the name typed, ignoring case, or a new camera with that
- * name, created now. A blank name is no camera.
- */
+/** The slug of the camera chosen, creating it now if it's new. */
 export async function chooseCamera(
   api: ApiClient,
-  cameras: readonly Camera[],
-  typed: string,
+  choice: CameraChoice,
 ): Promise<ChosenCamera> {
-  const name = typed.trim();
-  if (name === '') {
-    return { ok: true, slug: null };
+  switch (choice.kind) {
+    case 'none':
+      return { ok: true, slug: null };
+    case 'existing':
+      return { ok: true, slug: choice.slug };
+    case 'new':
+      return createCamera(api, choice.details);
   }
-  const existing = named(cameras, name);
-  if (existing !== undefined) {
-    return { ok: true, slug: existing.slug };
+}
+
+async function createCamera(
+  api: ApiClient,
+  details: NewCamera,
+): Promise<ChosenCamera> {
+  const make = details.make.trim();
+  const model = details.model.trim();
+  if (make === '') {
+    return { ok: false, problem: "Enter the new camera's make, like Nikon." };
   }
+  if (model === '') {
+    return { ok: false, problem: "Enter the new camera's model, like FE." };
+  }
+  const label = cameraLabel({ make, model });
   const { data, response } = await api.POST('/api/equipment/cameras', {
-    body: { name },
+    body: { make, model },
   });
   if (data !== undefined) {
     return { ok: true, slug: data.slug };
   }
   switch (response.status) {
     case 409: {
-      // The cameras given may be out of date, or not loaded yet: the camera
-      // may have been added since.
+      // The archive already has it, perhaps added since the list was loaded,
+      // or under the same name in another case: use it.
       const latest = await api.GET('/api/equipment/cameras');
-      const added = named(latest.data?.cameras ?? [], name);
+      const added = labelled(latest.data?.cameras ?? [], label);
       if (added !== undefined) {
         return { ok: true, slug: added.slug };
       }
       return {
         ok: false,
-        problem: `There's already a camera with a name like ${name}. Choose it from the list.`,
+        problem: `There's already a camera with a name like ${label}. Choose it from the list.`,
       };
     }
     case 422:
       return {
         ok: false,
-        problem: 'Enter a camera name with letters or digits, like Nikon FE.',
+        problem:
+          'Enter a make and model with letters or digits, like Nikon FE.',
       };
     default:
       return {

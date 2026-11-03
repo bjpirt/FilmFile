@@ -1,7 +1,7 @@
 import { glob, mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { EquipmentRepository } from '../../../application/ports/equipment-repository.ts';
-import type { Camera } from '../../../domain/equipment/camera.ts';
+import { cameraLabel, type Camera } from '../../../domain/equipment/camera.ts';
 import {
   isEquipmentSlug,
   type EquipmentSlug,
@@ -102,7 +102,7 @@ export class FilesystemEquipmentRepository implements EquipmentRepository {
         cameras.push(camera);
       }
     }
-    return cameras.sort((a, b) => byName(a.name, b.name));
+    return cameras.sort((a, b) => byName(cameraLabel(a), cameraLabel(b)));
   }
 
   getCamera(
