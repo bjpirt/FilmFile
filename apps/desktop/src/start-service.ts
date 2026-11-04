@@ -16,14 +16,18 @@ const serviceMain = fileURLToPath(
 );
 
 /**
- * Starts the service in its own process on a free port of 127.0.0.1, with
- * this process's settings (the archive among them), and resolves once it
+ * Starts the service on `archive` in its own process, on a free port of
+ * 127.0.0.1 and with this process's other settings, and resolves once it
  * answers.
  */
-export async function startService(): Promise<Service> {
+export async function startService(archive: string): Promise<Service> {
   const port = await freePort();
   const service = utilityProcess.fork(serviceMain, [], {
-    env: { ...process.env, FILMFILE_PORT: String(port) },
+    env: {
+      ...process.env,
+      FILMFILE_ARCHIVE: archive,
+      FILMFILE_PORT: String(port),
+    },
     serviceName: 'FilmFile service',
     stdio: 'inherit',
   });

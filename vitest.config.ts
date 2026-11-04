@@ -14,6 +14,9 @@ export default defineConfig({
         // (autoAttachSubprocess) corrupts the figures for files both processes load.
         'apps/backend/src/main.ts',
         // Run only inside Electron, covered by the desktop journeys (desktop.e2e.ts).
+        'apps/desktop/src/app-menu.ts',
+        'apps/desktop/src/choose-archive.ts',
+        'apps/desktop/src/find-archive.ts',
         'apps/desktop/src/main.ts',
         'apps/desktop/src/open-window.ts',
         'apps/desktop/src/start-service.ts',
