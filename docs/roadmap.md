@@ -6,24 +6,13 @@ Each task is about one commit: small enough to review in one sitting, with its t
 
 `[x]` done, `[ ]` to do, `[-]` dropped or replaced (with where it went).
 
-**Next up:** 1. Tidying the roll and events pages.
+**Next up:** 1. Reworking the frame view.
 
 ---
 
 ## To do
 
-### 1. Tidying the roll and events pages
-
-The roll page had grown a row of buttons in its heading and another above its frames, with nine more while selecting. Its actions go into one Actions menu beside the roll number, and selecting frames takes that menu's place (option 1 of the roll page wireframes). Film stock stays the roll's alone.
-
-- [x] **U52 Film stock is the roll's.** A frame can no longer have its own film stock (D45): it's gone from "Set film stock…" while selecting, from a frame's details in the frame view (always the roll's, so no "Use the roll's" or "Set on roll instead" for it), from the "Own" mark, and from `PATCH …/frames/{frameId}`, `PATCH …/frames` and frame details. A frame's `meta.film` already in a roll.json is read without it and dropped the next time the roll is saved. Grouping an event's frames by film stock uses the roll's.
-- [x] **U53 Breadcrumbs at title size.** The link back in a page's heading is the same size as the heading, in grey, with a "/" between them (a shared `breadcrumb` style): "All rolls / 2026-014" on a roll and on New roll, "Events / Iceland 2026" on an event, and "Roll 2026-014 / Frame 12" or "Iceland 2026 / Frame 12" in the frame view, where the roll number is no longer repeated after the heading.
-- [x] **U54 No frame order switch.** "Show frames in: Frame order / Scan order" goes; the contact sheet is always in frame order, and renumbering still shows scan order while it's open.
-- [x] **U55 One Actions menu.** The roll page's buttons (Edit details, Add scans, Select, Renumber…, Delete roll…) become one "Actions" button beside the roll number, opening a menu: Edit details, Add scans, Bulk edit, Renumber…, then Delete roll… set apart. It works from the keyboard (arrow keys, Enter, Esc) and closes when something is chosen or on a click outside. Asking "Delete this roll?" and renumbering take the menu's place as they take the buttons' now. Extends the "Catalogue a roll" and "Renumber a roll" journeys, whose steps change.
-- [x] **U56 One Set menu while selecting.** The selection bar above the frames keeps its place, with "3 frames selected", Select all, Clear, a "Set" menu (Event…, Camera… and Lens…, each opening its choice in the bar, closed by Esc), Delete… and Done; the four "Set …" buttons go. The Actions menu is put away while selecting. Putting the bar in the Actions menu's place was tried and found too complex. The "Bulk edit" journey follows the new steps.
-- [ ] **U63 Events laid out like rolls.** The Events page shows each event as the rolls page shows a roll: a card in a grid, with a strip of a few of its frames' thumbnails, its name and date, and how many rolls and photos it has ("3 rolls · 108 photos", counting rolls and frames in it through their frames too, U17), each card opening the event's page. Editing an event and New event keep working from the page, in the same card style as the rolls page's actions.
-
-### 2. Reworking the frame view
+### 1. Reworking the frame view
 
 The details panel shows what a frame inherits without fuss, marks only what the frame has of its own, and edits details in place (option 1 of the frame view wireframes).
 
@@ -31,7 +20,7 @@ The details panel shows what a frame inherits without fuss, marks only what the 
 - [ ] **U58 Details edited in place.** Clicking the frame's camera, lens or event in "About this frame" turns it into a list of the archive's, with "The roll's: Nikon FE" first; choosing one saves it as the frame's own (or goes back to the roll's) with `If-Match`, and Esc or clicking away leaves it as it was. Values that can be changed this way are marked as such (a faint dashed underline); author, copyright and film stock (D45) aren't. Works from the keyboard.
 - [ ] **U59 A frame's own date shot.** A frame can have its own date and time shot, in place of its roll's (D47): clicking the date in "About this frame" opens day, month, year and time, saved as the frame's own on Enter or on leaving the fields, with Esc keeping what it was, and the reset icon goes back to the roll's. Kept in roll.json as the frame's `shot`, only when set; resolved like the other details, with where it came from. An event's page puts frames in order by their own date where they have one.
 
-### 3. Multi-version frames
+### 2. Multi-version frames
 
 More than one version of a frame: other scans or edits of it, kept as further versions (design section 8.2). Web-native images first, then my own hi-res camera scans as raws, one frame at a time for now (D34).
 
@@ -42,7 +31,7 @@ More than one version of a frame: other scans or edits of it, kept as further ve
 - [ ] **U20 Raw files as versions.** A version can be a Sony ARW or Fujifilm RAF raw as well as a lab scan's JPEG, checked by file signature, not extension, within the upload size limit. Each version records where it came from (`source`: lab scan or camera scan), so raws are never written to. Thumbnails of a raw come from the preview JPEG it carries (`exiftool-vendored`; a new dependency, named in the design). API: the existing versions endpoint takes the raw as the body.
 - [ ] **U21 Add a raw to a frame.** "Add version…" (U34) takes raws too, and a raw can be dropped onto a frame on the roll page, adding it as another version of that frame. The contact sheet marks frames that have raws and still shows the lab scan, the first version (D46); the versions column labels each with its source.
 
-### 4. Index and maintenance
+### 3. Index and maintenance
 
 - [ ] **U40 `CatalogueIndex`.** *(Was 1.2.4.)* `better-sqlite3` in the cache directory: rolls, frames, frame tags and equipment; upsert a resolved roll, query with the `ListRolls` filters and sort orders (D9), rebuild. Replaces the S1 directory scan for listing.
 - [ ] **U41 `RebuildIndex`.** *(Was 1.3.13.)*
@@ -294,6 +283,17 @@ Selecting frames on a roll and giving them all an event, camera, film stock or l
 - [x] **U17 Events across rolls.** A frame is in its own events if it has them (U15), otherwise its roll's. An event's page shows every frame in it, from any roll, in shot order, and leaves out a roll's frames put in other events; grouping by camera, lens or film stock uses a frame's own where it has one. A roll counts as in an event (on the Events page, in the browse panel and when grouping rolls by event) when it or any of its frames is, so it can sit under several events. Extends the "Bulk edit" journey.
 - [x] **U38 Delete selected frames.** *(Was 1c.3, "Bulk edit and delete". Selecting frames and setting their event, camera, film stock or lens: U14, U16; location: U18, later; tags: U30, later.)* With frames selected, "Delete…" in the bar asks "Delete these 3 frames?" in place of its buttons, so the frames don't move; Delete takes them out of the roll in one save with `If-Match` and moves each into `deleted/`, as for one frame (U23), leaving nothing selected. Esc or Cancel keeps them. `DELETE /api/rolls/{rollId}/frames?frameIds=…` (`DeleteFrames`); nothing is deleted if any frame isn't in the roll.
 - [x] **U39 Frame editing.** *(Was 1c.1. Title, rating and notes: U29; tags: U30, later; a frame's own camera, film stock, lens and events, set with U16; location: U18, later.)* In the frame view's "About this frame", inherited details are grey and say where they came from ("from the roll", "from the archive"); a frame's own say "this frame's own", with "Use the roll's" to clear it and "Set on roll instead" to set it on the roll for every frame and clear the frame's (a roll's change, then the frame's, each with `If-Match`; for events, only when the frame is in one).
+
+### Tidying the roll and events pages
+
+The roll page had grown a row of buttons in its heading and another above its frames, with nine more while selecting. Its actions go into one Actions menu beside the roll number, and selecting frames takes that menu's place (option 1 of the roll page wireframes). Film stock stays the roll's alone.
+
+- [x] **U52 Film stock is the roll's.** A frame can no longer have its own film stock (D45): it's gone from "Set film stock…" while selecting, from a frame's details in the frame view (always the roll's, so no "Use the roll's" or "Set on roll instead" for it), from the "Own" mark, and from `PATCH …/frames/{frameId}`, `PATCH …/frames` and frame details. A frame's `meta.film` already in a roll.json is read without it and dropped the next time the roll is saved. Grouping an event's frames by film stock uses the roll's.
+- [x] **U53 Breadcrumbs at title size.** The link back in a page's heading is the same size as the heading, in grey, with a "/" between them (a shared `breadcrumb` style): "All rolls / 2026-014" on a roll and on New roll, "Events / Iceland 2026" on an event, and "Roll 2026-014 / Frame 12" or "Iceland 2026 / Frame 12" in the frame view, where the roll number is no longer repeated after the heading.
+- [x] **U54 No frame order switch.** "Show frames in: Frame order / Scan order" goes; the contact sheet is always in frame order, and renumbering still shows scan order while it's open.
+- [x] **U55 One Actions menu.** The roll page's buttons (Edit details, Add scans, Select, Renumber…, Delete roll…) become one "Actions" button beside the roll number, opening a menu: Edit details, Add scans, Bulk edit, Renumber…, then Delete roll… set apart. It works from the keyboard (arrow keys, Enter, Esc) and closes when something is chosen or on a click outside. Asking "Delete this roll?" and renumbering take the menu's place as they take the buttons' now. Extends the "Catalogue a roll" and "Renumber a roll" journeys, whose steps change.
+- [x] **U56 One Set menu while selecting.** The selection bar above the frames keeps its place, with "3 frames selected", Select all, Clear, a "Set" menu (Event…, Camera… and Lens…, each opening its choice in the bar, closed by Esc), Delete… and Done; the four "Set …" buttons go. The Actions menu is put away while selecting. Putting the bar in the Actions menu's place was tried and found too complex. The "Bulk edit" journey follows the new steps.
+- [x] **U63 Events laid out like rolls.** The Events page shows each event as the rolls page shows a roll: a card in a grid, with a strip of a few of its frames' thumbnails, its name and date, and how many rolls and photos it has ("3 rolls · 108 photos", counting rolls and frames in it through their frames too, U17), each card opening the event's page. Editing an event and New event keep working from the page, in the same card style as the rolls page's actions.
 
 ### Replaced or dropped
 

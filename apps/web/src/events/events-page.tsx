@@ -1,15 +1,8 @@
 import type { ApiClient } from '@filmfile/contracts/client';
-import type { Event } from '@filmfile/contracts/events';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { formatShot } from '../rolls/format-shot.ts';
-import { Link } from '../routing.tsx';
+import { EventCard } from './event-card.tsx';
 import { EventForm, type EventDetails } from './event-form.tsx';
-import { eventsOfRoll } from './frame-events.ts';
-
-function rollCount(count: number): string {
-  return count === 1 ? '1 roll' : `${String(count)} rolls`;
-}
 
 /** What to say when the service refuses an event's details. */
 function problemWith(status: number, name: string): string {
@@ -86,35 +79,9 @@ function EventEditor({
   );
 }
 
-/** One event in the list: its name, date and how many rolls it has. */
-function EventRow({
-  event,
-  rolls,
-  edit,
-}: {
-  readonly event: Event;
-  readonly rolls: number;
-  readonly edit: () => void;
-}) {
-  return (
-    <>
-      <span className="event-name">
-        <Link to={`/events/${event.slug}`}>{event.name}</Link>
-        {event.date !== null && (
-          <span className="muted"> · {formatShot(event.date)}</span>
-        )}
-      </span>
-      <span className="muted">{rollCount(rolls)}</span>
-      <button type="button" aria-label={`Edit ${event.name}`} onClick={edit}>
-        Edit
-      </button>
-    </>
-  );
-}
-
 /**
- * Every event, newest first, with how many rolls were shot at it, each
- * leading to its page of frames. Events are added and changed here (D32).
+ * Every event, newest first, as cards like the rolls page's (U63): how many
+ * rolls and photos are in each, each leading to its page of frames. Events are added and changed here (D32).
  */
 export function EventsPage({ api }: { readonly api: ApiClient }) {
   const queryClient = useQueryClient();
@@ -187,10 +154,11 @@ export function EventsPage({ api }: { readonly api: ApiClient }) {
       {events.data.length === 0 && !adding ? (
         <p>No events yet. Add one with New event.</p>
       ) : (
-        <ul className="event-list">
-          {events.data.map((event) => (
-            <li key={event.slug}>
-              {editing === event.slug ? (
+        <ul className="roll-grid event-grid">
+          {events.data.map((event) =>
+            editing === event.slug ? (
+              // Across the grid, so the form has room.
+              <li key={event.slug} className="event-editing">
                 <EventEditor
                   api={api}
                   slug={event.slug}
@@ -198,21 +166,18 @@ export function EventsPage({ api }: { readonly api: ApiClient }) {
                     setEditing(undefined);
                   }}
                 />
-              ) : (
-                <EventRow
-                  event={event}
-                  rolls={
-                    rolls.data.rolls.filter((roll) =>
-                      eventsOfRoll(roll).includes(event.slug),
-                    ).length
-                  }
-                  edit={() => {
-                    setEditing(event.slug);
-                  }}
-                />
-              )}
-            </li>
-          ))}
+              </li>
+            ) : (
+              <EventCard
+                key={event.slug}
+                event={event}
+                rolls={rolls.data.rolls}
+                edit={() => {
+                  setEditing(event.slug);
+                }}
+              />
+            ),
+          )}
         </ul>
       )}
     </section>

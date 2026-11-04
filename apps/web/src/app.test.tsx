@@ -85,7 +85,9 @@ test('lists the events from the header, with their rolls, and opens an event’s
     await screen.findByRole('heading', { level: 1, name: 'Events' }),
   ).toBeDefined();
   const event = await screen.findByRole('listitem');
-  expect(event.textContent).toBe('Iceland 2026 · Sep 20261 rollEdit');
+  expect(event.textContent).toBe(
+    'Iceland 20261 roll · 0 photos · Sep 2026Edit',
+  );
 
   fireEvent.click(screen.getByRole('link', { name: 'Iceland 2026' }));
 

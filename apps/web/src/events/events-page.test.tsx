@@ -45,7 +45,7 @@ function eventsListed(): (string | null)[] {
   return screen.getAllByRole('listitem').map((item) => item.textContent);
 }
 
-test('lists the events newest first, each with its date', async () => {
+test('lists the events newest first, each as a card with its counts and date', async () => {
   renderPage(
     fakeArchive({
       events: [
@@ -58,18 +58,27 @@ test('lists the events newest first, each with its date', async () => {
 
   await screen.findByText('Westfjords');
   expect(eventsListed()).toEqual([
-    'Iceland 2026 · 12 Sep 20260 rollsEdit',
-    'Westfjords · Jun 20250 rollsEdit',
-    'Undated0 rollsEdit',
+    'Iceland 20260 rolls · 0 photos · 12 Sep 2026Edit',
+    'Westfjords0 rolls · 0 photos · Jun 2025Edit',
+    'Undated0 rolls · 0 photosEdit',
   ]);
+  expect(
+    screen.getByRole('link', { name: 'Westfjords' }).getAttribute('href'),
+  ).toBe('/events/westfjords');
 });
 
-test('counts a roll in an event when any of its frames is in it', async () => {
+test('counts the rolls and photos in an event, through their frames too', async () => {
   renderPage(
     fakeArchive({
       events: [{ slug: 'westfjords', name: 'Westfjords', date: '2025-06' }],
       rolls: [
-        aRoll('2025-003', { event: 'westfjords' }),
+        aRoll('2025-003', {
+          event: 'westfjords',
+          frames: [
+            aFrame('1', '56780001.jpg'),
+            { ...aFrame('2', '56780002.jpg'), events: ['puffins'] },
+          ],
+        }),
         aRoll('2025-004', {
           frames: [{ ...aFrame('1', '12340001.jpg'), events: ['westfjords'] }],
         }),
@@ -78,8 +87,9 @@ test('counts a roll in an event when any of its frames is in it', async () => {
     }),
   );
 
-  await screen.findByText('2 rolls');
-  expect(eventsListed()).toEqual(['Westfjords · Jun 20252 rollsEdit']);
+  expect(
+    await screen.findByText('2 rolls · 2 photos · Jun 2025'),
+  ).toBeDefined();
 });
 
 test('says how to add the first event', async () => {

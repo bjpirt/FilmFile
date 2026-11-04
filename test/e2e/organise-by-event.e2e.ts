@@ -32,7 +32,7 @@ test('organise by event: put rolls in an event, date it and add another on the E
   await edit.getByRole('button', { name: 'Save event' }).click();
   await expect(
     page.getByRole('listitem').filter({ hasText: 'Faroe Islands' }),
-  ).toHaveText('Faroe Islands · Jun 20212 rollsEdit');
+  ).toHaveText('Faroe Islands2 rolls · 11 photos · Jun 2021Edit');
 
   await page.getByRole('button', { name: 'New event' }).click();
   const add = page.getByRole('form', { name: 'New event' });
@@ -40,7 +40,7 @@ test('organise by event: put rolls in an event, date it and add another on the E
   await add.getByRole('button', { name: 'Add event' }).click();
   await expect(
     page.getByRole('listitem').filter({ hasText: 'Shetland 2021' }),
-  ).toHaveText('Shetland 20210 rollsEdit');
+  ).toHaveText('Shetland 20210 rolls · 0 photosEdit');
 
   // The event is its frames, from both rolls, not the rolls themselves.
   await page.getByRole('link', { name: 'Faroe Islands' }).click();
