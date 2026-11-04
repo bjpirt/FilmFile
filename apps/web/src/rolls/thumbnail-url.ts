@@ -11,8 +11,10 @@ export function thumbnailUrl(
   rollId: string,
   frame: Frame,
   size: 'small' | 'large' = 'small',
+  /** One of the frame's versions in place of the one shown, as the versions column has (U61). */
+  chosen?: Frame['versions'][number],
 ): string | undefined {
-  const version = shownVersion(frame);
+  const version = chosen ?? shownVersion(frame);
   return version === undefined
     ? undefined
     : `/api/rolls/${rollId}/frames/${frame.id}/versions/${version.id}/thumbnail?size=${size}${version.rotate === 0 ? '' : `&rotate=${String(version.rotate)}`}`;

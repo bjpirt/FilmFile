@@ -314,22 +314,66 @@ describe('the frame’s details and versions', () => {
     expect(within(details).getByText('Nikon FE')).toBeDefined();
   });
 
-  test('lists the frame’s versions, the first shown, each with its size and when it was added', async () => {
+  test('shows a frame’s versions in a column, the first in view and shown everywhere', async () => {
     openTwice();
-    await showDetails();
 
-    const versions = await screen.findByRole('list', { name: 'Versions' });
-    expect(
-      within(versions)
-        .getAllByRole('listitem')
-        .map((item) => item.textContent),
-    ).toEqual([
-      '12340001.jpg3 bytes · 3 × 2 · 2 Nov 2026Shown',
-      '12340001-again.jpg2.4 MB · 3089 × 2048 · 3 Nov 2026',
+    const column = await screen.findByRole('group', { name: 'Versions' });
+    const versions = within(column).getAllByRole('button', { name: /^Show / });
+    expect(versions.map((v) => v.getAttribute('aria-label'))).toEqual([
+      'Show 12340001.jpg',
+      'Show 12340001-again.jpg',
     ]);
-    expect(screen.getByRole('img', { name: '12340001.jpg' })).toBeDefined();
-    // Choosing another is for later (U62).
-    expect(screen.queryByRole('button', { name: 'Set as default' })).toBeNull();
+    expect(versions.map((v) => v.getAttribute('aria-pressed'))).toEqual([
+      'true',
+      'false',
+    ]);
+    expect(within(column).getByText('Shown everywhere')).toBeDefined();
+    // The column has the "+", so the bar doesn't.
+    expect(
+      within(column).getByRole('button', { name: 'Add a version' }),
+    ).toBeDefined();
+    expect(
+      screen.getAllByRole('button', { name: 'Add a version' }),
+    ).toHaveLength(1);
+    // The list in the details panel goes.
+    await showDetails();
+    expect(screen.queryByRole('list', { name: 'Versions' })).toBeNull();
+  });
+
+  test('shows another version in the frame view only, for a closer look', async () => {
+    const archive = openTwice();
+    const column = await screen.findByRole('group', { name: 'Versions' });
+
+    fireEvent.click(
+      within(column).getByRole('button', { name: 'Show 12340001-again.jpg' }),
+    );
+
+    expect(
+      screen
+        .getByRole('img', { name: '12340001-again.jpg' })
+        .getAttribute('src'),
+    ).toContain('size=large');
+    expect(
+      within(column)
+        .getByRole('button', { name: 'Show 12340001-again.jpg' })
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
+    // Nothing is saved; the filmstrip still shows the first.
+    expect(archive.ifMatches).toEqual([]);
+    expect(
+      within(screen.getByRole('list', { name: 'Filmstrip' }))
+        .getAllByRole('presentation')
+        .map((img) => img.getAttribute('src'))
+        .join(),
+    ).toContain(twice.frames[0]?.versions[0]?.id ?? 'missing');
+  });
+
+  test('has no column for a frame with one version, only the bar’s “+”', async () => {
+    openAt(`/rolls/${roll.id}/frames/${frameId('1')}`);
+
+    await screen.findByRole('heading', { level: 1, name: 'Frame 1' });
+    expect(screen.queryByRole('group', { name: 'Versions' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Add a version' })).toBeDefined();
   });
 });
 

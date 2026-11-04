@@ -8,15 +8,18 @@ export function Thumbnail({
   frame,
   size = 'small',
   decorative = false,
+  version: chosen,
 }: {
   readonly rollId: string;
   readonly frame: Frame;
   readonly size?: 'small' | 'large';
+  /** One of the frame's versions in place of the one shown (U61). */
+  readonly version?: Frame['versions'][number];
   /** Unnamed, when what it's in already names the frame, e.g. a labelled link. */
   readonly decorative?: boolean;
 }) {
-  const src = thumbnailUrl(rollId, frame, size);
-  const version = shownVersion(frame);
+  const src = thumbnailUrl(rollId, frame, size, chosen);
+  const version = chosen ?? shownVersion(frame);
   if (src === undefined || version === undefined) {
     return <div className="no-scan">No scan</div>;
   }

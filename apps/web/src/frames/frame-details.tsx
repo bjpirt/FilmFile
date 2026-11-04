@@ -13,40 +13,7 @@ import { eventName, useEvents } from '../events/use-events.ts';
 import { DateShotFields } from '../rolls/date-shot-fields.tsx';
 import { formatShot } from '../rolls/format-shot.ts';
 import { shotFieldsOf, shotFrom } from '../rolls/shot-fields.ts';
-import { shownVersion } from '../rolls/shown-version.ts';
 import type { FrameChanges } from './use-save-frame.ts';
-
-const months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
-
-/** A file's size as people read it: "3 bytes", "640 KB", "2.4 MB". */
-export function formatBytes(bytes: number): string {
-  if (bytes < 1000) {
-    return `${String(bytes)} bytes`;
-  }
-  if (bytes < 1_000_000) {
-    return `${String(Math.round(bytes / 1000))} KB`;
-  }
-  return `${(bytes / 1_000_000).toFixed(1)} MB`;
-}
-
-/** When a version was added, as a day: "2 Nov 2026". */
-function formatAdded(added: string): string {
-  const date = new Date(added);
-  return `${String(date.getUTCDate())} ${months[date.getUTCMonth()] ?? ''} ${String(date.getUTCFullYear())}`;
-}
 
 /** Text saved when its field is left, if it changed: a frame's title or notes. */
 function TextField({
@@ -322,8 +289,8 @@ function Stars({
 
 /**
  * Beside a frame in the frame view: how it's described (title, rating and
- * notes), the details it inherits from the archive and its roll, and its
- * versions, any of which can be chosen as the one shown (D15).
+ * notes) and its details, those it inherits from the archive and its roll
+ * and its own. Its versions are in the frame view's column (U61).
  */
 export function FrameDetails({
   api,
@@ -440,7 +407,6 @@ export function FrameDetails({
     },
     // One that can be changed here is shown even when not set, so it can be.
   ].filter((fact) => fact.value !== undefined || fact.edit !== undefined);
-  const shown = shownVersion(frame);
 
   return (
     <aside
@@ -469,28 +435,6 @@ export function FrameDetails({
             </div>
           ))}
         </dl>
-      )}
-      <h2>Versions</h2>
-      {frame.versions.length === 0 ? (
-        <p className="muted">No scans yet.</p>
-      ) : (
-        <ol className="versions" aria-label="Versions">
-          {frame.versions.map((version) => (
-            <li key={version.id}>
-              <span className="version-file">
-                {version.file.split('/').at(-1)}
-              </span>
-              <span className="muted">
-                {formatBytes(version.bytes)} · {version.width} ×{' '}
-                {version.height} · {formatAdded(version.added)}
-              </span>
-              {/* Choosing another is for later (U62). */}
-              {version.id === shown?.id && (
-                <span className="version-shown">Shown</span>
-              )}
-            </li>
-          ))}
-        </ol>
       )}
     </aside>
   );

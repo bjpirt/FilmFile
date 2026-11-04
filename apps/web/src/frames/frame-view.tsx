@@ -52,6 +52,38 @@ function TurnIcon({ clockwise }: { readonly clockwise: boolean }) {
   );
 }
 
+/** Adds an image to the frame as another version (U34): a "+". */
+function AddVersionButton({
+  add,
+  className,
+}: {
+  readonly add: () => void;
+  readonly className: string;
+}) {
+  return (
+    <button
+      type="button"
+      className={className}
+      aria-label="Add a version"
+      title="Add a version"
+      onClick={add}
+    >
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        aria-hidden="true"
+      >
+        <path d="M12 5v14M5 12h14" />
+      </svg>
+    </button>
+  );
+}
+
 /** Shows and hides the frame's details: an "i" in a circle, named for what it will do. */
 function DetailsToggle({
   open,
@@ -121,7 +153,20 @@ export function FrameView({
   const [detailsOpen, setDetailsOpen] = useState(rememberedDetailsOpen);
   const { save, turn, remove, addVersion, problem } = useSaveFrame(api, shown);
   const chooseVersion = useRef<HTMLInputElement>(null);
-  const turning = shown === undefined ? undefined : shownVersion(shown.frame);
+  const [viewing, setViewing] = useState<
+    { readonly frameId: string; readonly versionId: string } | undefined
+  >(undefined);
+  // The version looked at here, for this frame only: the one shown everywhere
+  // until another is clicked in the versions column (U61). It's the one turned.
+  const inView =
+    shown === undefined
+      ? undefined
+      : (shown.frame.versions.find(
+          (version) =>
+            viewing?.frameId === shown.frame.id &&
+            version.id === viewing.versionId,
+        ) ?? shownVersion(shown.frame));
+  const turning = inView;
 
   /** Turns the version shown a quarter turn: 90 clockwise, -90 anticlockwise. */
   function turnBy(degrees: 90 | -90) {
@@ -203,6 +248,9 @@ export function FrameView({
     );
   }
 
+  const manyVersions = shown.frame.versions.length > 1;
+  const everywhere = shownVersion(shown.frame);
+
   return (
     <section className="frame-view">
       <div className="frame-view-bar">
@@ -225,27 +273,13 @@ export function FrameView({
           {current + 1} of {frames.length}
         </span>
         <span className="frame-view-actions">
-          {/* Moves to the foot of the versions column once there's more than one (U61). */}
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Add a version"
-            title="Add a version"
-            onClick={() => chooseVersion.current?.click()}
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              aria-hidden="true"
-            >
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-          </button>
+          {/* At the foot of the versions column once there's more than one (U61). */}
+          {!manyVersions && (
+            <AddVersionButton
+              add={() => chooseVersion.current?.click()}
+              className="icon-button"
+            />
+          )}
           <input
             ref={chooseVersion}
             type="file"
@@ -316,6 +350,45 @@ export function FrameView({
         }
       >
         <div className="frame-view-stage">
+          {manyVersions && (
+            <div role="group" aria-label="Versions" className="versions-column">
+              {shown.frame.versions.map((version) => {
+                const name = version.file.split('/').at(-1) ?? version.file;
+                return (
+                  <button
+                    key={version.id}
+                    type="button"
+                    className="version-thumb"
+                    aria-label={`Show ${name}`}
+                    aria-pressed={version.id === inView?.id}
+                    onClick={() => {
+                      setViewing({
+                        frameId: shown.frame.id,
+                        versionId: version.id,
+                      });
+                    }}
+                  >
+                    <Thumbnail
+                      rollId={shown.roll.id}
+                      frame={shown.frame}
+                      version={version}
+                      decorative
+                    />
+                    <span className="version-name">{name}</span>
+                    {version.id === everywhere?.id && (
+                      <span className="version-everywhere">
+                        Shown everywhere
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+              <AddVersionButton
+                add={() => chooseVersion.current?.click()}
+                className="version-add"
+              />
+            </div>
+          )}
           <button
             type="button"
             className="frame-step"
@@ -334,6 +407,7 @@ export function FrameView({
               rollId={shown.roll.id}
               frame={shown.frame}
               size="large"
+              {...(inView === undefined ? {} : { version: inView })}
             />
             {confirmingDelete && (
               <div
