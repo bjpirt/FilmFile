@@ -66,6 +66,7 @@ export default defineConfig(
         { type: 'composition', pattern: 'apps/backend/src/composition/**' },
         { type: 'backend-test', pattern: 'apps/backend/test/**' },
         { type: 'web', pattern: 'apps/web/**' },
+        { type: 'desktop', pattern: 'apps/desktop/**' },
         { type: 'contracts', pattern: 'packages/contracts/**' },
       ].map((element) => ({ ...element, partialMatch: false })),
       // Element patterns match folders, so single files are classified here.
@@ -161,6 +162,15 @@ export default defineConfig(
               allow: [
                 { to: { element: { type: ['web', 'contracts'] } } },
                 { to: { module: { origin: 'external' } } },
+              ],
+            },
+            {
+              // The desktop app: Electron and Node.js, and nothing of the service's
+              // but the path to start it by (D54).
+              from: { element: { type: 'desktop' } },
+              allow: [
+                { to: { element: { type: 'desktop' } } },
+                { to: { module: { origin: ['external', 'core'] } } },
               ],
             },
             {

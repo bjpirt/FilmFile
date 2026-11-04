@@ -25,6 +25,7 @@ Simple first (the design's ports are the only planned abstractions; three simila
 ## Architecture in brief
 
 - A **backend** (`apps/backend`) owns all archive data and serves the built UI; the browser UI (`apps/web`) is only an API client. No CLI.
+- The **desktop app** (`apps/desktop`, Electron) starts the backend in a `utilityProcess` and opens a locked-down window on it (D54); it imports nothing from the backend.
 - **Hexagonal**, layers as folders: `domain/` → `application/` (use cases + `ports/`) → `adapters/` (inbound: HTTP; outbound: filesystem, SQLite, sharp, node, memory) → `composition/`, enforced by `eslint-plugin-boundaries`. `domain/` imports nothing outside itself (no I/O, time or randomness); `application/` only `domain/`; only `main.ts` imports `composition/`; `apps/web` only `@filmfile/contracts`.
 - **Pure DI:** constructor injection, no container or decorators; adapters built only in `composeLocal` and `composeInMemory`.
 - **Three models** mapped explicitly at the adapter: domain types, persistence schemas (filesystem adapter), API contracts (`@filmfile/contracts`).

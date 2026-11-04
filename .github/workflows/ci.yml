@@ -58,8 +58,13 @@ jobs:
 
       - run: pnpm exec playwright install --with-deps chromium
 
-      # Builds the UI, then runs the Playwright tests against the backend serving it.
-      - run: pnpm e2e
+      # Ubuntu 24.04 stops unprivileged user namespaces, which Electron's sandbox
+      # needs for the desktop app's journeys (desktop.e2e.ts).
+      - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      # Builds the UI, then runs the Playwright tests against the backend serving
+      # it, and against the desktop app, which needs a display (xvfb).
+      - run: xvfb-run --auto-servernum pnpm e2e
 
       - if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

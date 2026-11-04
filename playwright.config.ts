@@ -14,7 +14,15 @@ export default defineConfig({
     baseURL: 'http://127.0.0.1:4311',
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      testIgnore: 'desktop.e2e.ts',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    // The desktop app, launched by the tests themselves (U82).
+    { name: 'desktop', testMatch: 'desktop.e2e.ts' },
+  ],
   // Stopped as Ctrl+C would stop them, so each removes its temporary archive.
   webServer: [
     {
