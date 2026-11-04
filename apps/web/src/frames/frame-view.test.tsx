@@ -700,19 +700,21 @@ describe('a frame’s own details, and those it inherits', () => {
     return value;
   }
 
-  test('says where each inherited detail came from', async () => {
+  test('shows inherited details as they are, saying nothing of where they came from', async () => {
     openWith(null);
 
-    expect((await detail('Camera')).textContent).toBe('Nikon FEfrom the roll');
-    expect((await detail('Author')).textContent).toBe(
-      'Ben Pirtfrom the archive',
-    );
+    expect((await detail('Camera')).textContent).toBe('Nikon FE');
+    expect((await detail('Author')).textContent).toBe('Ben Pirt');
+    expect(screen.queryByText(/^from the/)).toBeNull();
   });
 
-  test('shows the frame’s own, which can go back to the roll’s', async () => {
+  test('marks the frame’s own with a reset that goes back to the roll’s', async () => {
     const archive = openWith('leica-m6');
     const camera = await detail('Camera');
-    expect(camera.textContent).toContain('Leica M6this frame’s own');
+    expect(camera.textContent).toBe('Leica M6');
+    expect(
+      screen.queryByRole('button', { name: /on the roll instead/ }),
+    ).toBeNull();
 
     fireEvent.click(
       within(camera).getByRole('button', { name: 'Use the roll’s camera' }),
@@ -722,27 +724,5 @@ describe('a frame’s own details, and those it inherits', () => {
       expect(archive.rolls[0]?.frames[0]?.camera).toBeNull();
     });
     expect(await screen.findByText('Nikon FE')).toBeDefined();
-  });
-
-  test('sets the frame’s own on the roll instead, for every frame', async () => {
-    const archive = openWith('leica-m6');
-
-    fireEvent.click(
-      within(await detail('Camera')).getByRole('button', {
-        name: 'Set the camera on the roll instead',
-      }),
-    );
-
-    await vi.waitFor(() => {
-      expect(archive.rolls[0]?.camera).toBe('leica-m6');
-    });
-    await vi.waitFor(() => {
-      expect(archive.rolls[0]?.frames[0]?.camera).toBeNull();
-    });
-    // The roll's change, then the frame's, each against the version before.
-    expect(archive.ifMatches).toEqual(['"v1"', '"v2"']);
-    expect(
-      await screen.findByText('from the roll', { exact: false }),
-    ).toBeDefined();
   });
 });

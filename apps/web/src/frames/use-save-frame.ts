@@ -8,12 +8,6 @@ import type { CollectionFrame } from './frame-view.tsx';
 /** The details of a frame to change; one left out stays as it is. */
 export type FrameChanges = components['schemas']['UpdateFrameRequest'];
 
-/** One of a roll's details, set from a frame's own (U39). */
-export type RollChange =
-  | { readonly camera: string }
-  | { readonly lens: string }
-  | { readonly event: string };
-
 /** Degrees clockwise a version is turned when shown. */
 export type QuarterTurn = components['schemas']['Version']['rotate'];
 
@@ -84,56 +78,6 @@ export function useSaveFrame(
         frames: read.roll.frames.map((f) => (f.id === data.id ? data : f)),
       },
       etag: response.headers.get('ETag') ?? read.etag,
-    });
-    await refreshed();
-  }
-
-  /**
-   * One of the frame's own details set on its roll instead, so every frame
-   * on it shares it (U39): the roll's change, then the frame's own cleared,
-   * each against the roll's version as the step before left it.
-   */
-  async function sendSetOnRoll(change: RollChange) {
-    const read = queryClient.getQueryData<ReadRoll>(['rolls', rollId]);
-    if (read === undefined) {
-      return;
-    }
-    setProblem(undefined);
-    const onRoll = await api.PATCH('/api/rolls/{rollId}', {
-      params: { path: { rollId }, header: { 'if-match': read.etag } },
-      body: change,
-    });
-    if (onRoll.response.status === 409) {
-      setProblem('This roll changed since you opened it. Reload the page.');
-      return;
-    }
-    if (onRoll.data === undefined) {
-      setProblem("Couldn't save it. Is the service running?");
-      return;
-    }
-    const cleared = await api.PATCH('/api/rolls/{rollId}/frames/{frameId}', {
-      params: {
-        path: { rollId, frameId },
-        header: { 'if-match': onRoll.response.headers.get('ETag') ?? '' },
-      },
-      body:
-        'camera' in change
-          ? { camera: null }
-          : 'lens' in change
-            ? { lens: null }
-            : { events: null },
-    });
-    if (cleared.data === undefined) {
-      setProblem("Couldn't save it. Is the service running?");
-      return;
-    }
-    const frame = cleared.data;
-    queryClient.setQueryData<ReadRoll>(['rolls', rollId], {
-      roll: {
-        ...onRoll.data,
-        frames: onRoll.data.frames.map((f) => (f.id === frame.id ? frame : f)),
-      },
-      etag: cleared.response.headers.get('ETag') ?? read.etag,
     });
     await refreshed();
   }
@@ -234,8 +178,6 @@ export function useSaveFrame(
     /** Turns one of the frame's versions as it's shown (D41). */
     turn: (versionId: string, rotate: QuarterTurn) =>
       queued(() => sendTurn(versionId, rotate)),
-    /** Sets one of the frame's own details on its roll instead (U39). */
-    setOnRoll: (change: RollChange) => queued(() => sendSetOnRoll(change)),
     /** Deletes the frame into the archive's deleted folder, then calls `onDeleted`. */
     remove: (onDeleted: () => void) => queued(() => sendDelete(onDeleted)),
     problem,

@@ -1138,7 +1138,19 @@ textarea {
   margin: 0;
 }
 
-/* A frame's details in the frame view: one to a line, inherited ones in grey with where they came from. */
+/* Beside a frame's own detail: goes back to the roll's. */
+.reset-detail {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: var(--accent);
+  display: inline-flex;
+  justify-content: center;
+  min-height: 0;
+  padding: 2px;
+}
+
+/* A frame's details in the frame view, one to a line; the frame's own has a small reset beside it. */
 .frame-facts {
   display: flex;
   flex-direction: column;
@@ -1154,36 +1166,11 @@ textarea {
 }
 
 .frame-facts dd {
-  align-items: baseline;
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1) var(--space-2);
   margin: 0;
-}
-
-.frame-facts .inherited .fact-value {
-  color: var(--text-muted);
-}
-
-.fact-source {
-  color: var(--text-muted);
-  font-size: 0.75rem;
-}
-
-.frame-facts .own .fact-source {
-  color: var(--accent);
-}
-
-.fact-actions {
-  display: flex;
-  flex-basis: 100%;
-  gap: var(--space-2);
-}
-
-.fact-actions button {
-  font-size: 0.8rem;
-  min-height: 2rem;
-  padding: 0 var(--space-2);
 }
 
 .roll-notes {
