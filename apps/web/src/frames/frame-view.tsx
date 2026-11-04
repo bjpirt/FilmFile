@@ -11,7 +11,13 @@ import {
 } from './details-preference.ts';
 import { FrameDetails } from './frame-details.tsx';
 import { shownVersion } from '../rolls/shown-version.ts';
-import { useSaveFrame, type QuarterTurn } from './use-save-frame.ts';
+import {
+  useSaveFrame,
+  type QuarterTurn,
+  type VersionKind,
+} from './use-save-frame.ts';
+
+const versionKinds: readonly VersionKind[] = ['scan', 'raw-scan', 'final'];
 
 /** A frame in the collection being stepped through, with the roll it's on. */
 export interface CollectionFrame {
@@ -58,35 +64,68 @@ function fileNameOf(version: CollectionFrame['frame']['versions'][number]) {
   return version.file.split('/').at(-1) ?? version.file;
 }
 
-/** Adds an image to the frame as another version (U34): a "+". */
-function AddVersionButton({
+const kindNames: Readonly<Record<VersionKind, string>> = {
+  scan: 'Scan',
+  'raw-scan': 'Raw scan',
+  final: 'Final',
+};
+
+/** A version's size in megapixels, as its label says it: "6.3 MP". */
+function megapixels(version: {
+  readonly width: number;
+  readonly height: number;
+}) {
+  const mp = (version.width * version.height) / 1_000_000;
+  return mp < 0.1 ? 'under 0.1 MP' : `${mp.toFixed(1)} MP`;
+}
+
+/** Adds an image to the frame as another version (U34), as the kind chosen (U64): a "+" menu. */
+function AddVersionMenu({
   add,
   className,
 }: {
-  readonly add: () => void;
+  readonly add: (kind: VersionKind) => void;
   readonly className: string;
 }) {
   return (
-    <button
-      type="button"
+    <MenuButton
+      label="Add a version"
       className={className}
-      aria-label="Add a version"
-      title="Add a version"
-      onClick={add}
-    >
-      <svg
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        aria-hidden="true"
-      >
-        <path d="M12 5v14M5 12h14" />
-      </svg>
-    </button>
+      icon={
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          aria-hidden="true"
+        >
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      }
+      items={[
+        {
+          label: 'Add scan…',
+          select: () => {
+            add('scan');
+          },
+        },
+        {
+          label: 'Add raw scan…',
+          select: () => {
+            add('raw-scan');
+          },
+        },
+        {
+          label: 'Add final…',
+          select: () => {
+            add('final');
+          },
+        },
+      ]}
+    />
   );
 }
 
@@ -157,9 +196,17 @@ export function FrameView({
   const next = frames[current + 1];
   const currentInStrip = useRef<HTMLLIElement>(null);
   const [detailsOpen, setDetailsOpen] = useState(rememberedDetailsOpen);
-  const { save, turn, remove, addVersion, deleteVersion, problem } =
+  const { save, turn, changeKind, remove, addVersion, deleteVersion, problem } =
     useSaveFrame(api, shown);
   const chooseVersion = useRef<HTMLInputElement>(null);
+  // The kind chosen from the "+", for the file picked next (U64).
+  const addingAs = useRef<VersionKind>('scan');
+
+  /** Opens the file picker for a version of the kind chosen. */
+  function pickVersion(kind: VersionKind) {
+    addingAs.current = kind;
+    chooseVersion.current?.click();
+  }
   const [viewing, setViewing] = useState<
     { readonly frameId: string; readonly versionId: string } | undefined
   >(undefined);
@@ -295,10 +342,7 @@ export function FrameView({
         <span className="frame-view-actions">
           {/* At the foot of the versions column once there's more than one (U61). */}
           {!manyVersions && (
-            <AddVersionButton
-              add={() => chooseVersion.current?.click()}
-              className="icon-button"
-            />
+            <AddVersionMenu add={pickVersion} className="add-version" />
           )}
           <input
             ref={chooseVersion}
@@ -310,7 +354,7 @@ export function FrameView({
               const file = event.target.files?.[0];
               event.target.value = '';
               if (file !== undefined) {
-                void addVersion(file);
+                void addVersion(file, addingAs.current);
               }
             }}
           />
@@ -435,6 +479,9 @@ export function FrameView({
                             version={version}
                             decorative
                           />
+                          <span className="version-kind">
+                            {kindNames[version.kind]} · {megapixels(version)}
+                          </span>
                           <span className="version-name">{name}</span>
                           {version.id === everywhere?.id && (
                             <span className="version-everywhere">
@@ -459,9 +506,18 @@ export function FrameView({
                             </svg>
                           }
                           items={[
+                            ...versionKinds
+                              .filter((kind) => kind !== version.kind)
+                              .map((kind) => ({
+                                label: `Mark as ${kindNames[kind].toLowerCase()}`,
+                                select: () => {
+                                  void changeKind(version.id, kind);
+                                },
+                              })),
                             {
                               label: 'Delete version…',
                               danger: true,
+                              setApart: true,
                               select: () => {
                                 setConfirmingVersion(version.id);
                               },
@@ -473,10 +529,7 @@ export function FrameView({
                   </div>
                 );
               })}
-              <AddVersionButton
-                add={() => chooseVersion.current?.click()}
-                className="version-add"
-              />
+              <AddVersionMenu add={pickVersion} className="version-add" />
             </div>
           )}
           <button

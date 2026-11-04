@@ -22,6 +22,12 @@ export const quarterTurn = z
   .union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)])
   .meta({ description: 'Degrees clockwise: 0, 90, 180 or 270.' });
 
+/** What a version is (D48). */
+export const versionKind = z.enum(['scan', 'raw-scan', 'final']).meta({
+  description:
+    'scan: ready to view, at any resolution; raw-scan: the negative or slide as scanned, not yet processed; final: processed and edited.',
+});
+
 export const version = z
   .object({
     id: ulid,
@@ -35,6 +41,7 @@ export const version = z
     height: z.number().int(),
     added: z.string().meta({ format: 'date-time' }),
     rotate: quarterTurn,
+    kind: versionKind,
   })
   .meta({ id: 'Version', description: 'One image file of a frame.' });
 
@@ -269,6 +276,9 @@ export const addVersionQuery = z.object({
       description: "The image's original file name, kept when it's stored.",
       example: '12340014.jpg',
     }),
+  kind: versionKind.optional().meta({
+    description: 'What the version is; a scan unless said (D48).',
+  }),
 });
 
 export const thumbnailQuery = z.object({
@@ -281,11 +291,13 @@ export const thumbnailQuery = z.object({
     .meta({ description: 'Degrees to turn it clockwise (D41).' }),
 });
 
-export const updateVersionRequest = z.object({ rotate: quarterTurn }).meta({
-  id: 'UpdateVersionRequest',
-  description:
-    'How the version is turned when shown; its file is never changed.',
-});
+export const updateVersionRequest = z
+  .object({ rotate: quarterTurn.optional(), kind: versionKind.optional() })
+  .meta({
+    id: 'UpdateVersionRequest',
+    description:
+      'How the version is turned when shown, or what kind it is; its file is never changed. A detail left out stays as it is.',
+  });
 
 /** Where a frame's detail came from: the layer that set it, and the ID of what's at that layer. */
 const detailSource = z.object({

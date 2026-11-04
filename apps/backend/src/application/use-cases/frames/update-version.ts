@@ -1,5 +1,6 @@
 import { isQuarterTurn } from '../../../domain/rolls/quarter-turn.ts';
 import { findVersion } from '../../../domain/rolls/find-version.ts';
+import { isVersionKind } from '../../../domain/rolls/version-kind.ts';
 import type { Version } from '../../../domain/rolls/roll.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type {
@@ -12,9 +13,10 @@ import { err, ok, type Result } from '../../../domain/shared/result.ts';
 import type { RollRepository } from '../../ports/roll-repository.ts';
 
 /**
- * Turns a version, by quarter turns clockwise, as it's shown; its file is
- * never changed (D41). Saved only if the roll hasn't changed since the
- * caller read it at `expectedVersion`.
+ * Turns a version, by quarter turns clockwise, as it's shown (D41), or
+ * changes what kind it is (D48); its file is never changed. A detail left
+ * out stays as it is. Saved only if the roll hasn't changed since the caller
+ * read it at `expectedVersion`.
  */
 export class UpdateVersion {
   readonly #rolls: RollRepository;
@@ -31,7 +33,9 @@ export class UpdateVersion {
       readonly versionId: VersionId;
       readonly expectedVersion: string;
       /** Degrees clockwise: 0, 90, 180 or 270. */
-      readonly rotate: number;
+      readonly rotate?: number | undefined;
+      /** scan, raw-scan or final. */
+      readonly kind?: string | undefined;
     },
   ): Promise<
     Result<
@@ -39,11 +43,19 @@ export class UpdateVersion {
       NotFound | ConcurrencyConflict | ValidationFailed
     >
   > {
-    const { rotate } = input;
-    if (!isQuarterTurn(rotate)) {
+    const { rotate, kind } = input;
+    if (rotate !== undefined && !isQuarterTurn(rotate)) {
       return err({
         kind: 'validation-failed',
         issues: [{ path: ['rotate'], message: 'must be 0, 90, 180 or 270' }],
+      });
+    }
+    if (kind !== undefined && !isVersionKind(kind)) {
+      return err({
+        kind: 'validation-failed',
+        issues: [
+          { path: ['kind'], message: 'must be scan, raw-scan or final' },
+        ],
       });
     }
     const current = await this.#rolls.get(ctx, input.rollId);
@@ -53,7 +65,11 @@ export class UpdateVersion {
       return err({ kind: 'not-found', entity: 'version', id: input.versionId });
     }
 
-    const updated: Version = { ...version, rotate };
+    const updated: Version = {
+      ...version,
+      ...(rotate === undefined ? {} : { rotate }),
+      ...(kind === undefined ? {} : { kind }),
+    };
     const saved = await this.#rolls.save(
       ctx,
       {

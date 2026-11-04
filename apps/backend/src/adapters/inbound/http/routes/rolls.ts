@@ -628,6 +628,7 @@ export function rollRoutes({
       rollId,
       frameId,
       fileName: c.req.valid('query').file,
+      kind: c.req.valid('query').kind,
       bytes: new Uint8Array(await c.req.arrayBuffer()),
     });
     return added.ok

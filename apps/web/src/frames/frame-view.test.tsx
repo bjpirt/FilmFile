@@ -222,6 +222,7 @@ describe('the frame’s details and versions', () => {
     height: 2048,
     added: '2026-11-03T09:00:00.000Z',
     rotate: 0,
+    kind: 'scan',
   };
   const twice = aRoll('2026-020', {
     camera: 'nikon-fe',
@@ -338,6 +339,35 @@ describe('the frame’s details and versions', () => {
     // The list in the details panel goes.
     await showDetails();
     expect(screen.queryByRole('list', { name: 'Versions' })).toBeNull();
+  });
+
+  test('labels each version with its kind and size in megapixels', async () => {
+    openTwice();
+
+    const column = await screen.findByRole('group', { name: 'Versions' });
+
+    expect(within(column).getByText('Scan · under 0.1 MP')).toBeDefined();
+    expect(within(column).getByText('Scan · 6.3 MP')).toBeDefined();
+  });
+
+  test('changes a version’s kind from its menu', async () => {
+    const archive = openTwice();
+    const column = await screen.findByRole('group', { name: 'Versions' });
+
+    fireEvent.click(
+      within(column).getByRole('button', {
+        name: 'Options for 12340001-again.jpg',
+      }),
+    );
+    expect(
+      screen.getAllByRole('menuitem').map((item) => item.textContent),
+    ).toEqual(['Mark as raw scan', 'Mark as final', 'Delete version…']);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Mark as final' }));
+
+    await vi.waitFor(() => {
+      expect(archive.rolls[0]?.frames[0]?.versions[1]?.kind).toBe('final');
+    });
+    expect(await within(column).findByText('Final · 6.3 MP')).toBeDefined();
   });
 
   test('shows another version in the frame view only, for a closer look', async () => {
@@ -1063,6 +1093,26 @@ describe('adding a version', () => {
     });
     expect(archive.uploads).toEqual(['edit.png']);
     expect(screen.getByRole('img', { name: '12340001.jpg' })).toBeDefined();
+  });
+
+  test('adds an image as the kind chosen from the “+”', async () => {
+    const archive = openOne();
+    await screen.findByRole('heading', { level: 1, name: 'Frame 1' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add a version' }));
+    expect(
+      screen.getAllByRole('menuitem').map((item) => item.textContent),
+    ).toEqual(['Add scan…', 'Add raw scan…', 'Add final…']);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add final…' }));
+    choose(new File(['edited'], 'edit.png', { type: 'image/png' }));
+
+    await vi.waitFor(() => {
+      expect(
+        archive.rolls[0]?.frames
+          .find((f) => f.number === '1')
+          ?.versions.map((v) => v.kind),
+      ).toEqual(['scan', 'final']);
+    });
   });
 
   test('refuses an image that isn’t a JPEG, PNG or WebP, sending nothing', async () => {

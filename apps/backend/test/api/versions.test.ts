@@ -248,3 +248,43 @@ describe('DELETE /api/rolls/{id}/frames/{frameId}/versions/{versionId}', () => {
     expect((await remove(only, etag ?? '')).status).toBe(422);
   });
 });
+
+describe('version kinds', () => {
+  test('adds a version as the kind given, a scan unless said', async () => {
+    const scan: unknown = await (
+      await upload(await aJpeg({ shade: 10 }))
+    ).json();
+    const raw: unknown = await (
+      await upload(await aJpeg({ shade: 90 }), 'file=raw.jpg&kind=raw-scan')
+    ).json();
+
+    expect(scan).toMatchObject({ kind: 'scan' });
+    expect(raw).toMatchObject({ kind: 'raw-scan' });
+  });
+
+  test('changes a version’s kind with If-Match', async () => {
+    const added: unknown = await (await upload(await aJpeg())).json();
+    const etag = (await request(`/api/rolls/${rollId}`)).headers.get('ETag');
+
+    const response = await request(
+      `/api/rolls/${rollId}/frames/${frameId}/versions/${String(idOf(added))}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'If-Match': etag ?? '',
+        },
+        body: JSON.stringify({ kind: 'final' }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ kind: 'final', rotate: 0 });
+  });
+
+  test('refuses a kind it doesn’t know', async () => {
+    expect(
+      (await upload(await aJpeg(), 'file=x.jpg&kind=negative')).status,
+    ).toBe(422);
+  });
+});

@@ -752,6 +752,8 @@ export interface paths {
                 query: {
                     /** @description The image's original file name, kept when it's stored. */
                     file: string;
+                    /** @description What the version is; a scan unless said (D48). */
+                    kind?: "scan" | "raw-scan" | "final";
                 };
                 header?: never;
                 path: {
@@ -2004,6 +2006,11 @@ export interface components {
             added: string;
             /** @description Degrees clockwise: 0, 90, 180 or 270. */
             rotate: 0 | 90 | 180 | 270;
+            /**
+             * @description scan: ready to view, at any resolution; raw-scan: the negative or slide as scanned, not yet processed; final: processed and edited.
+             * @enum {string}
+             */
+            kind: "scan" | "raw-scan" | "final";
         };
         UnreadableRoll: {
             /**
@@ -2179,10 +2186,15 @@ export interface components {
                 };
             };
         };
-        /** @description How the version is turned when shown; its file is never changed. */
+        /** @description How the version is turned when shown, or what kind it is; its file is never changed. A detail left out stays as it is. */
         UpdateVersionRequest: {
             /** @description Degrees clockwise: 0, 90, 180 or 270. */
-            rotate: 0 | 90 | 180 | 270;
+            rotate?: 0 | 90 | 180 | 270;
+            /**
+             * @description scan: ready to view, at any resolution; raw-scan: the negative or slide as scanned, not yet processed; final: processed and edited.
+             * @enum {string}
+             */
+            kind?: "scan" | "raw-scan" | "final";
         };
         CameraList: {
             cameras: components["schemas"]["Camera"][];

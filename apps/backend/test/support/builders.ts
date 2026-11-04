@@ -48,6 +48,7 @@ export function aVersion(
     height: 2,
     added: new Date('2026-11-02T12:00:00.000Z'),
     rotate: 0,
+    kind: 'scan',
   };
 }
 

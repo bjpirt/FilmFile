@@ -1,5 +1,6 @@
 import { newIdWithUniqueFolder } from '../../../domain/rolls/folder-names.ts';
 import type { Roll, Version } from '../../../domain/rolls/roll.ts';
+import type { VersionKind } from '../../../domain/rolls/version-kind.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type {
   ImageRejected,
@@ -53,6 +54,8 @@ export class AddVersion {
       readonly frameId: FrameId;
       readonly fileName: string;
       readonly bytes: Uint8Array;
+      /** What it is (D48); a scan unless said. */
+      readonly kind?: VersionKind | undefined;
     },
   ): Promise<Result<Version, NotFound | ImageRejected | ScanAlreadyInRoll>> {
     // Inspecting reads the whole file, so it's done before taking the roll's turn.
@@ -73,6 +76,7 @@ export class AddVersion {
       readonly frameId: FrameId;
       readonly fileName: string;
       readonly bytes: Uint8Array;
+      readonly kind?: VersionKind | undefined;
     },
   ): Promise<Result<RollChange<Version>, NotFound | ScanAlreadyInRoll>> {
     const frame = roll.frames.find((f) => f.id === input.frameId);
@@ -106,6 +110,7 @@ export class AddVersion {
       ...facts,
       added: this.#clock.now(),
       rotate: 0,
+      kind: input.kind ?? 'scan',
     };
     return ok({
       roll: {

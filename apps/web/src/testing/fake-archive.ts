@@ -75,6 +75,11 @@ export function aRoll(roll: string, details: Partial<Roll> = {}): Roll {
   };
 }
 
+/** The kind a version is added as, from its query: a scan unless said. */
+function versionKindOf(kind: string | null): Version['kind'] {
+  return kind === 'raw-scan' || kind === 'final' ? kind : 'scan';
+}
+
 /** A frame with one scan of the given file name, e.g. aFrame('1', '12340001.jpg'). */
 export function aFrame(number: string | null, file: string): Frame {
   const n = file.slice(4, 8);
@@ -99,6 +104,7 @@ export function aFrame(number: string | null, file: string): Frame {
         height: 2,
         added: '2026-11-02T12:00:00.000Z',
         rotate: 0,
+        kind: 'scan',
       },
     ],
   };
@@ -621,7 +627,14 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       if (!body.ok) {
         return body.response;
       }
-      const updated = { ...turned, rotate: body.value.rotate };
+      // A detail left out stays as it is.
+      const updated = {
+        ...turned,
+        ...(body.value.rotate === undefined
+          ? {}
+          : { rotate: body.value.rotate }),
+        ...(body.value.kind === undefined ? {} : { kind: body.value.kind }),
+      };
       roll.frames = roll.frames.map((f) =>
         f.id === frameId
           ? {
@@ -656,6 +669,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       height: 2,
       added: '2026-11-02T12:00:00.000Z',
       rotate: 0,
+      kind: versionKindOf(url.searchParams.get('kind')),
     };
     roll.frames = roll.frames.map((f) =>
       f.id === frameId ? { ...f, versions: [...f.versions, version] } : f,

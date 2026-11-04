@@ -301,6 +301,15 @@
               }
             ],
             "description": "Degrees clockwise: 0, 90, 180 or 270."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "scan",
+              "raw-scan",
+              "final"
+            ],
+            "description": "scan: ready to view, at any resolution; raw-scan: the negative or slide as scanned, not yet processed; final: processed and edited."
           }
         },
         "required": [
@@ -311,7 +320,8 @@
           "width",
           "height",
           "added",
-          "rotate"
+          "rotate",
+          "kind"
         ],
         "description": "One image file of a frame."
       },
@@ -970,12 +980,18 @@
               }
             ],
             "description": "Degrees clockwise: 0, 90, 180 or 270."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "scan",
+              "raw-scan",
+              "final"
+            ],
+            "description": "scan: ready to view, at any resolution; raw-scan: the negative or slide as scanned, not yet processed; final: processed and edited."
           }
         },
-        "required": [
-          "rotate"
-        ],
-        "description": "How the version is turned when shown; its file is never changed."
+        "description": "How the version is turned when shown, or what kind it is; its file is never changed. A detail left out stays as it is."
       },
       "CameraList": {
         "type": "object",
@@ -2257,6 +2273,21 @@
             "required": true,
             "description": "The image's original file name, kept when it's stored.",
             "name": "file",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "scan",
+                "raw-scan",
+                "final"
+              ],
+              "description": "What the version is; a scan unless said (D48)."
+            },
+            "required": false,
+            "description": "What the version is; a scan unless said (D48).",
+            "name": "kind",
             "in": "query"
           }
         ],

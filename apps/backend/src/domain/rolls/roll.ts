@@ -2,6 +2,7 @@ import type { Slug } from '../shared/slug.ts';
 import type { FrameId, RollId, VersionId } from '../shared/ids.ts';
 import type { FrameNumber } from './frame-number.ts';
 import type { QuarterTurn } from './quarter-turn.ts';
+import type { VersionKind } from './version-kind.ts';
 import type { Rating } from './rating.ts';
 import type { RollNumber } from './roll-number.ts';
 import type { ShotDate } from './shot-date.ts';
@@ -18,6 +19,8 @@ export interface Version {
   readonly added: Date;
   /** How it's turned when shown; its file is never changed (D41). */
   readonly rotate: QuarterTurn;
+  /** What it is: a scan, a raw scan or a final (D48). */
+  readonly kind: VersionKind;
 }
 
 /** One photograph on the roll. */

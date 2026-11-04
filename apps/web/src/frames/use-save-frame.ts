@@ -11,6 +11,9 @@ export type FrameChanges = components['schemas']['UpdateFrameRequest'];
 /** The images a version can be for now: web-native ones (U34). */
 const versionTypes = ['image/jpeg', 'image/png', 'image/webp'];
 
+/** What a version is (D48): scan, raw-scan or final. */
+export type VersionKind = components['schemas']['Version']['kind'];
+
 /** Degrees clockwise a version is turned when shown. */
 export type QuarterTurn = components['schemas']['Version']['rotate'];
 
@@ -86,7 +89,7 @@ export function useSaveFrame(
   }
 
   /** Adds an image to the frame as another version (U34); its first stays the one shown. */
-  async function sendVersion(file: File) {
+  async function sendVersion(file: File, kind: VersionKind) {
     const read = queryClient.getQueryData<ReadRoll>(['rolls', rollId]);
     if (read === undefined) {
       return;
@@ -99,7 +102,10 @@ export function useSaveFrame(
     const { data, response } = await api.POST(
       '/api/rolls/{rollId}/frames/{frameId}/versions',
       {
-        params: { path: { rollId, frameId }, query: { file: file.name } },
+        params: {
+          path: { rollId, frameId },
+          query: { file: file.name, kind },
+        },
         body: file,
         // Send the file as it is, not as JSON.
         bodySerializer: (body) => body,
@@ -221,7 +227,11 @@ export function useSaveFrame(
     await queryClient.invalidateQueries({ queryKey: ['rolls'], exact: true });
   }
 
-  async function sendTurn(versionId: string, rotate: QuarterTurn) {
+  /** Turns one of the frame's versions (D41) or changes its kind (D48). */
+  async function sendVersionChange(
+    versionId: string,
+    changes: { readonly rotate?: QuarterTurn; readonly kind?: VersionKind },
+  ) {
     const read = queryClient.getQueryData<ReadRoll>(['rolls', rollId]);
     if (read === undefined) {
       return;
@@ -234,7 +244,7 @@ export function useSaveFrame(
           path: { rollId, frameId, versionId },
           header: { 'if-match': read.etag },
         },
-        body: { rotate },
+        body: changes,
       },
     );
     if (response.status === 409) {
@@ -273,9 +283,13 @@ export function useSaveFrame(
     save: (changes: FrameChanges) => queued(() => send(changes)),
     /** Turns one of the frame's versions as it's shown (D41). */
     turn: (versionId: string, rotate: QuarterTurn) =>
-      queued(() => sendTurn(versionId, rotate)),
+      queued(() => sendVersionChange(versionId, { rotate })),
+    /** Changes what kind one of the frame's versions is (D48). */
+    changeKind: (versionId: string, kind: VersionKind) =>
+      queued(() => sendVersionChange(versionId, { kind })),
     /** Adds an image as another version of the frame (U34). */
-    addVersion: (file: File) => queued(() => sendVersion(file)),
+    addVersion: (file: File, kind: VersionKind) =>
+      queued(() => sendVersion(file, kind)),
     /** Deletes one of the frame's versions (U28b). */
     deleteVersion: (versionId: string, onDeleted: () => void) =>
       queued(() => sendDeleteVersion(versionId, onDeleted)),

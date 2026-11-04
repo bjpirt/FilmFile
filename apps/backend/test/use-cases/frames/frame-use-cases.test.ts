@@ -1062,11 +1062,27 @@ describe('AddVersion', () => {
       height: 20,
       added: new Date('2026-11-02T12:00:00.000Z'),
       rotate: 0,
+      kind: 'scan',
     };
     expect(added).toEqual({ ok: true, value: version });
     expect((await rolls.get(ctx, roll.id))?.roll.frames[0]?.versions).toEqual([
       version,
     ]);
+  });
+
+  test('records the kind of version it was added as (D48)', async () => {
+    const { roll, createFrame, addVersion } = await setUp();
+    const frameId = await aFrameIn(createFrame, roll.id);
+
+    const added = await addVersion.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      fileName: 'edit.jpg',
+      bytes: new Uint8Array(await aJpeg()),
+      kind: 'final',
+    });
+
+    expect(added).toMatchObject({ ok: true, value: { kind: 'final' } });
   });
 
   test('refuses a file already in the roll, naming the frame that has it', async () => {
@@ -1174,6 +1190,39 @@ describe('UpdateVersion', () => {
     expect(after?.roll.frames[0]?.versions[0]).toEqual({
       ...added,
       rotate: 270,
+    });
+  });
+
+  test('changes what kind the version is, leaving its turn', async () => {
+    const { rolls, ids, version, updateVersion } = await withAVersion();
+
+    const changed = await updateVersion.execute(ctx, {
+      ...ids,
+      expectedVersion: version,
+      kind: 'raw-scan',
+    });
+
+    expect(changed).toMatchObject({
+      ok: true,
+      value: { updated: { kind: 'raw-scan', rotate: 0 } },
+    });
+    expect(
+      (await rolls.get(ctx, ids.rollId))?.roll.frames[0]?.versions[0]?.kind,
+    ).toBe('raw-scan');
+  });
+
+  test('refuses a kind it doesn’t know', async () => {
+    const { ids, version, updateVersion } = await withAVersion();
+
+    expect(
+      await updateVersion.execute(ctx, {
+        ...ids,
+        expectedVersion: version,
+        kind: 'negative',
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { kind: 'validation-failed', issues: [{ path: ['kind'] }] },
     });
   });
 

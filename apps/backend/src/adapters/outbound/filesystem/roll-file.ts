@@ -13,6 +13,10 @@ import {
   type QuarterTurn,
 } from '../../../domain/rolls/quarter-turn.ts';
 import { isRating, type Rating } from '../../../domain/rolls/rating.ts';
+import {
+  isVersionKind,
+  type VersionKind,
+} from '../../../domain/rolls/version-kind.ts';
 import type { Frame, Roll, Version } from '../../../domain/rolls/roll.ts';
 import { isShotDate, type ShotDate } from '../../../domain/rolls/shot-date.ts';
 import {
@@ -71,6 +75,13 @@ export const storedVersion = z.object({
   width: z.number().int(),
   height: z.number().int(),
   added: z.iso.datetime(),
+  // Only written when it isn't a scan, so versions from before kinds (D48) read as scans.
+  kind: z
+    .custom<VersionKind>(
+      (value) => typeof value === 'string' && isVersionKind(value),
+      'must be scan, raw-scan or final',
+    )
+    .optional(),
   // Only written when the version is turned, so an unturned one says nothing of it.
   transform: z
     .object({
@@ -206,12 +217,14 @@ export function parseRollFile(text: string): Result<Roll, string> {
 /** A version as read from its stored form. */
 export function versionFromStored({
   transform,
+  kind,
   ...version
 }: z.output<typeof storedVersion>): Version {
   return {
     ...version,
     added: new Date(version.added),
     rotate: transform?.rotate ?? 0,
+    kind: kind ?? 'scan',
   };
 }
 
@@ -227,6 +240,7 @@ export function storedVersionOf(
     width: version.width,
     height: version.height,
     added: version.added.toISOString(),
+    ...(version.kind === 'scan' ? {} : { kind: version.kind }),
     ...(version.rotate === 0 ? {} : { transform: { rotate: version.rotate } }),
   };
 }

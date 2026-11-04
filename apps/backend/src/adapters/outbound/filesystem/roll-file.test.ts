@@ -31,6 +31,11 @@ const aVersion = fc.record({
     noInvalidDate: true,
   }),
   rotate: fc.constantFrom<0 | 90 | 180 | 270>(0, 90, 180, 270),
+  kind: fc.constantFrom<'scan' | 'raw-scan' | 'final'>(
+    'scan',
+    'raw-scan',
+    'final',
+  ),
 });
 
 const aFrame = fc.record({
@@ -196,6 +201,36 @@ describe('roll.json', () => {
         ],
       }),
     );
+  });
+
+  test('reads a version from before kinds as a scan, and writes a kind only when it isn’t one', () => {
+    const read = parseRollFile(
+      JSON.stringify({
+        schema: 2,
+        id: '01M6EAAP694BKWR9HZ4N5Z54XD',
+        roll: '2026-014',
+        frames: [
+          {
+            id: '01M6EAAP694BKWR9HZ4N5Z54XE',
+            number: '1',
+            versions: [
+              {
+                id: '01M6EAAP694BKWR9HZ4N5Z54XF',
+                file: 'frames/x/y/12340001.jpg',
+                sha256: 'a',
+                bytes: 1,
+                width: 1,
+                height: 1,
+                added: '2026-11-02T12:00:00.000Z',
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(read.ok && read.value.frames[0]?.versions[0]?.kind).toBe('scan');
+    expect(read.ok && rollFileContent(read.value)).not.toContain('"kind"');
   });
 
   test('leaves out a film stock a frame was given before frames couldn’t have one (D45)', () => {
