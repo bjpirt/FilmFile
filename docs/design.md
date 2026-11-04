@@ -39,7 +39,7 @@ The phased roadmap is in section 14, and the detailed plan for the first phases 
 7. **Catalogue and operational state are separate.** `roll.json` holds the catalogue; `.state.json` holds workflow state, which changes far more often.
 8. **Nothing destructive by default.** Deleting, unpublishing and similar actions are explicit, separate operations. Deletes are recoverable by hand from `deleted/`.
 9. **Caches live outside the archive.** Thumbnails, previews, the SQLite index and lock files sit in an OS cache directory and are never synced.
-10. **External changes are validated.** Files changed outside the service (by sync, or the odd manual fix) are validated when read; invalid files are flagged, not loaded. There's no file watcher until one is needed (D37).
+10. **External changes are validated.** Files changed outside the service (by sync, or the odd manual fix) are validated when read; invalid files are flagged, not loaded. The archive has no file watcher (D37); only the NegPy folder is watched, for exports to bring in (D53).
 
 ---
 
@@ -50,7 +50,7 @@ Archive
  ├─ Equipment   cameras, lenses, films (referenced by slug)
  ├─ Event       what happened: name, dates, place; nests via parent
  └─ Roll        the physical roll: development, when it was shot
-     └─ Frame   one photograph: frame number, title, rating, events
+     └─ Frame   one photograph: frame number, title, rating, event
          └─ Version   one file: lab scan, raw, master, edit or export, with lineage
                └─ Attachments   editor recipe sidecars (e.g. .negpy)
 ```
@@ -108,7 +108,7 @@ archive/
 All files are JSON, carry `"schema": <n>`, and validate against Zod schemas owned by the filesystem adapter (which also generate JSON Schemas for reference). Readers migrate older schema versions in memory; files are rewritten in the current version the next time they're saved. A file that can't be read (not valid JSON, not matching its schema, or written by a newer version of FilmFile) is reported, not allowed to hide the rest: the roll list names the roll and the problem, and the file is never changed or deleted. These persistence schemas are separate from the domain model and the API contracts (section 13.3).
 
 - **archive.json:** `id`, `meta` (archive-wide defaults: author and copyright; a licence later, D42), and later workflow settings. Labs aren't stored (D35).
-- **roll.json:** roll fields, roll `meta`, and the `frames` array, each frame holding its own fields, `meta`, `events` and `versions`. A full example is in `docs/plan-phase-0-1.md`.
+- **roll.json:** roll fields, roll `meta`, and the `frames` array, each frame holding its own fields, `meta`, its `event` and `versions`. A full example is in `docs/plan-phase-0-1.md`.
 - **Equipment:** one file per item; the slug is the file name.
 - **Event:** `id`, `name`, optional `parent` (event slug), `dates`, `notes`, and `meta` defaults (e.g. `location`).
 - **.state.json:** per roll, keyed by frame ID and version, holding workflow outcomes (backed up, published URL). It can be deleted; the tool re-checks what's done.
@@ -139,7 +139,7 @@ Version entries (from Phase 2) look like:
 
 **Resolution order, general to specific:**
 
-`archive` → `_folder` (outermost first; later phase) → `roll` → events (each event's ancestors first, then the event) → `frame` → version
+`archive` → `_folder` (outermost first; later phase) → `roll` → its event (the event's ancestors first, then the event) → `frame` → version
 
 Equipment slugs resolve to their records, whose fields can be overridden by more specific layers.
 
@@ -155,7 +155,7 @@ Equipment slugs resolve to their records, whose fields can be overridden by more
 
 - **Not inherited:** a record's own descriptive fields, such as a roll's name and notes and a frame's title, rating and notes (D40).
 - **Version-level overrides are narrow:** scan settings, licence, and transforms (crop and rotate).
-- **Multiple events setting the same field:** the frame's event order decides (first wins), and the tool flags the clash.
+- **An event and its ancestors setting the same field:** the most specific event wins.
 - **Provenance:** the resolver records which layer and ID set each value. The UI shows it ("lens: Nikkor 105mm — frame"), and the resolved record is exactly what workflows and exported EXIF/XMP use.
 - **Workflow settings** layer the same way.
 
@@ -164,8 +164,8 @@ Equipment slugs resolve to their records, whose fields can be overridden by more
 ## 7. Events
 
 - An event file can name a `parent`, forming a **tree** (one parent per event). Validation rejects cycles and warns when a child's dates fall outside its parent's. A parent without dates takes its range from its children.
-- **Membership is declared on rolls and frames** via `events` (an array to replace, or `{ add, remove }`), layered like any other list. A roll's events are inherited by its frames; frames can override.
-- **Membership implies ancestors:** a frame in `jokulsarlon-day` is also in `iceland-2026`. Frames list only their most specific events.
+- **Membership is declared on rolls and frames** via `event`: each is in at most one event of its own (D50). A roll's event is inherited by its frames; a frame can have its own instead.
+- **Membership implies ancestors:** a frame in `jokulsarlon-day` is also in `iceland-2026`. A frame names only its most specific event.
 - **Event metadata flows down:** parent event → child event → frame. An event's date range stands in as the approximate shot date for its frames.
 - Events never move files. They are views across the archive, built by the index.
 - **Events, tags and albums differ:** events say when and where; tags describe content; albums are curated selections for showing and publishing.
@@ -203,14 +203,19 @@ Every version is a kind (D48): a **Scan**, ready to view at whatever resolution 
 
 **Editor adapters** declare how to open files, where exports land (a watched **inbox folder**), how to match an export to its source, and which sidecars are its recipes. A generic inbox adapter should cover most editors.
 
-**Round trip:** open the roll's raws in the editor (in NegPy, as a virtual roll) → export into the inbox, keeping the raw's name → ingest as a `master` version with `parents` and `editor`, then stamp resolved catalogue metadata into the exported file. Matching falls back from filename to EXIF capture time to asking.
+**Round trip:** open the roll's raw scans in the editor (for NegPy, a folder of links to them, D51) → export into the inbox, keeping the raw's name → ingest as a Final with `parents` and `editor`, then stamp resolved catalogue metadata into the exported file. Matching falls back from filename to EXIF capture time to asking.
 
 **NegPy specifics**
 
-- Open source (GPL-3), Python + PyQt6. It never modifies source files and keeps edits in its own SQLite database keyed by file hash.
-- It writes per-frame **`.negpy` sidecars** on export ("Save on Export") or via "Export Sidecars", and reads them when opening a roll only for frames with no database entry ("Load Edit from Sidecar…" forces it).
+- Open source (GPL-3), Python + PyQt6. It never modifies source files and keeps edits in its own SQLite database keyed by a fingerprint of the file's content (its size and sampled bytes), so a copy or link of a raw keeps its edit.
+- **No way in from outside:** no command line, URL scheme or other channel to open files. Its Library holds folder rolls and virtual rolls; "Import Subfolders as Rolls…" remembers a parent folder, and Refresh adds its new subfolders as rolls.
+- **The NegPy folder (D51, D52):** a folder outside the archive, set per computer, with a subfolder per roll (`2026-014 Nikon FE Portra 400 2026-03-14/`, named for NegPy's "Infer from Folder Name", with a hidden `.filmfile.json` naming the roll's ID) holding symbolic links to its raw scans, named `<roll>_Frame<frame>_<original name>`. NegPy reads through the links, writes exports and sidecars beside the link's path, and refuses to export over a source reached through a link. Originals are read-only, in case another program would write through a link.
+- **Exports back (D53):** NegPy writes each export to a `.part` file and renames it, by default into `export/` beside the source, named `{{ original_name }}`. The service watches the NegPy folder and brings each export in as a Final of the frame its name starts with (`2026-014_Frame012A_`), with the raw scan it came from as its parent. NegPy's `{{ roll }}` and `{{ frame }}` read a `<roll>_Frame<n>` name too, but only the digits of a frame number.
+- It writes per-frame **`.negpy` sidecars** (`<source name>.negpy`, beside the source) on export ("Save on Export") or via "Export Sidecars", and reads them when opening a roll only for frames with no database entry ("Load Edit from Sidecar…" forces it).
 - **Recipes are stored twice:** the current sidecar next to the raw, and a hash-named snapshot in the export's version folder, so every export is reproducible.
 - **Do not import NegPy code.** Reading its file formats is fine.
+
+**darktable (later, U79–U81):** the same editor folder and names. darktable can be started on a roll's folder when it isn't already running, keeps edits in `<file>.<ext>.xmp` sidecars beside each image (captured as recipes), reads an XMP already there on import (so the service can write catalogue details into it first), and exports to `darktable_exported/` beside the source.
 
 ---
 
@@ -436,7 +441,6 @@ packages/
 
 - **Choosing locations on a map:** a map picker (and showing frames on a map) needs map tiles from an outside service, which means loosening the CSP and calling out to the network. Until then locations are typed or pasted as coordinates (D26).
 - **Name clearance:** check the domain, GitHub organisation and UK IPO register for FilmFile, noting the Print File brand.
-- **NegPy sidecars:** confirm the `.negpy` file name and where it's written.
 - **Masters in Standard-IA too?** Whether hi-res files should be fetchable from other devices.
 - **Workflow definition format.**
 - **Other devices:** viewing only, or editing too?
