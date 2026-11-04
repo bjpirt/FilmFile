@@ -221,7 +221,7 @@
             ],
             "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
             "example": "01M6EAAP694BKWR9HZ4N5Z54XD",
-            "description": "The version shown for the frame, or null for its newest."
+            "description": "The version shown for the frame, or null for its first (D46)."
           },
           "versions": {
             "type": "array",
@@ -687,7 +687,7 @@
             ],
             "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
             "example": "01M6EAAP694BKWR9HZ4N5Z54XD",
-            "description": "The version to show for the frame, one of its own, or null to show its newest."
+            "description": "The version to show for the frame, one of its own, or null to show its first (D46)."
           }
         },
         "description": "The details to change; a detail left out stays as it is."

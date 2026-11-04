@@ -75,7 +75,8 @@ export const frame = z
         "When the frame was shot, in place of its roll's date, or null to use the roll's (D47).",
     }),
     defaultVersion: ulid.nullable().meta({
-      description: 'The version shown for the frame, or null for its newest.',
+      description:
+        'The version shown for the frame, or null for its first (D46).',
     }),
     versions: z.array(version),
   })
@@ -198,7 +199,7 @@ export const updateFrameRequest = z
     }),
     defaultVersion: ulid.nullable().optional().meta({
       description:
-        'The version to show for the frame, one of its own, or null to show its newest.',
+        'The version to show for the frame, one of its own, or null to show its first (D46).',
     }),
   })
   .meta({

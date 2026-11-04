@@ -40,7 +40,7 @@ export interface Frame {
   readonly events: readonly Slug[] | null;
   /** When the frame was shot, in place of its roll's date; null uses the roll's (D47). */
   readonly shot: ShotDate | null;
-  /** The version shown for the frame; when null, its newest (D15). */
+  /** The version shown for the frame; when null, its first (D15, D46). */
   readonly defaultVersion: VersionId | null;
   readonly versions: readonly Version[];
 }

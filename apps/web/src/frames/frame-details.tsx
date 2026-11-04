@@ -484,15 +484,9 @@ export function FrameDetails({
                 {formatBytes(version.bytes)} · {version.width} ×{' '}
                 {version.height} · {formatAdded(version.added)}
               </span>
-              {version.id === shown?.id ? (
+              {/* Choosing another is for later (U62). */}
+              {version.id === shown?.id && (
                 <span className="version-shown">Shown</span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => void save({ defaultVersion: version.id })}
-                >
-                  Set as default
-                </button>
               )}
             </li>
           ))}

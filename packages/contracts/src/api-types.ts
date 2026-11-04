@@ -1913,7 +1913,7 @@ export interface components {
              */
             shot: string | null;
             /**
-             * @description The version shown for the frame, or null for its newest.
+             * @description The version shown for the frame, or null for its first (D46).
              * @example 01M6EAAP694BKWR9HZ4N5Z54XD
              */
             defaultVersion: string | null;
@@ -2043,7 +2043,7 @@ export interface components {
              */
             shot?: string | null;
             /**
-             * @description The version to show for the frame, one of its own, or null to show its newest.
+             * @description The version to show for the frame, one of its own, or null to show its first (D46).
              * @example 01M6EAAP694BKWR9HZ4N5Z54XD
              */
             defaultVersion?: string | null;

@@ -10,14 +10,14 @@ const twoVersions = {
   versions: [first, second].flatMap((v) => (v ? [v] : [])),
 };
 
-test('shows the newest version when none is chosen', () => {
-  expect(shownVersion(twoVersions)?.id).toBe(second?.id);
+test('shows the first version, its lab scan, when none is chosen (D46)', () => {
+  expect(shownVersion(twoVersions)?.id).toBe(first?.id);
 });
 
-test('shows the version chosen', () => {
+test('shows a version already chosen in roll.json', () => {
   expect(
-    shownVersion({ ...twoVersions, defaultVersion: first?.id ?? null })?.id,
-  ).toBe(first?.id);
+    shownVersion({ ...twoVersions, defaultVersion: second?.id ?? null })?.id,
+  ).toBe(second?.id);
 });
 
 test('shows nothing for a frame with no versions', () => {

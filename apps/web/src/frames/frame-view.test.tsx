@@ -314,7 +314,7 @@ describe('the frame’s details and versions', () => {
     expect(within(details).getByText('Nikon FE')).toBeDefined();
   });
 
-  test('lists the frame’s versions, newest shown, each with its size and when it was added', async () => {
+  test('lists the frame’s versions, the first shown, each with its size and when it was added', async () => {
     openTwice();
     await showDetails();
 
@@ -324,30 +324,12 @@ describe('the frame’s details and versions', () => {
         .getAllByRole('listitem')
         .map((item) => item.textContent),
     ).toEqual([
-      '12340001.jpg3 bytes · 3 × 2 · 2 Nov 2026Set as default',
-      '12340001-again.jpg2.4 MB · 3089 × 2048 · 3 Nov 2026Shown',
+      '12340001.jpg3 bytes · 3 × 2 · 2 Nov 2026Shown',
+      '12340001-again.jpg2.4 MB · 3089 × 2048 · 3 Nov 2026',
     ]);
-    expect(
-      screen.getByRole('img', { name: '12340001-again.jpg' }),
-    ).toBeDefined();
-  });
-
-  test('shows another version when it’s set as default, sending the roll’s ETag', async () => {
-    const archive = openTwice();
-    await showDetails();
-    const versions = await screen.findByRole('list', { name: 'Versions' });
-
-    fireEvent.click(
-      within(versions).getByRole('button', { name: 'Set as default' }),
-    );
-
-    expect(
-      await screen.findByRole('img', { name: '12340001.jpg' }),
-    ).toBeDefined();
-    expect(archive.ifMatches).toEqual(['"v1"']);
-    expect(archive.rolls[0]?.frames[0]?.defaultVersion).toBe(
-      aFrame('1', '12340001.jpg').versions[0]?.id,
-    );
+    expect(screen.getByRole('img', { name: '12340001.jpg' })).toBeDefined();
+    // Choosing another is for later (U62).
+    expect(screen.queryByRole('button', { name: 'Set as default' })).toBeNull();
   });
 });
 
