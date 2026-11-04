@@ -126,7 +126,7 @@ test('offers the roll’s actions in one menu, selecting and renumbering once it
   ).toEqual([
     'Edit details',
     'Add scans',
-    'Select frames',
+    'Bulk edit',
     'Renumber…',
     'Delete roll…',
   ]);
@@ -515,7 +515,7 @@ describe('selecting frames', () => {
 
   async function startSelecting(archive = archiveWith(threeFrames())) {
     renderPage(archive);
-    await chooseAction('Select frames');
+    await chooseAction('Bulk edit');
     return archive;
   }
 
@@ -585,7 +585,7 @@ describe('selecting frames', () => {
     expect(screen.queryByRole('checkbox')).toBeNull();
     expect(screen.getByRole('link', { name: 'Open frame 1' })).toBeDefined();
 
-    await chooseAction('Select frames');
+    await chooseAction('Bulk edit');
     expect(ticked()).toEqual([]);
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.queryByRole('checkbox')).toBeNull();
@@ -612,7 +612,7 @@ describe('setting details on selected frames', () => {
         },
       );
     renderPage(service);
-    await chooseAction('Select frames');
+    await chooseAction('Bulk edit');
     for (const number of numbers) {
       fireEvent.click(
         screen.getByRole('checkbox', { name: `Select frame ${number}` }),
@@ -622,7 +622,12 @@ describe('setting details on selected frames', () => {
   }
 
   function setTo(detail: string, label: string, option: string) {
-    fireEvent.click(screen.getByRole('button', { name: `Set ${detail}…` }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set' }));
+    fireEvent.click(
+      screen.getByRole('menuitem', {
+        name: `${detail[0]?.toUpperCase() ?? ''}${detail.slice(1)}…`,
+      }),
+    );
     const form = screen.getByRole('form', { name: `Set ${detail}` });
     fireEvent.change(within(form).getByLabelText(label), {
       target: { value: option },
@@ -633,23 +638,31 @@ describe('setting details on selected frames', () => {
   test('sets an event, camera or lens, but never a film stock, which is the roll’s', async () => {
     await selectFramesOf(['1']);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Set' }));
+
     expect(
-      ['Set event…', 'Set camera…', 'Set lens…'].map(
-        (name) => screen.queryByRole('button', { name }) !== null,
-      ),
-    ).toEqual([true, true, true]);
-    expect(
-      screen.queryByRole('button', { name: 'Set film stock…' }),
-    ).toBeNull();
+      screen.getAllByRole('menuitem').map((item) => item.textContent),
+    ).toEqual(['Event…', 'Camera…', 'Lens…']);
+  });
+
+  test('closes a choice on Esc, still selecting', async () => {
+    await selectFramesOf(['1']);
+    fireEvent.click(screen.getByRole('button', { name: 'Set' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Camera…' }));
+
+    fireEvent.keyDown(screen.getByLabelText('Camera for 1 frame'), {
+      key: 'Escape',
+    });
+
+    expect(screen.queryByRole('form', { name: 'Set camera' })).toBeNull();
+    expect(screen.getAllByRole('checkbox')).toHaveLength(3);
   });
 
   test('can’t set anything until frames are selected', async () => {
     await selectFramesOf([]);
 
     expect(
-      screen
-        .getByRole('button', { name: 'Set camera…' })
-        .hasAttribute('disabled'),
+      screen.getByRole('button', { name: 'Set' }).hasAttribute('disabled'),
     ).toBe(true);
   });
 
@@ -728,7 +741,7 @@ describe('deleting selected frames', () => {
       aFrameWithScan('3', '12340003.jpg'),
     ]);
     renderPage(service);
-    await chooseAction('Select frames');
+    await chooseAction('Bulk edit');
     for (const number of numbers) {
       fireEvent.click(
         screen.getByRole('checkbox', { name: `Select frame ${number}` }),

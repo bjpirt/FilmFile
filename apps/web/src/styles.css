@@ -1217,6 +1217,7 @@ textarea {
 }
 
 .page-actions {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);

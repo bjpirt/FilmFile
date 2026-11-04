@@ -581,7 +581,7 @@ export function RollPage({
             </button>
           </div>
         ) : (
-          // While selecting or renumbering, what's being done takes the menu's place.
+          // While selecting or renumbering, the menu is put away.
           selection === undefined &&
           renumbering === undefined && (
             <div className="page-actions">
@@ -604,7 +604,7 @@ export function RollPage({
                     ? []
                     : [
                         {
-                          label: 'Select frames',
+                          label: 'Bulk edit',
                           select: () => {
                             setSelection(noSelection);
                           },
@@ -732,7 +732,6 @@ export function RollPage({
               <p role="status" aria-label="Selection">
                 {selectionCount(selection)}
               </p>
-              {/* The question takes the buttons' place, so the frames below don't move. */}
               {confirmingSelectedDelete ? (
                 <div
                   role="alertdialog"
@@ -775,15 +774,6 @@ export function RollPage({
                   >
                     Clear
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setConfirmingSelectedDelete(false);
-                      setSelection(undefined);
-                    }}
-                  >
-                    Done
-                  </button>
                   <AssignToFrames
                     count={selection.selected.size}
                     choices={{
@@ -801,16 +791,27 @@ export function RollPage({
                       })),
                     }}
                     apply={(change) => assignToSelected(selection, change)}
-                  />
-                  <button
-                    type="button"
-                    disabled={selection.selected.size === 0}
-                    onClick={() => {
-                      setConfirmingSelectedDelete(true);
-                    }}
                   >
-                    Delete…
-                  </button>
+                    <button
+                      type="button"
+                      disabled={selection.selected.size === 0}
+                      onClick={() => {
+                        setConfirmingSelectedDelete(true);
+                      }}
+                    >
+                      Delete…
+                    </button>
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={() => {
+                        setConfirmingSelectedDelete(false);
+                        setSelection(undefined);
+                      }}
+                    >
+                      Done
+                    </button>
+                  </AssignToFrames>
                 </>
               )}
             </div>

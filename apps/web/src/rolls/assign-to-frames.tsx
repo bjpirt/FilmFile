@@ -1,4 +1,5 @@
-import { useState, type SubmitEvent } from 'react';
+import { useState, type ReactNode, type SubmitEvent } from 'react';
+import { MenuButton } from '../menu-button.tsx';
 
 /** What selected frames are given: their own camera, lens or events, or null for their roll's. Never a film stock, which is the roll's (D45). */
 export interface FramesChange {
@@ -41,19 +42,23 @@ function frames(count: number): string {
 }
 
 /**
- * The selected frames' event, camera or lens, set together
- * (U16): a button for each opens a choice of the archive's, or the roll's.
+ * The selected frames' event, camera or lens, set together (U16): a Set
+ * menu of them, each opening a choice of the archive's, or the roll's, in
+ * the bar's place (U56). `children` are the bar's other buttons, put away
+ * while a choice is open so the bar stays one line.
  */
 export function AssignToFrames({
   count,
   choices,
   apply,
+  children,
 }: {
   /** How many frames are selected. */
   readonly count: number;
   readonly choices: Readonly<Record<Detail, readonly Choice[]>>;
   /** Saves the change, giving what to tell the person if it wasn't saved. */
   readonly apply: (change: FramesChange) => Promise<string | undefined>;
+  readonly children?: ReactNode;
 }) {
   const [open, setOpen] = useState<Detail | undefined>(undefined);
   const [value, setValue] = useState(rollsOwn);
@@ -81,21 +86,20 @@ export function AssignToFrames({
   if (chosen === undefined) {
     return (
       <>
-        {details.map((detail) => (
-          <button
-            key={detail.key}
-            type="button"
-            disabled={count === 0}
-            onClick={() => {
+        <MenuButton
+          label="Set"
+          disabled={count === 0}
+          items={details.map((detail) => ({
+            label: `${detail.name}…`,
+            select: () => {
               setOpen(detail.key);
               setValue(choices[detail.key][0]?.value ?? rollsOwn);
               setDone(undefined);
               setProblem(undefined);
-            }}
-          >
-            Set {detail.name.toLowerCase()}…
-          </button>
-        ))}
+            },
+          }))}
+        />
+        {children}
         {done !== undefined && <p role="status">{done}</p>}
       </>
     );
@@ -106,6 +110,13 @@ export function AssignToFrames({
       className="assign-to-frames"
       aria-label={`Set ${chosen.name.toLowerCase()}`}
       onSubmit={(event) => void send(event, chosen)}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          // Closes the choice, not Select mode.
+          event.stopPropagation();
+          setOpen(undefined);
+        }
+      }}
     >
       <label>
         {chosen.name} for {frames(count)}

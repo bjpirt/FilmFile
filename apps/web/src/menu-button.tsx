@@ -18,9 +18,11 @@ export interface MenuItem {
 export function MenuButton({
   label,
   items,
+  disabled = false,
 }: {
   readonly label: string;
   readonly items: readonly MenuItem[];
+  readonly disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const menuId = useId();
@@ -100,6 +102,7 @@ export function MenuButton({
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
+        disabled={disabled}
         aria-controls={open ? menuId : undefined}
         onClick={() => {
           setOpen(!open);

@@ -16,12 +16,13 @@ test('bulk edit: select some of a roll’s frames, give them another camera and 
     scans: fixtureSets.headToTail,
   });
 
-  await chooseAction(page, 'Select frames');
+  await chooseAction(page, 'Bulk edit');
   await page.getByRole('checkbox', { name: 'Select frame 2' }).click();
   await page
     .getByRole('checkbox', { name: 'Select frame 4' })
     .click({ modifiers: ['Shift'] });
-  await page.getByRole('button', { name: 'Set camera…' }).click();
+  await page.getByRole('button', { name: 'Set', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Camera…' }).click();
   const setCamera = page.getByRole('form', { name: 'Set camera' });
   await setCamera
     .getByLabel('Camera for 3 frames')
@@ -30,7 +31,8 @@ test('bulk edit: select some of a roll’s frames, give them another camera and 
   await expect(
     page.getByRole('status').filter({ hasText: 'Camera set on 3 frames.' }),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Set event…' }).click();
+  await page.getByRole('button', { name: 'Set', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Event…' }).click();
   const setEvent = page.getByRole('form', { name: 'Set event' });
   await setEvent
     .getByLabel('Event for 3 frames')
