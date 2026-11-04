@@ -197,27 +197,6 @@ select {
   margin-bottom: var(--space-4);
 }
 
-.order {
-  border: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
-  margin: 0;
-  padding: 0;
-}
-
-.order legend {
-  color: var(--text-muted);
-  float: left;
-  margin-right: var(--space-2);
-}
-
-.order label {
-  align-items: center;
-  display: flex;
-  gap: var(--space-1);
-}
-
 .order input {
   min-height: auto;
 }

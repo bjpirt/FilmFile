@@ -170,7 +170,6 @@ export function RollPage({
   const lenses = useLenses(api);
   const events = useEvents(api);
   const [upload, setUpload] = useState<Upload>({ kind: 'idle' });
-  const [order, setOrder] = useState<'frame' | 'scan'>('frame');
   const [changedElsewhere, setChangedElsewhere] = useState(false);
   const [addingScans, setAddingScans] = useState(false);
   // The frame whose delete is being confirmed, if any.
@@ -512,10 +511,7 @@ export function RollPage({
 
   const frames = roll.data.roll.frames;
   // While renumbering, frames are shown in scan order, which is the order the numbers count along.
-  const shown =
-    renumbering === undefined && order === 'frame'
-      ? inFrameOrder(frames)
-      : frames;
+  const shown = renumbering === undefined ? inFrameOrder(frames) : frames;
   /** A frame clicked while selecting; with shift, the run from the last one clicked, in the order shown. */
   function pick(id: string, shift: boolean) {
     setSelection(
@@ -793,31 +789,6 @@ export function RollPage({
             </div>
           ) : renumbering === undefined ? (
             <div className="sheet-controls">
-              <fieldset className="order">
-                <legend>Show frames in</legend>
-                <label>
-                  <input
-                    type="radio"
-                    name="order"
-                    checked={order === 'frame'}
-                    onChange={() => {
-                      setOrder('frame');
-                    }}
-                  />
-                  Frame order
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="order"
-                    checked={order === 'scan'}
-                    onChange={() => {
-                      setOrder('scan');
-                    }}
-                  />
-                  Scan order
-                </label>
-              </fieldset>
               <button
                 type="button"
                 onClick={() => {

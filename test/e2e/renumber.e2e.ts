@@ -15,10 +15,16 @@ test('renumber a roll the lab scanned tail to head, and find the numbers saved a
 
   await renumber(page, { from: 'last', number: '1', direction: 'down' });
   await page.reload();
-  await page.getByLabel('Scan order').check();
 
-  // Each scan now carries the frame number drawn on it: 6, 5, 4, 3, 2, 1.
-  await expect(framesShown(page)).toHaveText(
-    fixtureSets.tailToHead.scans.map((scan) => scan.frameNumber),
+  // In frame order, each frame is now the scan with its number drawn on it.
+  await expect(framesShown(page)).toHaveText(['1', '2', '3', '4', '5', '6']);
+  const byNumber = [...fixtureSets.tailToHead.scans].sort(
+    (a, b) => Number(a.frameNumber) - Number(b.frameNumber),
   );
+  const pictures = page
+    .getByRole('list', { name: 'Contact sheet' })
+    .getByRole('img');
+  for (const [i, scan] of byNumber.entries()) {
+    await expect(pictures.nth(i)).toHaveAttribute('alt', scan.name);
+  }
 });

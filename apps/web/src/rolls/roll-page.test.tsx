@@ -902,7 +902,7 @@ test('shows a thumbnail of each frame, labelled with its frame number', async ()
   expect(noNumber.className).toBe('frame-number none');
 });
 
-test('shows frames in frame order, or in scan order when chosen', async () => {
+test('always shows frames in frame order, whatever order they were scanned in', async () => {
   renderPage(
     archiveWith([
       aFrameWithScan('3', '12340001.jpg'),
@@ -910,25 +910,11 @@ test('shows frames in frame order, or in scan order when chosen', async () => {
       aFrameWithScan('2', '12340003.jpg'),
     ]),
   );
-  const order = async () =>
-    (await screen.findAllByRole('img')).map((img) => img.getAttribute('alt'));
 
-  expect(await order()).toEqual([
-    '12340002.jpg',
-    '12340003.jpg',
-    '12340001.jpg',
-  ]);
-  expect(screen.getByLabelText<HTMLInputElement>('Frame order').checked).toBe(
-    true,
-  );
-
-  fireEvent.click(screen.getByLabelText('Scan order'));
-
-  expect(await order()).toEqual([
-    '12340001.jpg',
-    '12340002.jpg',
-    '12340003.jpg',
-  ]);
+  expect(
+    (await screen.findAllByRole('img')).map((img) => img.getAttribute('alt')),
+  ).toEqual(['12340002.jpg', '12340003.jpg', '12340001.jpg']);
+  expect(screen.queryByText('Scan order')).toBeNull();
 });
 
 describe('editing a frame number', () => {
