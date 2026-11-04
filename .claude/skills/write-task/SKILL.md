@@ -6,8 +6,8 @@ description: How to add, split, reorder, tick off and rewrite tasks and decision
 # Write a task
 
 The roadmap is `docs/roadmap.md`: **To do**, as numbered feature groups in
-the order they'll be done (plus "Not placed yet"); then the key journeys,
-**Parked**, the **Decisions** table, and **Done** (what's been built, by
+the order they'll be done; then the key journeys, **Later** (tasks set
+aside, or not yet given a place), the **Decisions** table, and **Done** (what's been built, by
 stage, with what was replaced or dropped). "Next up" at the top names the
 current group. Tasks are delivered one at a time, driven from what the user
 sees, and "make it work, then make it pretty" (CLAUDE.md).
@@ -20,13 +20,16 @@ sees, and "make it work, then make it pretty" (CLAUDE.md).
   which journey it adds or extends. Decisions by number (D33).
 ```
 
-- **ID**: tasks keep the ID they were first planned with (`U14`, `1b.8`),
-  since decisions cite them. A new task takes the next free `U` number
-  (`U23` onwards). Split a task by suffixing letters (`U9a`, `U9b`). Never
-  reuse an ID for something else.
+- **ID**: every task to do is a `U` number. A new task takes the next free
+  one (find the highest with `grep -o 'U[0-9]*' docs/roadmap.md | sort -V |
+  tail -1`). A task keeps its ID once given, since decisions cite it; one
+  first planned under an older code says so once, `*(Was 1.1.6.)*`. Split a
+  task by suffixing letters (`U9a`, `U9b`). Never reuse an ID for something
+  else. Done keeps the codes tasks were built under (S1.2, H.5, N3), as
+  commit messages name them.
 - **Groups**: a task sits in the feature group it'll be done in. Reordering
   work means moving groups or tasks; update "Next up" to match.
-- **Parked**: a task set aside moves, ID unchanged, to Parked; when picked
+- **Later**: a task set aside, or not yet given a place, sits, ID unchanged, in Later; when picked
   up it moves into the feature group it'll be done in.
 - **Done**: a finished task moves, ticked, from To do into Done, under the
   feature group's own heading there (add one if it's the group's first).
