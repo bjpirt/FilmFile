@@ -481,6 +481,93 @@ describe('deleting a frame', () => {
   });
 });
 
+describe('selecting frames', () => {
+  const threeFrames = () => [
+    aFrameWithScan('1', '12340001.jpg'),
+    aFrameWithScan('2', '12340002.jpg'),
+    aFrameWithScan('3', '12340003.jpg'),
+  ];
+
+  async function startSelecting(archive = archiveWith(threeFrames())) {
+    renderPage(archive);
+    fireEvent.click(await screen.findByRole('button', { name: 'Select' }));
+    return archive;
+  }
+
+  function box(number: string): HTMLElement {
+    return screen.getByRole('checkbox', { name: `Select frame ${number}` });
+  }
+
+  function ticked(): string[] {
+    return ['1', '2', '3'].filter((number) => {
+      const checkbox = box(number);
+      return checkbox instanceof HTMLInputElement && checkbox.checked;
+    });
+  }
+
+  function count(): string {
+    return screen.getByRole('status', { name: 'Selection' }).textContent;
+  }
+
+  test('gives each frame a checkbox in place of opening it or deleting it', async () => {
+    await startSelecting();
+
+    expect(screen.getAllByRole('checkbox')).toHaveLength(3);
+    expect(count()).toBe('No frames selected');
+    expect(screen.queryByRole('link', { name: 'Open frame 1' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Delete frame 1' })).toBeNull();
+  });
+
+  test('selects a frame by its checkbox or its picture, and unselects it again', async () => {
+    await startSelecting();
+
+    fireEvent.click(box('2'));
+    expect(ticked()).toEqual(['2']);
+    expect(count()).toBe('1 frame selected');
+
+    fireEvent.click(screen.getByRole('img', { name: '12340003.jpg' }));
+    expect(ticked()).toEqual(['2', '3']);
+
+    fireEvent.click(box('2'));
+    expect(ticked()).toEqual(['3']);
+  });
+
+  test('selects a run of frames with shift-click', async () => {
+    await startSelecting();
+
+    fireEvent.click(box('1'));
+    fireEvent.click(box('3'), { shiftKey: true });
+
+    expect(ticked()).toEqual(['1', '2', '3']);
+    expect(count()).toBe('3 frames selected');
+  });
+
+  test('selects every frame, and clears them', async () => {
+    await startSelecting();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select all' }));
+    expect(ticked()).toEqual(['1', '2', '3']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(ticked()).toEqual([]);
+  });
+
+  test('leaves with Done or Esc, forgetting the selection and saving nothing', async () => {
+    const archive = await startSelecting();
+    fireEvent.click(box('1'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Open frame 1' })).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select' }));
+    expect(ticked()).toEqual([]);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(archive.requests.filter((r) => !r.startsWith('GET'))).toEqual([]);
+  });
+});
+
 describe('deleting the roll', () => {
   beforeEach(() => {
     window.history.replaceState(null, '', `/rolls/${rollId}`);

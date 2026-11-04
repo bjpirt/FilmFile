@@ -2,7 +2,7 @@ import { BinIcon } from '../bin-icon.tsx';
 import type { ApiClient } from '@filmfile/contracts/client';
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, navigate } from '../routing.tsx';
 import { droppedFiles } from './dropped-files.ts';
 import { chooseCamera } from '../equipment/choose-camera.ts';
@@ -27,6 +27,13 @@ import {
 } from './renumber-panel.tsx';
 import { describeUpload } from './describe-upload.ts';
 import { uploadScans, type UploadReport } from './upload-scans.ts';
+import {
+  noSelection,
+  selectAll,
+  selectionCount,
+  toggle,
+  type Selection,
+} from './selection.ts';
 
 type Upload =
   | { readonly kind: 'idle' }
@@ -149,9 +156,27 @@ export function RollPage({
   const [editingDetails, setEditingDetails] = useState(false);
   const [savingNumbers, setSavingNumbers] = useState(false);
   const [numbersNotSaved, setNumbersNotSaved] = useState(false);
+  // Selecting frames, for the bulk actions to come; undefined when not.
+  const [selection, setSelection] = useState<Selection | undefined>(undefined);
   const [renumbering, setRenumbering] = useState<RenumberSettings | undefined>(
     undefined,
   );
+
+  // Esc leaves Select mode.
+  useEffect(() => {
+    if (selection === undefined) {
+      return;
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setSelection(undefined);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [selection]);
 
   const roll = useQuery({
     queryKey: ['rolls', rollId],
@@ -399,6 +424,19 @@ export function RollPage({
     renumbering === undefined && order === 'frame'
       ? inFrameOrder(frames)
       : frames;
+  /** A frame clicked while selecting; with shift, the run from the last one clicked, in the order shown. */
+  function pick(id: string, shift: boolean) {
+    setSelection(
+      (current) =>
+        current &&
+        toggle(
+          current,
+          shown.map((frame) => frame.id),
+          id,
+          shift,
+        ),
+    );
+  }
   const settings = renumbering && renumberingOf(renumbering);
   const proposed =
     settings === undefined ? undefined : renumber(frames.length, settings);
@@ -572,7 +610,37 @@ export function RollPage({
         <p>No frames yet.</p>
       ) : (
         <>
-          {renumbering === undefined ? (
+          {selection !== undefined ? (
+            <div className="sheet-controls selection-bar">
+              <p role="status" aria-label="Selection">
+                {selectionCount(selection)}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelection(selectAll(shown.map((frame) => frame.id)));
+                }}
+              >
+                Select all
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelection(noSelection);
+                }}
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelection(undefined);
+                }}
+              >
+                Done
+              </button>
+            </div>
+          ) : renumbering === undefined ? (
             <div className="sheet-controls">
               <fieldset className="order">
                 <legend>Show frames in</legend>
@@ -599,6 +667,14 @@ export function RollPage({
                   Scan order
                 </label>
               </fieldset>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelection(noSelection);
+                }}
+              >
+                Select
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -630,12 +706,39 @@ export function RollPage({
             {shown.map((frame, i) => (
               <li key={frame.id}>
                 <div className="frame-picture">
-                  <Link
-                    to={`/rolls/${rollId}/frames/${frame.id}`}
-                    aria-label={`Open ${frameName(frame)}`}
-                  >
-                    <Thumbnail rollId={rollId} frame={frame} />
-                  </Link>
+                  {selection === undefined ? (
+                    <Link
+                      to={`/rolls/${rollId}/frames/${frame.id}`}
+                      aria-label={`Open ${frameName(frame)}`}
+                    >
+                      <Thumbnail rollId={rollId} frame={frame} />
+                    </Link>
+                  ) : (
+                    <>
+                      {/* The picture toggles too, for the mouse; the checkbox is what the keyboard and screen readers use. */}
+                      <div
+                        className="selectable"
+                        onClick={(event) => {
+                          pick(frame.id, event.shiftKey);
+                        }}
+                      >
+                        <Thumbnail rollId={rollId} frame={frame} />
+                      </div>
+                      <input
+                        type="checkbox"
+                        className="frame-select"
+                        aria-label={`Select ${frameName(frame)}`}
+                        checked={selection.selected.has(frame.id)}
+                        onChange={(event) => {
+                          pick(
+                            frame.id,
+                            'shiftKey' in event.nativeEvent &&
+                              event.nativeEvent.shiftKey === true,
+                          );
+                        }}
+                      />
+                    </>
+                  )}
                   {confirmingDelete === frame.id && (
                     // Over the thumbnail, the same size, so nothing else moves.
                     <div
@@ -665,6 +768,7 @@ export function RollPage({
                     </div>
                   )}
                   {renumbering === undefined &&
+                    selection === undefined &&
                     confirmingDelete !== frame.id && (
                       <button
                         type="button"
