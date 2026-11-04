@@ -2,6 +2,7 @@ import type {
   Held,
   HeldFrame,
   HeldRoll,
+  HeldVersion,
   HoldingArea,
 } from '../../../application/ports/holding-area.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
@@ -15,6 +16,14 @@ export class InMemoryHoldingArea implements HoldingArea {
     held: Omit<HeldFrame, 'kind'>,
   ): Promise<void> {
     this.#held.push({ kind: 'frame', ...held });
+    return Promise.resolve();
+  }
+
+  holdVersion(
+    _ctx: ArchiveContext,
+    held: Omit<HeldVersion, 'kind'>,
+  ): Promise<void> {
+    this.#held.push({ kind: 'version', ...held });
     return Promise.resolve();
   }
 

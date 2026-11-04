@@ -1,7 +1,7 @@
 import type { RollNumber } from '../../domain/rolls/roll-number.ts';
-import type { Frame } from '../../domain/rolls/roll.ts';
+import type { Frame, Version } from '../../domain/rolls/roll.ts';
 import type { ArchiveContext } from '../../domain/shared/archive-context.ts';
-import type { RollId } from '../../domain/shared/ids.ts';
+import type { FrameId, RollId } from '../../domain/shared/ids.ts';
 
 /** A deleted frame, as the holding area keeps it: the frame and the roll it came from. */
 export interface HeldFrame {
@@ -22,7 +22,18 @@ export interface HeldRoll {
   readonly at: Date;
 }
 
-export type Held = HeldFrame | HeldRoll;
+/** A deleted version of a frame (U28b), as the holding area keeps it: the version, and the frame and roll it came from. */
+export interface HeldVersion {
+  readonly kind: 'version';
+  readonly rollId: RollId;
+  readonly roll: RollNumber;
+  readonly frameId: FrameId;
+  readonly version: Version;
+  /** When it was deleted. */
+  readonly at: Date;
+}
+
+export type Held = HeldFrame | HeldRoll | HeldVersion;
 
 /**
  * Where deleted things go: the archive's `deleted/` folder, or memory in
@@ -32,6 +43,12 @@ export type Held = HeldFrame | HeldRoll;
 export interface HoldingArea {
   /** Moves a deleted frame's files out of its roll, with its JSON, into a folder of its own. */
   holdFrame(ctx: ArchiveContext, held: Omit<HeldFrame, 'kind'>): Promise<void>;
+
+  /** Moves a deleted version's files out of its frame, with its JSON, into a folder of its own. */
+  holdVersion(
+    ctx: ArchiveContext,
+    held: Omit<HeldVersion, 'kind'>,
+  ): Promise<void>;
 
   /** Moves a deleted roll's whole folder, frames and all, into a folder of its own. */
   holdRoll(ctx: ArchiveContext, held: Omit<HeldRoll, 'kind'>): Promise<void>;

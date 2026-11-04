@@ -27,6 +27,7 @@ import { bodyLimit } from 'hono/body-limit';
 import { imageTypeOf } from '../../../../domain/rolls/image-type.ts';
 import type { AddVersion } from '../../../../application/use-cases/frames/add-version.ts';
 import type { CreateFrame } from '../../../../application/use-cases/frames/create-frame.ts';
+import type { DeleteVersion } from '../../../../application/use-cases/frames/delete-version.ts';
 import type { DeleteFrames } from '../../../../application/use-cases/frames/delete-frames.ts';
 import type { DeleteFrame } from '../../../../application/use-cases/frames/delete-frame.ts';
 import type { GetFrameDetails } from '../../../../application/use-cases/frames/get-frame-details.ts';
@@ -361,6 +362,22 @@ const getFrameDetails = createRoute({
   },
 });
 
+const deleteVersion = createRoute({
+  method: 'delete',
+  path: '/{rollId}/frames/{frameId}/versions/{versionId}',
+  summary: 'Delete a version of a frame',
+  description:
+    "Send the roll's ETag as If-Match: the delete is refused if the roll has changed since. The version's files and JSON move into the archive's deleted/ folder; nothing is lost. A frame's only version can't be deleted: delete the frame instead. The response's ETag is the roll's new version.",
+  request: { params: versionParams, headers: ifMatchHeader },
+  responses: {
+    204: { description: 'The version was deleted.' },
+    404: json(errorResponse, 'The frame has no version with that ID.'),
+    409: json(errorResponse, 'The roll has changed since it was read.'),
+    422: invalid,
+    428: json(errorResponse, 'If-Match is missing.'),
+  },
+});
+
 const getOriginal = createRoute({
   method: 'get',
   path: '/{rollId}/frames/{frameId}/versions/{versionId}/file',
@@ -401,6 +418,7 @@ export interface RollUseCases {
   readonly updateFrames: UpdateFrames;
   readonly deleteFrame: DeleteFrame;
   readonly deleteFrames: DeleteFrames;
+  readonly deleteVersion: DeleteVersion;
   readonly addVersion: AddVersion;
   readonly getFrameDetails: GetFrameDetails;
   readonly getOriginal: GetOriginal;
@@ -615,6 +633,28 @@ export function rollRoutes({
     return added.ok
       ? c.json(versionDto(added.value), 201)
       : domainErrorResponse(c, added.error);
+  });
+
+  routes.openapi(deleteVersion, async (c) => {
+    const { rollId, frameId, versionId } = c.req.valid('param');
+    if (!isRollId(rollId) || !isFrameId(frameId) || !isVersionId(versionId)) {
+      return c.json(notFound, 404);
+    }
+    const ifMatch = c.req.valid('header')['if-match'];
+    if (ifMatch === undefined) {
+      return c.json({ error: 'send the roll’s ETag as If-Match' }, 428);
+    }
+    const deleted = await useCases.deleteVersion.execute(ctx, {
+      rollId,
+      frameId,
+      versionId,
+      expectedVersion: versionFrom(ifMatch),
+    });
+    if (!deleted.ok) {
+      return domainErrorResponse(c, deleted.error);
+    }
+    c.header('ETag', etagOf(deleted.value.version));
+    return c.body(null, 204);
   });
 
   routes.openapi(getOriginal, async (c) => {

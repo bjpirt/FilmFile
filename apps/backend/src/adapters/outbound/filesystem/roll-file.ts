@@ -13,7 +13,7 @@ import {
   type QuarterTurn,
 } from '../../../domain/rolls/quarter-turn.ts';
 import { isRating, type Rating } from '../../../domain/rolls/rating.ts';
-import type { Frame, Roll } from '../../../domain/rolls/roll.ts';
+import type { Frame, Roll, Version } from '../../../domain/rolls/roll.ts';
 import { isShotDate, type ShotDate } from '../../../domain/rolls/shot-date.ts';
 import {
   isFrameId,
@@ -62,7 +62,8 @@ function branded<T extends string>(
   );
 }
 
-const storedVersion = z.object({
+/** A version as roll.json (and a deleted version's version.json) holds it. */
+export const storedVersion = z.object({
   id: branded<VersionId>(isVersionId, 'must be a ULID'),
   file: z.string(),
   sha256: z.string(),
@@ -202,6 +203,34 @@ export function parseRollFile(text: string): Result<Roll, string> {
   });
 }
 
+/** A version as read from its stored form. */
+export function versionFromStored({
+  transform,
+  ...version
+}: z.output<typeof storedVersion>): Version {
+  return {
+    ...version,
+    added: new Date(version.added),
+    rotate: transform?.rotate ?? 0,
+  };
+}
+
+/** A version in its stored form, keys in a fixed order. */
+export function storedVersionOf(
+  version: Version,
+): z.input<typeof storedVersion> {
+  return {
+    id: version.id,
+    file: version.file,
+    sha256: version.sha256,
+    bytes: version.bytes,
+    width: version.width,
+    height: version.height,
+    added: version.added.toISOString(),
+    ...(version.rotate === 0 ? {} : { transform: { rotate: version.rotate } }),
+  };
+}
+
 /** A frame as read from its stored form. */
 export function frameFromStored(stored: z.output<typeof storedFrame>): Frame {
   const { meta, events, shot, ...rest } = stored;
@@ -212,11 +241,7 @@ export function frameFromStored(stored: z.output<typeof storedFrame>): Frame {
     lens: meta?.lens ?? null,
     events: events ?? null,
     shot: shot ?? null,
-    versions: stored.versions.map(({ transform, ...version }) => ({
-      ...version,
-      added: new Date(version.added),
-      rotate: transform?.rotate ?? 0,
-    })),
+    versions: stored.versions.map(versionFromStored),
   };
 }
 
@@ -240,18 +265,7 @@ export function storedFrameOf(frame: Frame): z.input<typeof storedFrame> {
         }),
     ...(frame.shot === null ? {} : { shot: frame.shot }),
     defaultVersion: frame.defaultVersion,
-    versions: frame.versions.map((version) => ({
-      id: version.id,
-      file: version.file,
-      sha256: version.sha256,
-      bytes: version.bytes,
-      width: version.width,
-      height: version.height,
-      added: version.added.toISOString(),
-      ...(version.rotate === 0
-        ? {}
-        : { transform: { rotate: version.rotate } }),
-    })),
+    versions: frame.versions.map(storedVersionOf),
   };
 }
 

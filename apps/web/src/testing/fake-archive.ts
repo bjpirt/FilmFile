@@ -588,6 +588,26 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       change(roll.id);
       return Response.json(updated, { headers: { ETag: etagOf(roll.id) } });
     }
+    if (request.method === 'DELETE') {
+      const gone = frame.versions.find((v) => v.id === rest[3]);
+      if (gone === undefined) {
+        return notFound();
+      }
+      const refused = checkIfMatch(request, roll.id);
+      if (refused !== undefined) {
+        return refused;
+      }
+      roll.frames = roll.frames.map((f) =>
+        f.id === frameId
+          ? { ...f, versions: f.versions.filter((v) => v.id !== gone.id) }
+          : f,
+      );
+      change(roll.id);
+      return new Response(null, {
+        status: 204,
+        headers: { ETag: etagOf(roll.id) },
+      });
+    }
     if (request.method === 'PATCH') {
       const turned = frame.versions.find((v) => v.id === rest[3]);
       if (turned === undefined) {

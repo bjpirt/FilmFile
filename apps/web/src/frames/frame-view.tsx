@@ -2,6 +2,7 @@ import type { ApiClient } from '@filmfile/contracts/client';
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
 import { useEffect, useRef, useState } from 'react';
 import { BinIcon } from '../bin-icon.tsx';
+import { MenuButton } from '../menu-button.tsx';
 import { Thumbnail } from '../rolls/thumbnail.tsx';
 import { Link, navigate } from '../routing.tsx';
 import {
@@ -50,6 +51,11 @@ function TurnIcon({ clockwise }: { readonly clockwise: boolean }) {
       </g>
     </svg>
   );
+}
+
+/** A version's file name, as it was added: 12340001.jpg, edit-2.png. */
+function fileNameOf(version: CollectionFrame['frame']['versions'][number]) {
+  return version.file.split('/').at(-1) ?? version.file;
 }
 
 /** Adds an image to the frame as another version (U34): a "+". */
@@ -151,7 +157,8 @@ export function FrameView({
   const next = frames[current + 1];
   const currentInStrip = useRef<HTMLLIElement>(null);
   const [detailsOpen, setDetailsOpen] = useState(rememberedDetailsOpen);
-  const { save, turn, remove, addVersion, problem } = useSaveFrame(api, shown);
+  const { save, turn, remove, addVersion, deleteVersion, problem } =
+    useSaveFrame(api, shown);
   const chooseVersion = useRef<HTMLInputElement>(null);
   const [viewing, setViewing] = useState<
     { readonly frameId: string; readonly versionId: string } | undefined
@@ -181,6 +188,10 @@ export function FrameView({
     }
   }
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // The version being asked about, "Delete this version?" (U28b).
+  const [confirmingVersion, setConfirmingVersion] = useState<
+    string | undefined
+  >(undefined);
 
   /** Deletes the frame shown, then shows the next, the previous, or where it was opened from. */
   function deleteShown() {
@@ -212,10 +223,11 @@ export function FrameView({
       ) {
         return;
       }
-      if (confirmingDelete) {
+      if (confirmingDelete || confirmingVersion !== undefined) {
         // Esc answers the question, rather than leaving the frame view.
         if (event.key === 'Escape') {
           setConfirmingDelete(false);
+          setConfirmingVersion(undefined);
           event.preventDefault();
         }
         return;
@@ -238,7 +250,15 @@ export function FrameView({
     return () => {
       window.removeEventListener('keydown', onKey);
     };
-  }, [previous, next, back.to, addressOf, save, confirmingDelete]);
+  }, [
+    previous,
+    next,
+    back.to,
+    addressOf,
+    save,
+    confirmingDelete,
+    confirmingVersion,
+  ]);
 
   if (shown === undefined) {
     return (
@@ -352,35 +372,105 @@ export function FrameView({
         <div className="frame-view-stage">
           {manyVersions && (
             <div role="group" aria-label="Versions" className="versions-column">
-              {shown.frame.versions.map((version) => {
-                const name = version.file.split('/').at(-1) ?? version.file;
+              {shown.frame.versions.map((version, i) => {
+                const name = fileNameOf(version);
+                // What's shown everywhere once this one goes: the next, or the one before.
+                const instead = shown.frame.versions[i === 0 ? 1 : 0];
                 return (
-                  <button
-                    key={version.id}
-                    type="button"
-                    className="version-thumb"
-                    aria-label={`Show ${name}`}
-                    aria-pressed={version.id === inView?.id}
-                    onClick={() => {
-                      setViewing({
-                        frameId: shown.frame.id,
-                        versionId: version.id,
-                      });
-                    }}
-                  >
-                    <Thumbnail
-                      rollId={shown.roll.id}
-                      frame={shown.frame}
-                      version={version}
-                      decorative
-                    />
-                    <span className="version-name">{name}</span>
-                    {version.id === everywhere?.id && (
-                      <span className="version-everywhere">
-                        Shown everywhere
-                      </span>
+                  <div key={version.id} className="version-item">
+                    {confirmingVersion === version.id ? (
+                      // In the thumbnail's place: the column's too narrow to cover it.
+                      <div
+                        role="alertdialog"
+                        aria-label={`Delete ${name}`}
+                        className="confirm-version"
+                      >
+                        <p className="confirm-question">
+                          Delete this version?
+                          {version.id === everywhere?.id &&
+                            instead !== undefined &&
+                            ` ${fileNameOf(instead)} will be shown instead.`}
+                        </p>
+                        <div className="confirm-actions">
+                          <button
+                            type="button"
+                            className="danger"
+                            onClick={() => {
+                              setConfirmingVersion(undefined);
+                              void deleteVersion(version.id, () => {
+                                setViewing(undefined);
+                              });
+                            }}
+                          >
+                            Delete
+                          </button>
+                          <button
+                            type="button"
+                            autoFocus
+                            onClick={() => {
+                              setConfirmingVersion(undefined);
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="version-thumb"
+                          aria-label={`Show ${name}`}
+                          aria-pressed={version.id === inView?.id}
+                          onClick={() => {
+                            setViewing({
+                              frameId: shown.frame.id,
+                              versionId: version.id,
+                            });
+                          }}
+                        >
+                          <Thumbnail
+                            rollId={shown.roll.id}
+                            frame={shown.frame}
+                            version={version}
+                            decorative
+                          />
+                          <span className="version-name">{name}</span>
+                          {version.id === everywhere?.id && (
+                            <span className="version-everywhere">
+                              Shown everywhere
+                            </span>
+                          )}
+                        </button>
+                        <MenuButton
+                          label={`Options for ${name}`}
+                          className="version-menu"
+                          icon={
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="currentColor"
+                              aria-hidden="true"
+                            >
+                              <circle cx="5" cy="12" r="1.8" />
+                              <circle cx="12" cy="12" r="1.8" />
+                              <circle cx="19" cy="12" r="1.8" />
+                            </svg>
+                          }
+                          items={[
+                            {
+                              label: 'Delete version…',
+                              danger: true,
+                              select: () => {
+                                setConfirmingVersion(version.id);
+                              },
+                            },
+                          ]}
+                        />
+                      </>
                     )}
-                  </button>
+                  </div>
                 );
               })}
               <AddVersionButton

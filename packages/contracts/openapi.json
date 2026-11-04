@@ -2367,6 +2367,227 @@
         }
       }
     },
+    "/api/rolls/{rollId}/frames/{frameId}/versions/{versionId}": {
+      "delete": {
+        "summary": "Delete a version of a frame",
+        "description": "Send the roll's ETag as If-Match: the delete is refused if the roll has changed since. The version's files and JSON move into the archive's deleted/ folder; nothing is lost. A frame's only version can't be deleted: delete the frame instead. The response's ETag is the roll's new version.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "rollId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "frameId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "versionId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The roll's ETag, from when it was read."
+            },
+            "required": false,
+            "description": "The roll's ETag, from when it was read.",
+            "name": "if-match",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The version was deleted."
+          },
+          "404": {
+            "description": "The frame has no version with that ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The roll has changed since it was read.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Turn a version",
+        "description": "Send the roll's ETag as If-Match: the change is refused if the roll has changed since. The version's file is never changed; only how it's shown. The response's ETag is the roll's new version.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "rollId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "frameId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "versionId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The roll's ETag, from when it was read."
+            },
+            "required": false,
+            "description": "The roll's ETag, from when it was read.",
+            "name": "if-match",
+            "in": "header"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateVersionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The updated version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Version"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not valid JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The frame has no version with that ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The roll has changed since it was read.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "The body is not of the expected type.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/rolls/{rollId}/frames/{frameId}/versions/{versionId}/file": {
       "get": {
         "summary": "Download a version's original file",
@@ -2501,136 +2722,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/InvalidRequest"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/rolls/{rollId}/frames/{frameId}/versions/{versionId}": {
-      "patch": {
-        "summary": "Turn a version",
-        "description": "Send the roll's ETag as If-Match: the change is refused if the roll has changed since. The version's file is never changed; only how it's shown. The response's ETag is the roll's new version.",
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
-              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
-            },
-            "required": true,
-            "name": "rollId",
-            "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
-              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
-            },
-            "required": true,
-            "name": "frameId",
-            "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
-              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
-            },
-            "required": true,
-            "name": "versionId",
-            "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "description": "The roll's ETag, from when it was read."
-            },
-            "required": false,
-            "description": "The roll's ETag, from when it was read.",
-            "name": "if-match",
-            "in": "header"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateVersionRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "The updated version.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Version"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "The body is not valid JSON.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "The frame has no version with that ID.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "The roll has changed since it was read.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "415": {
-            "description": "The body is not of the expected type.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "The request is invalid.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InvalidRequest"
-                }
-              }
-            }
-          },
-          "428": {
-            "description": "If-Match is missing.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
                 }
               }
             }

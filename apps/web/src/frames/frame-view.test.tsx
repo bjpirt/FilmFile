@@ -368,6 +368,58 @@ describe('the frame’s details and versions', () => {
     ).toContain(twice.frames[0]?.versions[0]?.id ?? 'missing');
   });
 
+  async function chooseDelete(name: string) {
+    const column = await screen.findByRole('group', { name: 'Versions' });
+    fireEvent.click(
+      within(column).getByRole('button', { name: `Options for ${name}` }),
+    );
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete version…' }));
+    return screen.getByRole('alertdialog', { name: `Delete ${name}` });
+  }
+
+  test('deletes a version after asking, leaving the frame with its other', async () => {
+    const archive = openTwice();
+
+    const confirm = await chooseDelete('12340001-again.jpg');
+    expect(confirm.textContent).toContain('Delete this version?');
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Delete' }));
+
+    await vi.waitFor(() => {
+      expect(archive.rolls[0]?.frames[0]?.versions).toHaveLength(1);
+    });
+    expect(archive.ifMatches).toEqual(['"v1"']);
+    // One version left: no column, and the "+" back in the bar.
+    await vi.waitFor(() => {
+      expect(screen.queryByRole('group', { name: 'Versions' })).toBeNull();
+    });
+    expect(screen.getByRole('button', { name: 'Add a version' })).toBeDefined();
+  });
+
+  test('says which version will be shown when deleting the one shown everywhere', async () => {
+    openTwice();
+
+    const confirm = await chooseDelete('12340001.jpg');
+
+    expect(confirm.textContent).toContain(
+      '12340001-again.jpg will be shown instead.',
+    );
+  });
+
+  test('keeps the version on Cancel or Esc, still in the frame view', async () => {
+    const archive = openTwice();
+
+    const confirm = await chooseDelete('12340001-again.jpg');
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Cancel' }));
+    await chooseDelete('12340001-again.jpg');
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Frame 1' }),
+    ).toBeDefined();
+    expect(archive.rolls[0]?.frames[0]?.versions).toHaveLength(2);
+  });
+
   test('has no column for a frame with one version, only the bar’s “+”', async () => {
     openAt(`/rolls/${roll.id}/frames/${frameId('1')}`);
 

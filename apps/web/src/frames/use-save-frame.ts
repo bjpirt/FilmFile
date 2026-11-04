@@ -134,6 +134,50 @@ export function useSaveFrame(
     await queryClient.invalidateQueries({ queryKey: ['rolls'], exact: true });
   }
 
+  /** Deletes one of the frame's versions (U28b), then calls `onDeleted`. */
+  async function sendDeleteVersion(versionId: string, onDeleted: () => void) {
+    const read = queryClient.getQueryData<ReadRoll>(['rolls', rollId]);
+    if (read === undefined) {
+      return;
+    }
+    setProblem(undefined);
+    const { response } = await api.DELETE(
+      '/api/rolls/{rollId}/frames/{frameId}/versions/{versionId}',
+      {
+        params: {
+          path: { rollId, frameId, versionId },
+          header: { 'if-match': read.etag },
+        },
+      },
+    );
+    if (response.status === 409) {
+      setProblem('This roll changed since you opened it. Reload the page.');
+      return;
+    }
+    if (!response.ok) {
+      setProblem("Couldn't delete it. Is the service running?");
+      return;
+    }
+    onDeleted();
+    queryClient.setQueryData<ReadRoll>(['rolls', rollId], {
+      roll: {
+        ...read.roll,
+        frames: read.roll.frames.map((f) =>
+          f.id === frameId
+            ? {
+                ...f,
+                versions: f.versions.filter((v) => v.id !== versionId),
+                defaultVersion:
+                  f.defaultVersion === versionId ? null : f.defaultVersion,
+              }
+            : f,
+        ),
+      },
+      etag: response.headers.get('ETag') ?? read.etag,
+    });
+    await refreshed();
+  }
+
   /** What shows the frame or its roll, read afresh after a change. */
   async function refreshed() {
     await queryClient.invalidateQueries({
@@ -232,6 +276,9 @@ export function useSaveFrame(
       queued(() => sendTurn(versionId, rotate)),
     /** Adds an image as another version of the frame (U34). */
     addVersion: (file: File) => queued(() => sendVersion(file)),
+    /** Deletes one of the frame's versions (U28b). */
+    deleteVersion: (versionId: string, onDeleted: () => void) =>
+      queued(() => sendDeleteVersion(versionId, onDeleted)),
     /** Deletes the frame into the archive's deleted folder, then calls `onDeleted`. */
     remove: (onDeleted: () => void) => queued(() => sendDelete(onDeleted)),
     problem,

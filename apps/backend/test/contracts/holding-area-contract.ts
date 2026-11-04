@@ -33,6 +33,37 @@ export function holdingAreaContract(
       ]);
     });
 
+    test('holds a deleted version with the frame and roll it came from and when', async () => {
+      const holding = makeHoldingArea();
+      const version = aVersion({
+        id: ulidFor(8),
+        file: 'frames/00000002/00000008/edit.png',
+      });
+      const frame = aFrame({ versions: [aVersion(), version] });
+      const roll = aRoll({ frames: [frame] });
+      await createRoll(roll);
+      const at = new Date('2026-11-02T12:00:00.000Z');
+
+      await holding.holdVersion(ctx, {
+        rollId: roll.id,
+        roll: roll.roll,
+        frameId: frame.id,
+        version,
+        at,
+      });
+
+      expect(await holding.list(ctx)).toEqual([
+        {
+          kind: 'version',
+          rollId: roll.id,
+          roll: roll.roll,
+          frameId: frame.id,
+          version,
+          at,
+        },
+      ]);
+    });
+
     test('lists what it holds oldest first', async () => {
       const holding = makeHoldingArea();
       const roll = aRoll();

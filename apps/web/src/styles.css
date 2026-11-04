@@ -374,15 +374,73 @@ select {
   flex: none;
   flex-direction: column;
   gap: var(--space-3);
-  max-height: 100%;
-  overflow-y: auto;
-  /* Room for the outline round the version in view. */
+  /* Room for the outline round the version in view. Not a scrolling box,
+     which would cut off a version's menu. */
   padding: 4px;
   width: 6.5rem;
 }
 
+.version-item {
+  position: relative;
+}
+
+/* A version's options: shown on pointing or tabbing to it, so the column stays calm (U28b). */
+.menu-button.version-menu {
+  opacity: 0;
+  position: absolute;
+  right: 4px;
+  top: 4px;
+}
+
+.version-item:hover .version-menu,
+.version-menu:focus-within {
+  opacity: 1;
+}
+
+.version-menu > button {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-small);
+  min-height: 0;
+  padding: 2px 4px;
+}
+
+/* The column is at the page's left, so its menus open rightwards. */
+.version-menu .menu {
+  left: 0;
+  right: auto;
+}
+
+/* "Delete this version?" in the thumbnail's place. */
+.confirm-version {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-small);
+  display: flex;
+  flex-direction: column;
+  font-size: 0.75rem;
+  gap: var(--space-2);
+  padding: var(--space-2);
+}
+
+.confirm-version p {
+  margin: 0;
+}
+
+.confirm-version .confirm-actions {
+  flex-direction: column;
+  width: 100%;
+}
+
+.confirm-version .confirm-actions button {
+  font-size: 0.75rem;
+  min-height: 1.75rem;
+  padding: 0 var(--space-2);
+  width: 100%;
+}
+
 .version-thumb {
   background: none;
+  width: 100%;
   border: 0;
   display: flex;
   flex-direction: column;

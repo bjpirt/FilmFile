@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { beforeEach, describe, expect, test } from 'vitest';
 import { aJpeg } from '../support/a-jpeg.ts';
@@ -185,5 +185,66 @@ describe('POST /api/rolls/{id}/frames/{frameId}/versions', () => {
     const response = await upload(await aJpeg(), query);
 
     expect(response.status).toBe(422);
+  });
+});
+
+describe('DELETE /api/rolls/{id}/frames/{frameId}/versions/{versionId}', () => {
+  async function twoVersions() {
+    const first = String(
+      idOf(await (await upload(await aJpeg({ shade: 40 }))).json()),
+    );
+    const second = String(
+      idOf(
+        await (
+          await upload(await aJpeg({ shade: 200 }), 'file=edit.jpg')
+        ).json(),
+      ),
+    );
+    const etag = (await request(`/api/rolls/${rollId}`)).headers.get('ETag');
+    return { first, second, etag: etag ?? '' };
+  }
+
+  function remove(versionId: string, ifMatch?: string) {
+    return request(
+      `/api/rolls/${rollId}/frames/${frameId}/versions/${versionId}`,
+      {
+        method: 'DELETE',
+        headers: ifMatch === undefined ? {} : { 'If-Match': ifMatch },
+      },
+    );
+  }
+
+  test('moves the version’s files into deleted/, leaving the frame and its other version', async () => {
+    const { first, second, etag } = await twoVersions();
+
+    const response = await remove(second, etag);
+
+    expect(response.status).toBe(204);
+    const roll = await request(`/api/rolls/${rollId}`);
+    expect(response.headers.get('ETag')).toBe(roll.headers.get('ETag'));
+    expect(await roll.json()).toMatchObject({
+      frames: [{ id: frameId, versions: [{ id: first }] }],
+    });
+    const [held] = await readdir(path.join(archive.path(), 'deleted'));
+    expect(held).toMatch(new RegExp(`-version-${second}$`));
+    expect(
+      (await readdir(path.join(archive.path(), 'deleted', held ?? ''))).sort(),
+    ).toEqual([second.slice(-8), 'version.json']);
+  });
+
+  test.each([
+    ['no If-Match', undefined, 428],
+    ['a stale If-Match', '"stale"', 409],
+  ])('refuses %s', async (_case, ifMatch, status) => {
+    const { second } = await twoVersions();
+
+    expect((await remove(second, ifMatch)).status).toBe(status);
+  });
+
+  test('refuses to delete a frame’s only version', async () => {
+    const only = String(idOf(await (await upload(await aJpeg())).json()));
+    const etag = (await request(`/api/rolls/${rollId}`)).headers.get('ETag');
+
+    expect((await remove(only, etag ?? '')).status).toBe(422);
   });
 });

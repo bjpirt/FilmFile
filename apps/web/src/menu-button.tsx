@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
 /** One thing a menu does. */
 export interface MenuItem {
@@ -19,10 +19,15 @@ export function MenuButton({
   label,
   items,
   disabled = false,
+  icon,
+  className,
 }: {
   readonly label: string;
   readonly items: readonly MenuItem[];
   readonly disabled?: boolean;
+  /** Shown in place of the label, which then names the button for screen readers. */
+  readonly icon?: ReactNode;
+  readonly className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const menuId = useId();
@@ -96,32 +101,42 @@ export function MenuButton({
   }
 
   return (
-    <div className="menu-button" ref={whole}>
+    <div
+      className={
+        className === undefined ? 'menu-button' : `menu-button ${className}`
+      }
+      ref={whole}
+    >
       <button
         ref={button}
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
         disabled={disabled}
+        {...(icon === undefined ? {} : { 'aria-label': label, title: label })}
         aria-controls={open ? menuId : undefined}
         onClick={() => {
           setOpen(!open);
         }}
       >
-        {label}
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M6 9l6 6 6-6" />
-        </svg>
+        {icon ?? (
+          <>
+            {label}
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </>
+        )}
       </button>
       {open && (
         <ul

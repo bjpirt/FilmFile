@@ -4,6 +4,7 @@ import type {
   Held,
   HeldFrame,
   HeldRoll,
+  HeldVersion,
   HoldingArea,
 } from '../../../application/ports/holding-area.ts';
 import { folderName } from '../../../domain/rolls/folder-names.ts';
@@ -12,6 +13,10 @@ import { hasErrorCode } from './error-codes.ts';
 import { rollFolder } from './filesystem-roll-repository.ts';
 import { heldFrameFileContent, parseHeldFrameFile } from './held-frame-file.ts';
 import { heldRollFileContent, parseHeldRollFile } from './held-roll-file.ts';
+import {
+  heldVersionFileContent,
+  parseHeldVersionFile,
+} from './held-version-file.ts';
 import { safePath } from './safe-path.ts';
 import { createAtomically } from './write-atomically.ts';
 
@@ -23,12 +28,26 @@ function stamp(at: Date): string {
     .replaceAll(':', '');
 }
 
+/** What a held thing's JSON file says, by the file's name. */
+function heldIn(name: string, text: string): Held {
+  switch (name) {
+    case 'frame.json':
+      return parseHeldFrameFile(text);
+    case 'version.json':
+      return parseHeldVersionFile(text);
+    default:
+      return parseHeldRollFile(text);
+  }
+}
+
 /**
  * Deleted things kept in the archive's `deleted/` folder, each in a dated
  * folder of its own: `deleted/2026-11-02T120000Z-frame-01JC8Z…/` holding
  * frame.json and the frame's folder as it was, or
  * `deleted/2026-11-02T120000Z-roll-01JC8Z…/` holding roll-deleted.json and
- * the roll's folder (`2026-014/`) as it was.
+ * the roll's folder (`2026-014/`) as it was, or
+ * `deleted/2026-11-02T120000Z-version-01JC8Z…/` holding version.json and the
+ * version's folder as it was.
  */
 export class FilesystemHoldingArea implements HoldingArea {
   readonly #archivePath: string;
@@ -80,6 +99,34 @@ export class FilesystemHoldingArea implements HoldingArea {
     }
   }
 
+  async holdVersion(
+    _ctx: ArchiveContext,
+    held: Omit<HeldVersion, 'kind'>,
+  ): Promise<void> {
+    const folder = await this.#newFolder(
+      `${stamp(held.at)}-version-${held.version.id}`,
+      'version.json',
+      heldVersionFileContent(held),
+    );
+    const versionFolder = folderName(held.version.id);
+    try {
+      await rename(
+        safePath(
+          rollFolder(this.#archivePath, held.roll),
+          'frames',
+          folderName(held.frameId),
+          versionFolder,
+        ),
+        safePath(folder, versionFolder),
+      );
+    } catch (error) {
+      // Its files gone already (by hand, say): what it was is still kept.
+      if (!hasErrorCode(error, 'ENOENT')) {
+        throw error;
+      }
+    }
+  }
+
   async holdRoll(
     _ctx: ArchiveContext,
     held: Omit<HeldRoll, 'kind'>,
@@ -97,16 +144,15 @@ export class FilesystemHoldingArea implements HoldingArea {
 
   async list(): Promise<readonly Held[]> {
     const held: Held[] = [];
-    for await (const relative of glob('deleted/*/{frame,roll-deleted}.json', {
-      cwd: this.#archivePath,
-    })) {
+    for await (const relative of glob(
+      'deleted/*/{frame,roll-deleted,version}.json',
+      {
+        cwd: this.#archivePath,
+      },
+    )) {
       const file = safePath(this.#archivePath, ...relative.split(path.sep));
       const text = await readFile(file, 'utf8');
-      held.push(
-        path.basename(file) === 'frame.json'
-          ? parseHeldFrameFile(text)
-          : parseHeldRollFile(text),
-      );
+      held.push(heldIn(path.basename(file), text));
     }
     return held.sort((a, b) => a.at.getTime() - b.at.getTime());
   }

@@ -834,6 +834,174 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/rolls/{rollId}/frames/{frameId}/versions/{versionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a version of a frame
+         * @description Send the roll's ETag as If-Match: the delete is refused if the roll has changed since. The version's files and JSON move into the archive's deleted/ folder; nothing is lost. A frame's only version can't be deleted: delete the frame instead. The response's ETag is the roll's new version.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: {
+                    /** @description The roll's ETag, from when it was read. */
+                    "if-match"?: string;
+                };
+                path: {
+                    rollId: string;
+                    frameId: string;
+                    versionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The version was deleted. */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description The frame has no version with that ID. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The roll has changed since it was read. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The request is invalid. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+                /** @description If-Match is missing. */
+                428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Turn a version
+         * @description Send the roll's ETag as If-Match: the change is refused if the roll has changed since. The version's file is never changed; only how it's shown. The response's ETag is the roll's new version.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: {
+                    /** @description The roll's ETag, from when it was read. */
+                    "if-match"?: string;
+                };
+                path: {
+                    rollId: string;
+                    frameId: string;
+                    versionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateVersionRequest"];
+                };
+            };
+            responses: {
+                /** @description The updated version. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Version"];
+                    };
+                };
+                /** @description The body is not valid JSON. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The frame has no version with that ID. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The roll has changed since it was read. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The body is not of the expected type. */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The request is invalid. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+                /** @description If-Match is missing. */
+                428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/api/rolls/{rollId}/frames/{frameId}/versions/{versionId}/file": {
         parameters: {
             query?: never;
@@ -949,110 +1117,6 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/api/rolls/{rollId}/frames/{frameId}/versions/{versionId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Turn a version
-         * @description Send the roll's ETag as If-Match: the change is refused if the roll has changed since. The version's file is never changed; only how it's shown. The response's ETag is the roll's new version.
-         */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: {
-                    /** @description The roll's ETag, from when it was read. */
-                    "if-match"?: string;
-                };
-                path: {
-                    rollId: string;
-                    frameId: string;
-                    versionId: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["UpdateVersionRequest"];
-                };
-            };
-            responses: {
-                /** @description The updated version. */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Version"];
-                    };
-                };
-                /** @description The body is not valid JSON. */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description The frame has no version with that ID. */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description The roll has changed since it was read. */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description The body is not of the expected type. */
-                415: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-                /** @description The request is invalid. */
-                422: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["InvalidRequest"];
-                    };
-                };
-                /** @description If-Match is missing. */
-                428: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Error"];
-                    };
-                };
-            };
-        };
         trace?: never;
     };
     "/api/rolls/{rollId}/frames/{frameId}/versions/{versionId}/thumbnail": {

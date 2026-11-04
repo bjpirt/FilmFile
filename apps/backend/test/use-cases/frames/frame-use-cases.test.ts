@@ -14,6 +14,7 @@ import { AddVersion } from '../../../src/application/use-cases/frames/add-versio
 import { CreateFrame } from '../../../src/application/use-cases/frames/create-frame.ts';
 import { DeleteFrame } from '../../../src/application/use-cases/frames/delete-frame.ts';
 import { DeleteFrames } from '../../../src/application/use-cases/frames/delete-frames.ts';
+import { DeleteVersion } from '../../../src/application/use-cases/frames/delete-version.ts';
 import { GetOriginal } from '../../../src/application/use-cases/frames/get-original.ts';
 import { GetThumbnail } from '../../../src/application/use-cases/frames/get-thumbnail.ts';
 import { UpdateFrame } from '../../../src/application/use-cases/frames/update-frame.ts';
@@ -66,6 +67,7 @@ async function setUp() {
     roll: created.value,
     deleteFrame: new DeleteFrame(rolls, holding, clock),
     deleteFrames: new DeleteFrames(rolls, holding, clock),
+    deleteVersion: new DeleteVersion(rolls, holding, clock),
     createFrame: new CreateFrame(rolls, ids),
     addVersion: new AddVersion(
       rolls,
@@ -708,6 +710,134 @@ describe('DeleteFrames', () => {
       error: { kind: 'concurrency-conflict', entity: 'roll', id: roll.id },
     });
     expect(await holding.list(ctx)).toEqual([]);
+  });
+});
+
+describe('DeleteVersion', () => {
+  async function withTwoVersions() {
+    const setup = await setUp();
+    const frameId = await aFrameIn(setup.createFrame, setup.roll.id);
+    const ids: string[] = [];
+    for (const shade of [40, 200]) {
+      const added = await setup.addVersion.execute(ctx, {
+        rollId: setup.roll.id,
+        frameId,
+        fileName: `scan-${String(shade)}.jpg`,
+        bytes: new Uint8Array(await aJpeg({ shade })),
+      });
+      if (!added.ok) {
+        throw new Error('setup failed');
+      }
+      ids.push(added.value.id);
+    }
+    const read = await setup.rolls.get(ctx, setup.roll.id);
+    return { ...setup, frameId, ids, version: read?.version ?? '' };
+  }
+
+  test('takes the version out of its frame and holds it, keeping the others', async () => {
+    const { rolls, holding, roll, frameId, ids, version, deleteVersion } =
+      await withTwoVersions();
+
+    const deleted = await deleteVersion.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      versionId: checked(ids[0] ?? '', isVersionId),
+      expectedVersion: version,
+    });
+
+    const after = await rolls.get(ctx, roll.id);
+    expect(deleted).toEqual({ ok: true, value: { version: after?.version } });
+    expect(after?.roll.frames[0]?.versions.map((v) => v.id)).toEqual([ids[1]]);
+    expect(await holding.list(ctx)).toMatchObject([
+      {
+        kind: 'version',
+        rollId: roll.id,
+        frameId,
+        version: { id: ids[0] },
+        at: new Date('2026-11-02T12:00:00.000Z'),
+      },
+    ]);
+  });
+
+  test('forgets it as the frame’s chosen version, so its first is shown', async () => {
+    const { rolls, roll, frameId, ids, version, updateFrame, deleteVersion } =
+      await withTwoVersions();
+    const chosen = await updateFrame.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      expectedVersion: version,
+      defaultVersion: ids[1] ?? '',
+    });
+
+    await deleteVersion.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      versionId: checked(ids[1] ?? '', isVersionId),
+      expectedVersion: chosen.ok ? chosen.value.version : '',
+    });
+
+    expect(
+      (await rolls.get(ctx, roll.id))?.roll.frames[0]?.defaultVersion,
+    ).toBeNull();
+  });
+
+  test('refuses to delete a frame’s only version, holding nothing', async () => {
+    const { holding, roll, frameId, ids, version, deleteVersion } =
+      await withTwoVersions();
+    const first = await deleteVersion.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      versionId: checked(ids[0] ?? '', isVersionId),
+      expectedVersion: version,
+    });
+
+    expect(
+      await deleteVersion.execute(ctx, {
+        rollId: roll.id,
+        frameId,
+        versionId: checked(ids[1] ?? '', isVersionId),
+        expectedVersion: first.ok ? first.value.version : '',
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { kind: 'validation-failed', issues: [{ path: ['versionId'] }] },
+    });
+    expect(await holding.list(ctx)).toHaveLength(1);
+  });
+
+  test('refuses when the roll changed since it was read, holding nothing', async () => {
+    const { holding, roll, frameId, ids, version, createFrame, deleteVersion } =
+      await withTwoVersions();
+    await createFrame.execute(ctx, { rollId: roll.id });
+
+    expect(
+      await deleteVersion.execute(ctx, {
+        rollId: roll.id,
+        frameId,
+        versionId: checked(ids[0] ?? '', isVersionId),
+        expectedVersion: version,
+      }),
+    ).toEqual({
+      ok: false,
+      error: { kind: 'concurrency-conflict', entity: 'roll', id: roll.id },
+    });
+    expect(await holding.list(ctx)).toEqual([]);
+  });
+
+  test('says when the version isn’t the frame’s', async () => {
+    const { roll, frameId, version, deleteVersion } = await withTwoVersions();
+
+    expect(
+      await deleteVersion.execute(ctx, {
+        rollId: roll.id,
+        frameId,
+        versionId: checked(missing, isVersionId),
+        expectedVersion: version,
+      }),
+    ).toEqual({
+      ok: false,
+      error: { kind: 'not-found', entity: 'version', id: missing },
+    });
   });
 });
 
