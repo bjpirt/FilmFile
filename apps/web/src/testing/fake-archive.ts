@@ -87,6 +87,7 @@ export function aFrame(number: string | null, file: string): Frame {
     camera: null,
     lens: null,
     events: null,
+    shot: null,
     defaultVersion: null,
     versions: [
       {
@@ -388,6 +389,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     // Always the roll's (D45).
     const film = either(null, roll.film);
     const lens = either(frame.lens, roll.lens);
+    const shot = either(frame.shot, roll.shot);
     const events = either(
       frame.events,
       roll.event === null ? null : [roll.event],
@@ -401,6 +403,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       ...(film === undefined ? {} : { film }),
       ...(lens === undefined ? {} : { lens }),
       ...(events === undefined ? {} : { events }),
+      ...(shot === undefined ? {} : { shot }),
     };
   }
 
@@ -510,6 +513,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
           camera: null,
           lens: null,
           events: null,
+          shot: null,
           defaultVersion: null,
           versions: [],
         };

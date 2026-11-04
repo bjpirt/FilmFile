@@ -205,6 +205,15 @@
             },
             "description": "The events the frame is in, in place of its roll's, or null to use the roll's."
           },
+          "shot": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}(-\\d{2}(-\\d{2}(T\\d{2}:\\d{2})?)?)?$",
+            "example": "2026-09-14",
+            "description": "When the frame was shot, in place of its roll's date, or null to use the roll's (D47)."
+          },
           "defaultVersion": {
             "type": [
               "string",
@@ -230,6 +239,7 @@
           "camera",
           "lens",
           "events",
+          "shot",
           "defaultVersion",
           "versions"
         ]
@@ -661,6 +671,15 @@
             "maxItems": 50,
             "description": "The frame's own events, or null to use its roll's again."
           },
+          "shot": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^\\d{4}(-\\d{2}(-\\d{2}(T\\d{2}:\\d{2})?)?)?$",
+            "example": "2026-09-14",
+            "description": "The frame's own date shot, or null to use its roll's again."
+          },
           "defaultVersion": {
             "type": [
               "string",
@@ -856,6 +875,40 @@
                   "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
                   "example": "nikon-fe"
                 }
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "layer": {
+                    "type": "string",
+                    "enum": [
+                      "archive",
+                      "roll",
+                      "frame"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "layer",
+                  "id"
+                ]
+              }
+            },
+            "required": [
+              "value",
+              "source"
+            ]
+          },
+          "shot": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "string",
+                "pattern": "^\\d{4}(-\\d{2}(-\\d{2}(T\\d{2}:\\d{2})?)?)?$",
+                "example": "2026-09-14"
               },
               "source": {
                 "type": "object",

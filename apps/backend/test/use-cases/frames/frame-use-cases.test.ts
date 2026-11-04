@@ -115,6 +115,7 @@ describe('CreateFrame', () => {
         camera: null,
         lens: null,
         events: null,
+        shot: null,
         defaultVersion: null,
         versions: [],
       },
@@ -175,6 +176,7 @@ describe('UpdateFrame', () => {
           camera: null,
           lens: null,
           events: null,
+          shot: null,
           defaultVersion: null,
           versions: [],
         },
@@ -352,6 +354,45 @@ describe('UpdateFrame with the frame’s own details', () => {
     };
     expect(updated).toMatchObject({ ok: true, value: { frame: own } });
     expect((await rolls.get(ctx, roll.id))?.roll.frames[0]).toMatchObject(own);
+  });
+
+  test('gives the frame its own date shot, and goes back to the roll’s with null', async () => {
+    const { roll, frameId, version, updateFrame } = await withAFrame();
+
+    const dated = await updateFrame.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      expectedVersion: version,
+      shot: '2026-09-15T06:30',
+    });
+    expect(dated).toMatchObject({
+      ok: true,
+      value: { frame: { shot: '2026-09-15T06:30' } },
+    });
+
+    const cleared = await updateFrame.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      expectedVersion: dated.ok ? dated.value.version : '',
+      shot: null,
+    });
+    expect(cleared).toMatchObject({
+      ok: true,
+      value: { frame: { shot: null } },
+    });
+  });
+
+  test('refuses a date shot that isn’t a date', async () => {
+    const { roll, frameId, version, updateFrame } = await withAFrame();
+
+    expect(
+      await updateFrame.execute(ctx, {
+        rollId: roll.id,
+        frameId,
+        expectedVersion: version,
+        shot: '2026-13-40',
+      }),
+    ).toMatchObject({ ok: false, error: { kind: 'validation-failed' } });
   });
 
   test('goes back to the roll’s with null', async () => {

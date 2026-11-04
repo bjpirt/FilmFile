@@ -43,6 +43,10 @@ const aFrame = fc.record({
   camera: fc.option(aSlug, { nil: null }),
   lens: fc.option(aSlug, { nil: null }),
   events: fc.option(fc.array(aSlug, { maxLength: 3 }), { nil: null }),
+  shot: fc.option(
+    fc.constantFrom<string>('2026', '2026-09-15T06:30').filter(isShotDate),
+    { nil: null },
+  ),
   defaultVersion: fc.option(ulid.filter(isVersionId), { nil: null }),
   number: fc.option(
     fc.string({ minLength: 1, maxLength: 9 }).filter(isFrameNumber),

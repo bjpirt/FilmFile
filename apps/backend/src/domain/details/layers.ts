@@ -16,9 +16,9 @@ export function archiveLayer(archive: Archive): DetailsLayer {
   };
 }
 
-/** A roll's camera, film stock, lens and event. */
+/** A roll's camera, film stock, lens, event and date shot. */
 export function rollLayer(
-  roll: Pick<Roll, 'id' | 'camera' | 'film' | 'lens' | 'event'>,
+  roll: Pick<Roll, 'id' | 'camera' | 'film' | 'lens' | 'event' | 'shot'>,
 ): DetailsLayer {
   return {
     source: { layer: 'roll', id: roll.id },
@@ -27,13 +27,14 @@ export function rollLayer(
       ...(roll.film === null ? {} : { film: roll.film }),
       ...(roll.lens === null ? {} : { lens: roll.lens }),
       ...(roll.event === null ? {} : { events: [roll.event] }),
+      ...(roll.shot === null ? {} : { shot: roll.shot }),
     },
   };
 }
 
-/** A frame's own camera, lens and events, the most specific layer (U15); never a film stock (D45). */
+/** A frame's own camera, lens, events and date shot, the most specific layer (U15, D47); never a film stock (D45). */
 export function frameLayer(
-  frame: Pick<Frame, 'id' | 'camera' | 'lens' | 'events'>,
+  frame: Pick<Frame, 'id' | 'camera' | 'lens' | 'events' | 'shot'>,
 ): DetailsLayer {
   return {
     source: { layer: 'frame', id: frame.id },
@@ -41,6 +42,7 @@ export function frameLayer(
       ...(frame.camera === null ? {} : { camera: frame.camera }),
       ...(frame.lens === null ? {} : { lens: frame.lens }),
       ...(frame.events === null ? {} : { events: frame.events }),
+      ...(frame.shot === null ? {} : { shot: frame.shot }),
     },
   };
 }

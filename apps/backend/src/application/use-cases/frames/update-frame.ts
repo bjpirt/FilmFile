@@ -1,5 +1,6 @@
 import { parseFrameNumber } from '../../../domain/rolls/frame-number.ts';
 import { parseRating } from '../../../domain/rolls/rating.ts';
+import { parseShotDate } from '../../../domain/rolls/shot-date.ts';
 import type { Frame } from '../../../domain/rolls/roll.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type {
@@ -58,6 +59,8 @@ export class UpdateFrame {
       readonly lens?: string | null | undefined;
       /** Slugs of events in the archive. */
       readonly events?: readonly string[] | null | undefined;
+      /** e.g. 2026-09-15T06:30 (D47). */
+      readonly shot?: string | null | undefined;
     },
   ): Promise<
     Result<
@@ -78,6 +81,13 @@ export class UpdateFrame {
         : parseRating(input.rating);
     if (!rating.ok) {
       return rating;
+    }
+    const shot =
+      input.shot === undefined || input.shot === null
+        ? ok(input.shot)
+        : parseShotDate(input.shot);
+    if (!shot.ok) {
+      return shot;
     }
     const camera =
       input.camera === undefined || input.camera === null
@@ -134,6 +144,7 @@ export class UpdateFrame {
       ...(camera.value === undefined ? {} : { camera: camera.value }),
       ...(lens.value === undefined ? {} : { lens: lens.value }),
       ...(events.value === undefined ? {} : { events: events.value }),
+      ...(shot.value === undefined ? {} : { shot: shot.value }),
     };
     // Saved against the version the caller read, so a change made since is never overwritten.
     const saved = await this.#rolls.save(

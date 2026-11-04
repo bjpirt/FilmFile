@@ -1,3 +1,4 @@
+import type { ShotDate } from '../rolls/shot-date.ts';
 import type { Slug } from '../shared/slug.ts';
 
 // The details a frame inherits, layer by layer (design section 6): the
@@ -33,6 +34,8 @@ export interface Details {
   readonly lens?: Slug | null;
   /** The events it's in, by slug. */
   readonly events?: ListChange<Slug> | null;
+  /** When it was shot (D47). */
+  readonly shot?: ShotDate | null;
 }
 
 /** One layer: what it sets, and where that came from. */
@@ -49,4 +52,5 @@ export interface ResolvedDetails {
   readonly film?: Sourced<Slug>;
   readonly lens?: Sourced<Slug>;
   readonly events?: Sourced<readonly Slug[]>;
+  readonly shot?: Sourced<ShotDate>;
 }

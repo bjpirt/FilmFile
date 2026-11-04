@@ -23,6 +23,7 @@ export function frameDto(frame: Frame): RollDto['frames'][number] {
     camera: frame.camera,
     lens: frame.lens,
     events: frame.events === null ? null : [...frame.events],
+    shot: frame.shot,
     defaultVersion: frame.defaultVersion,
     versions: frame.versions.map(versionDto),
   };

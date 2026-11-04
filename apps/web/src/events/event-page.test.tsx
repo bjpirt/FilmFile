@@ -145,6 +145,36 @@ test('shows frames put in the event themselves, and leaves out frames of its rol
   ]);
 });
 
+test('puts frames in order by their own date where they have one', async () => {
+  renderPage(
+    fakeArchive({
+      events: [iceland],
+      rolls: [
+        aRoll('2026-014', {
+          event: 'iceland-2026',
+          shot: '2026-09-14',
+          frames: [
+            aFrame('1', '12340001.jpg'),
+            { ...aFrame('2', '12340002.jpg'), shot: '2026-09-20' },
+          ],
+        }),
+        aRoll('2026-015', {
+          event: 'iceland-2026',
+          shot: '2026-09-16',
+          frames: [aFrame('1', '56780001.jpg')],
+        }),
+      ],
+    }),
+  );
+
+  expect(await screen.findByText('3 frames')).toBeDefined();
+  expect(framesShown()).toEqual([
+    'Frame 1 of roll 2026-014',
+    'Frame 1 of roll 2026-015',
+    'Frame 2 of roll 2026-014',
+  ]);
+});
+
 test('groups frames by their own camera where they have one', async () => {
   window.history.replaceState(null, '', '/events/iceland-2026?group=camera');
   renderPage(

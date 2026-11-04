@@ -6,21 +6,13 @@ Each task is about one commit: small enough to review in one sitting, with its t
 
 `[x]` done, `[ ]` to do, `[-]` dropped or replaced (with where it went).
 
-**Next up:** 1. Reworking the frame view.
+**Next up:** 1. Multi-version frames.
 
 ---
 
 ## To do
 
-### 1. Reworking the frame view
-
-The details panel shows what a frame inherits without fuss, marks only what the frame has of its own, and edits details in place (option 1 of the frame view wireframes).
-
-- [x] **U57 Inherited details shown plainly.** In "About this frame", a detail from the roll or the archive looks like any other: no "from the roll" or "from the archive", and not grey. A frame's own camera, lens or events has a small reset icon beside it ("Use the roll's lens" to screen readers and on hover) that goes back to the roll's; "Use the roll's" and "Set on roll instead" go.
-- [x] **U58 Details edited in place.** Clicking the frame's camera, lens or event in "About this frame" turns it into a list of the archive's, with "The roll's: Nikon FE" first; choosing one saves it as the frame's own (or goes back to the roll's) with `If-Match`, and Esc or clicking away leaves it as it was. Values that can be changed this way are marked as such (a faint dashed underline); author, copyright and film stock (D45) aren't. Works from the keyboard.
-- [ ] **U59 A frame's own date shot.** A frame can have its own date and time shot, in place of its roll's (D47): clicking the date in "About this frame" opens day, month, year and time, saved as the frame's own on Enter or on leaving the fields, with Esc keeping what it was, and the reset icon goes back to the roll's. Kept in roll.json as the frame's `shot`, only when set; resolved like the other details, with where it came from. An event's page puts frames in order by their own date where they have one.
-
-### 2. Multi-version frames
+### 1. Multi-version frames
 
 More than one version of a frame: other scans or edits of it, kept as further versions (design section 8.2). Web-native images first, then my own hi-res camera scans as raws, one frame at a time for now (D34).
 
@@ -28,10 +20,10 @@ More than one version of a frame: other scans or edits of it, kept as further ve
 - [ ] **U61 Versions in a column.** In the frame view, a column of the frame's versions runs up the left of the image: a small thumbnail of each, turned as it is, labelled with what it is ("Lab scan", and its source once versions have one, U20), the one shown everywhere outlined. Clicking one shows it in the frame view only, for a closer look; the filmstrip and contact sheets keep the first. The versions list goes from "About this frame". Shown only when a frame has more than one version, so a frame with just its lab scan looks as it does now.
 - [ ] **U34 Add a version.** A "+" at the foot of the versions column picks an image file and adds it to the frame as another version, keeping its file name; a frame can have any number, and the column then shows (U61). Web-native images only for now: JPEG, PNG and WebP, checked by file signature, not extension, within the upload size limit. The first version stays the one shown (D46). API: the existing versions endpoint takes PNG and WebP as well as JPEG.
 - [ ] **U28b Delete a version.** In the versions column, each version can be deleted after confirming ("Delete this version?"), moving its files into `deleted/` (the holding area's `holdVersion`) and leaving the frame and its other versions; if it was the first, the next becomes the one shown. A frame's only version can't be deleted this way: the frame is deleted instead. *(From 1b.8 and 1.3.16.)*
-- [ ] **U20 Raw files as versions.** A version can be a Sony ARW or Fujifilm RAF raw as well as a lab scan's JPEG, checked by file signature, not extension, within the upload size limit. Each version records where it came from (`source`: lab scan or camera scan), so raws are never written to. Thumbnails of a raw come from the preview JPEG it carries (`exiftool-vendored`; a new dependency, named in the design). API: the existing versions endpoint takes the raw as the body.
+- [ ] **U20 Raw files as versions.** A version can be a Sony ARW raw, a TIFF as well as a lab scan's JPEG, checked by file signature, not extension, within the upload size limit. Each version records where it came from (`source`: lab scan or camera scan), so raws are never written to. Thumbnails of a raw come from the preview JPEG it carries (`exiftool-vendored`; a new dependency, named in the design). API: the existing versions endpoint takes the raw as the body.
 - [ ] **U21 Add a raw to a frame.** "Add version…" (U34) takes raws too, and a raw can be dropped onto a frame on the roll page, adding it as another version of that frame. The contact sheet marks frames that have raws and still shows the lab scan, the first version (D46); the versions column labels each with its source.
 
-### 3. Index and maintenance
+### 2. Index and maintenance
 
 - [ ] **U40 `CatalogueIndex`.** *(Was 1.2.4.)* `better-sqlite3` in the cache directory: rolls, frames, frame tags and equipment; upsert a resolved roll, query with the `ListRolls` filters and sort orders (D9), rebuild. Replaces the S1 directory scan for listing.
 - [ ] **U41 `RebuildIndex`.** *(Was 1.3.13.)*
@@ -294,6 +286,14 @@ The roll page had grown a row of buttons in its heading and another above its fr
 - [x] **U55 One Actions menu.** The roll page's buttons (Edit details, Add scans, Select, Renumber…, Delete roll…) become one "Actions" button beside the roll number, opening a menu: Edit details, Add scans, Bulk edit, Renumber…, then Delete roll… set apart. It works from the keyboard (arrow keys, Enter, Esc) and closes when something is chosen or on a click outside. Asking "Delete this roll?" and renumbering take the menu's place as they take the buttons' now. Extends the "Catalogue a roll" and "Renumber a roll" journeys, whose steps change.
 - [x] **U56 One Set menu while selecting.** The selection bar above the frames keeps its place, with "3 frames selected", Select all, Clear, a "Set" menu (Event…, Camera… and Lens…, each opening its choice in the bar, closed by Esc), Delete… and Done; the four "Set …" buttons go. The Actions menu is put away while selecting. Putting the bar in the Actions menu's place was tried and found too complex. The "Bulk edit" journey follows the new steps.
 - [x] **U63 Events laid out like rolls.** The Events page shows each event as the rolls page shows a roll: a card in a grid, with a strip of a few of its frames' thumbnails, its name and date, and how many rolls and photos it has ("3 rolls · 108 photos", counting rolls and frames in it through their frames too, U17), each card opening the event's page. Editing an event and New event keep working from the page, in the same card style as the rolls page's actions.
+
+### Reworking the frame view
+
+The details panel shows what a frame inherits without fuss, marks only what the frame has of its own, and edits details in place (option 1 of the frame view wireframes).
+
+- [x] **U57 Inherited details shown plainly.** In "About this frame", a detail from the roll or the archive looks like any other: no "from the roll" or "from the archive", and not grey. A frame's own camera, lens or events has a small reset icon beside it ("Use the roll's lens" to screen readers and on hover) that goes back to the roll's; "Use the roll's" and "Set on roll instead" go.
+- [x] **U58 Details edited in place.** Clicking the frame's camera, lens or event in "About this frame" turns it into a list of the archive's, with "The roll's: Nikon FE" first; choosing one saves it as the frame's own (or goes back to the roll's) with `If-Match`, and Esc or clicking away leaves it as it was. Values that can be changed this way are marked as such (a faint dashed underline); author, copyright and film stock (D45) aren't. Works from the keyboard.
+- [x] **U59 A frame's own date shot.** A frame can have its own date and time shot, in place of its roll's (D47): clicking the date in "About this frame" opens day, month, year and time, saved as the frame's own on Enter or on leaving the fields, with Esc keeping what it was, and the reset icon goes back to the roll's. Kept in roll.json as the frame's `shot`, only when set; resolved like the other details, with where it came from. An event's page puts frames in order by their own date where they have one.
 
 ### Replaced or dropped
 

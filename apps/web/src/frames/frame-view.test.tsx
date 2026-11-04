@@ -870,3 +870,90 @@ describe('editing a frame’s details in place', () => {
     ).toEqual(['Change the camera', 'Change the lens', 'Change the event']);
   });
 });
+
+describe('a frame’s own date shot', () => {
+  function openDated(frameShot: string | null): FakeArchive {
+    const roll = aRoll('2026-032', {
+      shot: '2026-09-14',
+      frames: [{ ...aFrame('1', '12340001.jpg'), shot: frameShot }],
+    });
+    const archive = fakeArchive({ rolls: [roll] });
+    openAt(`/rolls/${roll.id}/frames/${roll.frames[0]?.id ?? ''}`, archive);
+    return archive;
+  }
+
+  async function panel(date: string): Promise<HTMLElement> {
+    const show = await screen.findByRole('button', {
+      name: /^(Show|Hide) details$/,
+    });
+    if (show.getAttribute('aria-expanded') === 'false') {
+      fireEvent.click(show);
+    }
+    const details = await screen.findByRole('complementary', {
+      name: 'About this frame',
+    });
+    await within(details).findByText(date);
+    return details;
+  }
+
+  test('gives the frame its own date and time, saved on Enter', async () => {
+    const archive = openDated(null);
+    const details = await panel('14 Sep 2026');
+
+    fireEvent.click(
+      within(details).getByRole('button', { name: 'Change the date shot' }),
+    );
+    const fields = within(details).getByRole('group', { name: 'Date shot' });
+    fireEvent.change(within(fields).getByLabelText('Day'), {
+      target: { value: '15' },
+    });
+    fireEvent.change(within(fields).getByLabelText('Time'), {
+      target: { value: '06:30' },
+    });
+    fireEvent.submit(fields);
+
+    await vi.waitFor(() => {
+      expect(archive.rolls[0]?.frames[0]?.shot).toBe('2026-09-15T06:30');
+    });
+    expect(
+      await within(details).findByText('15 Sep 2026, 06:30'),
+    ).toBeDefined();
+    expect(
+      within(details).getByRole('button', { name: 'Use the roll’s date shot' }),
+    ).toBeDefined();
+  });
+
+  test('keeps the date as it was on Esc, still in the frame view', async () => {
+    const archive = openDated(null);
+    const details = await panel('14 Sep 2026');
+    fireEvent.click(
+      within(details).getByRole('button', { name: 'Change the date shot' }),
+    );
+
+    fireEvent.keyDown(within(details).getByLabelText('Day'), {
+      key: 'Escape',
+    });
+
+    expect(
+      within(details).queryByRole('group', { name: 'Date shot' }),
+    ).toBeNull();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Frame 1' }),
+    ).toBeDefined();
+    expect(archive.ifMatches).toEqual([]);
+  });
+
+  test('goes back to the roll’s date', async () => {
+    const archive = openDated('2026-09-15');
+    const details = await panel('15 Sep 2026');
+
+    fireEvent.click(
+      within(details).getByRole('button', { name: 'Use the roll’s date shot' }),
+    );
+
+    await vi.waitFor(() => {
+      expect(archive.rolls[0]?.frames[0]?.shot).toBeNull();
+    });
+    expect(await within(details).findByText('14 Sep 2026')).toBeDefined();
+  });
+});

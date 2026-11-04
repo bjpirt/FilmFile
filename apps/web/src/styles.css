@@ -1160,6 +1160,16 @@ textarea {
   width: 100%;
 }
 
+/* The date's fields under its own label: their group keeps its name for screen readers only. */
+.date-field legend {
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
 /* Beside a frame's own detail: goes back to the roll's. */
 .reset-detail {
   align-items: center;

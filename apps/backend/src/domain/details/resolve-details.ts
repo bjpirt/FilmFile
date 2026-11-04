@@ -1,3 +1,4 @@
+import type { ShotDate } from '../rolls/shot-date.ts';
 import type { Slug } from '../shared/slug.ts';
 import type {
   DetailsLayer,
@@ -63,6 +64,7 @@ export function resolveDetails(
   let film: Sourced<Slug> | undefined;
   let lens: Sourced<Slug> | undefined;
   let events: Sourced<readonly Slug[]> | undefined;
+  let shot: Sourced<ShotDate> | undefined;
   for (const { source, details } of layers) {
     author = scalar(author, details.author, source);
     copyright = scalar(copyright, details.copyright, source);
@@ -70,6 +72,7 @@ export function resolveDetails(
     film = scalar(film, details.film, source);
     lens = scalar(lens, details.lens, source);
     events = list(events, details.events, source);
+    shot = scalar(shot, details.shot, source);
   }
   // Only the details that are set.
   return {
@@ -79,5 +82,6 @@ export function resolveDetails(
     ...(film === undefined ? {} : { film }),
     ...(lens === undefined ? {} : { lens }),
     ...(events === undefined ? {} : { events }),
+    ...(shot === undefined ? {} : { shot }),
   };
 }

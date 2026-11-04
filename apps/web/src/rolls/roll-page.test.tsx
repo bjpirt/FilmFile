@@ -73,6 +73,7 @@ function aFrameWithScan(number: string | null, file: string): Frame {
     camera: null,
     lens: null,
     events: null,
+    shot: null,
     defaultVersion: null,
     versions: [
       {
@@ -1261,6 +1262,7 @@ test('shows a placeholder for a frame with no scan', async () => {
         camera: null,
         lens: null,
         events: null,
+        shot: null,
         defaultVersion: null,
         versions: [],
       },

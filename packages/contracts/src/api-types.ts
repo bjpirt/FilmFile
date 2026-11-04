@@ -1908,6 +1908,11 @@ export interface components {
             /** @description The events the frame is in, in place of its roll's, or null to use the roll's. */
             events: string[] | null;
             /**
+             * @description When the frame was shot, in place of its roll's date, or null to use the roll's (D47).
+             * @example 2026-09-14
+             */
+            shot: string | null;
+            /**
              * @description The version shown for the frame, or null for its newest.
              * @example 01M6EAAP694BKWR9HZ4N5Z54XD
              */
@@ -2033,6 +2038,11 @@ export interface components {
             /** @description The frame's own events, or null to use its roll's again. */
             events?: string[] | null;
             /**
+             * @description The frame's own date shot, or null to use its roll's again.
+             * @example 2026-09-14
+             */
+            shot?: string | null;
+            /**
              * @description The version to show for the frame, one of its own, or null to show its newest.
              * @example 01M6EAAP694BKWR9HZ4N5Z54XD
              */
@@ -2085,6 +2095,15 @@ export interface components {
             };
             events?: {
                 value: string[];
+                source: {
+                    /** @enum {string} */
+                    layer: "archive" | "roll" | "frame";
+                    id: string;
+                };
+            };
+            shot?: {
+                /** @example 2026-09-14 */
+                value: string;
                 source: {
                     /** @enum {string} */
                     layer: "archive" | "roll" | "frame";

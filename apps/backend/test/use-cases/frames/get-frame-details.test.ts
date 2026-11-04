@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { InMemoryArchiveRepository } from '../../../src/adapters/outbound/memory/in-memory-archive-repository.ts';
 import { InMemoryRollRepository } from '../../../src/adapters/outbound/memory/in-memory-roll-repository.ts';
 import { GetFrameDetails } from '../../../src/application/use-cases/frames/get-frame-details.ts';
+import { isShotDate } from '../../../src/domain/rolls/shot-date.ts';
 import { isFrameId } from '../../../src/domain/shared/ids.ts';
 import {
   aCamera,
@@ -71,6 +72,28 @@ describe('GetFrameDetails', () => {
       ok: true,
       value: {
         camera: { value: leica, source: { layer: 'frame', id: frame.id } },
+      },
+    });
+  });
+
+  test('a frame’s own date shot wins over its roll’s', async () => {
+    const rolls = new InMemoryRollRepository();
+    const frame = { ...aFrame(), shot: checked('2026-09-15', isShotDate) };
+    const roll = {
+      ...aRoll({ frames: [frame] }),
+      shot: checked('2026-09-14', isShotDate),
+    };
+    await rolls.create(ctx, roll);
+
+    const details = await new GetFrameDetails(
+      rolls,
+      new InMemoryArchiveRepository(),
+    ).execute(ctx, { rollId: roll.id, frameId: frame.id });
+
+    expect(details).toEqual({
+      ok: true,
+      value: {
+        shot: { value: '2026-09-15', source: { layer: 'frame', id: frame.id } },
       },
     });
   });

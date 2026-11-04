@@ -32,6 +32,7 @@ describe('POST /api/rolls/{id}/frames', () => {
       camera: null,
       lens: null,
       events: null,
+      shot: null,
       defaultVersion: null,
       versions: [],
     });
@@ -128,6 +129,7 @@ describe('PATCH /api/rolls/{id}/frames/{frameId}', () => {
       camera: null,
       lens: null,
       events: null,
+      shot: null,
       defaultVersion: null,
       versions: [],
     });

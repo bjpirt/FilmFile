@@ -57,6 +57,25 @@ function inShotOrder(rolls: readonly Roll[]): Roll[] {
   });
 }
 
+/**
+ * Frames by when they were shot: a frame's own date where it has one, else
+ * its roll's (D47); undated last. Frames shot on the same date keep the
+ * order they're given in.
+ */
+function byDateShot(frames: readonly RollFrame[]): RollFrame[] {
+  const shot = ({ roll, frame }: RollFrame) => frame.shot ?? roll.shot;
+  return [...frames].sort((a, b) => {
+    const [x, y] = [shot(a), shot(b)];
+    if (x === y) {
+      return 0;
+    }
+    if (x === null || y === null) {
+      return x === null ? 1 : -1;
+    }
+    return x.localeCompare(y);
+  });
+}
+
 /** Frames under each title, keeping their order, in the order titles first appear. */
 function groupedBy(
   frames: readonly RollFrame[],
@@ -142,10 +161,12 @@ export function useEventFrames(
       status: event.error instanceof EventNotFound ? 'not-found' : 'failed',
     };
   }
-  const frames: RollFrame[] = inShotOrder(rolls.data.rolls).flatMap((roll) =>
-    inFrameOrder(roll.frames)
-      .filter((frame) => eventsOfFrame(frame, roll).includes(slug))
-      .map((frame) => ({ roll, frame })),
+  const frames: RollFrame[] = byDateShot(
+    inShotOrder(rolls.data.rolls).flatMap((roll) =>
+      inFrameOrder(roll.frames)
+        .filter((frame) => eventsOfFrame(frame, roll).includes(slug))
+        .map((frame) => ({ roll, frame })),
+    ),
   );
   const groups: FrameGroup[] = (() => {
     switch (group) {

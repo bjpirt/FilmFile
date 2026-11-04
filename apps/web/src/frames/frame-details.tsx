@@ -10,7 +10,9 @@ import {
 import { filmStockName, useFilmStocks } from '../equipment/use-film-stocks.ts';
 import { lensLabel, lensName, useLenses } from '../equipment/use-lenses.ts';
 import { eventName, useEvents } from '../events/use-events.ts';
+import { DateShotFields } from '../rolls/date-shot-fields.tsx';
 import { formatShot } from '../rolls/format-shot.ts';
+import { shotFieldsOf, shotFrom } from '../rolls/shot-fields.ts';
 import { shownVersion } from '../rolls/shown-version.ts';
 import type { FrameChanges } from './use-save-frame.ts';
 
@@ -94,6 +96,15 @@ interface Fact {
   readonly clear?: FrameChanges;
   /** How it's changed in place, for one the frame can have of its own (U58). */
   readonly edit?: Editing;
+  /** How a date is changed in place: the frame's own date shot (U59). */
+  readonly date?: DateEditing;
+}
+
+/** A date changed in its own fields: year, month, day and time. */
+interface DateEditing {
+  /** The date shown, the frame's own or its roll's, to start from. */
+  readonly current: string | null;
+  readonly change: (shot: string | null) => FrameChanges;
 }
 
 /** A detail changed by choosing from a list: the roll's first, then the archive's. */
@@ -125,7 +136,25 @@ function FactValue({
 }) {
   const [editing, setEditing] = useState(false);
   const label = `Use the roll’s ${fact.label.toLowerCase()}`;
-  const { edit } = fact;
+  const { edit, date } = fact;
+  if (date !== undefined && editing) {
+    return (
+      <dd>
+        <DateField
+          date={date}
+          save={(shot) => {
+            setEditing(false);
+            if (shot !== date.current) {
+              void save(date.change(shot));
+            }
+          }}
+          cancel={() => {
+            setEditing(false);
+          }}
+        />
+      </dd>
+    );
+  }
   if (edit !== undefined && editing) {
     return (
       <dd>
@@ -162,13 +191,13 @@ function FactValue({
   }
   return (
     <dd>
-      {edit === undefined ? (
+      {edit === undefined && date === undefined ? (
         fact.value
       ) : (
         <button
           type="button"
           className="editable-value"
-          aria-label={`Change the ${edit.name}`}
+          aria-label={`Change the ${edit?.name ?? fact.label.toLowerCase()}`}
           onClick={() => {
             setEditing(true);
           }}
@@ -201,6 +230,63 @@ function FactValue({
         </button>
       )}
     </dd>
+  );
+}
+
+/**
+ * A frame's own date shot, in year, month, day and time fields: saved on
+ * Enter or on leaving them, if the year is given; Esc keeps it as it was.
+ */
+function DateField({
+  date,
+  save,
+  cancel,
+}: {
+  readonly date: DateEditing;
+  readonly save: (shot: string | null) => void;
+  readonly cancel: () => void;
+}) {
+  const [fields, setFields] = useState(shotFieldsOf(date.current));
+
+  function done() {
+    const entered = shotFrom(fields);
+    if (entered.valid && entered.shot !== undefined) {
+      save(entered.shot);
+    } else {
+      cancel();
+    }
+  }
+
+  return (
+    <form
+      className="date-field"
+      onSubmit={(event) => {
+        event.preventDefault();
+        done();
+      }}
+      // Leaving the fields, not moving between them, saves.
+      onBlur={(event) => {
+        if (
+          !(event.relatedTarget instanceof Node) ||
+          !event.currentTarget.contains(event.relatedTarget)
+        ) {
+          done();
+        }
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          // Keeps the date, and the frame view.
+          event.stopPropagation();
+          cancel();
+        }
+      }}
+    >
+      <DateShotFields shot={fields} change={setFields} legend="Date shot" />
+      {/* Enter in the year or time submits the form. */}
+      <button type="submit" hidden>
+        Save the date shot
+      </button>
+    </form>
   );
 }
 
@@ -340,8 +426,17 @@ export function FrameDetails({
       },
     },
     {
-      label: 'Shot',
-      value: roll.shot === null ? undefined : formatShot(roll.shot),
+      label: 'Date shot',
+      value:
+        inherited?.shot === undefined
+          ? undefined
+          : formatShot(inherited.shot.value),
+      from: inherited?.shot?.source.layer,
+      clear: { shot: null },
+      date: {
+        current: inherited?.shot?.value ?? null,
+        change: (shot: string | null) => ({ shot }),
+      },
     },
     // One that can be changed here is shown even when not set, so it can be.
   ].filter((fact) => fact.value !== undefined || fact.edit !== undefined);

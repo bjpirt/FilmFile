@@ -116,6 +116,10 @@ export const storedFrame = z.object({
     .array(branded<Slug>(isSlug, 'must be a slug like iceland-2026'))
     .optional(),
   meta: storedMeta.optional(),
+  shot: branded<ShotDate>(
+    isShotDate,
+    'must be a date like 2026-09-14',
+  ).optional(),
   defaultVersion: branded<VersionId>(isVersionId, 'must be a ULID')
     .nullable()
     .default(null),
@@ -200,13 +204,14 @@ export function parseRollFile(text: string): Result<Roll, string> {
 
 /** A frame as read from its stored form. */
 export function frameFromStored(stored: z.output<typeof storedFrame>): Frame {
-  const { meta, events, ...rest } = stored;
+  const { meta, events, shot, ...rest } = stored;
   return {
     ...rest,
     // A film stock a frame was given before frames couldn't have one (D45) is left out.
     camera: meta?.camera ?? null,
     lens: meta?.lens ?? null,
     events: events ?? null,
+    shot: shot ?? null,
     versions: stored.versions.map(({ transform, ...version }) => ({
       ...version,
       added: new Date(version.added),
@@ -233,6 +238,7 @@ export function storedFrameOf(frame: Frame): z.input<typeof storedFrame> {
             ...(frame.lens === null ? {} : { lens: frame.lens }),
           },
         }),
+    ...(frame.shot === null ? {} : { shot: frame.shot }),
     defaultVersion: frame.defaultVersion,
     versions: frame.versions.map((version) => ({
       id: version.id,

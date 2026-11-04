@@ -43,6 +43,7 @@ export class CreateFrame {
         camera: null,
         lens: null,
         events: null,
+        shot: null,
         defaultVersion: null,
         versions: [],
       };

@@ -38,6 +38,15 @@ export const version = z
   })
   .meta({ id: 'Version', description: 'One image file of a frame.' });
 
+/** When a roll was shot: a year, then optionally month, day and local time (D27). */
+export const shotDate = z
+  .string()
+  .regex(
+    /^\d{4}(-\d{2}(-\d{2}(T\d{2}:\d{2})?)?)?$/,
+    'must be a year, optionally with month, day and time, like 2026, 2026-09, 2026-09-14 or 2026-09-14T15:30',
+  )
+  .meta({ example: '2026-09-14' });
+
 export const frame = z
   .object({
     id: ulid,
@@ -61,21 +70,16 @@ export const frame = z
       description:
         "The events the frame is in, in place of its roll's, or null to use the roll's.",
     }),
+    shot: shotDate.nullable().meta({
+      description:
+        "When the frame was shot, in place of its roll's date, or null to use the roll's (D47).",
+    }),
     defaultVersion: ulid.nullable().meta({
       description: 'The version shown for the frame, or null for its newest.',
     }),
     versions: z.array(version),
   })
   .meta({ id: 'Frame' });
-
-/** When a roll was shot: a year, then optionally month, day and local time (D27). */
-export const shotDate = z
-  .string()
-  .regex(
-    /^\d{4}(-\d{2}(-\d{2}(T\d{2}:\d{2})?)?)?$/,
-    'must be a year, optionally with month, day and time, like 2026, 2026-09, 2026-09-14 or 2026-09-14T15:30',
-  )
-  .meta({ example: '2026-09-14' });
 
 export const roll = z
   .object({
@@ -188,6 +192,10 @@ export const updateFrameRequest = z
     events: z.array(slug).max(50).nullable().optional().meta({
       description: "The frame's own events, or null to use its roll's again.",
     }),
+    shot: shotDate.nullable().optional().meta({
+      description:
+        "The frame's own date shot, or null to use its roll's again.",
+    }),
     defaultVersion: ulid.nullable().optional().meta({
       description:
         'The version to show for the frame, one of its own, or null to show its newest.',
@@ -293,6 +301,7 @@ export const frameDetails = z
     film: sourced(slug),
     lens: sourced(slug),
     events: sourced(z.array(slug)),
+    shot: sourced(shotDate),
   })
   .meta({
     id: 'FrameDetails',
