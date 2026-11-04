@@ -2,9 +2,13 @@ import type { ApiClient } from '@filmfile/contracts/client';
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { cameraName, useCameras } from '../equipment/use-cameras.ts';
+import {
+  cameraLabel,
+  cameraName,
+  useCameras,
+} from '../equipment/use-cameras.ts';
 import { filmStockName, useFilmStocks } from '../equipment/use-film-stocks.ts';
-import { lensName, useLenses } from '../equipment/use-lenses.ts';
+import { lensLabel, lensName, useLenses } from '../equipment/use-lenses.ts';
 import { eventName, useEvents } from '../events/use-events.ts';
 import { formatShot } from '../rolls/format-shot.ts';
 import { shownVersion } from '../rolls/shown-version.ts';
@@ -88,6 +92,24 @@ interface Fact {
   readonly from?: 'archive' | 'roll' | 'frame' | undefined;
   /** The change that goes back to the roll's, for one the frame can have of its own. */
   readonly clear?: FrameChanges;
+  /** How it's changed in place, for one the frame can have of its own (U58). */
+  readonly edit?: Editing;
+}
+
+/** A detail changed by choosing from a list: the roll's first, then the archive's. */
+interface Editing {
+  /** What it's called in "Change the camera". */
+  readonly name: string;
+  /** The roll's, as the list's first choice says it: "Nikon FE", or "none". */
+  readonly rolls: string;
+  readonly choices: readonly {
+    readonly value: string;
+    readonly label: string;
+  }[];
+  /** The frame's own, or '' when it uses the roll's. */
+  readonly current: string;
+  /** The save for a choice: a slug, or null for the roll's. */
+  readonly change: (value: string | null) => FrameChanges;
 }
 
 /**
@@ -101,10 +123,59 @@ function FactValue({
   readonly fact: Fact;
   readonly save: (changes: FrameChanges) => Promise<void>;
 }) {
+  const [editing, setEditing] = useState(false);
   const label = `Use the roll’s ${fact.label.toLowerCase()}`;
+  const { edit } = fact;
+  if (edit !== undefined && editing) {
+    return (
+      <dd>
+        <select
+          aria-label={fact.label}
+          autoFocus
+          value={edit.current}
+          onChange={(event) => {
+            setEditing(false);
+            const chosen = event.target.value;
+            void save(edit.change(chosen === '' ? null : chosen));
+          }}
+          // Clicking away leaves it as it was.
+          onBlur={() => {
+            setEditing(false);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              // Closes the list, not the frame view.
+              event.stopPropagation();
+              setEditing(false);
+            }
+          }}
+        >
+          <option value="">The roll’s: {edit.rolls}</option>
+          {edit.choices.map((choice) => (
+            <option key={choice.value} value={choice.value}>
+              {choice.label}
+            </option>
+          ))}
+        </select>
+      </dd>
+    );
+  }
   return (
     <dd>
-      {fact.value}
+      {edit === undefined ? (
+        fact.value
+      ) : (
+        <button
+          type="button"
+          className="editable-value"
+          aria-label={`Change the ${edit.name}`}
+          onClick={() => {
+            setEditing(true);
+          }}
+        >
+          {fact.value ?? 'Not set'}
+        </button>
+      )}
       {fact.from === 'frame' && fact.clear !== undefined && (
         <button
           type="button"
@@ -217,17 +288,33 @@ export function FrameDetails({
       label: 'Camera',
       value: cameraName(cameras, inherited?.camera?.value ?? null),
       from: inherited?.camera?.source.layer,
-      ...(inherited?.camera === undefined
-        ? {}
-        : {
-            clear: { camera: null },
-          }),
+      clear: { camera: null },
+      edit: {
+        name: 'camera',
+        rolls: cameraName(cameras, roll.camera) ?? 'none',
+        choices: cameras.map((camera) => ({
+          value: camera.slug,
+          label: cameraLabel(camera),
+        })),
+        current: frame.camera ?? '',
+        change: (camera: string | null) => ({ camera }),
+      },
     },
     {
       label: 'Lens',
       value: lensName(lenses, inherited?.lens?.value ?? null),
       from: inherited?.lens?.source.layer,
-      ...(inherited?.lens === undefined ? {} : { clear: { lens: null } }),
+      clear: { lens: null },
+      edit: {
+        name: 'lens',
+        rolls: lensName(lenses, roll.lens) ?? 'none',
+        choices: lenses.map((lens) => ({
+          value: lens.slug,
+          label: lensLabel(lens),
+        })),
+        current: frame.lens ?? '',
+        change: (lens: string | null) => ({ lens }),
+      },
     },
     {
       label: 'Film stock',
@@ -239,12 +326,25 @@ export function FrameDetails({
       value: frameEvents.length === 0 ? undefined : frameEvents.join(', '),
       from: inherited?.events?.source.layer,
       clear: { events: null },
+      edit: {
+        name: 'event',
+        rolls: eventName(events, roll.event) ?? 'none',
+        choices: events.map((event) => ({
+          value: event.slug,
+          label: event.name,
+        })),
+        current: frame.events?.[0] ?? '',
+        change: (event: string | null) => ({
+          events: event === null ? null : [event],
+        }),
+      },
     },
     {
       label: 'Shot',
       value: roll.shot === null ? undefined : formatShot(roll.shot),
     },
-  ].filter((fact) => fact.value !== undefined);
+    // One that can be changed here is shown even when not set, so it can be.
+  ].filter((fact) => fact.value !== undefined || fact.edit !== undefined);
   const shown = shownVersion(frame);
 
   return (

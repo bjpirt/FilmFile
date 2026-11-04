@@ -1138,6 +1138,28 @@ textarea {
   margin: 0;
 }
 
+/* A detail changed in place: a faint dashed underline says it can be clicked (U58). */
+.editable-value {
+  background: none;
+  border: 0;
+  border-bottom: 1px dashed var(--border-strong);
+  border-radius: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  min-height: 0;
+  padding: 1px 0;
+  text-align: left;
+}
+
+.editable-value:hover {
+  border-bottom-color: var(--accent);
+}
+
+.frame-facts select {
+  width: 100%;
+}
+
 /* Beside a frame's own detail: goes back to the roll's. */
 .reset-detail {
   align-items: center;

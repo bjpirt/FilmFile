@@ -726,3 +726,147 @@ describe('a frame’s own details, and those it inherits', () => {
     expect(await screen.findByText('Nikon FE')).toBeDefined();
   });
 });
+
+describe('editing a frame’s details in place', () => {
+  const leica = { slug: 'leica-m6', make: 'Leica', model: 'M6' };
+  const nikon = { slug: 'nikon-fe', make: 'Nikon', model: 'FE' };
+
+  function openWith(
+    frameCamera: string | null,
+    rollCamera: string | null = 'nikon-fe',
+  ): FakeArchive {
+    const roll = aRoll('2026-031', {
+      camera: rollCamera,
+      event: 'iceland',
+      frames: [{ ...aFrame('1', '12340001.jpg'), camera: frameCamera }],
+    });
+    const archive = fakeArchive({
+      rolls: [roll],
+      cameras: [nikon, leica],
+      events: [
+        { slug: 'iceland', name: 'Iceland', date: null },
+        { slug: 'westfjords', name: 'Westfjords', date: null },
+      ],
+    });
+    openAt(`/rolls/${roll.id}/frames/${roll.frames[0]?.id ?? ''}`, archive);
+    return archive;
+  }
+
+  /** The details panel, once it shows the camera as given. */
+  async function panel(camera = 'Nikon FE'): Promise<HTMLElement> {
+    const show = await screen.findByRole('button', {
+      name: /^(Show|Hide) details$/,
+    });
+    if (show.getAttribute('aria-expanded') === 'false') {
+      fireEvent.click(show);
+    }
+    const details = await screen.findByRole('complementary', {
+      name: 'About this frame',
+    });
+    await within(details).findAllByText(camera);
+    return details;
+  }
+
+  test('changes the camera to one of the archive’s, as the frame’s own', async () => {
+    const archive = openWith(null);
+    const details = await panel();
+
+    fireEvent.click(
+      within(details).getByRole('button', { name: 'Change the camera' }),
+    );
+    const choice = within(details).getByRole('combobox', { name: 'Camera' });
+    expect(
+      within(choice)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+      // The roll's first, then the archive's, as it lists them.
+    ).toEqual(['The roll’s: Nikon FE', 'Nikon FE', 'Leica M6']);
+    fireEvent.change(choice, { target: { value: 'leica-m6' } });
+
+    await vi.waitFor(() => {
+      expect(archive.rolls[0]?.frames[0]?.camera).toBe('leica-m6');
+    });
+    expect(await within(details).findByText('Leica M6')).toBeDefined();
+    expect(within(details).queryByRole('combobox')).toBeNull();
+    expect(
+      within(details).getByRole('button', { name: 'Use the roll’s camera' }),
+    ).toBeDefined();
+  });
+
+  test('goes back to the roll’s by choosing it', async () => {
+    const archive = openWith('leica-m6');
+    const details = await panel('Leica M6');
+
+    fireEvent.click(
+      within(details).getByRole('button', { name: 'Change the camera' }),
+    );
+    fireEvent.change(
+      within(details).getByRole('combobox', { name: 'Camera' }),
+      {
+        target: { value: '' },
+      },
+    );
+
+    await vi.waitFor(() => {
+      expect(archive.rolls[0]?.frames[0]?.camera).toBeNull();
+    });
+  });
+
+  test('puts the frame in another event', async () => {
+    const archive = openWith(null);
+    const details = await panel();
+
+    fireEvent.click(
+      within(details).getByRole('button', { name: 'Change the event' }),
+    );
+    fireEvent.change(within(details).getByRole('combobox', { name: 'Event' }), {
+      target: { value: 'westfjords' },
+    });
+
+    await vi.waitFor(() => {
+      expect(archive.rolls[0]?.frames[0]?.events).toEqual(['westfjords']);
+    });
+  });
+
+  test('leaves it as it was on Esc, still in the frame view', async () => {
+    const archive = openWith(null);
+    const details = await panel();
+    fireEvent.click(
+      within(details).getByRole('button', { name: 'Change the camera' }),
+    );
+
+    fireEvent.keyDown(
+      within(details).getByRole('combobox', { name: 'Camera' }),
+      {
+        key: 'Escape',
+      },
+    );
+
+    expect(within(details).queryByRole('combobox')).toBeNull();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Frame 1' }),
+    ).toBeDefined();
+    expect(archive.ifMatches).toEqual([]);
+  });
+
+  test('offers a camera to set when neither the roll nor the frame has one', async () => {
+    openWith(null, null);
+    const details = await panel('Not set');
+
+    const change = await within(details).findByRole('button', {
+      name: 'Change the camera',
+    });
+    expect(change.textContent).toBe('Not set');
+  });
+
+  test('changes only the camera, lens and event here', async () => {
+    openWith(null);
+    const details = await panel();
+
+    expect(
+      within(details)
+        .getAllByRole('button', { name: /^Change the/ })
+        .map((button) => button.getAttribute('aria-label')),
+    ).toEqual(['Change the camera', 'Change the lens', 'Change the event']);
+  });
+});
