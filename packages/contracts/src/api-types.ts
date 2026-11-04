@@ -416,8 +416,8 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Set or clear many frames' numbers in one save
-         * @description As when renumbering a roll. Frames not listed are left alone. Send the roll's ETag as If-Match: the change is refused if the roll has changed since. The response's ETag is the roll's new version.
+         * Change many frames in one save
+         * @description Their numbers, as when renumbering a roll, or the same details of their own for each, as when frames are selected and set together. Frames not listed are left alone. Send the roll's ETag as If-Match: the change is refused if the roll has changed since. The response's ETag is the roll's new version.
          */
         patch: {
             parameters: {
@@ -433,11 +433,11 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["UpdateFrameNumbersRequest"];
+                    "application/json": components["schemas"]["UpdateFrameNumbersRequest"] | components["schemas"]["UpdateFrameDetailsRequest"];
                 };
             };
             responses: {
-                /** @description The roll, with its new numbers. */
+                /** @description The roll, with its frames changed. */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -1940,6 +1940,17 @@ export interface components {
                  */
                 number: string | null;
             }[];
+        };
+        /** @description Gives every frame listed the same camera, film stock, lens or events of its own. A detail left out stays as each frame has it; null goes back to the roll's. */
+        UpdateFrameDetailsRequest: {
+            frameIds: string[];
+            /** @example nikon-fe */
+            camera?: string | null;
+            /** @example nikon-fe */
+            film?: string | null;
+            /** @example nikon-fe */
+            lens?: string | null;
+            events?: string[] | null;
         };
         /** @description The details to change; a detail left out stays as it is. */
         UpdateFrameRequest: {

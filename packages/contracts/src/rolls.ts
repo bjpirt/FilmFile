@@ -201,7 +201,7 @@ export const updateFrameRequest = z
   });
 
 export const updateFrameNumbersRequest = z
-  .object({
+  .strictObject({
     numbers: z.array(
       z.object({
         frameId: ulid,
@@ -212,6 +212,26 @@ export const updateFrameNumbersRequest = z
     ),
   })
   .meta({ id: 'UpdateFrameNumbersRequest' });
+
+export const updateFrameDetailsRequest = z
+  .strictObject({
+    frameIds: z.array(ulid).min(1).max(1000),
+    camera: slug.nullable().optional(),
+    film: slug.nullable().optional(),
+    lens: slug.nullable().optional(),
+    events: z.array(slug).max(50).nullable().optional(),
+  })
+  .meta({
+    id: 'UpdateFrameDetailsRequest',
+    description:
+      "Gives every frame listed the same camera, film stock, lens or events of its own. A detail left out stays as each frame has it; null goes back to the roll's.",
+  });
+
+/** Many frames changed in one save: their numbers, or their own details. */
+export const updateFramesRequest = z.union([
+  updateFrameNumbersRequest,
+  updateFrameDetailsRequest,
+]);
 
 /** The roll's version, from the ETag it was read with, so a changed roll isn't overwritten. */
 export const ifMatchHeader = z.object({

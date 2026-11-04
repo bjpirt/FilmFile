@@ -548,7 +548,68 @@
         },
         "required": [
           "numbers"
-        ]
+        ],
+        "additionalProperties": false
+      },
+      "UpdateFrameDetailsRequest": {
+        "type": "object",
+        "properties": {
+          "frameIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "minItems": 1,
+            "maxItems": 1000
+          },
+          "camera": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe"
+          },
+          "film": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe"
+          },
+          "lens": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe"
+          },
+          "events": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string",
+              "maxLength": 60,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "example": "nikon-fe"
+            },
+            "maxItems": 50
+          }
+        },
+        "required": [
+          "frameIds"
+        ],
+        "additionalProperties": false,
+        "description": "Gives every frame listed the same camera, film stock, lens or events of its own. A detail left out stays as each frame has it; null goes back to the roll's."
       },
       "UpdateFrameRequest": {
         "type": "object",
@@ -1739,8 +1800,8 @@
         }
       },
       "patch": {
-        "summary": "Set or clear many frames' numbers in one save",
-        "description": "As when renumbering a roll. Frames not listed are left alone. Send the roll's ETag as If-Match: the change is refused if the roll has changed since. The response's ETag is the roll's new version.",
+        "summary": "Change many frames in one save",
+        "description": "Their numbers, as when renumbering a roll, or the same details of their own for each, as when frames are selected and set together. Frames not listed are left alone. Send the roll's ETag as If-Match: the change is refused if the roll has changed since. The response's ETag is the roll's new version.",
         "parameters": [
           {
             "schema": {
@@ -1768,14 +1829,21 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateFrameNumbersRequest"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/UpdateFrameNumbersRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UpdateFrameDetailsRequest"
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "The roll, with its new numbers.",
+            "description": "The roll, with its frames changed.",
             "content": {
               "application/json": {
                 "schema": {

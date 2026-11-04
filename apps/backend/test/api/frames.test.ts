@@ -291,6 +291,44 @@ describe('PATCH /api/rolls/{id}/frames', () => {
     });
   }
 
+  test('gives many frames the same details of their own in one save', async () => {
+    await post('/api/equipment/cameras', { make: 'Leica', model: 'M6' });
+    await post('/api/events', { name: 'Westfjords' });
+    const { frameIds, url, etag } = await aRollWithFrames(3);
+
+    const response = await patchNumbers(
+      url,
+      {
+        frameIds: [frameIds[0], frameIds[2]],
+        camera: 'leica-m6',
+        events: ['westfjords'],
+      },
+      etag,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('ETag')).not.toBe(etag);
+    expect(await response.json()).toMatchObject({
+      frames: [
+        { camera: 'leica-m6', events: ['westfjords'] },
+        { camera: null, events: null },
+        { camera: 'leica-m6', events: ['westfjords'] },
+      ],
+    });
+  });
+
+  test.each([
+    ['no frames', { frameIds: [], camera: null }, 422],
+    ['a camera not in the archive', { camera: 'nikon-f3' }, 422],
+    ['numbers and details together', { numbers: [], camera: null }, 422],
+  ])('refuses %s', async (_case, change, status) => {
+    const { frameIds, url, etag } = await aRollWithFrames(1);
+
+    expect(
+      (await patchNumbers(url, { frameIds, ...change }, etag)).status,
+    ).toBe(status);
+  });
+
   test('sets many frames’ numbers in one save, returning the roll and its new ETag', async () => {
     const { rollId, frameIds, url, etag } = await aRollWithFrames(3);
 

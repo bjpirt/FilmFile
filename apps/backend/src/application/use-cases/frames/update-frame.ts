@@ -9,40 +9,14 @@ import type {
 } from '../../../domain/shared/domain-error.ts';
 import type { FrameId, RollId } from '../../../domain/shared/ids.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
-import type { Slug } from '../../../domain/shared/slug.ts';
 import type { EquipmentRepository } from '../../ports/equipment-repository.ts';
 import type { EventRepository } from '../../ports/event-repository.ts';
 import type { RollRepository } from '../../ports/roll-repository.ts';
 import { knownCamera } from '../rolls/known-camera.ts';
-import { knownEvent } from '../rolls/known-event.ts';
 import { knownFilmStock } from '../rolls/known-film-stock.ts';
 import { knownLens } from '../rolls/known-lens.ts';
+import { knownEvents } from './known-events.ts';
 import { textOrNull } from '../rolls/text-or-null.ts';
-
-/** Every slug, if each is an event in the archive. */
-async function knownEvents(
-  events: EventRepository,
-  ctx: ArchiveContext,
-  slugs: readonly string[],
-): Promise<Result<readonly Slug[], ValidationFailed>> {
-  const known: Slug[] = [];
-  for (const slug of slugs) {
-    const event = await knownEvent(events, ctx, slug);
-    if (!event.ok) {
-      return err({
-        kind: 'validation-failed',
-        issues: [
-          {
-            path: ['events'],
-            message: `${slug} is not an event in the archive`,
-          },
-        ],
-      });
-    }
-    known.push(event.value);
-  }
-  return ok(known);
-}
 
 /**
  * Changes a frame's number, the version shown for it (D15), how it's

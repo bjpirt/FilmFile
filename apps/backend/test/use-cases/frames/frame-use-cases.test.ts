@@ -16,6 +16,7 @@ import { DeleteFrame } from '../../../src/application/use-cases/frames/delete-fr
 import { GetOriginal } from '../../../src/application/use-cases/frames/get-original.ts';
 import { GetThumbnail } from '../../../src/application/use-cases/frames/get-thumbnail.ts';
 import { UpdateFrame } from '../../../src/application/use-cases/frames/update-frame.ts';
+import { UpdateFrames } from '../../../src/application/use-cases/frames/update-frames.ts';
 import { UpdateVersion } from '../../../src/application/use-cases/frames/update-version.ts';
 import { UpdateFrameNumbers } from '../../../src/application/use-cases/frames/update-frame-numbers.ts';
 import { CreateRoll } from '../../../src/application/use-cases/rolls/create-roll.ts';
@@ -74,6 +75,7 @@ async function setUp() {
     getOriginal: new GetOriginal(rolls, blobs),
     getThumbnail: new GetThumbnail(rolls, blobs, previews),
     updateFrame: new UpdateFrame(rolls, equipment, events),
+    updateFrames: new UpdateFrames(rolls, equipment, events),
     updateVersion: new UpdateVersion(rolls),
     updateFrameNumbers: new UpdateFrameNumbers(rolls),
   };
@@ -401,6 +403,125 @@ describe('UpdateFrame with the frame’s own details', () => {
       expect((await rolls.get(ctx, roll.id))?.version).toBe(version);
     },
   );
+});
+
+describe('UpdateFrames', () => {
+  async function withThreeFrames() {
+    const setup = await setUp();
+    await setup.equipment.createCamera(ctx, aCamera('Leica', 'M6'));
+    await setup.events.create(ctx, anEvent('Westfjords'));
+    const ids = [
+      await aFrameIn(setup.createFrame, setup.roll.id),
+      await aFrameIn(setup.createFrame, setup.roll.id),
+      await aFrameIn(setup.createFrame, setup.roll.id),
+    ];
+    const read = await setup.rolls.get(ctx, setup.roll.id);
+    return { ...setup, ids, version: read?.version ?? '' };
+  }
+
+  test('gives the frames chosen the same details in one save, leaving the rest', async () => {
+    const { rolls, roll, ids, version, updateFrames } = await withThreeFrames();
+
+    const updated = await updateFrames.execute(ctx, {
+      rollId: roll.id,
+      expectedVersion: version,
+      frameIds: [ids[0] ?? '', ids[2] ?? ''],
+      camera: 'leica-m6',
+      events: ['westfjords'],
+    });
+
+    const after = await rolls.get(ctx, roll.id);
+    expect(updated).toMatchObject({
+      ok: true,
+      value: { version: after?.version },
+    });
+    expect(
+      after?.roll.frames.map((frame) => [frame.camera, frame.events]),
+    ).toEqual([
+      ['leica-m6', ['westfjords']],
+      [null, null],
+      ['leica-m6', ['westfjords']],
+    ]);
+  });
+
+  test('goes back to the roll’s with null, leaving details not given', async () => {
+    const { roll, ids, version, updateFrames } = await withThreeFrames();
+    const set = await updateFrames.execute(ctx, {
+      rollId: roll.id,
+      expectedVersion: version,
+      frameIds: ids,
+      camera: 'leica-m6',
+      events: ['westfjords'],
+    });
+
+    const cleared = await updateFrames.execute(ctx, {
+      rollId: roll.id,
+      expectedVersion: set.ok ? set.value.version : '',
+      frameIds: ids,
+      camera: null,
+    });
+
+    expect(
+      cleared.ok &&
+        cleared.value.roll.frames.map((frame) => [frame.camera, frame.events]),
+    ).toEqual([
+      [null, ['westfjords']],
+      [null, ['westfjords']],
+      [null, ['westfjords']],
+    ]);
+  });
+
+  test('refuses equipment not in the archive, saving nothing', async () => {
+    const { rolls, roll, ids, version, updateFrames } = await withThreeFrames();
+
+    expect(
+      await updateFrames.execute(ctx, {
+        rollId: roll.id,
+        expectedVersion: version,
+        frameIds: ids,
+        lens: 'zeiss-planar',
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { kind: 'validation-failed', issues: [{ path: ['lens'] }] },
+    });
+    expect((await rolls.get(ctx, roll.id))?.version).toBe(version);
+  });
+
+  test('says when a frame isn’t in the roll, saving nothing', async () => {
+    const { rolls, roll, ids, version, updateFrames } = await withThreeFrames();
+
+    expect(
+      await updateFrames.execute(ctx, {
+        rollId: roll.id,
+        expectedVersion: version,
+        frameIds: [ids[0] ?? '', missing],
+        camera: 'leica-m6',
+      }),
+    ).toEqual({
+      ok: false,
+      error: { kind: 'not-found', entity: 'frame', id: missing },
+    });
+    expect((await rolls.get(ctx, roll.id))?.version).toBe(version);
+  });
+
+  test('refuses when the roll changed since it was read', async () => {
+    const { roll, ids, version, createFrame, updateFrames } =
+      await withThreeFrames();
+    await createFrame.execute(ctx, { rollId: roll.id });
+
+    expect(
+      await updateFrames.execute(ctx, {
+        rollId: roll.id,
+        expectedVersion: version,
+        frameIds: ids,
+        camera: 'leica-m6',
+      }),
+    ).toEqual({
+      ok: false,
+      error: { kind: 'concurrency-conflict', entity: 'roll', id: roll.id },
+    });
+  });
 });
 
 describe('DeleteFrame', () => {
