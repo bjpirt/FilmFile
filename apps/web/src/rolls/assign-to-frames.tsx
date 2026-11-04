@@ -1,0 +1,147 @@
+import { useState, type SubmitEvent } from 'react';
+
+/** What selected frames are given: their own camera, film stock, lens or events, or null for their roll's. */
+export interface FramesChange {
+  readonly camera?: string | null;
+  readonly film?: string | null;
+  readonly lens?: string | null;
+  readonly events?: readonly string[] | null;
+}
+
+/** One thing to choose from, e.g. a camera by slug and label. */
+export interface Choice {
+  readonly value: string;
+  readonly label: string;
+}
+
+const details = [
+  { key: 'event', name: 'Event' },
+  { key: 'camera', name: 'Camera' },
+  { key: 'film', name: 'Film stock' },
+  { key: 'lens', name: 'Lens' },
+] as const;
+
+type Detail = (typeof details)[number]['key'];
+
+// Stands for the roll's in the list; no slug can be empty.
+const rollsOwn = '';
+
+function changeOf(detail: Detail, value: string): FramesChange {
+  const chosen = value === rollsOwn ? null : value;
+  switch (detail) {
+    case 'event':
+      return { events: chosen === null ? null : [chosen] };
+    case 'camera':
+      return { camera: chosen };
+    case 'film':
+      return { film: chosen };
+    case 'lens':
+      return { lens: chosen };
+  }
+}
+
+function frames(count: number): string {
+  return count === 1 ? '1 frame' : `${String(count)} frames`;
+}
+
+/**
+ * The selected frames' event, camera, film stock or lens, set together
+ * (U16): a button for each opens a choice of the archive's, or the roll's.
+ */
+export function AssignToFrames({
+  count,
+  choices,
+  apply,
+}: {
+  /** How many frames are selected. */
+  readonly count: number;
+  readonly choices: Readonly<Record<Detail, readonly Choice[]>>;
+  /** Saves the change, giving what to tell the person if it wasn't saved. */
+  readonly apply: (change: FramesChange) => Promise<string | undefined>;
+}) {
+  const [open, setOpen] = useState<Detail | undefined>(undefined);
+  const [value, setValue] = useState(rollsOwn);
+  const [saving, setSaving] = useState(false);
+  const [problem, setProblem] = useState<string | undefined>(undefined);
+  const [done, setDone] = useState<string | undefined>(undefined);
+  const chosen = details.find((detail) => detail.key === open);
+
+  async function send(event: SubmitEvent, detail: (typeof details)[number]) {
+    event.preventDefault();
+    setSaving(true);
+    const notSaved = await apply(changeOf(detail.key, value));
+    setSaving(false);
+    setProblem(notSaved);
+    if (notSaved === undefined) {
+      setDone(
+        value === rollsOwn
+          ? `${frames(count)} ${count === 1 ? 'uses' : 'use'} the roll’s ${detail.name.toLowerCase()}.`
+          : `${detail.name} set on ${frames(count)}.`,
+      );
+      setOpen(undefined);
+    }
+  }
+
+  if (chosen === undefined) {
+    return (
+      <>
+        {details.map((detail) => (
+          <button
+            key={detail.key}
+            type="button"
+            disabled={count === 0}
+            onClick={() => {
+              setOpen(detail.key);
+              setValue(choices[detail.key][0]?.value ?? rollsOwn);
+              setDone(undefined);
+              setProblem(undefined);
+            }}
+          >
+            Set {detail.name.toLowerCase()}…
+          </button>
+        ))}
+        {done !== undefined && <p role="status">{done}</p>}
+      </>
+    );
+  }
+
+  return (
+    <form
+      className="assign-to-frames"
+      aria-label={`Set ${chosen.name.toLowerCase()}`}
+      onSubmit={(event) => void send(event, chosen)}
+    >
+      <label>
+        {chosen.name} for {frames(count)}
+        <select
+          value={value}
+          autoFocus
+          onChange={(event) => {
+            setValue(event.target.value);
+          }}
+        >
+          {choices[chosen.key].map((choice) => (
+            <option key={choice.value} value={choice.value}>
+              {choice.label}
+            </option>
+          ))}
+          <option value={rollsOwn}>
+            The roll’s {chosen.name.toLowerCase()}
+          </option>
+        </select>
+      </label>
+      <button type="submit" className="primary" disabled={saving}>
+        Set
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(undefined);
+        }}
+      >
+        Cancel
+      </button>
+      {problem !== undefined && <p role="alert">{problem}</p>}
+    </form>
+  );
+}

@@ -6,13 +6,21 @@ import { useEffect, useState } from 'react';
 import { Link, navigate } from '../routing.tsx';
 import { droppedFiles } from './dropped-files.ts';
 import { chooseCamera } from '../equipment/choose-camera.ts';
-import { cameraName, useCameras } from '../equipment/use-cameras.ts';
+import {
+  cameraLabel,
+  cameraName,
+  useCameras,
+} from '../equipment/use-cameras.ts';
 import { chooseFilmStock } from '../equipment/choose-film-stock.ts';
 import { chooseLens } from '../equipment/choose-lens.ts';
-import { lensName, useLenses } from '../equipment/use-lenses.ts';
+import { lensLabel, lensName, useLenses } from '../equipment/use-lenses.ts';
 import { chooseEvent } from '../events/choose-event.ts';
 import { eventName, useEvents } from '../events/use-events.ts';
-import { filmStockName, useFilmStocks } from '../equipment/use-film-stocks.ts';
+import {
+  filmStockLabel,
+  filmStockName,
+  useFilmStocks,
+} from '../equipment/use-film-stocks.ts';
 import { EditDetailsPanel, type RollDetails } from './edit-details-panel.tsx';
 import { formatShot } from './format-shot.ts';
 import { frameCount } from './frame-count.ts';
@@ -27,6 +35,7 @@ import {
 } from './renumber-panel.tsx';
 import { describeUpload } from './describe-upload.ts';
 import { uploadScans, type UploadReport } from './upload-scans.ts';
+import { AssignToFrames, type FramesChange } from './assign-to-frames.tsx';
 import { ownDetails } from './own-details.ts';
 import {
   noSelection,
@@ -261,6 +270,38 @@ export function RollPage({
     }
     await queryClient.invalidateQueries({ queryKey: ['rolls', rollId] });
     return 'saved';
+  }
+
+  /** Gives the selected frames the same details of their own (U16), in one save. */
+  async function assignToSelected(
+    chosen: Selection,
+    change: FramesChange,
+  ): Promise<string | undefined> {
+    if (roll.data === undefined) {
+      return undefined;
+    }
+    const { events, ...equipment } = change;
+    const { response } = await api.PATCH('/api/rolls/{rollId}/frames', {
+      params: { path: { rollId }, header: { 'if-match': roll.data.etag } },
+      body: {
+        frameIds: [...chosen.selected],
+        ...equipment,
+        ...(events === undefined
+          ? {}
+          : { events: events === null ? null : [...events] }),
+      },
+    });
+    if (response.status === 409) {
+      // Said by the banner, with its Reload.
+      setChangedElsewhere(true);
+      return undefined;
+    }
+    if (!response.ok) {
+      return "Couldn't set it. Is the service running?";
+    }
+    // The rolls list and event pages show frames' details too.
+    await queryClient.invalidateQueries({ queryKey: ['rolls'] });
+    return undefined;
   }
 
   /** Deletes a frame, into the archive's deleted folder, if the roll hasn't changed since it loaded. */
@@ -660,6 +701,28 @@ export function RollPage({
               >
                 Done
               </button>
+              <AssignToFrames
+                count={selection.selected.size}
+                choices={{
+                  event: events.map((event) => ({
+                    value: event.slug,
+                    label: event.name,
+                  })),
+                  camera: cameras.map((camera) => ({
+                    value: camera.slug,
+                    label: cameraLabel(camera),
+                  })),
+                  film: films.map((film) => ({
+                    value: film.slug,
+                    label: filmStockLabel(film),
+                  })),
+                  lens: lenses.map((lens) => ({
+                    value: lens.slug,
+                    label: lensLabel(lens),
+                  })),
+                }}
+                apply={(change) => assignToSelected(selection, change)}
+              />
             </div>
           ) : renumbering === undefined ? (
             <div className="sheet-controls">

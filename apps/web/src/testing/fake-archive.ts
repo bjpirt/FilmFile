@@ -20,7 +20,7 @@ import {
 import {
   createFrameRequest,
   createRollRequest,
-  updateFrameNumbersRequest,
+  updateFramesRequest,
   updateFrameRequest,
   updateRollRequest,
   updateVersionRequest,
@@ -505,13 +505,24 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       if (refused !== undefined) {
         return refused;
       }
-      const body = await bodyOf(request, updateFrameNumbersRequest);
+      const body = await bodyOf(request, updateFramesRequest);
       if (!body.ok) {
         return body.response;
       }
-      for (const { frameId: id, number } of body.value.numbers) {
+      if ('numbers' in body.value) {
+        for (const { frameId: id, number } of body.value.numbers) {
+          roll.frames = roll.frames.map((frame) =>
+            frame.id === id ? { ...frame, number } : frame,
+          );
+        }
+      } else {
+        const { frameIds, ...change } = body.value;
+        // A detail left out stays as each frame has it.
+        const given = Object.fromEntries(
+          Object.entries(change).filter(([, value]) => value !== undefined),
+        );
         roll.frames = roll.frames.map((frame) =>
-          frame.id === id ? { ...frame, number } : frame,
+          frameIds.includes(frame.id) ? { ...frame, ...given } : frame,
         );
       }
       change(roll.id);

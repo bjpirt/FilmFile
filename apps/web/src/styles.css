@@ -534,6 +534,18 @@ select {
   margin: 0;
 }
 
+.assign-to-frames,
+.assign-to-frames label {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.assign-to-frames p {
+  margin: 0;
+}
+
 /* Shown on the frame being pointed at or tabbed to, so the sheet stays calm. */
 .frame-delete {
   align-items: center;

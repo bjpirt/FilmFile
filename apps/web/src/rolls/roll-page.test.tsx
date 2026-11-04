@@ -572,6 +572,120 @@ describe('selecting frames', () => {
   });
 });
 
+describe('setting details on selected frames', () => {
+  const leica: Camera = { slug: 'leica-m6', make: 'Leica', model: 'M6' };
+
+  async function selectFramesOf(numbers: string[], archive?: FakeArchive) {
+    const service =
+      archive ??
+      archiveWith(
+        [
+          aFrameWithScan('1', '12340001.jpg'),
+          aFrameWithScan('2', '12340002.jpg'),
+          aFrameWithScan('3', '12340003.jpg'),
+        ],
+        { camera: 'nikon-fe' },
+        {
+          cameras: [nikonFe, leica],
+          events: [{ slug: 'westfjords', name: 'Westfjords', date: null }],
+        },
+      );
+    renderPage(service);
+    fireEvent.click(await screen.findByRole('button', { name: 'Select' }));
+    for (const number of numbers) {
+      fireEvent.click(
+        screen.getByRole('checkbox', { name: `Select frame ${number}` }),
+      );
+    }
+    return service;
+  }
+
+  function setTo(detail: string, label: string, option: string) {
+    fireEvent.click(screen.getByRole('button', { name: `Set ${detail}…` }));
+    const form = screen.getByRole('form', { name: `Set ${detail}` });
+    fireEvent.change(within(form).getByLabelText(label), {
+      target: { value: option },
+    });
+    fireEvent.click(within(form).getByRole('button', { name: 'Set' }));
+  }
+
+  test('can’t set anything until frames are selected', async () => {
+    await selectFramesOf([]);
+
+    expect(
+      screen
+        .getByRole('button', { name: 'Set camera…' })
+        .hasAttribute('disabled'),
+    ).toBe(true);
+  });
+
+  test('gives the selected frames their own camera in one save, marking them', async () => {
+    const service = await selectFramesOf(['1', '3']);
+
+    setTo('camera', 'Camera for 2 frames', 'leica-m6');
+
+    expect(await screen.findByText('Camera set on 2 frames.')).toBeDefined();
+    expect(framesOf(service).map((frame) => frame.camera)).toEqual([
+      'leica-m6',
+      null,
+      'leica-m6',
+    ]);
+    expect(service.ifMatches).toEqual(['"v1"']);
+    await waitFor(() => {
+      expect(screen.getAllByText('Its own camera')).toHaveLength(2);
+    });
+  });
+
+  test('puts the selected frames in an event', async () => {
+    const service = await selectFramesOf(['2']);
+
+    setTo('event', 'Event for 1 frame', 'westfjords');
+
+    await screen.findByText('Event set on 1 frame.');
+    expect(framesOf(service).map((frame) => frame.events)).toEqual([
+      null,
+      ['westfjords'],
+      null,
+    ]);
+  });
+
+  test('gives them back the roll’s', async () => {
+    const service = archiveWith(
+      [
+        { ...aFrameWithScan('1', '12340001.jpg'), camera: 'leica-m6' },
+        aFrameWithScan('2', '12340002.jpg'),
+      ],
+      { camera: 'nikon-fe' },
+      { cameras: [nikonFe, leica] },
+    );
+    await selectFramesOf(['1'], service);
+
+    setTo('camera', 'Camera for 1 frame', '');
+
+    await screen.findByText('1 frame uses the roll’s camera.');
+    expect(framesOf(service).map((frame) => frame.camera)).toEqual([
+      null,
+      null,
+    ]);
+  });
+
+  test('says when the roll changed elsewhere, saving nothing', async () => {
+    const service = await selectFramesOf(['1']);
+    service.changeRoll(rollId);
+
+    setTo('camera', 'Camera for 1 frame', 'leica-m6');
+
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'This roll changed since you opened it.',
+    );
+    expect(framesOf(service).map((frame) => frame.camera)).toEqual([
+      null,
+      null,
+      null,
+    ]);
+  });
+});
+
 describe('deleting the roll', () => {
   beforeEach(() => {
     window.history.replaceState(null, '', `/rolls/${rollId}`);
