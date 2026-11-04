@@ -1913,6 +1913,87 @@
             }
           }
         }
+      },
+      "delete": {
+        "summary": "Delete many frames together",
+        "description": "As when frames are selected. Send the roll's ETag as If-Match: the delete is refused if the roll has changed since. The frames' files and JSON move into the archive's deleted/ folder; nothing is lost. Nothing is deleted if any frame isn't in the roll. The response's ETag is the roll's new version.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "rollId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}(,[0-9A-HJKMNP-TV-Z]{26}){0,999}$",
+              "example": "01JC8Z7K3M0000000000000001,01JC8Z7K3M0000000000000002"
+            },
+            "required": true,
+            "name": "frameIds",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "description": "The roll's ETag, from when it was read."
+            },
+            "required": false,
+            "description": "The roll's ETag, from when it was read.",
+            "name": "if-match",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The frames were deleted."
+          },
+          "404": {
+            "description": "No such roll, or a frame not in it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The roll has changed since it was read.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "If-Match is missing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/rolls/{rollId}/frames/{frameId}": {

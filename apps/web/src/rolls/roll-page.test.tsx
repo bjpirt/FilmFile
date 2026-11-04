@@ -686,6 +686,93 @@ describe('setting details on selected frames', () => {
   });
 });
 
+describe('deleting selected frames', () => {
+  async function selectFramesOf(numbers: string[]) {
+    const service = archiveWith([
+      aFrameWithScan('1', '12340001.jpg'),
+      aFrameWithScan('2', '12340002.jpg'),
+      aFrameWithScan('3', '12340003.jpg'),
+    ]);
+    renderPage(service);
+    fireEvent.click(await screen.findByRole('button', { name: 'Select' }));
+    for (const number of numbers) {
+      fireEvent.click(
+        screen.getByRole('checkbox', { name: `Select frame ${number}` }),
+      );
+    }
+    return service;
+  }
+
+  test('asks to confirm, then deletes them together, sending the roll’s ETag', async () => {
+    const service = await selectFramesOf(['1', '3']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete…' }));
+    const confirm = screen.getByRole('alertdialog', {
+      name: 'Delete 2 frames',
+    });
+    expect(confirm.textContent).toContain('Delete these 2 frames?');
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Delete' }));
+
+    await waitFor(() => {
+      expect(framesOf(service).map((frame) => frame.number)).toEqual(['2']);
+    });
+    expect(service.deleted.map((frame) => frame.number)).toEqual(['1', '3']);
+    expect(service.ifMatches).toEqual(['"v1"']);
+    expect(
+      (await screen.findByRole('status', { name: 'Selection' })).textContent,
+    ).toBe('No frames selected');
+  });
+
+  test('keeps them on Cancel', async () => {
+    const service = await selectFramesOf(['2']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete…' }));
+    fireEvent.click(
+      within(
+        screen.getByRole('alertdialog', { name: 'Delete 1 frame' }),
+      ).getByRole('button', { name: 'Cancel' }),
+    );
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(service.deleted).toEqual([]);
+  });
+
+  test('closes the question on Esc, still selecting', async () => {
+    await selectFramesOf(['2']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete…' }));
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(screen.getAllByRole('checkbox')).toHaveLength(3);
+  });
+
+  test('can’t delete until frames are selected', async () => {
+    await selectFramesOf([]);
+
+    expect(
+      screen.getByRole('button', { name: 'Delete…' }).hasAttribute('disabled'),
+    ).toBe(true);
+  });
+
+  test('says when the roll changed elsewhere, keeping them', async () => {
+    const service = await selectFramesOf(['1']);
+    service.changeRoll(rollId);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete…' }));
+    fireEvent.click(
+      within(
+        screen.getByRole('alertdialog', { name: 'Delete 1 frame' }),
+      ).getByRole('button', { name: 'Delete' }),
+    );
+
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'This roll changed since you opened it.',
+    );
+    expect(service.deleted).toEqual([]);
+  });
+});
+
 describe('deleting the roll', () => {
   beforeEach(() => {
     window.history.replaceState(null, '', `/rolls/${rollId}`);

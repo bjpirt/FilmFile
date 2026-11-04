@@ -233,6 +233,17 @@ export const updateFramesRequest = z.union([
   updateFrameDetailsRequest,
 ]);
 
+/** Frames to delete together, as when they're selected: their IDs, separated by commas. */
+export const deleteFramesQuery = z.object({
+  frameIds: z
+    .string()
+    .regex(
+      /^[0-9A-HJKMNP-TV-Z]{26}(,[0-9A-HJKMNP-TV-Z]{26}){0,999}$/,
+      'must be frame IDs separated by commas',
+    )
+    .meta({ example: '01JC8Z7K3M0000000000000001,01JC8Z7K3M0000000000000002' }),
+});
+
 /** The roll's version, from the ETag it was read with, so a changed roll isn't overwritten. */
 export const ifMatchHeader = z.object({
   'if-match': z

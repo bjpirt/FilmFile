@@ -603,8 +603,15 @@ select {
   align-items: center;
 }
 
-.confirm-roll-delete p {
+.confirm-roll-delete p,
+.confirm-selected-delete p {
   margin: 0;
+}
+
+.confirm-selected-delete {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
 }
 
 button.danger {

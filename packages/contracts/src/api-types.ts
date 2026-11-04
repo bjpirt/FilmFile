@@ -412,7 +412,71 @@ export interface paths {
                 };
             };
         };
-        delete?: never;
+        /**
+         * Delete many frames together
+         * @description As when frames are selected. Send the roll's ETag as If-Match: the delete is refused if the roll has changed since. The frames' files and JSON move into the archive's deleted/ folder; nothing is lost. Nothing is deleted if any frame isn't in the roll. The response's ETag is the roll's new version.
+         */
+        delete: {
+            parameters: {
+                query: {
+                    frameIds: string;
+                };
+                header?: {
+                    /** @description The roll's ETag, from when it was read. */
+                    "if-match"?: string;
+                };
+                path: {
+                    rollId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The frames were deleted. */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description No such roll, or a frame not in it. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The roll has changed since it was read. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The request is invalid. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+                /** @description If-Match is missing. */
+                428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         /**

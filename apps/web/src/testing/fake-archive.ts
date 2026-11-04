@@ -478,6 +478,23 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       change(roll.id);
       return Response.json(roll, { headers: { ETag: etagOf(roll.id) } });
     }
+    if (frameId === undefined && request.method === 'DELETE') {
+      const refused = checkIfMatch(request, roll.id);
+      if (refused !== undefined) {
+        return refused;
+      }
+      const ids = (url.searchParams.get('frameIds') ?? '').split(',');
+      if (!ids.every((id) => roll.frames.some((f) => f.id === id))) {
+        return notFound();
+      }
+      deleted.push(...roll.frames.filter((f) => ids.includes(f.id)));
+      roll.frames = roll.frames.filter((f) => !ids.includes(f.id));
+      change(roll.id);
+      return new Response(null, {
+        status: 204,
+        headers: { ETag: etagOf(roll.id) },
+      });
+    }
     if (frameId === undefined) {
       if (request.method === 'POST') {
         const body = await bodyOf(request, createFrameRequest);

@@ -13,6 +13,7 @@ import type { HoldingArea } from '../../../src/application/ports/holding-area.ts
 import { AddVersion } from '../../../src/application/use-cases/frames/add-version.ts';
 import { CreateFrame } from '../../../src/application/use-cases/frames/create-frame.ts';
 import { DeleteFrame } from '../../../src/application/use-cases/frames/delete-frame.ts';
+import { DeleteFrames } from '../../../src/application/use-cases/frames/delete-frames.ts';
 import { GetOriginal } from '../../../src/application/use-cases/frames/get-original.ts';
 import { GetThumbnail } from '../../../src/application/use-cases/frames/get-thumbnail.ts';
 import { UpdateFrame } from '../../../src/application/use-cases/frames/update-frame.ts';
@@ -64,6 +65,7 @@ async function setUp() {
     holding,
     roll: created.value,
     deleteFrame: new DeleteFrame(rolls, holding, clock),
+    deleteFrames: new DeleteFrames(rolls, holding, clock),
     createFrame: new CreateFrame(rolls, ids),
     addVersion: new AddVersion(
       rolls,
@@ -600,6 +602,75 @@ describe('DeleteFrame', () => {
       ok: false,
       error: { kind: 'not-found', entity: 'frame' },
     });
+  });
+});
+
+describe('DeleteFrames', () => {
+  async function withThreeFrames() {
+    const setup = await setUp();
+    const ids = [
+      await aFrameIn(setup.createFrame, setup.roll.id),
+      await aFrameIn(setup.createFrame, setup.roll.id),
+      await aFrameIn(setup.createFrame, setup.roll.id),
+    ];
+    const read = await setup.rolls.get(ctx, setup.roll.id);
+    return { ...setup, ids, version: read?.version ?? '' };
+  }
+
+  test('takes the frames out of the roll in one save, holding each', async () => {
+    const { rolls, holding, roll, ids, version, deleteFrames } =
+      await withThreeFrames();
+
+    const deleted = await deleteFrames.execute(ctx, {
+      rollId: roll.id,
+      frameIds: [ids[0] ?? '', ids[2] ?? ''],
+      expectedVersion: version,
+    });
+
+    const after = await rolls.get(ctx, roll.id);
+    expect(deleted).toEqual({ ok: true, value: { version: after?.version } });
+    expect(after?.roll.frames.map((frame) => frame.id)).toEqual([ids[1]]);
+    expect(
+      (await holding.list(ctx)).map((held) =>
+        held.kind === 'frame' ? held.frame.id : held.kind,
+      ),
+    ).toEqual([ids[0], ids[2]]);
+  });
+
+  test('says when a frame isn’t in the roll, deleting nothing', async () => {
+    const { rolls, holding, roll, ids, version, deleteFrames } =
+      await withThreeFrames();
+
+    expect(
+      await deleteFrames.execute(ctx, {
+        rollId: roll.id,
+        frameIds: [ids[0] ?? '', missing],
+        expectedVersion: version,
+      }),
+    ).toEqual({
+      ok: false,
+      error: { kind: 'not-found', entity: 'frame', id: missing },
+    });
+    expect((await rolls.get(ctx, roll.id))?.roll.frames).toHaveLength(3);
+    expect(await holding.list(ctx)).toEqual([]);
+  });
+
+  test('refuses when the roll changed since it was read, holding nothing', async () => {
+    const { holding, roll, ids, version, createFrame, deleteFrames } =
+      await withThreeFrames();
+    await createFrame.execute(ctx, { rollId: roll.id });
+
+    expect(
+      await deleteFrames.execute(ctx, {
+        rollId: roll.id,
+        frameIds: ids,
+        expectedVersion: version,
+      }),
+    ).toEqual({
+      ok: false,
+      error: { kind: 'concurrency-conflict', entity: 'roll', id: roll.id },
+    });
+    expect(await holding.list(ctx)).toEqual([]);
   });
 });
 

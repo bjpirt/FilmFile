@@ -7,6 +7,7 @@ import {
   addVersionQuery,
   createFrameRequest,
   createRollRequest,
+  deleteFramesQuery,
   frame,
   frameDetails,
   frameParams,
@@ -25,6 +26,7 @@ import {
 import { bodyLimit } from 'hono/body-limit';
 import type { AddVersion } from '../../../../application/use-cases/frames/add-version.ts';
 import type { CreateFrame } from '../../../../application/use-cases/frames/create-frame.ts';
+import type { DeleteFrames } from '../../../../application/use-cases/frames/delete-frames.ts';
 import type { DeleteFrame } from '../../../../application/use-cases/frames/delete-frame.ts';
 import type { GetFrameDetails } from '../../../../application/use-cases/frames/get-frame-details.ts';
 import type { GetOriginal } from '../../../../application/use-cases/frames/get-original.ts';
@@ -228,6 +230,26 @@ const updateFrame = createRoute({
   },
 });
 
+const deleteFrames = createRoute({
+  method: 'delete',
+  path: '/{rollId}/frames',
+  summary: 'Delete many frames together',
+  description:
+    "As when frames are selected. Send the roll's ETag as If-Match: the delete is refused if the roll has changed since. The frames' files and JSON move into the archive's deleted/ folder; nothing is lost. Nothing is deleted if any frame isn't in the roll. The response's ETag is the roll's new version.",
+  request: {
+    params: rollParams,
+    query: deleteFramesQuery,
+    headers: ifMatchHeader,
+  },
+  responses: {
+    204: { description: 'The frames were deleted.' },
+    404: json(errorResponse, 'No such roll, or a frame not in it.'),
+    409: json(errorResponse, 'The roll has changed since it was read.'),
+    422: invalid,
+    428: json(errorResponse, 'If-Match is missing.'),
+  },
+});
+
 const deleteFrame = createRoute({
   method: 'delete',
   path: '/{rollId}/frames/{frameId}',
@@ -363,6 +385,7 @@ export interface RollUseCases {
   readonly updateFrameNumbers: UpdateFrameNumbers;
   readonly updateFrames: UpdateFrames;
   readonly deleteFrame: DeleteFrame;
+  readonly deleteFrames: DeleteFrames;
   readonly addVersion: AddVersion;
   readonly getFrameDetails: GetFrameDetails;
   readonly getOriginal: GetOriginal;
@@ -519,6 +542,27 @@ export function rollRoutes({
     }
     c.header('ETag', etagOf(updated.value.version));
     return c.json(frameDto(updated.value.frame), 200);
+  });
+
+  routes.openapi(deleteFrames, async (c) => {
+    const { rollId } = c.req.valid('param');
+    if (!isRollId(rollId)) {
+      return c.json(notFound, 404);
+    }
+    const ifMatch = c.req.valid('header')['if-match'];
+    if (ifMatch === undefined) {
+      return c.json({ error: 'send the roll’s ETag as If-Match' }, 428);
+    }
+    const deleted = await useCases.deleteFrames.execute(ctx, {
+      rollId,
+      frameIds: c.req.valid('query').frameIds.split(','),
+      expectedVersion: versionFrom(ifMatch),
+    });
+    if (!deleted.ok) {
+      return domainErrorResponse(c, deleted.error);
+    }
+    c.header('ETag', etagOf(deleted.value.version));
+    return c.body(null, 204);
   });
 
   routes.openapi(deleteFrame, async (c) => {

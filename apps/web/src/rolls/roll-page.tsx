@@ -186,19 +186,26 @@ export function RollPage({
   const [editingDetails, setEditingDetails] = useState(false);
   const [savingNumbers, setSavingNumbers] = useState(false);
   const [numbersNotSaved, setNumbersNotSaved] = useState(false);
-  // Selecting frames, for the bulk actions to come; undefined when not.
+  // Selecting frames, to set details on or delete together; undefined when not.
   const [selection, setSelection] = useState<Selection | undefined>(undefined);
+  const [confirmingSelectedDelete, setConfirmingSelectedDelete] =
+    useState(false);
   const [renumbering, setRenumbering] = useState<RenumberSettings | undefined>(
     undefined,
   );
 
-  // Esc leaves Select mode.
+  // Esc answers "Delete these frames?" with no, or else leaves Select mode.
   useEffect(() => {
     if (selection === undefined) {
       return;
     }
     function onKey(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
+      if (event.key !== 'Escape') {
+        return;
+      }
+      if (confirmingSelectedDelete) {
+        setConfirmingSelectedDelete(false);
+      } else {
         setSelection(undefined);
       }
     }
@@ -206,7 +213,7 @@ export function RollPage({
     return () => {
       window.removeEventListener('keydown', onKey);
     };
-  }, [selection]);
+  }, [selection, confirmingSelectedDelete]);
 
   const roll = useQuery({
     queryKey: ['rolls', rollId],
@@ -270,6 +277,33 @@ export function RollPage({
     }
     await queryClient.invalidateQueries({ queryKey: ['rolls', rollId] });
     return 'saved';
+  }
+
+  /** Deletes the selected frames together (U38), into the archive's deleted folder, if the roll hasn't changed since it loaded. */
+  async function deleteSelected(chosen: Selection) {
+    setConfirmingSelectedDelete(false);
+    if (roll.data === undefined) {
+      return;
+    }
+    setDeleteFailed(false);
+    const { response } = await api.DELETE('/api/rolls/{rollId}/frames', {
+      params: {
+        path: { rollId },
+        query: { frameIds: [...chosen.selected].join(',') },
+        header: { 'if-match': roll.data.etag },
+      },
+    });
+    if (response.status === 409) {
+      setChangedElsewhere(true);
+      return;
+    }
+    if (!response.ok) {
+      setDeleteFailed(true);
+      return;
+    }
+    setSelection(noSelection);
+    // The rolls list counts frames too.
+    await queryClient.invalidateQueries({ queryKey: ['rolls'] });
   }
 
   /** Gives the selected frames the same details of their own (U16), in one save. */
@@ -677,52 +711,91 @@ export function RollPage({
               <p role="status" aria-label="Selection">
                 {selectionCount(selection)}
               </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelection(selectAll(shown.map((frame) => frame.id)));
-                }}
-              >
-                Select all
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelection(noSelection);
-                }}
-              >
-                Clear
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelection(undefined);
-                }}
-              >
-                Done
-              </button>
-              <AssignToFrames
-                count={selection.selected.size}
-                choices={{
-                  event: events.map((event) => ({
-                    value: event.slug,
-                    label: event.name,
-                  })),
-                  camera: cameras.map((camera) => ({
-                    value: camera.slug,
-                    label: cameraLabel(camera),
-                  })),
-                  film: films.map((film) => ({
-                    value: film.slug,
-                    label: filmStockLabel(film),
-                  })),
-                  lens: lenses.map((lens) => ({
-                    value: lens.slug,
-                    label: lensLabel(lens),
-                  })),
-                }}
-                apply={(change) => assignToSelected(selection, change)}
-              />
+              {/* The question takes the buttons' place, so the frames below don't move. */}
+              {confirmingSelectedDelete ? (
+                <div
+                  role="alertdialog"
+                  aria-label={`Delete ${frameCount(selection.selected.size)}`}
+                  className="confirm-selected-delete"
+                >
+                  <p>Delete these {frameCount(selection.selected.size)}?</p>
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() => void deleteSelected(selection)}
+                  >
+                    Delete
+                  </button>
+                  <button
+                    type="button"
+                    autoFocus
+                    onClick={() => {
+                      setConfirmingSelectedDelete(false);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelection(selectAll(shown.map((frame) => frame.id)));
+                    }}
+                  >
+                    Select all
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelection(noSelection);
+                    }}
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmingSelectedDelete(false);
+                      setSelection(undefined);
+                    }}
+                  >
+                    Done
+                  </button>
+                  <AssignToFrames
+                    count={selection.selected.size}
+                    choices={{
+                      event: events.map((event) => ({
+                        value: event.slug,
+                        label: event.name,
+                      })),
+                      camera: cameras.map((camera) => ({
+                        value: camera.slug,
+                        label: cameraLabel(camera),
+                      })),
+                      film: films.map((film) => ({
+                        value: film.slug,
+                        label: filmStockLabel(film),
+                      })),
+                      lens: lenses.map((lens) => ({
+                        value: lens.slug,
+                        label: lensLabel(lens),
+                      })),
+                    }}
+                    apply={(change) => assignToSelected(selection, change)}
+                  />
+                  <button
+                    type="button"
+                    disabled={selection.selected.size === 0}
+                    onClick={() => {
+                      setConfirmingSelectedDelete(true);
+                    }}
+                  >
+                    Delete…
+                  </button>
+                </>
+              )}
             </div>
           ) : renumbering === undefined ? (
             <div className="sheet-controls">

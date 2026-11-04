@@ -413,6 +413,65 @@ describe('PATCH /api/rolls/{id}/frames', () => {
   });
 });
 
+describe('DELETE /api/rolls/{id}/frames', () => {
+  async function aRollWithFrames(count: number) {
+    const rollId = await aRoll();
+    const frameIds: string[] = [];
+    for (let i = 0; i < count; i += 1) {
+      frameIds.push(
+        String(
+          idOf(await (await post(`/api/rolls/${rollId}/frames`, {})).json()),
+        ),
+      );
+    }
+    const etag = (await request(`/api/rolls/${rollId}`)).headers.get('ETag');
+    return { rollId, frameIds, etag: etag ?? '' };
+  }
+
+  function deleteFrames(rollId: string, ids: string, ifMatch?: string) {
+    return request(`/api/rolls/${rollId}/frames?frameIds=${ids}`, {
+      method: 'DELETE',
+      headers: ifMatch === undefined ? {} : { 'If-Match': ifMatch },
+    });
+  }
+
+  test('deletes the frames listed in one save, returning the roll’s new ETag', async () => {
+    const { rollId, frameIds, etag } = await aRollWithFrames(3);
+
+    const response = await deleteFrames(
+      rollId,
+      `${frameIds[0] ?? ''},${frameIds[2] ?? ''}`,
+      etag,
+    );
+
+    expect(response.status).toBe(204);
+    const roll = await request(`/api/rolls/${rollId}`);
+    expect(response.headers.get('ETag')).toBe(roll.headers.get('ETag'));
+    expect(await roll.json()).toMatchObject({ frames: [{ id: frameIds[1] }] });
+    expect(await readdir(path.join(archive.path(), 'deleted'))).toHaveLength(2);
+  });
+
+  test.each([
+    ['no If-Match', undefined, 428],
+    ['a stale If-Match', '"stale"', 409],
+  ])('refuses %s', async (_case, ifMatch, status) => {
+    const { rollId, frameIds } = await aRollWithFrames(1);
+
+    expect(
+      (await deleteFrames(rollId, frameIds[0] ?? '', ifMatch)).status,
+    ).toBe(status);
+  });
+
+  test.each([
+    ['something that isn’t frame IDs', 'nope', 422],
+    ['a frame not in the roll', '01JC8Z7K3M0000000000000000', 404],
+  ])('refuses %s', async (_case, ids, status) => {
+    const { rollId, etag } = await aRollWithFrames(1);
+
+    expect((await deleteFrames(rollId, ids, etag)).status).toBe(status);
+  });
+});
+
 describe('DELETE /api/rolls/{id}/frames/{frameId}', () => {
   /** A roll with one scanned frame: its URL, the roll's ETag, and the scan's bytes. */
   async function aScannedFrame() {
