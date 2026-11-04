@@ -187,7 +187,7 @@ Lab scans are low-res JPEGs of every frame named `BBBBNNNN.jpg` (batch, scan ind
 
 ### 8.2 Own hi-res scans (camera raws), Phase 2
 
-Raws are Sony ARW and Fujifilm RAF files. Each version records where it came from in an optional `source` (lab scan, camera scan, later editor export), so the service knows never to write to a raw; a raw's thumbnail comes from the preview JPEG it carries. Raws are first added to one chosen frame at a time; the scan-list workflow below comes later.
+Every version is a kind (D48): a **Scan**, ready to view at whatever resolution (the lab's low-res scans, or a positive of my own); a **Raw scan**, the negative or slide as scanned, not yet processed; or a **Final**, processed and edited. The kind is chosen as a version is added and can be changed; resolution isn't a kind, since it's measured from the image. Raw scans are Sony ARW raws or TIFFs, never written to; an ARW's thumbnail comes from the preview JPEG it carries. Versions are first added to one chosen frame at a time; exporting raw scans for NegPy or Darktable, adding many frames' raw scans or finals at once, and the scan-list workflow below come later.
 
 1. Frames are marked **needs hi-res** while browsing lab scans.
 2. The tool produces an ordered **scan list** (e.g. `2026-014: 3, 7, 12A, 23`).
