@@ -119,7 +119,7 @@ export function FrameView({
   const next = frames[current + 1];
   const currentInStrip = useRef<HTMLLIElement>(null);
   const [detailsOpen, setDetailsOpen] = useState(rememberedDetailsOpen);
-  const { save, turn, remove, problem } = useSaveFrame(api, shown);
+  const { save, setOnRoll, turn, remove, problem } = useSaveFrame(api, shown);
   const turning = shown === undefined ? undefined : shownVersion(shown.frame);
 
   /** Turns the version shown a quarter turn: 90 clockwise, -90 anticlockwise. */
@@ -348,6 +348,7 @@ export function FrameView({
             roll={shown.roll}
             frame={shown.frame}
             save={save}
+            setOnRoll={setOnRoll}
           />
         )}
       </div>

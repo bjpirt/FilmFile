@@ -8,7 +8,7 @@ import { lensName, useLenses } from '../equipment/use-lenses.ts';
 import { eventName, useEvents } from '../events/use-events.ts';
 import { formatShot } from '../rolls/format-shot.ts';
 import { shownVersion } from '../rolls/shown-version.ts';
-import type { FrameChanges } from './use-save-frame.ts';
+import type { FrameChanges, RollChange } from './use-save-frame.ts';
 
 const months = [
   'Jan',
@@ -80,6 +80,80 @@ function TextField({
   );
 }
 
+/** One of a frame's details, where it came from, and what can be done with it if it's the frame's own. */
+interface Fact {
+  readonly label: string;
+  readonly value: string | undefined;
+  /** The layer it came from (design section 6), or undefined for one of the roll's own, like when it was shot. */
+  readonly from?: 'archive' | 'roll' | 'frame' | undefined;
+  /** The change that goes back to the roll's, for one the frame can have of its own. */
+  readonly clear?: FrameChanges;
+  /** The change that sets it on the roll instead. */
+  readonly onRoll?: RollChange;
+}
+
+const sources = {
+  archive: 'from the archive',
+  roll: 'from the roll',
+  frame: 'this frame’s own',
+} as const;
+
+/**
+ * A detail's value: in grey with where it came from when inherited, or as
+ * the frame's own, which can go back to the roll's or be set on the roll for
+ * every frame (U39).
+ */
+function FactValue({
+  fact,
+  save,
+  setOnRoll,
+}: {
+  readonly fact: Fact;
+  readonly save: (changes: FrameChanges) => Promise<void>;
+  readonly setOnRoll: (change: RollChange) => Promise<void>;
+}) {
+  const own = fact.from === 'frame';
+  const name = fact.label.toLowerCase();
+  return (
+    <dd
+      className={
+        own ? 'own' : fact.from === undefined ? undefined : 'inherited'
+      }
+    >
+      <span className="fact-value">{fact.value}</span>
+      {fact.from !== undefined && (
+        <span className="fact-source">{sources[fact.from]}</span>
+      )}
+      {own && (
+        <span className="fact-actions">
+          {fact.clear !== undefined && (
+            <button
+              type="button"
+              aria-label={`Use the roll’s ${name}`}
+              onClick={() => void save(fact.clear ?? {})}
+            >
+              Use the roll’s
+            </button>
+          )}
+          {fact.onRoll !== undefined && (
+            <button
+              type="button"
+              aria-label={`Set the ${name} on the roll instead`}
+              onClick={() => {
+                if (fact.onRoll !== undefined) {
+                  void setOnRoll(fact.onRoll);
+                }
+              }}
+            >
+              Set on roll instead
+            </button>
+          )}
+        </span>
+      )}
+    </dd>
+  );
+}
+
 /** One to five stars (D39); clicking the rating given clears it. */
 function Stars({
   rating,
@@ -120,11 +194,13 @@ export function FrameDetails({
   roll,
   frame,
   save,
+  setOnRoll,
 }: {
   readonly api: ApiClient;
   readonly roll: Roll;
   readonly frame: Frame;
   readonly save: (changes: FrameChanges) => Promise<void>;
+  readonly setOnRoll: (change: RollChange) => Promise<void>;
 }) {
   const cameras = useCameras(api);
   const films = useFilmStocks(api);
@@ -149,21 +225,54 @@ export function FrameDetails({
     (slug) => eventName(events, slug) ?? slug,
   );
 
-  const facts = [
-    { label: 'Author', value: inherited?.author?.value },
-    { label: 'Copyright', value: inherited?.copyright?.value },
+  const ownEvents = inherited?.events?.value;
+  const facts: readonly Fact[] = [
+    {
+      label: 'Author',
+      value: inherited?.author?.value,
+      from: inherited?.author?.source.layer,
+    },
+    {
+      label: 'Copyright',
+      value: inherited?.copyright?.value,
+      from: inherited?.copyright?.source.layer,
+    },
     {
       label: 'Camera',
       value: cameraName(cameras, inherited?.camera?.value ?? null),
+      from: inherited?.camera?.source.layer,
+      ...(inherited?.camera === undefined
+        ? {}
+        : {
+            clear: { camera: null },
+            onRoll: { camera: inherited.camera.value },
+          }),
     },
-    { label: 'Lens', value: lensName(lenses, inherited?.lens?.value ?? null) },
+    {
+      label: 'Lens',
+      value: lensName(lenses, inherited?.lens?.value ?? null),
+      from: inherited?.lens?.source.layer,
+      ...(inherited?.lens === undefined
+        ? {}
+        : { clear: { lens: null }, onRoll: { lens: inherited.lens.value } }),
+    },
     {
       label: 'Film stock',
       value: filmStockName(films, inherited?.film?.value ?? null),
+      from: inherited?.film?.source.layer,
+      ...(inherited?.film === undefined
+        ? {}
+        : { clear: { film: null }, onRoll: { film: inherited.film.value } }),
     },
     {
       label: frameEvents.length > 1 ? 'Events' : 'Event',
       value: frameEvents.length === 0 ? undefined : frameEvents.join(', '),
+      from: inherited?.events?.source.layer,
+      clear: { events: null },
+      // A roll is in one event of its own, so only one can move onto it.
+      ...(ownEvents?.length === 1 && ownEvents[0] !== undefined
+        ? { onRoll: { event: ownEvents[0] } }
+        : {}),
     },
     {
       label: 'Shot',
@@ -191,11 +300,11 @@ export function FrameDetails({
         onSave={(notes) => void save({ notes })}
       />
       {facts.length > 0 && (
-        <dl className="roll-facts">
+        <dl className="frame-facts">
           {facts.map((fact) => (
             <div key={fact.label}>
               <dt>{fact.label}</dt>
-              <dd>{fact.value}</dd>
+              <FactValue fact={fact} save={save} setOnRoll={setOnRoll} />
             </div>
           ))}
         </dl>

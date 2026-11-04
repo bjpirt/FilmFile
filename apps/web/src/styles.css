@@ -1052,6 +1052,54 @@ textarea {
   margin: 0;
 }
 
+/* A frame's details in the frame view: one to a line, inherited ones in grey with where they came from. */
+.frame-facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-2) 0;
+}
+
+.frame-facts dt {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.frame-facts dd {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+}
+
+.frame-facts .inherited .fact-value {
+  color: var(--text-muted);
+}
+
+.fact-source {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.frame-facts .own .fact-source {
+  color: var(--accent);
+}
+
+.fact-actions {
+  display: flex;
+  flex-basis: 100%;
+  gap: var(--space-2);
+}
+
+.fact-actions button {
+  font-size: 0.8rem;
+  min-height: 2rem;
+  padding: 0 var(--space-2);
+}
+
 .roll-notes {
   max-width: 45rem;
   white-space: pre-line;

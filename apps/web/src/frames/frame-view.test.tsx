@@ -657,3 +657,90 @@ describe('turning the frame', () => {
     ).not.toContain('rotate');
   });
 });
+
+describe('a frame’s own details, and those it inherits', () => {
+  const leica = { slug: 'leica-m6', make: 'Leica', model: 'M6' };
+  const nikon = { slug: 'nikon-fe', make: 'Nikon', model: 'FE' };
+
+  function openWith(frameCamera: string | null): FakeArchive {
+    const roll = aRoll('2026-030', {
+      camera: 'nikon-fe',
+      frames: [
+        { ...aFrame('1', '12340001.jpg'), camera: frameCamera },
+        aFrame('2', '12340002.jpg'),
+      ],
+    });
+    const archive = fakeArchive({
+      rolls: [roll],
+      cameras: [nikon, leica],
+      settings: { ...setUpArchive, author: 'Ben Pirt' },
+    });
+    openAt(`/rolls/${roll.id}/frames/${roll.frames[0]?.id ?? ''}`, archive);
+    return archive;
+  }
+
+  async function detail(label: string): Promise<HTMLElement> {
+    const show = await screen.findByRole('button', {
+      name: /^(Show|Hide) details$/,
+    });
+    if (show.getAttribute('aria-expanded') === 'false') {
+      fireEvent.click(show);
+    }
+    const details = await screen.findByRole('complementary', {
+      name: 'About this frame',
+    });
+    await within(details).findByText('Ben Pirt');
+    const term = within(details).getByText(label, { selector: 'dt' });
+    const value = term.nextElementSibling;
+    if (!(value instanceof HTMLElement)) {
+      throw new Error(`no value for ${label}`);
+    }
+    return value;
+  }
+
+  test('says where each inherited detail came from', async () => {
+    openWith(null);
+
+    expect((await detail('Camera')).textContent).toBe('Nikon FEfrom the roll');
+    expect((await detail('Author')).textContent).toBe(
+      'Ben Pirtfrom the archive',
+    );
+  });
+
+  test('shows the frame’s own, which can go back to the roll’s', async () => {
+    const archive = openWith('leica-m6');
+    const camera = await detail('Camera');
+    expect(camera.textContent).toContain('Leica M6this frame’s own');
+
+    fireEvent.click(
+      within(camera).getByRole('button', { name: 'Use the roll’s camera' }),
+    );
+
+    await vi.waitFor(() => {
+      expect(archive.rolls[0]?.frames[0]?.camera).toBeNull();
+    });
+    expect(await screen.findByText('Nikon FE')).toBeDefined();
+  });
+
+  test('sets the frame’s own on the roll instead, for every frame', async () => {
+    const archive = openWith('leica-m6');
+
+    fireEvent.click(
+      within(await detail('Camera')).getByRole('button', {
+        name: 'Set the camera on the roll instead',
+      }),
+    );
+
+    await vi.waitFor(() => {
+      expect(archive.rolls[0]?.camera).toBe('leica-m6');
+    });
+    await vi.waitFor(() => {
+      expect(archive.rolls[0]?.frames[0]?.camera).toBeNull();
+    });
+    // The roll's change, then the frame's, each against the version before.
+    expect(archive.ifMatches).toEqual(['"v1"', '"v2"']);
+    expect(
+      await screen.findByText('from the roll', { exact: false }),
+    ).toBeDefined();
+  });
+});
