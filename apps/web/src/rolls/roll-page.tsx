@@ -34,6 +34,7 @@ import { describeUpload } from './describe-upload.ts';
 import { uploadScans, type UploadReport } from './upload-scans.ts';
 import { AssignToFrames, type FramesChange } from './assign-to-frames.tsx';
 import { ownDetails } from './own-details.ts';
+import { TextIcon } from '../text-icon.tsx';
 import {
   noSelection,
   selectAll,
@@ -138,7 +139,7 @@ function RollAbout({
   );
 }
 
-/** A small mark on a frame whose details differ from its roll's (U15), named in full for screen readers. */
+/** A small icon on a frame with details of its own or notes (U69), named in full for screen readers and on hover. */
 function OwnDetailsMark({
   frame,
   roll,
@@ -152,7 +153,7 @@ function OwnDetailsMark({
   }
   return (
     <span className="own-details" title={own}>
-      <span aria-hidden="true">Own</span>
+      <TextIcon size={16} />
       <span className="visually-hidden">{own}</span>
     </span>
   );

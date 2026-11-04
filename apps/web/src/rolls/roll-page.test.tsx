@@ -1251,6 +1251,17 @@ test('marks frames with details of their own, saying which', async () => {
   expect(within(second ?? document.body).queryByText(/^Its own/)).toBeNull();
 });
 
+test('marks a frame with notes, as it marks details of its own', async () => {
+  renderPage(
+    archiveWith([
+      { ...aFrameWithScan('1', '12340001.jpg'), notes: 'Lens cap half on' },
+    ]),
+  );
+
+  const [frame] = await screen.findAllByRole('listitem');
+  expect(within(frame ?? document.body).getByText('Has notes')).toBeDefined();
+});
+
 test('shows a placeholder for a frame with no scan', async () => {
   renderPage(
     archiveWith([

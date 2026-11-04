@@ -591,20 +591,17 @@ select {
   position: relative;
 }
 
-/* A frame with details of its own: a small label at the picture's bottom left. */
+/* A frame with details of its own or notes: an icon at the picture's bottom left, the delete icon's size. */
 .own-details {
   background: var(--surface);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-small);
+  border-radius: var(--radius);
   bottom: var(--space-2);
   color: var(--text-muted);
-  font-size: 0.7rem;
+  display: flex;
   left: var(--space-2);
-  letter-spacing: 0.04em;
-  line-height: 1;
-  padding: 0.2rem 0.35rem;
+  padding: var(--space-1);
   position: absolute;
-  text-transform: uppercase;
 }
 
 /* Selecting frames: a checkbox at each frame's top left, and the frames chosen outlined. */
