@@ -86,7 +86,7 @@ describe('an uploaded scan', () => {
 
     expect(response.status).toBe(415);
     expect(await response.json()).toEqual({
-      error: 'The file is not a JPEG, PNG or WebP.',
+      error: 'The file is not a JPEG, PNG, WebP, TIFF or raw.',
     });
     expect(await storedFiles()).toEqual([]);
   });

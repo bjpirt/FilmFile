@@ -67,7 +67,7 @@ test.each<[DomainError, number, unknown]>([
   [
     { kind: 'image-rejected', reason: 'unsupported-type' },
     415,
-    { error: 'The file is not a JPEG, PNG or WebP.' },
+    { error: 'The file is not a JPEG, PNG, WebP, TIFF or raw.' },
   ],
   [
     { kind: 'image-rejected', reason: 'unreadable' },

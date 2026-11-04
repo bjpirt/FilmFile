@@ -2,7 +2,7 @@ import sharp from 'sharp';
 
 /** A small image in the format given; different shades give different bytes. */
 export function anImage(
-  format: 'jpeg' | 'png' | 'webp',
+  format: 'jpeg' | 'png' | 'webp' | 'tiff',
   options: { width?: number; height?: number; shade?: number } = {},
 ): Promise<Buffer> {
   const { width = 30, height = 20, shade = 128 } = options;

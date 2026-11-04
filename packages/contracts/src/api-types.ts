@@ -768,6 +768,9 @@ export interface paths {
                     "image/jpeg": Blob;
                     "image/png": Blob;
                     "image/webp": Blob;
+                    "image/tiff": Blob;
+                    "image/x-sony-arw": Blob;
+                    "application/octet-stream": Blob;
                 };
             };
             responses: {
@@ -1034,6 +1037,9 @@ export interface paths {
                         "image/jpeg": Blob;
                         "image/png": Blob;
                         "image/webp": Blob;
+                        "image/tiff": Blob;
+                        "image/x-sony-arw": Blob;
+                        "application/octet-stream": Blob;
                     };
                 };
                 /** @description No such version. */

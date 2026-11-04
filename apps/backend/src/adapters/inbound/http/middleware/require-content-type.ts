@@ -17,7 +17,12 @@ export function requireContentType(
       .toLowerCase();
     if (sent === undefined || !mediaTypes.includes(sent)) {
       return c.json(
-        { error: `Content-Type must be ${mediaTypes.join(' or ')}` },
+        {
+          error:
+            mediaTypes.length === 1
+              ? `Content-Type must be ${mediaTypes.join('')}`
+              : `Content-Type must be one of ${mediaTypes.join(', ')}`,
+        },
         415,
       );
     }

@@ -317,7 +317,7 @@ Outbound ports, defined in `application/ports/` and implemented by outbound adap
 | `HoldingArea` | Receives deleted versions and frames (their files plus their JSON) and deleted rolls (the whole folder, frames and all), for me to empty by hand. Never deletes | `deleted/` in the archive | S3 prefix |
 | `CatalogueIndex` | Read model for listing and filtering: upsert a resolved roll, remove, query, rebuild | SQLite in the cache directory | SQLite or Postgres |
 | `PreviewProvider` | Thumbnails and previews by content hash, generated lazily | sharp + cache folder | sharp + S3 cache |
-| `ImageInspector` | Reads an uploaded image's pixel dimensions from its header, within the input pixel limit | sharp (exiftool for raws, Phase 2) | same |
+| `ImageInspector` | Reads an uploaded image's pixel dimensions from its header, within the input pixel limit | sharp; a TIFF's or raw's (Sony ARW) size from its TIFF tables, by our own reader | same |
 | `Clock`, `IdGenerator` | Current time; ULIDs | Node | Node |
 
 The inbound adapter in Phase 1:
@@ -397,7 +397,7 @@ packages/
 | HTTP | Hono + `@hono/zod-openapi` |
 | API client | `openapi-typescript` + `openapi-fetch` |
 | Images | `sharp` (libvips): WebP thumbnails and previews keyed by hash |
-| Metadata, raw previews (Phase 2) | `exiftool-vendored` |
+| Metadata (Phase 2) | `exiftool-vendored`; raw previews come from our own reader of TIFF tables (U20) |
 | Index | SQLite via `better-sqlite3`, in the OS cache directory |
 | IDs | ULID |
 | Web UI | React + Vite + TanStack Query |

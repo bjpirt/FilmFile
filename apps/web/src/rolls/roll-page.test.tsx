@@ -1420,7 +1420,7 @@ test('does not upload a file whose name the service would refuse', async () => {
 
   expect(
     await screen.findByText(
-      'Uploaded 0 scans. Not uploaded: scan 1.jpg (must be an image file name like 12340014.jpg, edit.png or edit.webp).',
+      'Uploaded 0 scans. Not uploaded: scan 1.jpg (must be an image file name like 12340014.jpg, edit.png or DSC04412.ARW).',
     ),
   ).toBeDefined();
   expect(framesOf(service)).toHaveLength(0);

@@ -64,6 +64,12 @@ function fileNameOf(version: CollectionFrame['frame']['versions'][number]) {
   return version.file.split('/').at(-1) ?? version.file;
 }
 
+/** The files the picker offers for a kind: raw scans take ARWs and TIFFs too (U20). */
+function acceptFor(kind: VersionKind): string {
+  const web = 'image/jpeg,image/png,image/webp';
+  return kind === 'raw-scan' ? `${web},image/tiff,.tif,.tiff,.arw` : web;
+}
+
 const kindNames: Readonly<Record<VersionKind, string>> = {
   scan: 'Scan',
   'raw-scan': 'Raw scan',
@@ -202,10 +208,14 @@ export function FrameView({
   // The kind chosen from the "+", for the file picked next (U64).
   const addingAs = useRef<VersionKind>('scan');
 
-  /** Opens the file picker for a version of the kind chosen. */
+  /** Opens the file picker for a version of the kind chosen, offering the files that kind takes. */
   function pickVersion(kind: VersionKind) {
     addingAs.current = kind;
-    chooseVersion.current?.click();
+    const picker = chooseVersion.current;
+    if (picker !== null) {
+      picker.accept = acceptFor(kind);
+      picker.click();
+    }
   }
   const [viewing, setViewing] = useState<
     { readonly frameId: string; readonly versionId: string } | undefined
@@ -347,7 +357,6 @@ export function FrameView({
           <input
             ref={chooseVersion}
             type="file"
-            accept="image/jpeg,image/png,image/webp"
             aria-label="Image to add as a version"
             hidden
             onChange={(event) => {

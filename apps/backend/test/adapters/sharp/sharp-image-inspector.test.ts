@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { expect, test } from 'vitest';
 import { aJpeg } from '../../support/a-jpeg.ts';
 import { anImage } from '../../support/an-image.ts';
+import { aRaw } from '../../support/a-raw.ts';
 import { SharpImageInspector } from '../../../src/adapters/outbound/sharp/sharp-image-inspector.ts';
 
 test('reports a JPEG’s hash, size and dimensions', async () => {
@@ -52,4 +53,30 @@ test.each([
   expect(
     await new SharpImageInspector(600).inspect(new Uint8Array(bytes)),
   ).toEqual({ ok: false, error: { kind: 'image-rejected', reason } });
+});
+
+test('reads a TIFF’s size from its tables', async () => {
+  const tiff = new Uint8Array(await anImage('tiff', { width: 30, height: 20 }));
+
+  expect(await new SharpImageInspector(600).inspect(tiff)).toMatchObject({
+    ok: true,
+    value: { width: 30, height: 20 },
+  });
+});
+
+test('reads a raw’s full sensor size, not its preview’s', async () => {
+  const raw = await aRaw({ sensor: { width: 6000, height: 4000 } });
+
+  expect(await new SharpImageInspector(100_000_000).inspect(raw)).toMatchObject(
+    { ok: true, value: { width: 6000, height: 4000 } },
+  );
+});
+
+test('refuses a raw with more pixels than allowed', async () => {
+  const raw = await aRaw({ sensor: { width: 6000, height: 4000 } });
+
+  expect(await new SharpImageInspector(1_000_000).inspect(raw)).toMatchObject({
+    ok: false,
+    error: { reason: 'too-many-pixels' },
+  });
 });

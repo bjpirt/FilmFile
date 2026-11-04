@@ -12,6 +12,12 @@ test.each([
   ['a JPEG', bytes(0xff, 0xd8, 0xff, 0xe0), 'image/jpeg'],
   ['a PNG', bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a), 'image/png'],
   ['a WebP', bytes(...RIFF, 1, 2, 3, 4, ...WEBP), 'image/webp'],
+  [
+    'a little-endian TIFF, as an ARW is',
+    bytes(0x49, 0x49, 42, 0),
+    'image/tiff',
+  ],
+  ['a big-endian TIFF', bytes(0x4d, 0x4d, 0, 42), 'image/tiff'],
 ])('knows %s by its first bytes', (_case, file, type) => {
   expect(imageTypeOf(file)).toBe(type);
 });

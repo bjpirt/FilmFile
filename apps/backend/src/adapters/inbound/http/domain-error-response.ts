@@ -50,7 +50,10 @@ function scanAlreadyInRoll(c: Context, error: ScanAlreadyInRoll) {
 function imageRejected(c: Context, error: ImageRejected) {
   switch (error.reason) {
     case 'unsupported-type':
-      return c.json({ error: 'The file is not a JPEG, PNG or WebP.' }, 415);
+      return c.json(
+        { error: 'The file is not a JPEG, PNG, WebP, TIFF or raw.' },
+        415,
+      );
     case 'unreadable':
       return c.json({ error: 'The file could not be read as an image.' }, 422);
     case 'too-many-pixels':

@@ -85,7 +85,8 @@ describe('an uploaded scan', () => {
 
     expect(response.status).toBe(415);
     expect(await response.json()).toEqual({
-      error: 'Content-Type must be image/jpeg or image/png or image/webp',
+      error:
+        'Content-Type must be one of image/jpeg, image/png, image/webp, image/tiff, image/x-sony-arw, application/octet-stream',
     });
   });
 });

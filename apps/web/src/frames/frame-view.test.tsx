@@ -1115,6 +1115,38 @@ describe('adding a version', () => {
     });
   });
 
+  test('adds an ARW as a raw scan, though the browser gives it no type', async () => {
+    const archive = openOne();
+    await screen.findByRole('heading', { level: 1, name: 'Frame 1' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add a version' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add raw scan…' }));
+    choose(new File(['raw'], 'DSC04412.ARW', { type: '' }));
+
+    await vi.waitFor(() => {
+      expect(archive.uploads).toEqual(['DSC04412.ARW']);
+    });
+    expect(
+      archive.rolls[0]?.frames
+        .find((f) => f.number === '1')
+        ?.versions.map((v) => v.kind),
+    ).toEqual(['scan', 'raw-scan']);
+  });
+
+  test('takes an ARW only as a raw scan', async () => {
+    const archive = openOne();
+    await screen.findByRole('heading', { level: 1, name: 'Frame 1' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add a version' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add final…' }));
+    choose(new File(['raw'], 'DSC04412.ARW', { type: '' }));
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Only JPEG, PNG and WebP images can be added.',
+    );
+    expect(archive.uploads).toEqual([]);
+  });
+
   test('refuses an image that isn’t a JPEG, PNG or WebP, sending nothing', async () => {
     const archive = openOne();
     await screen.findByRole('heading', { level: 1, name: 'Frame 1' });

@@ -8,8 +8,26 @@ import type { CollectionFrame } from './frame-view.tsx';
 /** The details of a frame to change; one left out stays as it is. */
 export type FrameChanges = components['schemas']['UpdateFrameRequest'];
 
-/** The images a version can be for now: web-native ones (U34). */
-const versionTypes = ['image/jpeg', 'image/png', 'image/webp'];
+/** The images a version can be: web-native ones (U34), and for a raw scan an ARW or TIFF too (U20). */
+const webTypes = ['image/jpeg', 'image/png', 'image/webp'];
+
+/**
+ * The type to send a file as, if it can be added as that kind. Browsers
+ * often give a raw no type, so an ARW is known by its name; the service
+ * checks every file's signature whatever it's sent as.
+ */
+function typeOf(file: File, kind: VersionKind): string | undefined {
+  if (webTypes.includes(file.type)) {
+    return file.type;
+  }
+  if (kind !== 'raw-scan') {
+    return undefined;
+  }
+  if (file.type === 'image/tiff' || /\.tiff?$/i.test(file.name)) {
+    return 'image/tiff';
+  }
+  return /\.arw$/i.test(file.name) ? 'image/x-sony-arw' : undefined;
+}
 
 /** What a version is (D48): scan, raw-scan or final. */
 export type VersionKind = components['schemas']['Version']['kind'];
@@ -95,8 +113,13 @@ export function useSaveFrame(
       return;
     }
     setProblem(undefined);
-    if (!versionTypes.includes(file.type)) {
-      setProblem('Only JPEG, PNG and WebP images can be added.');
+    const type = typeOf(file, kind);
+    if (type === undefined) {
+      setProblem(
+        kind === 'raw-scan'
+          ? 'Only ARW, TIFF, JPEG, PNG and WebP images can be added as raw scans.'
+          : 'Only JPEG, PNG and WebP images can be added.',
+      );
       return;
     }
     const { data, response } = await api.POST(
@@ -109,7 +132,7 @@ export function useSaveFrame(
         body: file,
         // Send the file as it is, not as JSON.
         bodySerializer: (body) => body,
-        headers: { 'Content-Type': file.type },
+        headers: { 'Content-Type': type },
       },
     );
     if (response.status === 409) {

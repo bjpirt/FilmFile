@@ -269,8 +269,8 @@ export const addVersionQuery = z.object({
   file: z
     .string()
     .regex(
-      /^[\w-]+\.(jpe?g|png|webp)$/i,
-      'must be an image file name like 12340014.jpg, edit.png or edit.webp',
+      /^[\w-]+\.(jpe?g|png|webp|tiff?|arw)$/i,
+      'must be an image file name like 12340014.jpg, edit.png or DSC04412.ARW',
     )
     .meta({
       description: "The image's original file name, kept when it's stored.",

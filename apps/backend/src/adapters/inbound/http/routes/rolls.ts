@@ -68,7 +68,7 @@ function image(type: string, description: string) {
   };
 }
 
-/** A body or response that's a version's image: a JPEG, PNG or WebP (U34). */
+/** A body or response that's a version's image: a JPEG, PNG or WebP (U34), or a TIFF or raw (U20). */
 function versionImage(description: string) {
   const binary = { schema: z.string().meta({ format: 'binary' }) };
   return {
@@ -77,6 +77,9 @@ function versionImage(description: string) {
       'image/jpeg': binary,
       'image/png': binary,
       'image/webp': binary,
+      'image/tiff': binary,
+      'image/x-sony-arw': binary,
+      'application/octet-stream': binary,
     },
   };
 }
@@ -298,7 +301,15 @@ const addVersion = createRoute({
           413,
         ),
     }),
-    requireContentType('image/jpeg', 'image/png', 'image/webp'),
+    // Raws arrive as their own types, or none in particular; the signature decides.
+    requireContentType(
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/tiff',
+      'image/x-sony-arw',
+      'application/octet-stream',
+    ),
   ] as const,
   request: {
     params: frameParams,

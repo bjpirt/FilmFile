@@ -4,6 +4,7 @@ import path from 'node:path';
 import { beforeEach, describe, expect, test } from 'vitest';
 import { aJpeg } from '../support/a-jpeg.ts';
 import { anImage } from '../support/an-image.ts';
+import { aRaw } from '../support/a-raw.ts';
 import { apiFor, idOf } from '../support/api.ts';
 import { useTempArchive } from '../support/temp-archive.ts';
 
@@ -286,5 +287,51 @@ describe('version kinds', () => {
     expect(
       (await upload(await aJpeg(), 'file=x.jpg&kind=negative')).status,
     ).toBe(422);
+  });
+});
+
+describe('raw scans', () => {
+  test('adds an ARW as a raw scan, with its sensor size, a thumbnail from its preview, and the original back unchanged', async () => {
+    const raw = await aRaw({ sensor: { width: 6000, height: 4000 } });
+
+    const response = await request(
+      `/api/rolls/${rollId}/frames/${frameId}/versions?file=DSC04412.ARW&kind=raw-scan`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'image/x-sony-arw' },
+        body: raw,
+      },
+    );
+    expect(response.status).toBe(201);
+    const version: unknown = await response.json();
+    expect(version).toMatchObject({
+      kind: 'raw-scan',
+      width: 6000,
+      height: 4000,
+    });
+    const url = `/api/rolls/${rollId}/frames/${frameId}/versions/${String(idOf(version))}`;
+
+    const thumbnail = await request(`${url}/thumbnail?size=small`);
+    expect(thumbnail.status).toBe(200);
+    expect(thumbnail.headers.get('Content-Type')).toBe('image/webp');
+    const original = await request(`${url}/file`);
+    expect(
+      Buffer.from(await original.arrayBuffer()).equals(Buffer.from(raw)),
+    ).toBe(true);
+  });
+
+  test('adds a TIFF sent with no particular type', async () => {
+    const tiff = await anImage('tiff', { width: 30, height: 20 });
+
+    const response = await request(
+      `/api/rolls/${rollId}/frames/${frameId}/versions?file=neg-12.tif&kind=raw-scan`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: new Uint8Array(tiff),
+      },
+    );
+
+    expect(response.status).toBe(201);
   });
 });

@@ -2266,7 +2266,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[\\w-]+\\.(jpe?g|png|webp)$/i",
+              "pattern": "^[\\w-]+\\.(jpe?g|png|webp|tiff?|arw)$/i",
               "description": "The image's original file name, kept when it's stored.",
               "example": "12340014.jpg"
             },
@@ -2308,6 +2308,24 @@
               }
             },
             "image/webp": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "image/tiff": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "image/x-sony-arw": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "application/octet-stream": {
               "schema": {
                 "type": "string",
                 "format": "binary"
@@ -2671,6 +2689,24 @@
                 }
               },
               "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/tiff": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/x-sony-arw": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/octet-stream": {
                 "schema": {
                   "type": "string",
                   "format": "binary"
