@@ -1,4 +1,8 @@
-import type { Roll as RollDto } from '@filmfile/contracts/rolls';
+import type {
+  FrameDetails as FrameDetailsDto,
+  Roll as RollDto,
+} from '@filmfile/contracts/rolls';
+import type { ResolvedDetails } from '../../../../domain/details/details.ts';
 import type { Frame, Roll, Version } from '../../../../domain/rolls/roll.ts';
 
 // Domain types to the API's response shapes.
@@ -33,5 +37,15 @@ export function rollDto(roll: Roll): RollDto {
     film: roll.film,
     lens: roll.lens,
     frames: roll.frames.map(frameDto),
+  };
+}
+
+export function frameDetailsDto(details: ResolvedDetails): FrameDetailsDto {
+  const { events, ...scalars } = details;
+  return {
+    ...scalars,
+    ...(events === undefined
+      ? {}
+      : { events: { value: [...events.value], source: events.source } }),
   };
 }

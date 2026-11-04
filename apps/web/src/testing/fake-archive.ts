@@ -25,6 +25,7 @@ import {
   updateRollRequest,
   updateVersionRequest,
   type Frame,
+  type FrameDetails,
   type Roll,
   type UnreadableRoll,
   type Version,
@@ -360,6 +361,28 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     return Response.json(roll, { status: 201 });
   }
 
+  /** What a frame inherits, as the service resolves it: the archive's author and copyright, then the roll's equipment and event. */
+  function detailsOf(roll: Roll): FrameDetails {
+    const fromArchive = (value: string) => ({
+      value,
+      source: { layer: 'archive' as const, id: setUpArchive.id },
+    });
+    const fromRoll = <T>(value: T) => ({
+      value,
+      source: { layer: 'roll' as const, id: roll.id },
+    });
+    return {
+      ...(settings === null ? {} : { author: fromArchive(settings.author) }),
+      ...(settings?.copyright === undefined || settings.copyright === null
+        ? {}
+        : { copyright: fromArchive(settings.copyright) }),
+      ...(roll.camera === null ? {} : { camera: fromRoll(roll.camera) }),
+      ...(roll.film === null ? {} : { film: fromRoll(roll.film) }),
+      ...(roll.lens === null ? {} : { lens: fromRoll(roll.lens) }),
+      ...(roll.event === null ? {} : { events: fromRoll([roll.event]) }),
+    };
+  }
+
   async function archiveRoute(request: Request): Promise<Response> {
     if (request.method === 'GET') {
       return settings === null
@@ -472,6 +495,9 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     const frame = roll.frames.find((f) => f.id === frameId);
     if (frame === undefined) {
       return notFound();
+    }
+    if (versions === 'details') {
+      return Response.json(detailsOf(roll));
     }
     if (versions === undefined && request.method === 'DELETE') {
       const refused = checkIfMatch(request, roll.id);

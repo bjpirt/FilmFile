@@ -8,6 +8,7 @@ import {
   createFrameRequest,
   createRollRequest,
   frame,
+  frameDetails,
   frameParams,
   ifMatchHeader,
   roll,
@@ -25,6 +26,7 @@ import { bodyLimit } from 'hono/body-limit';
 import type { AddVersion } from '../../../../application/use-cases/frames/add-version.ts';
 import type { CreateFrame } from '../../../../application/use-cases/frames/create-frame.ts';
 import type { DeleteFrame } from '../../../../application/use-cases/frames/delete-frame.ts';
+import type { GetFrameDetails } from '../../../../application/use-cases/frames/get-frame-details.ts';
 import type { GetOriginal } from '../../../../application/use-cases/frames/get-original.ts';
 import type { GetThumbnail } from '../../../../application/use-cases/frames/get-thumbnail.ts';
 import type { UpdateFrame } from '../../../../application/use-cases/frames/update-frame.ts';
@@ -45,7 +47,7 @@ import { domainErrorResponse } from '../domain-error-response.ts';
 import { etagOf, versionFrom } from '../etag.ts';
 import { requireContentType } from '../middleware/require-content-type.ts';
 import { invalidRequestHook } from './invalid-request-hook.ts';
-import { frameDto, rollDto, versionDto } from './roll-dto.ts';
+import { frameDetailsDto, frameDto, rollDto, versionDto } from './roll-dto.ts';
 
 // D4: lab scans are a few MB; this leaves room for large scans to come.
 const maxUploadMegabytes = 200;
@@ -306,6 +308,21 @@ const updateVersion = createRoute({
   },
 });
 
+const getFrameDetails = createRoute({
+  method: 'get',
+  path: '/{rollId}/frames/{frameId}/details',
+  summary: "Get a frame's resolved details",
+  request: { params: frameParams },
+  responses: {
+    200: json(
+      frameDetails,
+      'The frame’s details, each with where it came from.',
+    ),
+    404: json(errorResponse, 'The roll has no frame with that ID.'),
+    422: invalid,
+  },
+});
+
 const getOriginal = createRoute({
   method: 'get',
   path: '/{rollId}/frames/{frameId}/versions/{versionId}/file',
@@ -345,6 +362,7 @@ export interface RollUseCases {
   readonly updateFrameNumbers: UpdateFrameNumbers;
   readonly deleteFrame: DeleteFrame;
   readonly addVersion: AddVersion;
+  readonly getFrameDetails: GetFrameDetails;
   readonly getOriginal: GetOriginal;
   readonly getThumbnail: GetThumbnail;
 }
@@ -547,6 +565,20 @@ export function rollRoutes({
           'Content-Type': 'image/jpeg',
         })
       : domainErrorResponse(c, original.error);
+  });
+
+  routes.openapi(getFrameDetails, async (c) => {
+    const { rollId, frameId } = c.req.valid('param');
+    if (!isRollId(rollId) || !isFrameId(frameId)) {
+      return c.json(notFound, 404);
+    }
+    const details = await useCases.getFrameDetails.execute(ctx, {
+      rollId,
+      frameId,
+    });
+    return details.ok
+      ? c.json(frameDetailsDto(details.value), 200)
+      : domainErrorResponse(c, details.error);
   });
 
   routes.openapi(updateVersion, async (c) => {

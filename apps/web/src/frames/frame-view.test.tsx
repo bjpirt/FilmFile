@@ -14,6 +14,7 @@ import {
   aFrame,
   aRoll,
   fakeArchive,
+  setUpArchive,
   type FakeArchive,
 } from '../testing/fake-archive.ts';
 
@@ -286,6 +287,29 @@ describe('the frame’s details and versions', () => {
     });
     expect(await within(details).findByText('Nikon FE')).toBeDefined();
     expect(within(details).getByText('Sep 2026')).toBeDefined();
+  });
+
+  test('shows who it’s by and its copyright, inherited from the archive', async () => {
+    const archive = fakeArchive({
+      rolls: [twice],
+      cameras: [{ slug: 'nikon-fe', make: 'Nikon', model: 'FE' }],
+      settings: {
+        ...setUpArchive,
+        author: 'Ben Pirt',
+        copyright: '© Ben Pirt. All rights reserved.',
+      },
+    });
+    openAt(`/rolls/${twice.id}/frames/${twice.frames[0]?.id ?? ''}`, archive);
+    await showDetails();
+
+    const details = await screen.findByRole('complementary', {
+      name: 'About this frame',
+    });
+    expect(await within(details).findByText('Ben Pirt')).toBeDefined();
+    expect(
+      within(details).getByText('© Ben Pirt. All rights reserved.'),
+    ).toBeDefined();
+    expect(within(details).getByText('Nikon FE')).toBeDefined();
   });
 
   test('lists the frame’s versions, newest shown, each with its size and when it was added', async () => {

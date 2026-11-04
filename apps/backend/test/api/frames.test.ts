@@ -473,3 +473,46 @@ describe('DELETE /api/rolls/{id}/frames/{frameId}', () => {
     ).toBe(404);
   });
 });
+
+describe('GET /api/rolls/{id}/frames/{frameId}/details', () => {
+  test('gives the details the frame inherits, from the archive and its roll', async () => {
+    await post('/api/archive', { author: 'Ben Pirt' });
+    await post('/api/equipment/cameras', { make: 'Nikon', model: 'FE' });
+    const rollId = String(
+      idOf(
+        await (
+          await post('/api/rolls', { roll: '2026-014', camera: 'nikon-fe' })
+        ).json(),
+      ),
+    );
+    const frameId = String(
+      idOf(await (await post(`/api/rolls/${rollId}/frames`, {})).json()),
+    );
+
+    const response = await request(
+      `/api/rolls/${rollId}/frames/${frameId}/details`,
+    );
+
+    expect(response.status).toBe(200);
+    const archiveId = idOf(await (await request('/api/archive')).json());
+    expect(await response.json()).toEqual({
+      author: {
+        value: 'Ben Pirt',
+        source: { layer: 'archive', id: archiveId },
+      },
+      camera: { value: 'nikon-fe', source: { layer: 'roll', id: rollId } },
+    });
+  });
+
+  test('says when the roll has no such frame', async () => {
+    const rollId = await aRoll();
+
+    expect(
+      (
+        await request(
+          `/api/rolls/${rollId}/frames/01JC8Z7K3M0000000000000000/details`,
+        )
+      ).status,
+    ).toBe(404);
+  });
+});

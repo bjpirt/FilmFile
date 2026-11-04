@@ -826,6 +826,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/rolls/{rollId}/frames/{frameId}/details": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a frame's resolved details */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    rollId: string;
+                    frameId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The frame’s details, each with where it came from. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FrameDetails"];
+                    };
+                };
+                /** @description The roll has no frame with that ID. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The request is invalid. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/rolls/{rollId}/frames/{frameId}/versions/{versionId}": {
         parameters: {
             query?: never;
@@ -1889,6 +1946,60 @@ export interface components {
              * @example 01M6EAAP694BKWR9HZ4N5Z54XD
              */
             defaultVersion?: string | null;
+        };
+        /** @description The details a frame ends up with, inherited from the archive and its roll (design section 6), each with where it came from. A detail set nowhere is left out. */
+        FrameDetails: {
+            author?: {
+                value: string;
+                source: {
+                    /** @enum {string} */
+                    layer: "archive" | "roll" | "frame";
+                    id: string;
+                };
+            };
+            copyright?: {
+                value: string;
+                source: {
+                    /** @enum {string} */
+                    layer: "archive" | "roll" | "frame";
+                    id: string;
+                };
+            };
+            camera?: {
+                /** @example nikon-fe */
+                value: string;
+                source: {
+                    /** @enum {string} */
+                    layer: "archive" | "roll" | "frame";
+                    id: string;
+                };
+            };
+            film?: {
+                /** @example nikon-fe */
+                value: string;
+                source: {
+                    /** @enum {string} */
+                    layer: "archive" | "roll" | "frame";
+                    id: string;
+                };
+            };
+            lens?: {
+                /** @example nikon-fe */
+                value: string;
+                source: {
+                    /** @enum {string} */
+                    layer: "archive" | "roll" | "frame";
+                    id: string;
+                };
+            };
+            events?: {
+                value: string[];
+                source: {
+                    /** @enum {string} */
+                    layer: "archive" | "roll" | "frame";
+                    id: string;
+                };
+            };
         };
         /** @description How the version is turned when shown; its file is never changed. */
         UpdateVersionRequest: {

@@ -1,5 +1,6 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { cameraName, useCameras } from '../equipment/use-cameras.ts';
 import { filmStockName, useFilmStocks } from '../equipment/use-film-stocks.ts';
@@ -111,8 +112,8 @@ function Stars({
 
 /**
  * Beside a frame in the frame view: how it's described (title, rating and
- * notes), its roll's details, and its versions, any of which can be chosen
- * as the one shown (D15).
+ * notes), the details it inherits from the archive and its roll, and its
+ * versions, any of which can be chosen as the one shown (D15).
  */
 export function FrameDetails({
   api,
@@ -130,11 +131,40 @@ export function FrameDetails({
   const lenses = useLenses(api);
   const events = useEvents(api);
 
+  // What the frame inherits from the archive and its roll (design section 6).
+  const inherited = useQuery({
+    queryKey: ['rolls', roll.id, 'frames', frame.id, 'details'],
+    queryFn: async () => {
+      const { data } = await api.GET(
+        '/api/rolls/{rollId}/frames/{frameId}/details',
+        { params: { path: { rollId: roll.id, frameId: frame.id } } },
+      );
+      if (data === undefined) {
+        throw new Error("Couldn't load the frame's details.");
+      }
+      return data;
+    },
+  }).data;
+  const frameEvents = (inherited?.events?.value ?? []).map(
+    (slug) => eventName(events, slug) ?? slug,
+  );
+
   const facts = [
-    { label: 'Camera', value: cameraName(cameras, roll.camera) },
-    { label: 'Lens', value: lensName(lenses, roll.lens) },
-    { label: 'Film stock', value: filmStockName(films, roll.film) },
-    { label: 'Event', value: eventName(events, roll.event) },
+    { label: 'Author', value: inherited?.author?.value },
+    { label: 'Copyright', value: inherited?.copyright?.value },
+    {
+      label: 'Camera',
+      value: cameraName(cameras, inherited?.camera?.value ?? null),
+    },
+    { label: 'Lens', value: lensName(lenses, inherited?.lens?.value ?? null) },
+    {
+      label: 'Film stock',
+      value: filmStockName(films, inherited?.film?.value ?? null),
+    },
+    {
+      label: frameEvents.length > 1 ? 'Events' : 'Event',
+      value: frameEvents.length === 0 ? undefined : frameEvents.join(', '),
+    },
     {
       label: 'Shot',
       value: roll.shot === null ? undefined : formatShot(roll.shot),

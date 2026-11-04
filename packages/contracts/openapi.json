@@ -553,6 +553,219 @@
         },
         "description": "The details to change; a detail left out stays as it is."
       },
+      "FrameDetails": {
+        "type": "object",
+        "properties": {
+          "author": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "string"
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "layer": {
+                    "type": "string",
+                    "enum": [
+                      "archive",
+                      "roll",
+                      "frame"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "layer",
+                  "id"
+                ]
+              }
+            },
+            "required": [
+              "value",
+              "source"
+            ]
+          },
+          "copyright": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "string"
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "layer": {
+                    "type": "string",
+                    "enum": [
+                      "archive",
+                      "roll",
+                      "frame"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "layer",
+                  "id"
+                ]
+              }
+            },
+            "required": [
+              "value",
+              "source"
+            ]
+          },
+          "camera": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "string",
+                "maxLength": 60,
+                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                "example": "nikon-fe"
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "layer": {
+                    "type": "string",
+                    "enum": [
+                      "archive",
+                      "roll",
+                      "frame"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "layer",
+                  "id"
+                ]
+              }
+            },
+            "required": [
+              "value",
+              "source"
+            ]
+          },
+          "film": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "string",
+                "maxLength": 60,
+                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                "example": "nikon-fe"
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "layer": {
+                    "type": "string",
+                    "enum": [
+                      "archive",
+                      "roll",
+                      "frame"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "layer",
+                  "id"
+                ]
+              }
+            },
+            "required": [
+              "value",
+              "source"
+            ]
+          },
+          "lens": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "string",
+                "maxLength": 60,
+                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                "example": "nikon-fe"
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "layer": {
+                    "type": "string",
+                    "enum": [
+                      "archive",
+                      "roll",
+                      "frame"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "layer",
+                  "id"
+                ]
+              }
+            },
+            "required": [
+              "value",
+              "source"
+            ]
+          },
+          "events": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 60,
+                  "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                  "example": "nikon-fe"
+                }
+              },
+              "source": {
+                "type": "object",
+                "properties": {
+                  "layer": {
+                    "type": "string",
+                    "enum": [
+                      "archive",
+                      "roll",
+                      "frame"
+                    ]
+                  },
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "layer",
+                  "id"
+                ]
+              }
+            },
+            "required": [
+              "value",
+              "source"
+            ]
+          }
+        },
+        "description": "The details a frame ends up with, inherited from the archive and its roll (design section 6), each with where it came from. A detail set nowhere is left out."
+      },
       "UpdateVersionRequest": {
         "type": "object",
         "properties": {
@@ -1930,6 +2143,65 @@
           },
           "404": {
             "description": "No such version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rolls/{rollId}/frames/{frameId}/details": {
+      "get": {
+        "summary": "Get a frame's resolved details",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "rollId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+              "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+            },
+            "required": true,
+            "name": "frameId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The frame’s details, each with where it came from.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FrameDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The roll has no frame with that ID.",
             "content": {
               "application/json": {
                 "schema": {

@@ -28,6 +28,7 @@ import { UpdateEvent } from '../application/use-cases/events/update-event.ts';
 import { AddVersion } from '../application/use-cases/frames/add-version.ts';
 import { CreateFrame } from '../application/use-cases/frames/create-frame.ts';
 import { DeleteFrame } from '../application/use-cases/frames/delete-frame.ts';
+import { GetFrameDetails } from '../application/use-cases/frames/get-frame-details.ts';
 import { GetOriginal } from '../application/use-cases/frames/get-original.ts';
 import { GetThumbnail } from '../application/use-cases/frames/get-thumbnail.ts';
 import { UpdateVersion } from '../application/use-cases/frames/update-version.ts';
@@ -84,6 +85,7 @@ export function useCasesFor({
     updateFrameNumbers: new UpdateFrameNumbers(rolls),
     deleteFrame: new DeleteFrame(rolls, holding, clock),
     addVersion: new AddVersion(rolls, blobs, inspector, ids, clock),
+    getFrameDetails: new GetFrameDetails(rolls, archives),
     getOriginal: new GetOriginal(rolls, blobs),
     getThumbnail: new GetThumbnail(rolls, blobs, previews),
     listCameras: new ListCameras(equipment),

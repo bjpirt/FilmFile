@@ -229,7 +229,33 @@ export const updateVersionRequest = z.object({ rotate: quarterTurn }).meta({
     'How the version is turned when shown; its file is never changed.',
 });
 
+/** Where a frame's detail came from: the layer that set it, and the ID of what's at that layer. */
+const detailSource = z.object({
+  layer: z.enum(['archive', 'roll', 'frame']),
+  id: z.string(),
+});
+
+function sourced<T extends z.ZodType>(value: T) {
+  return z.object({ value, source: detailSource }).optional();
+}
+
+export const frameDetails = z
+  .object({
+    author: sourced(z.string()),
+    copyright: sourced(z.string()),
+    camera: sourced(slug),
+    film: sourced(slug),
+    lens: sourced(slug),
+    events: sourced(z.array(slug)),
+  })
+  .meta({
+    id: 'FrameDetails',
+    description:
+      'The details a frame ends up with, inherited from the archive and its roll (design section 6), each with where it came from. A detail set nowhere is left out.',
+  });
+
 export type Version = z.infer<typeof version>;
+export type FrameDetails = z.infer<typeof frameDetails>;
 export type Frame = z.infer<typeof frame>;
 export type Roll = z.infer<typeof roll>;
 export type UnreadableRoll = z.infer<typeof unreadableRoll>;
