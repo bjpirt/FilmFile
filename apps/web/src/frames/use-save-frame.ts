@@ -8,6 +8,9 @@ import type { CollectionFrame } from './frame-view.tsx';
 /** The details of a frame to change; one left out stays as it is. */
 export type FrameChanges = components['schemas']['UpdateFrameRequest'];
 
+/** The images a version can be for now: web-native ones (U34). */
+const versionTypes = ['image/jpeg', 'image/png', 'image/webp'];
+
 /** Degrees clockwise a version is turned when shown. */
 export type QuarterTurn = components['schemas']['Version']['rotate'];
 
@@ -80,6 +83,55 @@ export function useSaveFrame(
       etag: response.headers.get('ETag') ?? read.etag,
     });
     await refreshed();
+  }
+
+  /** Adds an image to the frame as another version (U34); its first stays the one shown. */
+  async function sendVersion(file: File) {
+    const read = queryClient.getQueryData<ReadRoll>(['rolls', rollId]);
+    if (read === undefined) {
+      return;
+    }
+    setProblem(undefined);
+    if (!versionTypes.includes(file.type)) {
+      setProblem('Only JPEG, PNG and WebP images can be added.');
+      return;
+    }
+    const { data, response } = await api.POST(
+      '/api/rolls/{rollId}/frames/{frameId}/versions',
+      {
+        params: { path: { rollId, frameId }, query: { file: file.name } },
+        body: file,
+        // Send the file as it is, not as JSON.
+        bodySerializer: (body) => body,
+        headers: { 'Content-Type': file.type },
+      },
+    );
+    if (response.status === 409) {
+      setProblem('That image is already in this roll.');
+      return;
+    }
+    if (response.status === 422) {
+      setProblem(
+        'That file name can’t be used. Rename it to letters, digits and dashes, like edit-1.png.',
+      );
+      return;
+    }
+    if (data === undefined) {
+      setProblem("Couldn't add it. Is the service running?");
+      return;
+    }
+    const added = data;
+    queryClient.setQueryData<ReadRoll>(['rolls', rollId], {
+      roll: {
+        ...read.roll,
+        frames: read.roll.frames.map((f) =>
+          f.id === frameId ? { ...f, versions: [...f.versions, added] } : f,
+        ),
+      },
+      etag: read.etag,
+    });
+    await queryClient.invalidateQueries({ queryKey: ['rolls', rollId] });
+    await queryClient.invalidateQueries({ queryKey: ['rolls'], exact: true });
   }
 
   /** What shows the frame or its roll, read afresh after a change. */
@@ -178,6 +230,8 @@ export function useSaveFrame(
     /** Turns one of the frame's versions as it's shown (D41). */
     turn: (versionId: string, rotate: QuarterTurn) =>
       queued(() => sendTurn(versionId, rotate)),
+    /** Adds an image as another version of the frame (U34). */
+    addVersion: (file: File) => queued(() => sendVersion(file)),
     /** Deletes the frame into the archive's deleted folder, then calls `onDeleted`. */
     remove: (onDeleted: () => void) => queued(() => sendDelete(onDeleted)),
     problem,

@@ -119,7 +119,8 @@ export function FrameView({
   const next = frames[current + 1];
   const currentInStrip = useRef<HTMLLIElement>(null);
   const [detailsOpen, setDetailsOpen] = useState(rememberedDetailsOpen);
-  const { save, turn, remove, problem } = useSaveFrame(api, shown);
+  const { save, turn, remove, addVersion, problem } = useSaveFrame(api, shown);
+  const chooseVersion = useRef<HTMLInputElement>(null);
   const turning = shown === undefined ? undefined : shownVersion(shown.frame);
 
   /** Turns the version shown a quarter turn: 90 clockwise, -90 anticlockwise. */
@@ -224,6 +225,41 @@ export function FrameView({
           {current + 1} of {frames.length}
         </span>
         <span className="frame-view-actions">
+          {/* Moves to the foot of the versions column once there's more than one (U61). */}
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Add a version"
+            title="Add a version"
+            onClick={() => chooseVersion.current?.click()}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
+          <input
+            ref={chooseVersion}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            aria-label="Image to add as a version"
+            hidden
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = '';
+              if (file !== undefined) {
+                void addVersion(file);
+              }
+            }}
+          />
           {turning !== undefined && (
             <>
               <button

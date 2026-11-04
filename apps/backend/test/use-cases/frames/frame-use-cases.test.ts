@@ -977,7 +977,7 @@ describe('AddVersion', () => {
       }),
     ).toEqual({
       ok: false,
-      error: { kind: 'image-rejected', reason: 'not-jpeg' },
+      error: { kind: 'image-rejected', reason: 'unsupported-type' },
     });
   });
 

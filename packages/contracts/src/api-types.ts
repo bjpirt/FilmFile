@@ -744,13 +744,13 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Upload a lab scan as a new version of a frame
-         * @description The body is the JPEG itself. It is stored unchanged.
+         * Upload an image as a new version of a frame
+         * @description The body is the image itself: a lab scan, or another JPEG, PNG or WebP (U34). It is stored unchanged.
          */
         post: {
             parameters: {
                 query: {
-                    /** @description The scan's original file name, kept when it's stored. */
+                    /** @description The image's original file name, kept when it's stored. */
                     file: string;
                 };
                 header?: never;
@@ -760,10 +760,12 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            /** @description The scan. */
+            /** @description The image. */
             requestBody: {
                 content: {
                     "image/jpeg": Blob;
+                    "image/png": Blob;
+                    "image/webp": Blob;
                 };
             };
             responses: {
@@ -860,6 +862,8 @@ export interface paths {
                     };
                     content: {
                         "image/jpeg": Blob;
+                        "image/png": Blob;
+                        "image/webp": Blob;
                     };
                 };
                 /** @description No such version. */

@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { beforeEach, describe, expect, test } from 'vitest';
 import { aJpeg } from '../support/a-jpeg.ts';
+import { anImage } from '../support/an-image.ts';
 import { apiFor, idOf } from '../support/api.ts';
 import { useTempArchive } from '../support/temp-archive.ts';
 
@@ -34,6 +35,53 @@ function upload(
 }
 
 describe('POST /api/rolls/{id}/frames/{frameId}/versions', () => {
+  test.each([
+    ['png', 'image/png', 'edit.png'],
+    ['webp', 'image/webp', 'edit.webp'],
+  ] as const)(
+    'adds a %s, and gives it back with its own type',
+    async (format, type, file) => {
+      const image = await anImage(format, { width: 30, height: 20 });
+
+      const response = await request(
+        `/api/rolls/${rollId}/frames/${frameId}/versions?file=${file}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': type },
+          body: new Uint8Array(image),
+        },
+      );
+      expect(response.status).toBe(201);
+      const version: unknown = await response.json();
+      expect(version).toMatchObject({ width: 30, height: 20 });
+
+      const original = await request(
+        `/api/rolls/${rollId}/frames/${frameId}/versions/${String(idOf(version))}/file`,
+      );
+      expect(original.headers.get('Content-Type')).toBe(type);
+      expect(Buffer.from(await original.arrayBuffer()).equals(image)).toBe(
+        true,
+      );
+    },
+  );
+
+  test('refuses an image that is none of JPEG, PNG and WebP, whatever it claims', async () => {
+    const gif = new Uint8Array([
+      0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 1, 0, 1, 0,
+    ]);
+
+    const response = await request(
+      `/api/rolls/${rollId}/frames/${frameId}/versions?file=edit.png`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'image/png' },
+        body: gif,
+      },
+    );
+
+    expect(response.status).toBe(415);
+  });
+
   test('stores the scan unchanged in a folder for the version, inside a folder for the frame', async () => {
     const image = await aJpeg();
 
@@ -131,7 +179,7 @@ describe('POST /api/rolls/{id}/frames/{frameId}/versions', () => {
   test.each([
     ['an unsafe file name', 'file=../12340014.jpg'],
     ['a file name with a folder', 'file=scans/12340014.jpg'],
-    ['a file that is not a JPEG', 'file=12340014.png'],
+    ['a file name that isn’t an image’s', 'file=12340014.gif'],
     ['no file name', ''],
   ])('rejects %s', async (_case, query) => {
     const response = await upload(await aJpeg(), query);

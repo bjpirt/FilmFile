@@ -2224,8 +2224,8 @@
     },
     "/api/rolls/{rollId}/frames/{frameId}/versions": {
       "post": {
-        "summary": "Upload a lab scan as a new version of a frame",
-        "description": "The body is the JPEG itself. It is stored unchanged.",
+        "summary": "Upload an image as a new version of a frame",
+        "description": "The body is the image itself: a lab scan, or another JPEG, PNG or WebP (U34). It is stored unchanged.",
         "parameters": [
           {
             "schema": {
@@ -2250,21 +2250,33 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[\\w-]+\\.jpe?g$/i",
-              "description": "The scan's original file name, kept when it's stored.",
+              "pattern": "^[\\w-]+\\.(jpe?g|png|webp)$/i",
+              "description": "The image's original file name, kept when it's stored.",
               "example": "12340014.jpg"
             },
             "required": true,
-            "description": "The scan's original file name, kept when it's stored.",
+            "description": "The image's original file name, kept when it's stored.",
             "name": "file",
             "in": "query"
           }
         ],
         "requestBody": {
           "required": true,
-          "description": "The scan.",
+          "description": "The image.",
           "content": {
             "image/jpeg": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "image/png": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "image/webp": {
               "schema": {
                 "type": "string",
                 "format": "binary"
@@ -2395,6 +2407,18 @@
             "description": "The original, unchanged.",
             "content": {
               "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
                 "schema": {
                   "type": "string",
                   "format": "binary"

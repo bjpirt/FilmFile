@@ -24,6 +24,7 @@ import {
   versionParams,
 } from '@filmfile/contracts/rolls';
 import { bodyLimit } from 'hono/body-limit';
+import { imageTypeOf } from '../../../../domain/rolls/image-type.ts';
 import type { AddVersion } from '../../../../application/use-cases/frames/add-version.ts';
 import type { CreateFrame } from '../../../../application/use-cases/frames/create-frame.ts';
 import type { DeleteFrames } from '../../../../application/use-cases/frames/delete-frames.ts';
@@ -63,6 +64,19 @@ function image(type: string, description: string) {
   return {
     description,
     content: { [type]: { schema: z.string().meta({ format: 'binary' }) } },
+  };
+}
+
+/** A body or response that's a version's image: a JPEG, PNG or WebP (U34). */
+function versionImage(description: string) {
+  const binary = { schema: z.string().meta({ format: 'binary' }) };
+  return {
+    description,
+    content: {
+      'image/jpeg': binary,
+      'image/png': binary,
+      'image/webp': binary,
+    },
   };
 }
 
@@ -269,8 +283,9 @@ const deleteFrame = createRoute({
 const addVersion = createRoute({
   method: 'post',
   path: '/{rollId}/frames/{frameId}/versions',
-  summary: 'Upload a lab scan as a new version of a frame',
-  description: 'The body is the JPEG itself. It is stored unchanged.',
+  summary: 'Upload an image as a new version of a frame',
+  description:
+    'The body is the image itself: a lab scan, or another JPEG, PNG or WebP (U34). It is stored unchanged.',
   middleware: [
     bodyLimit({
       maxSize: maxUploadMegabytes * 1024 * 1024,
@@ -282,12 +297,12 @@ const addVersion = createRoute({
           413,
         ),
     }),
-    requireContentType('image/jpeg'),
+    requireContentType('image/jpeg', 'image/png', 'image/webp'),
   ] as const,
   request: {
     params: frameParams,
     query: addVersionQuery,
-    body: { required: true, ...image('image/jpeg', 'The scan.') },
+    body: { required: true, ...versionImage('The image.') },
   },
   responses: {
     201: json(version, 'The new version.'),
@@ -352,7 +367,7 @@ const getOriginal = createRoute({
   summary: "Download a version's original file",
   request: { params: versionParams },
   responses: {
-    200: image('image/jpeg', 'The original, unchanged.'),
+    200: versionImage('The original, unchanged.'),
     404: json(errorResponse, 'No such version.'),
     422: invalid,
   },
@@ -614,7 +629,9 @@ export function rollRoutes({
     });
     return original.ok
       ? c.body(new Uint8Array(original.value), 200, {
-          'Content-Type': 'image/jpeg',
+          // As its bytes show it to be, whatever its name says.
+          'Content-Type':
+            imageTypeOf(original.value) ?? 'application/octet-stream',
         })
       : domainErrorResponse(c, original.error);
   });

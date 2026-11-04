@@ -5,16 +5,13 @@ import type {
   ImageInspector,
 } from '../../../application/ports/image-inspector.ts';
 import type { ImageRejected } from '../../../domain/shared/domain-error.ts';
+import { imageTypeOf } from '../../../domain/rolls/image-type.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
 
-/** JPEGs start with an SOI marker followed by another marker: FF D8 FF. */
-function isJpeg(bytes: Uint8Array): boolean {
-  return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-}
-
 /**
- * Accepts JPEGs up to a number of pixels, checked from the header so that a
- * small file claiming huge dimensions (a decompression bomb) is never decoded.
+ * Accepts JPEGs, PNGs and WebPs (U34), known by their first bytes, up to a
+ * number of pixels, checked from the header so that a small file claiming
+ * huge dimensions (a decompression bomb) is never decoded.
  */
 export class SharpImageInspector implements ImageInspector {
   readonly #maxPixels: number;
@@ -24,8 +21,8 @@ export class SharpImageInspector implements ImageInspector {
   }
 
   async inspect(bytes: Uint8Array): Promise<Result<ImageFacts, ImageRejected>> {
-    if (!isJpeg(bytes)) {
-      return err({ kind: 'image-rejected', reason: 'not-jpeg' });
+    if (imageTypeOf(bytes) === undefined) {
+      return err({ kind: 'image-rejected', reason: 'unsupported-type' });
     }
     let width: number;
     let height: number;

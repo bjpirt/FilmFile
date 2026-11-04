@@ -1,6 +1,5 @@
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
-import sharp from 'sharp';
 import { beforeEach, describe, expect, test } from 'vitest';
 import { aJpeg } from '../support/a-jpeg.ts';
 import { apiFor, idOf } from '../support/api.ts';
@@ -78,17 +77,17 @@ describe('an uploaded scan', () => {
     expect(await storedFiles()).toEqual([]);
   });
 
-  test('is refused when it is not really a JPEG, whatever its name and type say', async () => {
-    const png = await sharp({
-      create: { width: 3, height: 2, channels: 3, background: 'red' },
-    })
-      .png()
-      .toBuffer();
+  test('is refused when it is not really a JPEG, PNG or WebP, whatever its name and type say', async () => {
+    const gif = new Uint8Array([
+      0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 1, 0, 1, 0,
+    ]);
 
-    const response = await upload(new Uint8Array(png));
+    const response = await upload(gif);
 
     expect(response.status).toBe(415);
-    expect(await response.json()).toEqual({ error: 'The file is not a JPEG.' });
+    expect(await response.json()).toEqual({
+      error: 'The file is not a JPEG, PNG or WebP.',
+    });
     expect(await storedFiles()).toEqual([]);
   });
 

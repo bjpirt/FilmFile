@@ -261,9 +261,12 @@ export const ifMatchHeader = z.object({
 export const addVersionQuery = z.object({
   file: z
     .string()
-    .regex(/^[\w-]+\.jpe?g$/i, 'must be a JPEG file name like 12340014.jpg')
+    .regex(
+      /^[\w-]+\.(jpe?g|png|webp)$/i,
+      'must be an image file name like 12340014.jpg, edit.png or edit.webp',
+    )
     .meta({
-      description: "The scan's original file name, kept when it's stored.",
+      description: "The image's original file name, kept when it's stored.",
       example: '12340014.jpg',
     }),
 });

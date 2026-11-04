@@ -939,3 +939,59 @@ describe('a frame’s own date shot', () => {
     expect(await within(details).findByText('14 Sep 2026')).toBeDefined();
   });
 });
+
+describe('adding a version', () => {
+  function openOne(): FakeArchive {
+    const archive = fakeArchive({ rolls: [structuredClone(roll)] });
+    openAt(`/rolls/${roll.id}/frames/${frameId('1')}`, archive);
+    return archive;
+  }
+
+  function choose(file: File) {
+    fireEvent.change(screen.getByLabelText('Image to add as a version'), {
+      target: { files: [file] },
+    });
+  }
+
+  test('adds an image to the frame as another version, keeping the first shown', async () => {
+    const archive = openOne();
+    await screen.findByRole('heading', { level: 1, name: 'Frame 1' });
+    expect(screen.getByRole('button', { name: 'Add a version' })).toBeDefined();
+
+    choose(new File(['edited'], 'edit.png', { type: 'image/png' }));
+
+    await vi.waitFor(() => {
+      expect(
+        archive.rolls[0]?.frames.find((f) => f.number === '1')?.versions,
+      ).toHaveLength(2);
+    });
+    expect(archive.uploads).toEqual(['edit.png']);
+    expect(screen.getByRole('img', { name: '12340001.jpg' })).toBeDefined();
+  });
+
+  test('refuses an image that isn’t a JPEG, PNG or WebP, sending nothing', async () => {
+    const archive = openOne();
+    await screen.findByRole('heading', { level: 1, name: 'Frame 1' });
+
+    choose(new File(['gif'], 'scan.gif', { type: 'image/gif' }));
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Only JPEG, PNG and WebP images can be added.',
+    );
+    expect(archive.uploads).toEqual([]);
+  });
+
+  test('says when the image is already in the roll', async () => {
+    openOne();
+    await screen.findByRole('heading', { level: 1, name: 'Frame 1' });
+
+    const edit = () => new File(['edited'], 'edit.png', { type: 'image/png' });
+    // Added one after the other, the second is the same image again.
+    choose(edit());
+    choose(edit());
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'That image is already in this roll.',
+    );
+  });
+});

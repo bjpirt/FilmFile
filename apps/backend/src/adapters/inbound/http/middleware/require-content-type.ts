@@ -1,10 +1,13 @@
 import type { MiddlewareHandler } from 'hono';
 
 /**
- * Refuses (415) a body of any other type. A cross-site HTML form can only send
- * text/plain, form or multipart bodies, so this keeps forms out of the API.
+ * Refuses (415) a body of any type but those given. A cross-site HTML form
+ * can only send text/plain, form or multipart bodies, so this keeps forms out
+ * of the API.
  */
-export function requireContentType(mediaType: string): MiddlewareHandler {
+export function requireContentType(
+  ...mediaTypes: readonly [string, ...string[]]
+): MiddlewareHandler {
   return async (c, next) => {
     // Ignore parameters such as `; charset=utf-8`.
     const sent = c.req
@@ -12,8 +15,11 @@ export function requireContentType(mediaType: string): MiddlewareHandler {
       ?.split(';')[0]
       ?.trim()
       .toLowerCase();
-    if (sent !== mediaType) {
-      return c.json({ error: `Content-Type must be ${mediaType}` }, 415);
+    if (sent === undefined || !mediaTypes.includes(sent)) {
+      return c.json(
+        { error: `Content-Type must be ${mediaTypes.join(' or ')}` },
+        415,
+      );
     }
     await next();
   };

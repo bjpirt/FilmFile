@@ -4,7 +4,7 @@
  * The HTTP adapter maps them to status codes: not found → 404, validation
  * failed, mapping invalid and an unreadable or oversized image → 422,
  * conflict, already exists and a scan already in the roll → 409, and a file
- * that isn't a JPEG → 415.
+ * that isn't a JPEG, PNG or WebP → 415.
  */
 export type DomainError =
   | NotFound
@@ -52,7 +52,8 @@ export interface MappingInvalid {
 export type ImageRejected =
   | {
       readonly kind: 'image-rejected';
-      readonly reason: 'not-jpeg' | 'unreadable';
+      /** Unsupported: not a JPEG, PNG or WebP (U34). */
+      readonly reason: 'unsupported-type' | 'unreadable';
     }
   | {
       readonly kind: 'image-rejected';
