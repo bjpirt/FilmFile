@@ -56,7 +56,6 @@ export const frame = z
       description:
         "The frame's own camera, in place of its roll's, or null to use the roll's.",
     }),
-    film: slug.nullable(),
     lens: slug.nullable(),
     events: z.array(slug).nullable().meta({
       description:
@@ -185,7 +184,6 @@ export const updateFrameRequest = z
     camera: slug.nullable().optional().meta({
       description: "The frame's own camera, or null to use its roll's again.",
     }),
-    film: slug.nullable().optional(),
     lens: slug.nullable().optional(),
     events: z.array(slug).max(50).nullable().optional().meta({
       description: "The frame's own events, or null to use its roll's again.",
@@ -217,14 +215,13 @@ export const updateFrameDetailsRequest = z
   .strictObject({
     frameIds: z.array(ulid).min(1).max(1000),
     camera: slug.nullable().optional(),
-    film: slug.nullable().optional(),
     lens: slug.nullable().optional(),
     events: z.array(slug).max(50).nullable().optional(),
   })
   .meta({
     id: 'UpdateFrameDetailsRequest',
     description:
-      "Gives every frame listed the same camera, film stock, lens or events of its own. A detail left out stays as each frame has it; null goes back to the roll's.",
+      "Gives every frame listed the same camera, lens or events of its own; a frame's film stock is always its roll's (D45). A detail left out stays as each frame has it; null goes back to the roll's.",
   });
 
 /** Many frames changed in one save: their numbers, or their own details. */

@@ -30,7 +30,6 @@ describe('POST /api/rolls/{id}/frames', () => {
       rating: null,
       notes: null,
       camera: null,
-      film: null,
       lens: null,
       events: null,
       defaultVersion: null,
@@ -127,7 +126,6 @@ describe('PATCH /api/rolls/{id}/frames/{frameId}', () => {
       rating: null,
       notes: null,
       camera: null,
-      film: null,
       lens: null,
       events: null,
       defaultVersion: null,
@@ -321,6 +319,8 @@ describe('PATCH /api/rolls/{id}/frames', () => {
     ['no frames', { frameIds: [], camera: null }, 422],
     ['a camera not in the archive', { camera: 'nikon-f3' }, 422],
     ['numbers and details together', { numbers: [], camera: null }, 422],
+    // A frame's film stock is always its roll's (D45).
+    ['a film stock', { film: 'kodak-gold-200' }, 422],
   ])('refuses %s', async (_case, change, status) => {
     const { frameIds, url, etag } = await aRollWithFrames(1);
 

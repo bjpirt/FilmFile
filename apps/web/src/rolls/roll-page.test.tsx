@@ -71,7 +71,6 @@ function aFrameWithScan(number: string | null, file: string): Frame {
     rating: null,
     notes: null,
     camera: null,
-    film: null,
     lens: null,
     events: null,
     defaultVersion: null,
@@ -608,6 +607,19 @@ describe('setting details on selected frames', () => {
     });
     fireEvent.click(within(form).getByRole('button', { name: 'Set' }));
   }
+
+  test('sets an event, camera or lens, but never a film stock, which is the roll’s', async () => {
+    await selectFramesOf(['1']);
+
+    expect(
+      ['Set event…', 'Set camera…', 'Set lens…'].map(
+        (name) => screen.queryByRole('button', { name }) !== null,
+      ),
+    ).toEqual([true, true, true]);
+    expect(
+      screen.queryByRole('button', { name: 'Set film stock…' }),
+    ).toBeNull();
+  });
 
   test('can’t set anything until frames are selected', async () => {
     await selectFramesOf([]);
@@ -1234,7 +1246,6 @@ test('shows a placeholder for a frame with no scan', async () => {
         rating: null,
         notes: null,
         camera: null,
-        film: null,
         lens: null,
         events: null,
         defaultVersion: null,

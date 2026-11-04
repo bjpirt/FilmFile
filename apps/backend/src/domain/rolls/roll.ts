@@ -30,11 +30,11 @@ export interface Frame {
   readonly rating: Rating | null;
   readonly notes: string | null;
   /**
-   * The frame's own camera, film stock and lens, by slug, where they differ
-   * from its roll's; null uses the roll's (design section 6).
+   * The frame's own camera and lens, by slug, where they differ from its
+   * roll's; null uses the roll's (design section 6). Its film stock is
+   * always its roll's (D45).
    */
   readonly camera: Slug | null;
-  readonly film: Slug | null;
   readonly lens: Slug | null;
   /** The events the frame is in, by slug, in place of its roll's; null uses the roll's. */
   readonly events: readonly Slug[] | null;

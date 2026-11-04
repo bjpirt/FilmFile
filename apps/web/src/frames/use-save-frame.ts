@@ -11,7 +11,6 @@ export type FrameChanges = components['schemas']['UpdateFrameRequest'];
 /** One of a roll's details, set from a frame's own (U39). */
 export type RollChange =
   | { readonly camera: string }
-  | { readonly film: string }
   | { readonly lens: string }
   | { readonly event: string };
 
@@ -120,11 +119,9 @@ export function useSaveFrame(
       body:
         'camera' in change
           ? { camera: null }
-          : 'film' in change
-            ? { film: null }
-            : 'lens' in change
-              ? { lens: null }
-              : { events: null },
+          : 'lens' in change
+            ? { lens: null }
+            : { events: null },
     });
     if (cleared.data === undefined) {
       setProblem("Couldn't save it. Is the service running?");

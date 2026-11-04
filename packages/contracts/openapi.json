@@ -183,15 +183,6 @@
             "example": "nikon-fe",
             "description": "The frame's own camera, in place of its roll's, or null to use the roll's."
           },
-          "film": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 60,
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
-            "example": "nikon-fe"
-          },
           "lens": {
             "type": [
               "string",
@@ -237,7 +228,6 @@
           "rating",
           "notes",
           "camera",
-          "film",
           "lens",
           "events",
           "defaultVersion",
@@ -573,15 +563,6 @@
             "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
             "example": "nikon-fe"
           },
-          "film": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 60,
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
-            "example": "nikon-fe"
-          },
           "lens": {
             "type": [
               "string",
@@ -609,7 +590,7 @@
           "frameIds"
         ],
         "additionalProperties": false,
-        "description": "Gives every frame listed the same camera, film stock, lens or events of its own. A detail left out stays as each frame has it; null goes back to the roll's."
+        "description": "Gives every frame listed the same camera, lens or events of its own; a frame's film stock is always its roll's (D45). A detail left out stays as each frame has it; null goes back to the roll's."
       },
       "UpdateFrameRequest": {
         "type": "object",
@@ -656,15 +637,6 @@
             "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
             "example": "nikon-fe",
             "description": "The frame's own camera, or null to use its roll's again."
-          },
-          "film": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 60,
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
-            "example": "nikon-fe"
           },
           "lens": {
             "type": [

@@ -31,15 +31,14 @@ export function rollLayer(
   };
 }
 
-/** A frame's own camera, film stock, lens and events, the most specific layer (U15). */
+/** A frame's own camera, lens and events, the most specific layer (U15); never a film stock (D45). */
 export function frameLayer(
-  frame: Pick<Frame, 'id' | 'camera' | 'film' | 'lens' | 'events'>,
+  frame: Pick<Frame, 'id' | 'camera' | 'lens' | 'events'>,
 ): DetailsLayer {
   return {
     source: { layer: 'frame', id: frame.id },
     details: {
       ...(frame.camera === null ? {} : { camera: frame.camera }),
-      ...(frame.film === null ? {} : { film: frame.film }),
       ...(frame.lens === null ? {} : { lens: frame.lens }),
       ...(frame.events === null ? {} : { events: frame.events }),
     },

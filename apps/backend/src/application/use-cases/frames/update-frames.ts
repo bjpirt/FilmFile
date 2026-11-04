@@ -13,12 +13,11 @@ import type {
   VersionedRoll,
 } from '../../ports/roll-repository.ts';
 import { knownCamera } from '../rolls/known-camera.ts';
-import { knownFilmStock } from '../rolls/known-film-stock.ts';
 import { knownLens } from '../rolls/known-lens.ts';
 import { knownEvents } from './known-events.ts';
 
 /**
- * Gives many frames the same camera, film stock, lens or events of their
+ * Gives many frames the same camera, lens or events of their
  * own (U15), in one save of their roll, as when frames are selected and set
  * together (U16). A detail left out stays as each frame has it; null goes
  * back to the roll's. Nothing is saved if any detail isn't in the archive or
@@ -48,7 +47,6 @@ export class UpdateFrames {
       readonly frameIds: readonly string[];
       /** Slugs of equipment in the archive. */
       readonly camera?: string | null | undefined;
-      readonly film?: string | null | undefined;
       readonly lens?: string | null | undefined;
       /** Slugs of events in the archive. */
       readonly events?: readonly string[] | null | undefined;
@@ -62,13 +60,6 @@ export class UpdateFrames {
         : await knownCamera(this.#equipment, ctx, input.camera);
     if (!camera.ok) {
       return camera;
-    }
-    const film =
-      input.film === undefined || input.film === null
-        ? ok(input.film)
-        : await knownFilmStock(this.#equipment, ctx, input.film);
-    if (!film.ok) {
-      return film;
     }
     const lens =
       input.lens === undefined || input.lens === null
@@ -103,7 +94,6 @@ export class UpdateFrames {
           ? {
               ...frame,
               ...(camera.value === undefined ? {} : { camera: camera.value }),
-              ...(film.value === undefined ? {} : { film: film.value }),
               ...(lens.value === undefined ? {} : { lens: lens.value }),
               ...(events.value === undefined ? {} : { events: events.value }),
             }

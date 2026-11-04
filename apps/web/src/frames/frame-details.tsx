@@ -260,9 +260,6 @@ export function FrameDetails({
       label: 'Film stock',
       value: filmStockName(films, inherited?.film?.value ?? null),
       from: inherited?.film?.source.layer,
-      ...(inherited?.film === undefined
-        ? {}
-        : { clear: { film: null }, onRoll: { film: inherited.film.value } }),
     },
     {
       label: frameEvents.length > 1 ? 'Events' : 'Event',

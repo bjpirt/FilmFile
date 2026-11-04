@@ -203,8 +203,8 @@ export function frameFromStored(stored: z.output<typeof storedFrame>): Frame {
   const { meta, events, ...rest } = stored;
   return {
     ...rest,
+    // A film stock a frame was given before frames couldn't have one (D45) is left out.
     camera: meta?.camera ?? null,
-    film: meta?.film ?? null,
     lens: meta?.lens ?? null,
     events: events ?? null,
     versions: stored.versions.map(({ transform, ...version }) => ({
@@ -225,12 +225,11 @@ export function storedFrameOf(frame: Frame): z.input<typeof storedFrame> {
     notes: frame.notes,
     // Only what the frame sets itself, so a frame that inherits it all says nothing.
     ...(frame.events === null ? {} : { events: [...frame.events] }),
-    ...(frame.camera === null && frame.film === null && frame.lens === null
+    ...(frame.camera === null && frame.lens === null
       ? {}
       : {
           meta: {
             ...(frame.camera === null ? {} : { camera: frame.camera }),
-            ...(frame.film === null ? {} : { film: frame.film }),
             ...(frame.lens === null ? {} : { lens: frame.lens }),
           },
         }),

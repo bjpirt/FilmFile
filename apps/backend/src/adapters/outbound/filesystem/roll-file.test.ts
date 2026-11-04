@@ -41,7 +41,6 @@ const aFrame = fc.record({
   }),
   notes: fc.option(fc.string(), { nil: null }),
   camera: fc.option(aSlug, { nil: null }),
-  film: fc.option(aSlug, { nil: null }),
   lens: fc.option(aSlug, { nil: null }),
   events: fc.option(fc.array(aSlug, { maxLength: 3 }), { nil: null }),
   defaultVersion: fc.option(ulid.filter(isVersionId), { nil: null }),
@@ -192,6 +191,32 @@ describe('roll.json', () => {
           }),
         ],
       }),
+    );
+  });
+
+  test('leaves out a film stock a frame was given before frames couldn’t have one (D45)', () => {
+    const read = parseRollFile(
+      JSON.stringify({
+        schema: 2,
+        id: '01M6EAAP694BKWR9HZ4N5Z54XD',
+        roll: '2026-014',
+        frames: [
+          {
+            id: '01M6EAAP694BKWR9HZ4N5Z54XE',
+            number: '1',
+            meta: { film: 'kodak-gold-200', lens: 'nikon-nikkor-105mm' },
+            versions: [],
+          },
+        ],
+      }),
+    );
+
+    expect(read.ok && read.value.frames[0]).not.toHaveProperty('film');
+    expect(read.ok && rollFileContent(read.value)).not.toContain(
+      'kodak-gold-200',
+    );
+    expect(read.ok && rollFileContent(read.value)).toContain(
+      'nikon-nikkor-105mm',
     );
   });
 

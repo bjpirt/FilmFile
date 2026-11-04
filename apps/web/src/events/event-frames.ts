@@ -173,7 +173,8 @@ export function useEventFrames(
       case 'film':
         return namedGroups(
           frames,
-          ({ roll, frame }) => filmStockName(films, frame.film ?? roll.film),
+          // Always the roll's (D45).
+          ({ roll }) => filmStockName(films, roll.film),
           'No film stock',
         );
     }

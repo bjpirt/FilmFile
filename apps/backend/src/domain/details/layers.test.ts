@@ -41,7 +41,6 @@ test('a frame gives only what it sets itself, its events as they are', () => {
     frameLayer({
       id: frameId,
       camera: null,
-      film: null,
       lens: camera,
       events: [event, camera],
     }),
@@ -56,7 +55,6 @@ test('a frame that sets nothing gives nothing, so it inherits everything', () =>
     frameLayer({
       id: frameId,
       camera: null,
-      film: null,
       lens: null,
       events: null,
     }).details,

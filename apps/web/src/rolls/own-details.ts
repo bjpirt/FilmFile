@@ -8,7 +8,6 @@ export function ownDetails(frame: Frame, roll: Roll): string | undefined {
   const rollEvents = roll.event === null ? [] : [roll.event];
   const own = [
     frame.camera !== null && frame.camera !== roll.camera ? 'camera' : '',
-    frame.film !== null && frame.film !== roll.film ? 'film stock' : '',
     frame.lens !== null && frame.lens !== roll.lens ? 'lens' : '',
     frame.events !== null && frame.events.join(' ') !== rollEvents.join(' ')
       ? 'events'

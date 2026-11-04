@@ -1904,8 +1904,6 @@ export interface components {
              */
             camera: string | null;
             /** @example nikon-fe */
-            film: string | null;
-            /** @example nikon-fe */
             lens: string | null;
             /** @description The events the frame is in, in place of its roll's, or null to use the roll's. */
             events: string[] | null;
@@ -2005,13 +2003,11 @@ export interface components {
                 number: string | null;
             }[];
         };
-        /** @description Gives every frame listed the same camera, film stock, lens or events of its own. A detail left out stays as each frame has it; null goes back to the roll's. */
+        /** @description Gives every frame listed the same camera, lens or events of its own; a frame's film stock is always its roll's (D45). A detail left out stays as each frame has it; null goes back to the roll's. */
         UpdateFrameDetailsRequest: {
             frameIds: string[];
             /** @example nikon-fe */
             camera?: string | null;
-            /** @example nikon-fe */
-            film?: string | null;
             /** @example nikon-fe */
             lens?: string | null;
             events?: string[] | null;
@@ -2032,8 +2028,6 @@ export interface components {
              * @example nikon-fe
              */
             camera?: string | null;
-            /** @example nikon-fe */
-            film?: string | null;
             /** @example nikon-fe */
             lens?: string | null;
             /** @description The frame's own events, or null to use its roll's again. */

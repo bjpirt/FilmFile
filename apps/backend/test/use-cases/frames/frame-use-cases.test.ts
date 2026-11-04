@@ -113,7 +113,6 @@ describe('CreateFrame', () => {
         rating: null,
         notes: null,
         camera: null,
-        film: null,
         lens: null,
         events: null,
         defaultVersion: null,
@@ -174,7 +173,6 @@ describe('UpdateFrame', () => {
           rating: null,
           notes: null,
           camera: null,
-          film: null,
           lens: null,
           events: null,
           defaultVersion: null,
@@ -348,7 +346,6 @@ describe('UpdateFrame with the frame’s own details', () => {
 
     const own = {
       camera: 'leica-m6',
-      film: null,
       lens: aLens('Leica', 'Summicron', { focalLength: 35, maxAperture: 2 })
         .slug,
       events: ['westfjords', 'iceland-2026'],
@@ -383,7 +380,6 @@ describe('UpdateFrame with the frame’s own details', () => {
 
   test.each([
     ['camera', { camera: 'nikon-f3' }],
-    ['film', { film: 'kodak-gold-200' }],
     ['lens', { lens: 'zeiss-planar' }],
     ['events', { events: ['westfjords', 'nowhere'] }],
   ])(

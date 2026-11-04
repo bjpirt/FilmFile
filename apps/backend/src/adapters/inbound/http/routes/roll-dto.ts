@@ -21,7 +21,6 @@ export function frameDto(frame: Frame): RollDto['frames'][number] {
     rating: frame.rating,
     notes: frame.notes,
     camera: frame.camera,
-    film: frame.film,
     lens: frame.lens,
     events: frame.events === null ? null : [...frame.events],
     defaultVersion: frame.defaultVersion,

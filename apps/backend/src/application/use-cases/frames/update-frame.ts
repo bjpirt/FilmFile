@@ -13,14 +13,13 @@ import type { EquipmentRepository } from '../../ports/equipment-repository.ts';
 import type { EventRepository } from '../../ports/event-repository.ts';
 import type { RollRepository } from '../../ports/roll-repository.ts';
 import { knownCamera } from '../rolls/known-camera.ts';
-import { knownFilmStock } from '../rolls/known-film-stock.ts';
 import { knownLens } from '../rolls/known-lens.ts';
 import { knownEvents } from './known-events.ts';
 import { textOrNull } from '../rolls/text-or-null.ts';
 
 /**
  * Changes a frame's number, the version shown for it (D15), how it's
- * described (title, rating and notes), or its own camera, film stock, lens
+ * described (title, rating and notes), or its own camera, lens
  * and events, which take the place of its roll's (U15). Saved only if the
  * roll hasn't changed since the caller read it at `expectedVersion`. A
  * detail left out stays as it is; null, or blank text, clears it, so the
@@ -56,7 +55,6 @@ export class UpdateFrame {
       readonly notes?: string | null | undefined;
       /** Slugs of equipment in the archive. */
       readonly camera?: string | null | undefined;
-      readonly film?: string | null | undefined;
       readonly lens?: string | null | undefined;
       /** Slugs of events in the archive. */
       readonly events?: readonly string[] | null | undefined;
@@ -87,13 +85,6 @@ export class UpdateFrame {
         : await knownCamera(this.#equipment, ctx, input.camera);
     if (!camera.ok) {
       return camera;
-    }
-    const film =
-      input.film === undefined || input.film === null
-        ? ok(input.film)
-        : await knownFilmStock(this.#equipment, ctx, input.film);
-    if (!film.ok) {
-      return film;
     }
     const lens =
       input.lens === undefined || input.lens === null
@@ -141,7 +132,6 @@ export class UpdateFrame {
       ...(rating.value === undefined ? {} : { rating: rating.value }),
       ...(input.notes === undefined ? {} : { notes: textOrNull(input.notes) }),
       ...(camera.value === undefined ? {} : { camera: camera.value }),
-      ...(film.value === undefined ? {} : { film: film.value }),
       ...(lens.value === undefined ? {} : { lens: lens.value }),
       ...(events.value === undefined ? {} : { events: events.value }),
     };

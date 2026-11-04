@@ -26,8 +26,8 @@ test.each([
   [{ camera: 'leica-m6' }, 'Its own camera'],
   [{ camera: 'leica-m6', lens: 'summicron-35' }, 'Its own camera and lens'],
   [
-    { film: 'portra-400', lens: 'summicron-35', events: ['westfjords'] },
-    'Its own film stock, lens and events',
+    { camera: 'leica-m6', lens: 'summicron-35', events: ['westfjords'] },
+    'Its own camera, lens and events',
   ],
   [{ events: [] }, 'Its own events'],
 ])('names the details a frame has of its own: %j', (own, text) => {

@@ -1,9 +1,8 @@
 import { useState, type SubmitEvent } from 'react';
 
-/** What selected frames are given: their own camera, film stock, lens or events, or null for their roll's. */
+/** What selected frames are given: their own camera, lens or events, or null for their roll's. Never a film stock, which is the roll's (D45). */
 export interface FramesChange {
   readonly camera?: string | null;
-  readonly film?: string | null;
   readonly lens?: string | null;
   readonly events?: readonly string[] | null;
 }
@@ -17,7 +16,6 @@ export interface Choice {
 const details = [
   { key: 'event', name: 'Event' },
   { key: 'camera', name: 'Camera' },
-  { key: 'film', name: 'Film stock' },
   { key: 'lens', name: 'Lens' },
 ] as const;
 
@@ -33,8 +31,6 @@ function changeOf(detail: Detail, value: string): FramesChange {
       return { events: chosen === null ? null : [chosen] };
     case 'camera':
       return { camera: chosen };
-    case 'film':
-      return { film: chosen };
     case 'lens':
       return { lens: chosen };
   }
@@ -45,7 +41,7 @@ function frames(count: number): string {
 }
 
 /**
- * The selected frames' event, camera, film stock or lens, set together
+ * The selected frames' event, camera or lens, set together
  * (U16): a button for each opens a choice of the archive's, or the roll's.
  */
 export function AssignToFrames({

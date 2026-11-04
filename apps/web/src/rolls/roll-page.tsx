@@ -16,11 +16,7 @@ import { chooseLens } from '../equipment/choose-lens.ts';
 import { lensLabel, lensName, useLenses } from '../equipment/use-lenses.ts';
 import { chooseEvent } from '../events/choose-event.ts';
 import { eventName, useEvents } from '../events/use-events.ts';
-import {
-  filmStockLabel,
-  filmStockName,
-  useFilmStocks,
-} from '../equipment/use-film-stocks.ts';
+import { filmStockName, useFilmStocks } from '../equipment/use-film-stocks.ts';
 import { EditDetailsPanel, type RollDetails } from './edit-details-panel.tsx';
 import { formatShot } from './format-shot.ts';
 import { frameCount } from './frame-count.ts';
@@ -773,10 +769,6 @@ export function RollPage({
                       camera: cameras.map((camera) => ({
                         value: camera.slug,
                         label: cameraLabel(camera),
-                      })),
-                      film: films.map((film) => ({
-                        value: film.slug,
-                        label: filmStockLabel(film),
                       })),
                       lens: lenses.map((lens) => ({
                         value: lens.slug,
