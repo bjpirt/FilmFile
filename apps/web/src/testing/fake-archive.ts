@@ -53,8 +53,7 @@ export interface ArchiveContents {
 /** An archive that's been set up, as every page but first-run setup expects. */
 export const setUpArchive: Archive = {
   id: '01JC8Y0000000000000000000A',
-  name: 'Test archive',
-  author: null,
+  author: 'Test author',
   copyright: null,
 };
 
@@ -377,8 +376,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       }
       settings = {
         ...setUpArchive,
-        name: body.value.name,
-        author: body.value.author ?? null,
+        author: body.value.author,
         copyright: body.value.copyright ?? null,
       };
       return Response.json(settings, { status: 201 });

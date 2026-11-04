@@ -58,7 +58,7 @@ const initialiseArchive = createRoute({
 const updateArchive = createRoute({
   method: 'patch',
   path: '/',
-  summary: "Change the archive's name, author or copyright",
+  summary: "Change the archive's author or copyright",
   description:
     "Send the archive's ETag as If-Match: the change is refused if the archive has changed since. The response's ETag is the archive's new version.",
   middleware: [requireJson] as const,

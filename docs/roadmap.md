@@ -77,7 +77,7 @@ Key journeys, each named by the task that adds it:
 | Find rolls (U6) | Switch grid and list, group by year, filter by year, close and reopen the browse panel |
 | Describe a roll (U7 onwards) | Create a roll with its name, notes, date, scans, camera, film stock and lens, then find it grouped and filtered by each |
 | Organise by event (U12a–U12c, U19) | Create an event, put rolls in it, and browse to them by event; give it a date on the Events page; open it to see its frames from every roll, grouped by roll; later, an event inside another, whose frames show under its parent too |
-| First run (1b.2) | On an archive never set up, any page asks for setup first; set it up, land on the page asked for, then change the settings and find them after a reload. Runs against a server of its own, since it needs an empty archive |
+| First run (1b.2) | On an archive never set up, any page asks for setup first; give the author and see the copyright made from it, land on the page asked for, then change the copyright, be taken back to the rolls, and find it in Settings after a reload. Runs against a server of its own, since it needs an empty archive |
 | Bulk edit (U16) | Select some of a roll's frames, put them in an event and give them another camera, then find them under that event with the roll's other frames left as they were |
 
 ---
@@ -142,6 +142,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D41 | Rotating a frame turns the version shown, by quarter turns kept in the version's `transform.rotate`, as the design's non-destructive crop and rotate; the image file is never changed, and thumbnails are made turned. | U33 |
 | D42 | No licence for now: the archive holds a name, author and copyright only. A licence (and how it's chosen) is decided when exports need one. | 1.3.1, 1b.2 |
 | D43 | First-run setup is required: until `archive.json` exists, every page shows the setup form, since what's set there (author, copyright) is what frames will inherit. | 1b.2 |
+| D44 | The archive has no name, only an author (required) and a copyright, since there's one archive and its name was never shown. An `archive.json` written with a `name` is read without it. The copyright is made from the author until it's written by hand. | 1b.2 |
 
 **Still open:** see `docs/design.md`, section 15.
 
@@ -268,12 +269,12 @@ Deleting a frame or a roll into the archive's `deleted/` folder. Changing a roll
 
 ### Archive settings
 
-The archive's name, author and copyright, set on first run and changed later; no labs (D35), and no licence yet (D42).
+The archive's author and copyright, set on first run and changed later; no name (D44), no labs (D35), and no licence yet (D42).
 
-- [x] **ArchiveRepository.** *(`EquipmentRepository` and `EventRepository`: U9–U12b.)* Port, filesystem and in-memory adapters, contract suite: the archive's ID, name, author and copyright, kept in `archive.json` (author and copyright in its `meta`). *(The rest of 0.4.1.)*
-- [x] **1.3.1 Archive.** `InitialiseArchive`, `GetArchive` and `UpdateArchive`: the archive's name and its archive-wide `meta` (author, copyright). No labs are stored (D35), and no licence yet (D42).
+- [x] **ArchiveRepository.** *(`EquipmentRepository` and `EventRepository`: U9–U12b.)* Port, filesystem and in-memory adapters, contract suite: the archive's ID, author and copyright, kept in `archive.json` (author and copyright in its `meta`). *(The rest of 0.4.1.)*
+- [x] **1.3.1 Archive.** `InitialiseArchive`, `GetArchive` and `UpdateArchive`: the archive's archive-wide `meta`, an author (required, D44) and a copyright. No labs are stored (D35), and no licence yet (D42).
 - [x] **1.4.2 Archive routes.** *(Equipment and events routes: U9–U12b.)* `GET /api/archive` (404 until it's set up), `POST /api/archive` to set it up, and `PATCH /api/archive` with `If-Match`.
-- [x] **1b.2 First-run setup.** Until the archive is set up, every page shows "Set up your archive" instead: its name (required), author and copyright (D43). Afterwards a Settings page, linked from the header, changes them. Adds a journey.
+- [x] **1b.2 First-run setup.** Until the archive is set up, every page shows "Set up your archive" instead: its author (required) and copyright (D43, D44). The copyright fills in from the author as it's typed ("© Ben Pirt. All rights reserved."), and can be edited; once changed by hand, it's left alone. Afterwards a Settings page, linked from the header, changes them; saving goes back to the rolls. Adds a journey.
 
 ### Replaced or dropped
 

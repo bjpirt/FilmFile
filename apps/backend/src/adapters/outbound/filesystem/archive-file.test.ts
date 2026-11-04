@@ -8,10 +8,9 @@ if (!isArchiveId(id)) {
 }
 
 describe('archive.json', () => {
-  test('keeps author and copyright in meta, and only those it has', () => {
+  test('keeps the author and copyright in meta, and no copyright it hasn’t', () => {
     const text = archiveFileContent({
       id,
-      name: 'Ben’s film archive',
       author: 'Ben Pirt',
       copyright: null,
     });
@@ -19,20 +18,26 @@ describe('archive.json', () => {
     expect(JSON.parse(text)).toEqual({
       schema: 1,
       id,
-      name: 'Ben’s film archive',
       meta: { author: 'Ben Pirt' },
     });
   });
 
-  test('reads a file with no meta as having no author or copyright', () => {
+  test('ignores a name written before archives had none (D44)', () => {
     expect(
-      parseArchiveFile(JSON.stringify({ schema: 1, id, name: 'Film' })),
-    ).toEqual({ id, name: 'Film', author: null, copyright: null });
+      parseArchiveFile(
+        JSON.stringify({
+          schema: 1,
+          id,
+          name: 'Film Archive',
+          meta: { author: 'Ben Pirt', copyright: '© Ben Pirt' },
+        }),
+      ),
+    ).toEqual({ id, author: 'Ben Pirt', copyright: '© Ben Pirt' });
   });
 
-  test('refuses a file without a name', () => {
+  test('refuses a file without an author', () => {
     expect(() =>
-      parseArchiveFile(JSON.stringify({ schema: 1, id, name: '' })),
+      parseArchiveFile(JSON.stringify({ schema: 1, id, meta: {} })),
     ).toThrow();
   });
 });

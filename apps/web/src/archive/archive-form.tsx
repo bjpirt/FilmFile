@@ -1,18 +1,22 @@
 import { useState, type SubmitEvent } from 'react';
 import { RequiredMarker } from '../forms/required-marker.tsx';
 
-/** The archive's details as the form saves them; blank ones are null. */
+/** The archive's details as the form saves them; a blank copyright is null. */
 export interface ArchiveDetails {
-  readonly name: string;
-  readonly author: string | null;
+  readonly author: string;
   readonly copyright: string | null;
 }
 
-function textOrNull(text: string): string | null {
-  return text.trim() === '' ? null : text.trim();
+/** The copyright notice an author gets unless they write their own. */
+export function copyrightFor(author: string): string {
+  return author.trim() === '' ? '' : `© ${author.trim()}. All rights reserved.`;
 }
 
-/** The archive's name, author and copyright, to set up or change. */
+/**
+ * The archive's author and copyright, to set up or change. The copyright
+ * follows the author as it's typed, for as long as it's the one made from
+ * the author; once changed by hand, it's left alone.
+ */
 export function ArchiveForm({
   label,
   initial,
@@ -27,34 +31,30 @@ export function ArchiveForm({
   /** Saves the details, giving what to tell the person if they weren't saved. */
   readonly save: (details: ArchiveDetails) => Promise<string | undefined>;
 }) {
-  const [name, setName] = useState(initial.name);
-  const [author, setAuthor] = useState(initial.author ?? '');
+  const [author, setAuthor] = useState(initial.author);
   const [copyright, setCopyright] = useState(initial.copyright ?? '');
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | undefined>(undefined);
-  const [saved, setSaved] = useState(false);
 
   async function send(event: SubmitEvent) {
     event.preventDefault();
-    setSaved(false);
-    if (name.trim() === '') {
-      setProblem('Enter a name for the archive.');
+    if (author.trim() === '') {
+      setProblem('Enter who the photographs are by.');
       return;
     }
     setProblem(undefined);
     setSaving(true);
     const notSaved = await save({
-      name: name.trim(),
-      author: textOrNull(author),
-      copyright: textOrNull(copyright),
+      author: author.trim(),
+      copyright: copyright.trim() === '' ? null : copyright.trim(),
     });
+    // Once saved, the page moves on.
     setSaving(false);
     setProblem(notSaved);
-    setSaved(notSaved === undefined);
   }
 
   return (
-    // noValidate: the form's own message explains a missing name.
+    // noValidate: the form's own message explains a missing author.
     <form
       className="roll-details archive-form"
       aria-label={label}
@@ -63,26 +63,19 @@ export function ArchiveForm({
     >
       <label>
         <span>
-          Name <RequiredMarker />
+          Author <RequiredMarker />
         </span>
-        <input
-          value={name}
-          placeholder="Ben’s film archive"
-          maxLength={100}
-          autoFocus
-          onChange={(event) => {
-            setName(event.target.value);
-          }}
-        />
-      </label>
-      <label>
-        Author
         <input
           value={author}
           placeholder="Ben Pirt"
           maxLength={100}
+          autoFocus
           onChange={(event) => {
-            setAuthor(event.target.value);
+            const typed = event.target.value;
+            if (copyright === copyrightFor(author)) {
+              setCopyright(copyrightFor(typed));
+            }
+            setAuthor(typed);
           }}
         />
       </label>
@@ -90,7 +83,6 @@ export function ArchiveForm({
         Copyright
         <input
           value={copyright}
-          placeholder="© Ben Pirt. All rights reserved."
           maxLength={200}
           onChange={(event) => {
             setCopyright(event.target.value);
@@ -106,7 +98,6 @@ export function ArchiveForm({
         <button type="submit" className="primary" disabled={saving}>
           {submit}
         </button>
-        {saved && <p role="status">Saved.</p>}
       </div>
     </form>
   );

@@ -1,13 +1,15 @@
 import type { ValidationFailed } from '../../../domain/shared/domain-error.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
 
-/** An archive's name, trimmed; it can't be blank. */
-export function archiveName(name: string): Result<string, ValidationFailed> {
-  const trimmed = name.trim();
+/** The archive's author, trimmed; it can't be blank (D44). */
+export function archiveAuthor(
+  author: string,
+): Result<string, ValidationFailed> {
+  const trimmed = author.trim();
   return trimmed === ''
     ? err({
         kind: 'validation-failed',
-        issues: [{ path: ['name'], message: 'must not be blank' }],
+        issues: [{ path: ['author'], message: 'must not be blank' }],
       })
     : ok(trimmed);
 }

@@ -53,15 +53,17 @@ describe('first-run setup', () => {
     },
   );
 
-  test('sets it up with its name, author and copyright, then shows the page asked for', async () => {
+  test('sets it up with its author and a copyright made from it, then shows the page asked for', async () => {
     const archive = openAt('/events', { settings: null });
     const form = await screen.findByRole('form', {
       name: 'Set up your archive',
     });
 
-    fill(form, 'Name', 'Ben’s film archive');
     fill(form, 'Author', 'Ben Pirt');
-    fill(form, 'Copyright', '© Ben Pirt');
+    expect(within(form).getByLabelText('Copyright')).toHaveProperty(
+      'value',
+      '© Ben Pirt. All rights reserved.',
+    );
     fireEvent.click(
       within(form).getByRole('button', { name: 'Set up archive' }),
     );
@@ -70,32 +72,47 @@ describe('first-run setup', () => {
       await screen.findByRole('heading', { level: 1, name: 'Events' }),
     ).toBeDefined();
     expect(archive.settings()).toMatchObject({
-      name: 'Ben’s film archive',
       author: 'Ben Pirt',
-      copyright: '© Ben Pirt',
+      copyright: '© Ben Pirt. All rights reserved.',
     });
   });
 
-  test('leaves the author and copyright out when they’re blank', async () => {
+  test('keeps a copyright written by hand when the author changes', async () => {
+    openAt('/', { settings: null });
+    const form = await screen.findByRole('form', {
+      name: 'Set up your archive',
+    });
+
+    fill(form, 'Author', 'Ben');
+    fill(form, 'Copyright', '© 2026 Ben Pirt');
+    fill(form, 'Author', 'Ben Pirt');
+
+    expect(within(form).getByLabelText('Copyright')).toHaveProperty(
+      'value',
+      '© 2026 Ben Pirt',
+    );
+  });
+
+  test('leaves the copyright out when it’s cleared', async () => {
     const archive = openAt('/', { settings: null });
     const form = await screen.findByRole('form', {
       name: 'Set up your archive',
     });
 
-    fill(form, 'Name', 'Film');
+    fill(form, 'Author', 'Ben Pirt');
+    fill(form, 'Copyright', '');
     fireEvent.click(
       within(form).getByRole('button', { name: 'Set up archive' }),
     );
 
     await screen.findByRole('heading', { level: 1, name: 'Rolls' });
     expect(archive.settings()).toMatchObject({
-      name: 'Film',
-      author: null,
+      author: 'Ben Pirt',
       copyright: null,
     });
   });
 
-  test('asks for a name before setting it up', async () => {
+  test('asks for an author before setting it up', async () => {
     const archive = openAt('/', { settings: null });
     const form = await screen.findByRole('form', {
       name: 'Set up your archive',
@@ -106,7 +123,7 @@ describe('first-run setup', () => {
     );
 
     expect((await screen.findByRole('alert')).textContent).toBe(
-      'Enter a name for the archive.',
+      'Enter who the photographs are by.',
     );
     expect(archive.settings()).toBeNull();
   });
@@ -136,9 +153,8 @@ describe('first-run setup', () => {
 describe('the settings page', () => {
   const settings = {
     ...setUpArchive,
-    name: 'Film',
     author: 'Ben',
-    copyright: '© Ben',
+    copyright: '© Ben. All rights reserved.',
   };
 
   test('opens from the header, showing the archive’s details', async () => {
@@ -148,44 +164,55 @@ describe('the settings page', () => {
 
     const form = await screen.findByRole('form', { name: 'Settings' });
     expect(
-      within(form).getByLabelText('Name', { exact: false }),
-    ).toHaveProperty('value', 'Film');
-    expect(within(form).getByLabelText('Author')).toHaveProperty(
-      'value',
-      'Ben',
-    );
+      within(form).getByLabelText('Author', { exact: false }),
+    ).toHaveProperty('value', 'Ben');
     expect(within(form).getByLabelText('Copyright')).toHaveProperty(
       'value',
-      '© Ben',
+      '© Ben. All rights reserved.',
     );
   });
 
-  test('saves changes with the archive’s ETag, clearing what’s left blank', async () => {
+  test('saves changes with the archive’s ETag, the copyright following the author, then shows the rolls', async () => {
     const archive = openAt('/settings', { settings });
     const form = await screen.findByRole('form', { name: 'Settings' });
 
     fill(form, 'Author', 'Ben Pirt');
-    fill(form, 'Copyright', '');
     fireEvent.click(within(form).getByRole('button', { name: 'Save' }));
 
-    expect((await screen.findByRole('status')).textContent).toBe('Saved.');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Rolls' }),
+    ).toBeDefined();
+    expect(window.location.pathname).toBe('/');
     expect(archive.settings()).toMatchObject({
-      name: 'Film',
       author: 'Ben Pirt',
-      copyright: null,
+      copyright: '© Ben Pirt. All rights reserved.',
     });
     expect(archive.ifMatches).toEqual(['"v1"']);
   });
 
-  test('asks for a name rather than clearing it', async () => {
+  test('leaves a copyright of its own alone when the author changes', async () => {
+    openAt('/settings', {
+      settings: { ...settings, copyright: '© 2026 Ben' },
+    });
+    const form = await screen.findByRole('form', { name: 'Settings' });
+
+    fill(form, 'Author', 'Ben Pirt');
+
+    expect(within(form).getByLabelText('Copyright')).toHaveProperty(
+      'value',
+      '© 2026 Ben',
+    );
+  });
+
+  test('asks for an author rather than clearing it', async () => {
     const archive = openAt('/settings', { settings });
     const form = await screen.findByRole('form', { name: 'Settings' });
 
-    fill(form, 'Name', ' ');
+    fill(form, 'Author', ' ');
     fireEvent.click(within(form).getByRole('button', { name: 'Save' }));
 
     expect((await screen.findByRole('alert')).textContent).toBe(
-      'Enter a name for the archive.',
+      'Enter who the photographs are by.',
     );
     expect(archive.ifMatches).toEqual([]);
   });

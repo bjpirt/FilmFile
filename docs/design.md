@@ -107,7 +107,7 @@ archive/
 
 All files are JSON, carry `"schema": <n>`, and validate against Zod schemas owned by the filesystem adapter (which also generate JSON Schemas for reference). Readers migrate older schema versions in memory; files are rewritten in the current version the next time they're saved. A file that can't be read (not valid JSON, not matching its schema, or written by a newer version of FilmFile) is reported, not allowed to hide the rest: the roll list names the roll and the problem, and the file is never changed or deleted. These persistence schemas are separate from the domain model and the API contracts (section 13.3).
 
-- **archive.json:** `id`, `name`, `meta` (archive-wide defaults: author and copyright; a licence later, D42), and later workflow settings. Labs aren't stored (D35).
+- **archive.json:** `id`, `meta` (archive-wide defaults: author and copyright; a licence later, D42), and later workflow settings. Labs aren't stored (D35).
 - **roll.json:** roll fields, roll `meta`, and the `frames` array, each frame holding its own fields, `meta`, `events` and `versions`. A full example is in `docs/plan-phase-0-1.md`.
 - **Equipment:** one file per item; the slug is the file name.
 - **Event:** `id`, `name`, optional `parent` (event slug), `dates`, `notes`, and `meta` defaults (e.g. `location`).

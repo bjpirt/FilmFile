@@ -121,6 +121,7 @@ export function App({ api }: { readonly api: ApiClient }) {
       <>
         <header className="app-header">
           <div className="app-brand">
+            <span className="browse-toggle-space" />
             <span className="app-name">FilmFile</span>
           </div>
         </header>
@@ -141,7 +142,7 @@ export function App({ api }: { readonly api: ApiClient }) {
     <>
       <header className="app-header">
         <div className="app-brand">
-          {path === '/' && (
+          {path === '/' ? (
             <BrowseToggle
               open={browseOpen}
               toggle={() => {
@@ -149,6 +150,9 @@ export function App({ api }: { readonly api: ApiClient }) {
                 setBrowseOpen(!browseOpen);
               }}
             />
+          ) : (
+            // Where the browse panel's button is on the rolls page, so the name doesn't move.
+            <span className="browse-toggle-space" />
           )}
           <Link to="/" className="app-name">
             FilmFile

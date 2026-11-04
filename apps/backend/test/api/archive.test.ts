@@ -24,14 +24,13 @@ describe('GET /api/archive', () => {
   });
 
   test('gives the archive’s details, with its version as the ETag', async () => {
-    await post('/api/archive', { name: 'Film', author: 'Ben Pirt' });
+    await post('/api/archive', { author: 'Ben Pirt' });
 
     const response = await request('/api/archive');
 
     expect(response.status).toBe(200);
     expect(response.headers.get('ETag')).toMatch(/^".+"$/);
     expect(await response.json()).toMatchObject({
-      name: 'Film',
       author: 'Ben Pirt',
       copyright: null,
     });
@@ -41,7 +40,6 @@ describe('GET /api/archive', () => {
 describe('POST /api/archive', () => {
   test('sets the archive up, saving archive.json at its root', async () => {
     const response = await post('/api/archive', {
-      name: 'Ben’s film archive',
       author: 'Ben Pirt',
       copyright: '© Ben Pirt',
     });
@@ -49,7 +47,6 @@ describe('POST /api/archive', () => {
     expect(response.status).toBe(201);
     const created: unknown = await response.json();
     expect(created).toMatchObject({
-      name: 'Ben’s film archive',
       author: 'Ben Pirt',
       copyright: '© Ben Pirt',
     });
@@ -60,25 +57,23 @@ describe('POST /api/archive', () => {
     ).toEqual({
       schema: 1,
       id: idOf(created),
-      name: 'Ben’s film archive',
       meta: { author: 'Ben Pirt', copyright: '© Ben Pirt' },
     });
   });
 
   test('refuses to set it up twice', async () => {
-    await post('/api/archive', { name: 'First' });
+    await post('/api/archive', { author: 'First' });
 
-    expect((await post('/api/archive', { name: 'Second' })).status).toBe(409);
+    expect((await post('/api/archive', { author: 'Second' })).status).toBe(409);
   });
 
   test.each([
-    ['no name', {}],
-    ['a blank name', { name: ' ' }],
-    ['a name that is too long', { name: 'x'.repeat(101) }],
-    ['an author that is too long', { name: 'Film', author: 'x'.repeat(101) }],
+    ['no author', {}],
+    ['a blank author', { author: ' ' }],
+    ['an author that is too long', { author: 'x'.repeat(101) }],
     [
       'a copyright that is too long',
-      { name: 'Film', copyright: 'x'.repeat(201) },
+      { author: 'Ben', copyright: 'x'.repeat(201) },
     ],
   ])('refuses %s', async (_, body) => {
     expect((await post('/api/archive', body)).status).toBe(422);
@@ -87,20 +82,19 @@ describe('POST /api/archive', () => {
 
 describe('PATCH /api/archive', () => {
   async function setUp(): Promise<string> {
-    await post('/api/archive', { name: 'Film', author: 'Ben' });
+    await post('/api/archive', { author: 'Ben', copyright: '© Ben' });
     return (await request('/api/archive')).headers.get('ETag') ?? '';
   }
 
   test('changes the details given, returning the new ETag', async () => {
     const etag = await setUp();
 
-    const response = await patch({ copyright: '© Ben', author: null }, etag);
+    const response = await patch({ author: 'Ben Pirt', copyright: null }, etag);
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
-      name: 'Film',
-      author: null,
-      copyright: '© Ben',
+      author: 'Ben Pirt',
+      copyright: null,
     });
     const newEtag = response.headers.get('ETag');
     expect(newEtag).not.toBe(etag);
@@ -108,15 +102,18 @@ describe('PATCH /api/archive', () => {
   });
 
   test.each([
-    ['no If-Match', undefined, 428],
-    ['a stale If-Match', '"stale"', 409],
-  ])('refuses %s', async (_, ifMatch, status) => {
-    await setUp();
+    ['no If-Match', { author: 'B' }, undefined, 428],
+    ['a stale If-Match', { author: 'B' }, '"stale"', 409],
+    ['clearing the author', { author: null }, 'etag', 422],
+  ])('refuses %s', async (_, body, ifMatch, status) => {
+    const etag = await setUp();
 
-    expect((await patch({ name: 'Photos' }, ifMatch)).status).toBe(status);
+    expect(
+      (await patch(body, ifMatch === 'etag' ? etag : ifMatch)).status,
+    ).toBe(status);
   });
 
   test('says when the archive isn’t set up', async () => {
-    expect((await patch({ name: 'Photos' }, '"x"')).status).toBe(404);
+    expect((await patch({ author: 'B' }, '"x"')).status).toBe(404);
   });
 });

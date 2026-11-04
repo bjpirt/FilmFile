@@ -1,9 +1,10 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { navigate } from '../routing.tsx';
 import { ArchiveForm } from './archive-form.tsx';
 import type { ReadArchive } from './use-archive.ts';
 
-/** The archive's name, author and copyright, changed after first run. */
+/** The archive's author and copyright, changed after first run; saving goes back to the rolls. */
 export function SettingsPage({
   api,
   read,
@@ -35,6 +36,7 @@ export function SettingsPage({
             archive: data,
             etag: response.headers.get('ETag') ?? read.etag,
           });
+          navigate('/');
           return undefined;
         }}
       />

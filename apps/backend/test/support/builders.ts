@@ -182,15 +182,14 @@ export function labScanFrames(count: number): Frame[] {
   });
 }
 
-/** An archive with the given name and details, by default with no author or copyright. */
+/** An archive by the given author, by default with no copyright. */
 export function anArchive(
-  name = 'Ben’s film archive',
-  details: { readonly author?: string; readonly copyright?: string } = {},
+  author = 'Ben Pirt',
+  details: { readonly copyright?: string } = {},
 ): Archive {
   return {
     id: checked(ulidFor(9), isArchiveId),
-    name,
-    author: details.author ?? null,
+    author,
     copyright: details.copyright ?? null,
   };
 }

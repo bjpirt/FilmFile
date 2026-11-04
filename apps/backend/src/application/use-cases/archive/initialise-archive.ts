@@ -8,11 +8,11 @@ import { ok, type Result } from '../../../domain/shared/result.ts';
 import type { ArchiveRepository } from '../../ports/archive-repository.ts';
 import type { IdGenerator } from '../../ports/id-generator.ts';
 import { textOrNull } from '../rolls/text-or-null.ts';
-import { archiveName } from './archive-name.ts';
+import { archiveAuthor } from './archive-author.ts';
 
 /**
- * Sets the archive up on first run (D43): its name, and the author and
- * copyright its frames will inherit. Only once; afterwards it's updated.
+ * Sets the archive up on first run (D43): the author and copyright its
+ * frames will inherit. Only once; afterwards it's updated.
  */
 export class InitialiseArchive {
   readonly #archives: ArchiveRepository;
@@ -26,19 +26,17 @@ export class InitialiseArchive {
   async execute(
     ctx: ArchiveContext,
     input: {
-      readonly name: string;
-      readonly author?: string | undefined;
+      readonly author: string;
       readonly copyright?: string | undefined;
     },
   ): Promise<Result<Archive, ValidationFailed | AlreadyExists>> {
-    const name = archiveName(input.name);
-    if (!name.ok) {
-      return name;
+    const author = archiveAuthor(input.author);
+    if (!author.ok) {
+      return author;
     }
     const archive: Archive = {
       id: this.#ids.newArchiveId(),
-      name: name.value,
-      author: textOrNull(input.author),
+      author: author.value,
       copyright: textOrNull(input.copyright),
     };
     const created = await this.#archives.create(ctx, archive);

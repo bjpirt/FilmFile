@@ -10,13 +10,13 @@ import type {
   VersionedArchive,
 } from '../../ports/archive-repository.ts';
 import { textOrNull } from '../rolls/text-or-null.ts';
-import { archiveName } from './archive-name.ts';
+import { archiveAuthor } from './archive-author.ts';
 
 /**
- * Changes the archive's name, author or copyright. A detail left out stays
- * as it is; null or blank clears the author or copyright, but the name can't
- * be cleared. Saved only if the archive hasn't changed since the caller read
- * it at `expectedVersion`.
+ * Changes the archive's author or copyright. A detail left out stays as it
+ * is; null or blank clears the copyright, but the author can't be cleared
+ * (D44). Saved only if the archive hasn't changed since the caller read it
+ * at `expectedVersion`.
  */
 export class UpdateArchive {
   readonly #archives: ArchiveRepository;
@@ -29,17 +29,16 @@ export class UpdateArchive {
     ctx: ArchiveContext,
     input: {
       readonly expectedVersion: string;
-      readonly name?: string | undefined;
-      readonly author?: string | null | undefined;
+      readonly author?: string | undefined;
       readonly copyright?: string | null | undefined;
     },
   ): Promise<
     Result<VersionedArchive, NotFound | ConcurrencyConflict | ValidationFailed>
   > {
-    const name =
-      input.name === undefined ? ok(undefined) : archiveName(input.name);
-    if (!name.ok) {
-      return name;
+    const author =
+      input.author === undefined ? ok(undefined) : archiveAuthor(input.author);
+    if (!author.ok) {
+      return author;
     }
     const current = await this.#archives.get(ctx);
     if (current === undefined) {
@@ -47,10 +46,7 @@ export class UpdateArchive {
     }
     const archive = {
       ...current.archive,
-      ...(name.value === undefined ? {} : { name: name.value }),
-      ...(input.author === undefined
-        ? {}
-        : { author: textOrNull(input.author) }),
+      ...(author.value === undefined ? {} : { author: author.value }),
       ...(input.copyright === undefined
         ? {}
         : { copyright: textOrNull(input.copyright) }),

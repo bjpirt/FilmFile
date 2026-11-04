@@ -12,8 +12,10 @@ test('first run: set the archive up before anything else, then change its settin
   await expect(
     page.getByRole('heading', { name: 'Set up your archive' }),
   ).toBeVisible();
-  await setUp.getByLabel('Name').fill('Ben’s film archive');
   await setUp.getByLabel('Author').fill('Ben Pirt');
+  await expect(setUp.getByLabel('Copyright')).toHaveValue(
+    '© Ben Pirt. All rights reserved.',
+  );
   await setUp.getByRole('button', { name: 'Set up archive' }).click();
 
   // The page asked for, now the archive is set up.
@@ -24,12 +26,14 @@ test('first run: set the archive up before anything else, then change its settin
   await page.getByRole('link', { name: 'Settings' }).click();
   const settings = page.getByRole('form', { name: 'Settings' });
   await expect(settings.getByLabel('Author')).toHaveValue('Ben Pirt');
-  await settings.getByLabel('Copyright').fill('© Ben Pirt');
+  await settings.getByLabel('Copyright').fill('© 2026 Ben Pirt');
   await settings.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByRole('status')).toHaveText('Saved.');
 
+  // Saved, it goes back to the rolls; the settings are there when reopened.
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Rolls' }),
+  ).toBeVisible();
   await page.reload();
-
-  await expect(settings.getByLabel('Name')).toHaveValue('Ben’s film archive');
-  await expect(settings.getByLabel('Copyright')).toHaveValue('© Ben Pirt');
+  await page.getByRole('link', { name: 'Settings' }).click();
+  await expect(settings.getByLabel('Copyright')).toHaveValue('© 2026 Ben Pirt');
 });

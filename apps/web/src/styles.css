@@ -796,6 +796,13 @@ button.danger {
   align-items: center;
   display: flex;
   gap: var(--space-3);
+  /* As tall as the browse panel's button, so the header is the same height on every page, with or without it. */
+  min-height: 2.75rem;
+}
+
+.browse-toggle-space {
+  flex: none;
+  width: 2.75rem;
 }
 
 .icon-button {

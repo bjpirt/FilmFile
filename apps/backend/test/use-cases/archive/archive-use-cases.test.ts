@@ -16,19 +16,25 @@ function setUp() {
   };
 }
 
+const blankAuthor = {
+  ok: false,
+  error: {
+    kind: 'validation-failed',
+    issues: [{ path: ['author'], message: 'must not be blank' }],
+  },
+};
+
 describe('InitialiseArchive', () => {
-  test('sets the archive up with a new ID, its name, and any author and copyright, trimmed', async () => {
+  test('sets the archive up with a new ID, its author and any copyright, trimmed', async () => {
     const { initialise, archives } = setUp();
 
     const created = await initialise.execute(ctx, {
-      name: ' Ben’s film archive ',
-      author: 'Ben Pirt',
+      author: ' Ben Pirt ',
       copyright: ' ',
     });
 
     const archive = {
       id: '00000000000000000000000001',
-      name: 'Ben’s film archive',
       author: 'Ben Pirt',
       copyright: null,
     };
@@ -36,21 +42,17 @@ describe('InitialiseArchive', () => {
     expect((await archives.get())?.archive).toEqual(archive);
   });
 
-  test('refuses a blank name', async () => {
-    expect(await setUp().initialise.execute(ctx, { name: '  ' })).toEqual({
-      ok: false,
-      error: {
-        kind: 'validation-failed',
-        issues: [{ path: ['name'], message: 'must not be blank' }],
-      },
-    });
+  test('refuses a blank author (D44)', async () => {
+    expect(await setUp().initialise.execute(ctx, { author: '  ' })).toEqual(
+      blankAuthor,
+    );
   });
 
   test('refuses to set up an archive that already is', async () => {
     const { initialise } = setUp();
-    await initialise.execute(ctx, { name: 'First' });
+    await initialise.execute(ctx, { author: 'First' });
 
-    expect(await initialise.execute(ctx, { name: 'Second' })).toMatchObject({
+    expect(await initialise.execute(ctx, { author: 'Second' })).toMatchObject({
       ok: false,
       error: { kind: 'already-exists', entity: 'archive' },
     });
@@ -60,11 +62,11 @@ describe('InitialiseArchive', () => {
 describe('GetArchive', () => {
   test('gives the archive with its version', async () => {
     const { initialise, get } = setUp();
-    await initialise.execute(ctx, { name: 'Film' });
+    await initialise.execute(ctx, { author: 'Ben Pirt' });
 
     expect(await get.execute(ctx)).toMatchObject({
       ok: true,
-      value: { archive: { name: 'Film' }, version: '1' },
+      value: { archive: { author: 'Ben Pirt' }, version: '1' },
     });
   });
 
@@ -79,31 +81,25 @@ describe('GetArchive', () => {
 describe('UpdateArchive', () => {
   async function setUpWithArchive() {
     const setup = setUp();
-    await setup.initialise.execute(ctx, {
-      name: 'Film',
-      author: 'Ben',
-      copyright: '© Ben',
-    });
+    await setup.initialise.execute(ctx, { author: 'Ben', copyright: '© Ben' });
     return setup;
   }
 
-  test('changes the details given, leaving the rest, with blank or null clearing them', async () => {
+  test('changes the details given, with blank or null clearing the copyright', async () => {
     const { update } = await setUpWithArchive();
 
     expect(
       await update.execute(ctx, {
         expectedVersion: '1',
-        name: 'Ben’s film archive',
-        author: '',
-        copyright: null,
+        author: 'Ben Pirt',
+        copyright: '',
       }),
     ).toEqual({
       ok: true,
       value: {
         archive: {
           id: '00000000000000000000000001',
-          name: 'Ben’s film archive',
-          author: null,
+          author: 'Ben Pirt',
           copyright: null,
         },
         version: '2',
@@ -115,32 +111,27 @@ describe('UpdateArchive', () => {
     const { update } = await setUpWithArchive();
 
     expect(
-      await update.execute(ctx, { expectedVersion: '1', author: 'Ben Pirt' }),
+      await update.execute(ctx, { expectedVersion: '1', copyright: null }),
     ).toMatchObject({
       ok: true,
-      value: {
-        archive: { name: 'Film', author: 'Ben Pirt', copyright: '© Ben' },
-      },
+      value: { archive: { author: 'Ben', copyright: null } },
     });
   });
 
-  test('refuses a blank name', async () => {
+  test('refuses a blank author, rather than clearing it', async () => {
     const { update } = await setUpWithArchive();
 
     expect(
-      await update.execute(ctx, { expectedVersion: '1', name: ' ' }),
-    ).toMatchObject({
-      ok: false,
-      error: { kind: 'validation-failed', issues: [{ path: ['name'] }] },
-    });
+      await update.execute(ctx, { expectedVersion: '1', author: ' ' }),
+    ).toEqual(blankAuthor);
   });
 
   test('refuses when the archive changed since it was read', async () => {
     const { update } = await setUpWithArchive();
-    await update.execute(ctx, { expectedVersion: '1', name: 'Photos' });
+    await update.execute(ctx, { expectedVersion: '1', author: 'B. Pirt' });
 
     expect(
-      await update.execute(ctx, { expectedVersion: '1', name: 'Film' }),
+      await update.execute(ctx, { expectedVersion: '1', author: 'Ben' }),
     ).toMatchObject({
       ok: false,
       error: { kind: 'concurrency-conflict', entity: 'archive' },
@@ -149,7 +140,7 @@ describe('UpdateArchive', () => {
 
   test('says when the archive isn’t set up yet', async () => {
     expect(
-      await setUp().update.execute(ctx, { expectedVersion: '1', name: 'X' }),
+      await setUp().update.execute(ctx, { expectedVersion: '1', author: 'X' }),
     ).toMatchObject({
       ok: false,
       error: { kind: 'not-found', entity: 'archive' },

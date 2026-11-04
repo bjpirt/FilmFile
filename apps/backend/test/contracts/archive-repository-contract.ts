@@ -15,10 +15,7 @@ export function archiveRepositoryContract(
 
     test('gets back exactly the archive created, with a version', async () => {
       const archives = makeRepository();
-      const archive = anArchive('Ben’s film archive', {
-        author: 'Ben Pirt',
-        copyright: '© Ben Pirt',
-      });
+      const archive = anArchive('Ben Pirt', { copyright: '© Ben Pirt' });
 
       expect(await archives.create(ctx, archive)).toEqual(ok(undefined));
       const read = await archives.get(ctx);
@@ -26,7 +23,7 @@ export function archiveRepositoryContract(
       expect(read?.version).toMatch(/.+/);
     });
 
-    test('keeps an archive with no author or copyright as having none', async () => {
+    test('keeps an archive with no copyright as having none', async () => {
       const archives = makeRepository();
       await archives.create(ctx, anArchive());
 
@@ -40,14 +37,14 @@ export function archiveRepositoryContract(
       expect(await archives.create(ctx, anArchive('Second'))).toEqual(
         err({ kind: 'already-exists', entity: 'archive', id: anArchive().id }),
       );
-      expect((await archives.get(ctx))?.archive.name).toBe('First');
+      expect((await archives.get(ctx))?.archive.author).toBe('First');
     });
 
     test('saves the archive read with the current version, and gives the new version', async () => {
       const archives = makeRepository();
       await archives.create(ctx, anArchive());
       const read = await archives.get(ctx);
-      const changed = anArchive('Film', { author: 'Ben Pirt' });
+      const changed = anArchive('B. Pirt', { copyright: '© B. Pirt' });
 
       const saved = await archives.save(ctx, changed, read?.version ?? '');
 
@@ -73,7 +70,7 @@ export function archiveRepositoryContract(
           id: anArchive().id,
         }),
       );
-      expect((await archives.get(ctx))?.archive.name).toBe('Film');
+      expect((await archives.get(ctx))?.archive.author).toBe('Film');
     });
 
     test('refuses to save an archive that was never created', async () => {

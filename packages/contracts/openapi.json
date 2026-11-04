@@ -972,15 +972,8 @@
           "id": {
             "type": "string"
           },
-          "name": {
-            "type": "string",
-            "example": "Ben’s film archive"
-          },
           "author": {
-            "type": [
-              "string",
-              "null"
-            ],
+            "type": "string",
             "description": "Who took the photographs; frames inherit it.",
             "example": "Ben Pirt"
           },
@@ -995,7 +988,6 @@
         },
         "required": [
           "id",
-          "name",
           "author",
           "copyright"
         ]
@@ -1003,13 +995,9 @@
       "CreateArchiveRequest": {
         "type": "object",
         "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
           "author": {
             "type": "string",
+            "minLength": 1,
             "maxLength": 100
           },
           "copyright": {
@@ -1018,23 +1006,16 @@
           }
         },
         "required": [
-          "name"
+          "author"
         ],
         "description": "Sets the archive up, once (D43)."
       },
       "UpdateArchiveRequest": {
         "type": "object",
         "properties": {
-          "name": {
+          "author": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 100
-          },
-          "author": {
-            "type": [
-              "string",
-              "null"
-            ],
             "maxLength": 100
           },
           "copyright": {
@@ -1045,7 +1026,7 @@
             "maxLength": 200
           }
         },
-        "description": "The details to change. A detail left out stays as it is; null clears the author or copyright."
+        "description": "The details to change. A detail left out stays as it is; null clears the copyright. The author can’t be cleared."
       }
     },
     "parameters": {}
@@ -2782,7 +2763,7 @@
         }
       },
       "patch": {
-        "summary": "Change the archive's name, author or copyright",
+        "summary": "Change the archive's author or copyright",
         "description": "Send the archive's ETag as If-Match: the change is refused if the archive has changed since. The response's ETag is the archive's new version.",
         "parameters": [
           {

@@ -19,7 +19,7 @@ process.on('exit', () => {
 if (mode === 'set-up') {
   writeFileSync(
     path.join(archive, 'archive.json'),
-    `${JSON.stringify({ schema: 1, id: '01JC8Y0000000000000000000A', name: 'Journeys', meta: {} }, null, 2)}\n`,
+    `${JSON.stringify({ schema: 1, id: '01JC8Y0000000000000000000A', meta: { author: 'Journeys' } }, null, 2)}\n`,
   );
 }
 

@@ -5,8 +5,7 @@ import { z } from 'zod';
 export const archive = z
   .object({
     id: z.string(),
-    name: z.string().meta({ example: 'Ben’s film archive' }),
-    author: z.string().nullable().meta({
+    author: z.string().meta({
       description: 'Who took the photographs; frames inherit it.',
       example: 'Ben Pirt',
     }),
@@ -19,8 +18,7 @@ export const archive = z
 
 export const createArchiveRequest = z
   .object({
-    name: z.string().min(1).max(100),
-    author: z.string().max(100).optional(),
+    author: z.string().min(1).max(100),
     copyright: z.string().max(200).optional(),
   })
   .meta({
@@ -30,14 +28,13 @@ export const createArchiveRequest = z
 
 export const updateArchiveRequest = z
   .object({
-    name: z.string().min(1).max(100).optional(),
-    author: z.string().max(100).nullable().optional(),
+    author: z.string().min(1).max(100).optional(),
     copyright: z.string().max(200).nullable().optional(),
   })
   .meta({
     id: 'UpdateArchiveRequest',
     description:
-      'The details to change. A detail left out stays as it is; null clears the author or copyright.',
+      'The details to change. A detail left out stays as it is; null clears the copyright. The author can’t be cleared.',
   });
 
 /** The archive's version, from the ETag it was read with, so a change made since isn't overwritten. */

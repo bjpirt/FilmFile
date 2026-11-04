@@ -1628,7 +1628,7 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change the archive's name, author or copyright
+         * Change the archive's author or copyright
          * @description Send the archive's ETag as If-Match: the change is refused if the archive has changed since. The response's ETag is the archive's new version.
          */
         patch: {
@@ -2009,13 +2009,11 @@ export interface components {
         };
         Archive: {
             id: string;
-            /** @example Ben’s film archive */
-            name: string;
             /**
              * @description Who took the photographs; frames inherit it.
              * @example Ben Pirt
              */
-            author: string | null;
+            author: string;
             /**
              * @description The copyright notice; frames inherit it.
              * @example © Ben Pirt. All rights reserved.
@@ -2024,14 +2022,12 @@ export interface components {
         };
         /** @description Sets the archive up, once (D43). */
         CreateArchiveRequest: {
-            name: string;
-            author?: string;
+            author: string;
             copyright?: string;
         };
-        /** @description The details to change. A detail left out stays as it is; null clears the author or copyright. */
+        /** @description The details to change. A detail left out stays as it is; null clears the copyright. The author can’t be cleared. */
         UpdateArchiveRequest: {
-            name?: string;
-            author?: string | null;
+            author?: string;
             copyright?: string | null;
         };
     };
