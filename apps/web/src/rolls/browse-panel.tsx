@@ -6,6 +6,7 @@ import { filmStockName } from '../equipment/use-film-stocks.ts';
 import { lensName } from '../equipment/use-lenses.ts';
 import { eventName } from '../events/use-events.ts';
 import { Link } from '../routing.tsx';
+import { eventsOfRoll } from '../events/frame-events.ts';
 
 /** One way into the rolls: all of them, or those from a year, shot on a camera or with a lens, or of a film stock. */
 export interface RollsFilter {
@@ -114,7 +115,8 @@ export function BrowsePanel({
     (slug) => filmStockName(films, slug) ?? slug,
   ).sort(byLabel);
   const rollEvents = counted(
-    rolls.flatMap((roll) => (roll.event === null ? [] : [roll.event])),
+    // Any event its frames are in, too (U17).
+    rolls.flatMap((roll) => eventsOfRoll(roll)),
     (slug) => eventName(events, slug) ?? slug,
   ).sort(
     // As the events list orders them: newest first (D32).

@@ -8,7 +8,12 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, expect, test } from 'vitest';
-import { fakeArchive, type FakeArchive } from '../testing/fake-archive.ts';
+import {
+  aFrame,
+  aRoll,
+  fakeArchive,
+  type FakeArchive,
+} from '../testing/fake-archive.ts';
 import { EventsPage } from './events-page.tsx';
 
 afterEach(cleanup);
@@ -57,6 +62,24 @@ test('lists the events newest first, each with its date', async () => {
     'Westfjords · Jun 20250 rollsEdit',
     'Undated0 rollsEdit',
   ]);
+});
+
+test('counts a roll in an event when any of its frames is in it', async () => {
+  renderPage(
+    fakeArchive({
+      events: [{ slug: 'westfjords', name: 'Westfjords', date: '2025-06' }],
+      rolls: [
+        aRoll('2025-003', { event: 'westfjords' }),
+        aRoll('2025-004', {
+          frames: [{ ...aFrame('1', '12340001.jpg'), events: ['westfjords'] }],
+        }),
+        aRoll('2025-005'),
+      ],
+    }),
+  );
+
+  await screen.findByText('2 rolls');
+  expect(eventsListed()).toEqual(['Westfjords · Jun 20252 rollsEdit']);
 });
 
 test('says how to add the first event', async () => {

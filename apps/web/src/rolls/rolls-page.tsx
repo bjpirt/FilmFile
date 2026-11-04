@@ -23,6 +23,7 @@ import {
   rememberView,
   type RollsView,
 } from './view-preference.ts';
+import { eventsOfRoll } from '../events/frame-events.ts';
 
 function rollCount(count: number): string {
   return count === 1 ? '1 roll' : `${String(count)} rolls`;
@@ -49,15 +50,16 @@ interface RollGroup {
   readonly rolls: Roll[];
 }
 
-/** The rolls under each title, keeping their order, in the order titles first appear. */
+/** The rolls under each of their titles, keeping their order, in the order titles first appear. A roll with several titles is under each. */
 function groupedBy(
   rolls: readonly Roll[],
-  titleOf: (roll: Roll) => string,
+  titlesOf: (roll: Roll) => readonly string[],
 ): RollGroup[] {
   const groups = new Map<string, Roll[]>();
   for (const roll of rolls) {
-    const title = titleOf(roll);
-    groups.set(title, [...(groups.get(title) ?? []), roll]);
+    for (const title of titlesOf(roll)) {
+      groups.set(title, [...(groups.get(title) ?? []), roll]);
+    }
   }
   return [...groups].map(([title, members]) => ({ title, rolls: members }));
 }
@@ -70,11 +72,14 @@ function byName(a: string, b: string): number {
 /** Groups titled by name, in name order (or the order given), with the group of rolls that have none last. */
 function namedGroups(
   rolls: readonly Roll[],
-  nameOf: (roll: Roll) => string | undefined,
+  namesOf: (roll: Roll) => readonly (string | undefined)[],
   none: string,
   order: (a: string, b: string) => number = byName,
 ): RollGroup[] {
-  return groupedBy(rolls, (roll) => nameOf(roll) ?? none).sort((a, b) => {
+  return groupedBy(rolls, (roll) => {
+    const names = namesOf(roll).filter((name) => name !== undefined);
+    return names.length === 0 ? [none] : names;
+  }).sort((a, b) => {
     if (a.title === none || b.title === none) {
       return a.title === none ? 1 : -1;
     }
@@ -106,30 +111,31 @@ function grouped(
     case 'none':
       return [{ title: undefined, rolls: [...rolls] }];
     case 'year':
-      return groupedBy(rolls, (roll) => roll.roll.slice(0, 4)).sort((a, b) =>
+      return groupedBy(rolls, (roll) => [roll.roll.slice(0, 4)]).sort((a, b) =>
         (b.title ?? '').localeCompare(a.title ?? ''),
       );
     case 'event':
       return namedGroups(
         rolls,
-        (roll) => names.event(roll.event),
+        // Under every event it's in, through its frames too (U17).
+        (roll) => eventsOfRoll(roll).map((slug) => names.event(slug)),
         'No event',
         names.eventOrder,
       );
     case 'camera':
       return namedGroups(
         rolls,
-        (roll) => names.camera(roll.camera),
+        (roll) => [names.camera(roll.camera)],
         'No camera',
       );
     case 'film':
       return namedGroups(
         rolls,
-        (roll) => names.film(roll.film),
+        (roll) => [names.film(roll.film)],
         'No film stock',
       );
     case 'lens':
-      return namedGroups(rolls, (roll) => names.lens(roll.lens), 'No lens');
+      return namedGroups(rolls, (roll) => [names.lens(roll.lens)], 'No lens');
   }
 }
 

@@ -114,6 +114,65 @@ test('groups the frames by camera, with frames whose roll has none last', async 
   ).toEqual(['Nikon FE 1 frame', 'No camera 2 frames']);
 });
 
+test('shows frames put in the event themselves, and leaves out frames of its rolls put elsewhere', async () => {
+  renderPage(
+    fakeArchive({
+      events: [iceland],
+      rolls: [
+        aRoll('2026-014', {
+          event: 'iceland-2026',
+          shot: '2026-09-14',
+          frames: [
+            aFrame('1', '12340001.jpg'),
+            { ...aFrame('2', '12340002.jpg'), events: ['westfjords'] },
+          ],
+        }),
+        aRoll('2026-020', {
+          shot: '2026-09-20',
+          frames: [
+            aFrame('1', '99990001.jpg'),
+            { ...aFrame('2', '99990002.jpg'), events: ['iceland-2026'] },
+          ],
+        }),
+      ],
+    }),
+  );
+
+  expect(await screen.findByText('2 frames')).toBeDefined();
+  expect(framesShown()).toEqual([
+    'Frame 1 of roll 2026-014',
+    'Frame 2 of roll 2026-020',
+  ]);
+});
+
+test('groups frames by their own camera where they have one', async () => {
+  window.history.replaceState(null, '', '/events/iceland-2026?group=camera');
+  renderPage(
+    fakeArchive({
+      events: [iceland],
+      cameras: [
+        { slug: 'nikon-fe', make: 'Nikon', model: 'FE' },
+        { slug: 'leica-m6', make: 'Leica', model: 'M6' },
+      ],
+      rolls: [
+        aRoll('2026-014', {
+          event: 'iceland-2026',
+          camera: 'nikon-fe',
+          frames: [
+            aFrame('1', '12340001.jpg'),
+            { ...aFrame('2', '12340002.jpg'), camera: 'leica-m6' },
+          ],
+        }),
+      ],
+    }),
+  );
+
+  await screen.findByText('2 frames');
+  expect(
+    screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent),
+  ).toEqual(['Leica M6 1 frame', 'Nikon FE 1 frame']);
+});
+
 test('says when the event has no frames yet', async () => {
   renderPage(fakeArchive({ events: [iceland] }));
 

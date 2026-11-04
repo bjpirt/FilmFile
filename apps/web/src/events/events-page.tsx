@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { formatShot } from '../rolls/format-shot.ts';
 import { Link } from '../routing.tsx';
 import { EventForm, type EventDetails } from './event-form.tsx';
+import { eventsOfRoll } from './frame-events.ts';
 
 function rollCount(count: number): string {
   return count === 1 ? '1 roll' : `${String(count)} rolls`;
@@ -201,8 +202,9 @@ export function EventsPage({ api }: { readonly api: ApiClient }) {
                 <EventRow
                   event={event}
                   rolls={
-                    rolls.data.rolls.filter((roll) => roll.event === event.slug)
-                      .length
+                    rolls.data.rolls.filter((roll) =>
+                      eventsOfRoll(roll).includes(event.slug),
+                    ).length
                   }
                   edit={() => {
                     setEditing(event.slug);

@@ -12,6 +12,7 @@ import {
 } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import {
+  aFrame,
   aRoll,
   fakeArchive,
   type FakeArchive,
@@ -574,6 +575,41 @@ describe('finding rolls by event', () => {
       'No event 1 roll',
     ]);
     expect(window.location.search).toBe('?view=grid&group=event');
+  });
+
+  test('puts a roll under every event its frames are in, as well as its own', async () => {
+    renderPage(
+      fakeArchive({
+        rolls: [
+          {
+            ...aRoll('2026-014'),
+            event: 'iceland-2026',
+            frames: [
+              aFrame('1', '12340001.jpg'),
+              { ...aFrame('2', '12340002.jpg'), events: ['westfjords'] },
+            ],
+          },
+          aRoll('2026-001'),
+        ],
+        events,
+      }),
+    );
+    const section = await screen.findByRole('region', { name: 'Events' });
+
+    expect(
+      within(section)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(['Iceland 20261', 'Westfjords1']);
+    fireEvent.change(screen.getByLabelText('Group by'), {
+      target: { value: 'event' },
+    });
+    expect(
+      screen
+        .getAllByRole('heading', { level: 2 })
+        .filter((heading) => heading.closest('aside') === null)
+        .map((h) => h.textContent),
+    ).toEqual(['Iceland 2026 1 roll', 'Westfjords 1 roll', 'No event 1 roll']);
   });
 
   test('lists the events rolls were shot at in the browse panel, with counts, each opening its page of frames', async () => {

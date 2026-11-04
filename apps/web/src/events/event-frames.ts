@@ -6,10 +6,12 @@ import { cameraName, useCameras } from '../equipment/use-cameras.ts';
 import { filmStockName, useFilmStocks } from '../equipment/use-film-stocks.ts';
 import { lensName, useLenses } from '../equipment/use-lenses.ts';
 import { inFrameOrder } from '../rolls/frame-order.ts';
+import { eventsOfFrame } from './frame-events.ts';
 
-// An event's frames from all its rolls, in shot order and grouped as chosen:
-// shared by the event's page and the frame view opened from it, so both show
-// the frames in the same order.
+// An event's frames, from every roll, in shot order and grouped as chosen:
+// those of its rolls, and those put in it themselves (U17). Shared by the
+// event's page and the frame view opened from it, so both show the frames in
+// the same order.
 
 /** How an event's frames are grouped, kept in the address as `?group=`. */
 export type Grouping = 'none' | 'roll' | 'camera' | 'lens' | 'film';
@@ -71,10 +73,10 @@ function groupedBy(
 /** Groups by name, in name order, with frames that have none last. */
 function namedGroups(
   frames: readonly RollFrame[],
-  nameOf: (roll: Roll) => string | undefined,
+  nameOf: (frame: RollFrame) => string | undefined,
   none: string,
 ): FrameGroup[] {
-  return groupedBy(frames, ({ roll }) => nameOf(roll) ?? none).sort((a, b) => {
+  return groupedBy(frames, (frame) => nameOf(frame) ?? none).sort((a, b) => {
     if (a.title === none || b.title === none) {
       return a.title === none ? 1 : -1;
     }
@@ -140,10 +142,10 @@ export function useEventFrames(
       status: event.error instanceof EventNotFound ? 'not-found' : 'failed',
     };
   }
-  const frames: RollFrame[] = inShotOrder(
-    rolls.data.rolls.filter((roll) => roll.event === slug),
-  ).flatMap((roll) =>
-    inFrameOrder(roll.frames).map((frame) => ({ roll, frame })),
+  const frames: RollFrame[] = inShotOrder(rolls.data.rolls).flatMap((roll) =>
+    inFrameOrder(roll.frames)
+      .filter((frame) => eventsOfFrame(frame, roll).includes(slug))
+      .map((frame) => ({ roll, frame })),
   );
   const groups: FrameGroup[] = (() => {
     switch (group) {
@@ -158,19 +160,20 @@ export function useEventFrames(
       case 'camera':
         return namedGroups(
           frames,
-          (roll) => cameraName(cameras, roll.camera),
+          // A frame's own, where it has one (U15).
+          ({ roll, frame }) => cameraName(cameras, frame.camera ?? roll.camera),
           'No camera',
         );
       case 'lens':
         return namedGroups(
           frames,
-          (roll) => lensName(lenses, roll.lens),
+          ({ roll, frame }) => lensName(lenses, frame.lens ?? roll.lens),
           'No lens',
         );
       case 'film':
         return namedGroups(
           frames,
-          (roll) => filmStockName(films, roll.film),
+          ({ roll, frame }) => filmStockName(films, frame.film ?? roll.film),
           'No film stock',
         );
     }
