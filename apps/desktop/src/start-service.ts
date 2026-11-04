@@ -1,4 +1,5 @@
-import { utilityProcess } from 'electron';
+import { app, utilityProcess } from 'electron';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { freePort } from './free-port.ts';
 import { waitForService } from './wait-for-service.ts';
@@ -10,23 +11,42 @@ export interface Service {
   stop(): Promise<void>;
 }
 
-// The service's own entry point, run as it is: Electron's Node.js strips the types.
-const serviceMain = fileURLToPath(
-  new URL('../../backend/src/main.ts', import.meta.url),
-);
+/**
+ * Where the service starts from. From source, its own entry point, run as it
+ * is (Electron's Node.js strips the types); packaged, the bundle and the
+ * built UI that `scripts/package.ts` puts beside the app's own (U84).
+ */
+function serviceFiles(): { readonly main: string; readonly ui?: string } {
+  if (!app.isPackaged) {
+    return {
+      main: fileURLToPath(
+        new URL('../../backend/src/main.ts', import.meta.url),
+      ),
+    };
+  }
+  const root = app.getAppPath();
+  return {
+    main: path.join(root, 'service.mjs'),
+    ui: path.join(root, 'web'),
+  };
+}
 
 /**
  * Starts the service on `archive` in its own process, on a free port of
- * 127.0.0.1 and with this process's other settings, and resolves once it
- * answers.
+ * 127.0.0.1 (or FILMFILE_PORT's) and with this process's other settings, and
+ * resolves once it answers.
  */
 export async function startService(archive: string): Promise<Service> {
-  const port = await freePort();
-  const service = utilityProcess.fork(serviceMain, [], {
+  // A port given is used as it is, so the packaged app can be checked from outside.
+  const given = Number(process.env.FILMFILE_PORT ?? '');
+  const port = Number.isInteger(given) && given > 0 ? given : await freePort();
+  const { main, ui } = serviceFiles();
+  const service = utilityProcess.fork(main, [], {
     env: {
       ...process.env,
       FILMFILE_ARCHIVE: archive,
       FILMFILE_PORT: String(port),
+      ...(ui === undefined ? {} : { FILMFILE_UI: ui }),
     },
     serviceName: 'FilmFile service',
     stdio: 'inherit',

@@ -6,19 +6,13 @@ Each task is about one commit: small enough to review in one sitting, with its t
 
 `[x]` done, `[ ]` to do, `[-]` dropped or replaced (with where it went).
 
-**Next up:** 1. Desktop app.
+**Next up:** 1. Multi-version frames, finished off.
 
 ---
 
 ## To do
 
-### 1. Desktop app
-
-FilmFile as a Mac app, opened from the Dock rather than by starting a service and opening a browser (D54). Electron runs the service as it is, in a separate process (`utilityProcess`) on a free port of `127.0.0.1`, and opens a window on it; the web UI and API don't change, and still work from a browser while the app is open. Electron 45's own Node.js (24) runs the service's TypeScript directly, as Node 26 does, so nothing is bundled to run it from source; sharp's native files can't be loaded from inside Electron's app archive, so they're left outside it when packaged. Signing, updates and other platforms are for later.
-
-- [ ] **U84 A packaged Mac app.** `pnpm package` builds `FilmFile.app` and a `.dmg` with Electron Forge (D55), for Apple silicon: the service (bundled with esbuild if Node won't strip types from inside the app archive), the built web UI, sharp left outside the app archive, an icon, and Electron's fuses set so the app can't be turned into a general Node.js runner (no `ELECTRON_RUN_AS_NODE`, no `NODE_OPTIONS`, code loaded only from its own archive, which is checked). Not signed with a Developer ID yet, so the first launch is with right-click › Open. `electron` and Forge's packages are added under the supply-chain rules (`allowBuilds` with a reason, the release-age wait), and CI builds the app on macOS and runs U82's journey against it.
-
-### 2. Multi-version frames, finished off
+### 1. Multi-version frames, finished off
 
 What a frame has is seen at a glance on its thumbnail, a roll's frames are grouped by event, and the version shown is chosen with a star. The group's finished tasks are under Done.
 
@@ -27,7 +21,7 @@ What a frame has is seen at a glance on its thumbnail, a roll's frames are group
 - [ ] **U71 A roll's frames grouped by event.** When a roll's frames are in more than one event (the roll's, and frames' own, U17), its page shows them under a heading for each event, in frame order, the groups in the order their first frames come, with frames in no event under "No event" last; each frame has one event (U72). A roll whose frames are all in one event, or none, shows them as now. Renumbering still shows every frame in scan order, without groups. Selecting frames works across the groups.
 - [ ] **U62 Choose the version shown.** In the versions column (U61), each thumbnail has a star at its top left, filled on the one shown everywhere: clicking another's makes it the frame's primary version, shown on contact sheets, filmstrips, events and in the frame view in place of its first (`defaultVersion`, D15, D46), saved with `If-Match`. Clicking the first version's star goes back to it. Named "Show this everywhere" for screen readers and on hover. Deleting the one shown (U28b) puts the first back.
 
-### 3. Integrate with NegPy
+### 2. Integrate with NegPy
 
 The round trip of design section 9: a roll's raw scans go where NegPy can find them, and NegPy's exports come back as Finals by themselves. NegPy can't be told to open files from outside (no command line, URL scheme or other way in), so FilmFile keeps a folder of rolls, which NegPy imports once with "Import Subfolders as Rolls…" and picks new rolls up from with Refresh (D51).
 
@@ -38,7 +32,7 @@ The round trip of design section 9: a roll's raw scans go where NegPy can find t
 - [ ] **U76 Exports brought in by themselves.** While the service runs, it watches the NegPy folder and brings in each new export as U75 does, a moment after NegPy has finished writing it, and on starting it brings in any exported while it wasn't running. The roll page shows them when next loaded (D36). Through a port (`FolderWatcher`) with an in-memory fake for tests. The first file watcher, for the NegPy folder only (D53). "Bring in NegPy exports" stays, for when the service has missed one.
 - [ ] **U77 NegPy's recipes kept.** When NegPy writes its edit beside the raw scan's link (`<name>.negpy`, with "Save on Export" on), it's copied into the Final's version folder as its recipe when the export is brought in, so every export can be made again (design section 9).
 
-### 4. Index and maintenance
+### 3. Index and maintenance
 
 - [ ] **U40 `CatalogueIndex`.** *(Was 1.2.4.)* SQLite in the cache directory (Node's built-in `node:sqlite`, if it's enough, would save rebuilding `better-sqlite3` for Electron's Node, U84): rolls, frames, frame tags and equipment; upsert a resolved roll, query with the `ListRolls` filters and sort orders (D9), rebuild. Replaces the S1 directory scan for listing.
 - [ ] **U41 `RebuildIndex`.** *(Was 1.3.13.)*
@@ -71,7 +65,7 @@ Key journeys, each named by the task that adds it:
 | Organise by event (U12a–U12c, U19) | Create an event, put rolls in it, and browse to them by event; give it a date on the Events page; open it to see its frames from every roll, grouped by roll; later, an event inside another, whose frames show under its parent too |
 | First run (1b.2) | On an archive never set up, any page asks for setup first; give the author and see the copyright made from it, land on the page asked for, then change the copyright, be taken back to the rolls, and find it in Settings after a reload. Runs against a server of its own, since it needs an empty archive |
 | Bulk edit (U16, U17) | Select a run of a roll's frames, give them another camera and put them in an event, then find them marked as having their own, with the camera in their details, the roll's other frames left as they were, and just those frames on the event's page |
-| Desktop app (U82, U83) | The app opens FilmFile in its own window on the Rolls page, its page can't use Node.js or open windows, quitting stops the service, and a second copy doesn't start; on first launch it asks for the archive, refuses a folder of other files and remembers the choice; Open Archive… switches; an archive gone missing is asked for again. Launches the app itself, on folders of its own, answering its dialogs |
+| Desktop app (U82–U84) | The app opens FilmFile in its own window on the Rolls page, its page can't use Node.js or open windows, quitting stops the service, and a second copy doesn't start; on first launch it asks for the archive, refuses a folder of other files and remembers the choice; Open Archive… switches; an archive gone missing is asked for again. Launches the app itself, on folders of its own, answering its dialogs; and, once built, the packaged app serves the UI and makes thumbnails |
 
 ---
 
@@ -87,7 +81,7 @@ Tasks for later, in no particular order: some set aside on purpose, some not yet
 - [ ] **U66 Add raw scans or finals to a roll's frames together.** "Add scans" on a roll offers "Raw scans of these frames" and "Finals of these frames" as well as new frames, matching each file to its frame by the roll and frame number in its name (as U65 names them for NegPy), for other editors' files; NegPy's own exports come in by themselves (U75, U76), with a preview before anything is saved ("12A ← DSC04412.ARW; 3 didn't match").
 - [ ] **U67 The newest Final shown.** A frame shows its newest Final where it has one, otherwise its Scan, never a Raw scan, in place of its first version (D46), unless one is chosen (U62).
 - [ ] **U78 Exports that didn't match.** NegPy exports that couldn't be matched to a frame (U75), listed on the roll page with "Choose a frame" for each, or set aside.
-- [ ] **U85 A signed and notarised Mac app.** Signed with a Developer ID and notarised by Apple (Forge's `osxSign` and `osxNotarize`), so it opens without warnings on any Mac. Needs an Apple Developer Program membership, kept out of the repository (CI secrets).
+- [ ] **U85 A signed and notarised Mac app.** Signed with a Developer ID and notarised by Apple (`@electron/packager`'s `osxSign` and `osxNotarize`), so it opens without warnings on any Mac. Needs an Apple Developer Program membership, kept out of the repository (CI secrets).
 - [ ] **U86 Updates.** The app checks for a newer version and offers to install it (Electron's `autoUpdater`, from GitHub Releases). Needs signed builds (U85).
 - [ ] **U87 Windows and Linux.** The app built and tested for Windows and Linux too, with their own installers.
 - [ ] **U88 No open port.** The window reaches the service through a private `app://` protocol (`protocol.handle` handing requests to the service) instead of a port on `127.0.0.1`, so no web page can reach it at all. Browser access would then need the port turned on in Settings.
@@ -166,7 +160,8 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D52 | Settings that belong to a computer, not the archive, such as the NegPy folder, are kept in a settings file in the OS config directory: a path on one computer means nothing on another, and the archive is synced. | U73 |
 | D53 | The NegPy folder is watched, as bringing exports in by themselves needs it; D37 stands for the archive, whose files are still validated when read. | U76 |
 | D54 | FilmFile becomes a desktop app with Electron, whose main process runs the service, unchanged, in a `utilityProcess` on a free port of `127.0.0.1` and opens a window on it. The service keeps its Host and Origin checks, a browser can still use it, and a crash or a long sharp job in the service doesn't freeze the window. The service runs while the app is open, not in the background (design 13.11). A private protocol with no port is for later (U88). | U82, U83, U84, U88 |
-| D55 | The app is packaged with Electron Forge, Electron's own tool, which puts its first-party packages (packager, rebuild, fuses, signing, notarising) together, rather than electron-builder. | U84, U85 |
+| D55 | ~~The app is packaged with Electron Forge, Electron's own tool, which puts its first-party packages (packager, rebuild, fuses, signing, notarising) together, rather than electron-builder.~~ Replaced by D56. | U84, U85 |
+| D56 | The app is packaged by a script of our own with `@electron/packager` and `@electron/fuses`, the first-party packages Forge is made of, rather than Forge itself: Forge needs pnpm's flat, hoisted `node_modules`, and its disk image maker brings native install scripts. The service is bundled with rolldown (already installed with Vite) because Node won't strip types from TypeScript inside `node_modules`, where the contracts package would be; the disk image is made with macOS's own `hdiutil`. Replaces D55. | U84, U85 |
 
 **Still open:** see `docs/design.md`, section 15.
 
@@ -348,8 +343,11 @@ More than one version of a frame: a low-res scan to preview every frame, a hi-re
 
 ### Desktop app
 
+FilmFile as a Mac app, opened from the Dock rather than by starting a service and opening a browser (D54). Electron runs the service as it is, in a separate process (`utilityProcess`) on a free port of `127.0.0.1`, and opens a window on it; the web UI and API don't change, and still work from a browser while the app is open. Electron 45's own Node.js (24) runs the service's TypeScript directly, as Node 26 does, so nothing is bundled to run it from source; the packaged app bundles it, and leaves sharp's native files outside its app archive, which they can't be loaded from. Signing, updates and other platforms are for later.
+
 - [x] **U82 FilmFile opens in its own window.** `apps/desktop` (`@filmfile/desktop`, Electron 45): its main process (`main.ts`) starts the service's own `main.ts` in a `utilityProcess` on a free port of `127.0.0.1` (`free-port.ts`, `start-service.ts`), waits for `/api/health` (`wait-for-service.ts`), and opens a window on it titled FilmFile (`open-window.ts`). Closing the window quits, and quitting stops the service as Ctrl+C would, so saves in progress finish. Only one copy runs: opening it again brings the window forward. The archive comes from `FILMFILE_ARCHIVE`; without it, the app says so and quits. The window has context isolation, the sandbox, no Node.js and no preload; permission requests are refused; and links and new windows going elsewhere open in the default browser (web links only). Electron's standard menus are kept. `pnpm desktop` builds the UI and runs it from source. Journeys (`desktop.e2e.ts`, a project of its own): the app opens on the Rolls page, its page has no Node.js and can't open windows, and quitting stops the service; opening it again starts no second copy. CI runs them under `xvfb` with Ubuntu's user-namespace limit lifted for Electron's sandbox. Electron runs the TypeScript as it is, so nothing is bundled yet; a top-level `await` in the main file would stop Electron's `ready` from firing, so there is none.
 - [x] **U83 Choose the archive.** On first launch the app asks "Where's your FilmFile archive?" with the system's folder picker ("Use This Folder", which can make a new folder): an empty folder (hidden files aside) is set up as a new archive in the window, as in a browser, and a folder of other files is refused ("That folder isn't a FilmFile archive.") and asked for again (`choose-archive.ts`, `folder-kind.ts`). The choice is remembered in the app's per-computer `settings.json` in Electron's `userData` (D52, `desktop-settings.ts`, read with Zod, written in one step). An archive that has gone missing says where it was and offers Try Again, Choose Another… or Quit (`find-archive.ts`). File › "Open Archive…" (⌘O, `app-menu.ts`) opens another in a new window on a new service, closes the old ones and remembers it. `FILMFILE_ARCHIVE`, when set, still comes first, for development and the journeys. Journeys: first launch, refusing a folder of other files and remembering the choice; switching with Open Archive…; and an archive gone missing. They answer the system's dialogs through `test/e2e/support/desktop-dialogs.ts`, loaded into the app with `-r` as Playwright loads its own.
+- [x] **U84 A packaged Mac app.** `pnpm package` builds the UI, then `FilmFile.app` and `FilmFile.dmg` in `apps/desktop/out` for Apple silicon (`apps/desktop/scripts/package.ts`, D56): rolldown bundles the app's main process and the service into `main.mjs` and `service.mjs`, beside the built UI and the two packages that can't be bundled, sharp (with its native code, kept outside the app archive) and swagger-ui-dist; `@electron/packager` makes the app, with an icon (`build/icon.svg`, made into `icon.icns` by `build/make-icon.sh`) and the bundle ID `app.filmfile.desktop`; `@electron/fuses` sets its fuses (no `ELECTRON_RUN_AS_NODE`, no `NODE_OPTIONS`, no inspector arguments, its archive only, checked against its hash) and signs it ad hoc again; and macOS's `hdiutil` makes the disk image, with an Applications link. Packaged, the app starts the service from the bundle, telling it where the UI is (`FILMFILE_UI`, new in the service's settings), and uses `FILMFILE_PORT` when it's given. Not signed with a Developer ID, so the first launch is with right-click › Open (U85). Journey (`packaged-app.e2e.ts`, skipped until the app is built): the packaged app, started from outside on a port of the journey's choosing since its fuses stop Playwright driving it, serves the UI and makes thumbnails of scans with sharp, and stops. CI builds it on macOS, runs that journey and keeps the `.dmg` for a week. About 285 MB as an app, 138 MB as a disk image.
 
 ### Replaced or dropped
 

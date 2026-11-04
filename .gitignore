@@ -3,6 +3,8 @@ node_modules/
 
 # Build output
 dist/
+# The packaged desktop app (pnpm package)
+apps/desktop/out/
 *.tsbuildinfo
 
 # Test output

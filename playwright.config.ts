@@ -17,11 +17,19 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      testIgnore: 'desktop.e2e.ts',
+      testIgnore: ['desktop.e2e.ts', 'packaged-app.e2e.ts'],
       use: { ...devices['Desktop Chrome'] },
     },
     // The desktop app, launched by the tests themselves (U82).
     { name: 'desktop', testMatch: 'desktop.e2e.ts' },
+    // The packaged app, when built (U84). After the desktop journeys, never
+    // alongside them: the app runs one copy at a time (U82), whichever is open.
+    {
+      name: 'packaged',
+      testMatch: 'packaged-app.e2e.ts',
+      dependencies: ['desktop'],
+      use: { ...devices['Desktop Chrome'] },
+    },
   ],
   // Stopped as Ctrl+C would stop them, so each removes its temporary archive.
   webServer: [

@@ -27,6 +27,15 @@ test('serves the UI built in apps/web/dist', () => {
   expect(readLocalConfig(archive, mac).uiPath).toMatch(/apps\/web\/dist$/);
 });
 
+test('reads where the built UI is from FILMFILE_UI, as the packaged app has it elsewhere', () => {
+  expect(
+    readLocalConfig(
+      { ...archive, FILMFILE_UI: '/Applications/FilmFile.app/web' },
+      mac,
+    ).uiPath,
+  ).toBe('/Applications/FilmFile.app/web');
+});
+
 test('reads the origin of a separately served UI from FILMFILE_UI_ORIGIN', () => {
   expect(
     readLocalConfig(

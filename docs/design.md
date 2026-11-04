@@ -389,7 +389,8 @@ apps/
       contracts/           port contract suites
       fixtures/            generated fixture archives and lab scans
   web/                     @filmfile/web — React UI
-  desktop/                 @filmfile/desktop — the Electron app: starts the service and opens a window on it (D54)
+  desktop/                 @filmfile/desktop — the Electron app: starts the service and opens a window on it (D54);
+                           scripts/package.ts builds FilmFile.app and FilmFile.dmg (D56)
 packages/
   contracts/               @filmfile/contracts — API schemas, OpenAPI, typed client
 ```

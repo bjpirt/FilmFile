@@ -35,7 +35,7 @@ export function readLocalConfig(
     archivePath,
     cachePath: env.FILMFILE_CACHE ?? defaultCachePath(env, system),
     port: Number(env.FILMFILE_PORT ?? defaultPort),
-    uiPath: builtUi,
+    uiPath: env.FILMFILE_UI ?? builtUi,
     // Where the UI runs when it isn't served by the backend, e.g. Vite in development.
     ...(env.FILMFILE_UI_ORIGIN === undefined
       ? {}
