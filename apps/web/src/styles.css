@@ -820,6 +820,27 @@ button.danger {
   width: 1px;
 }
 
+/* The link back in a page's heading, the same size as the heading and in grey, so the heading still leads. */
+.breadcrumb,
+.breadcrumb-separator {
+  color: var(--text-muted);
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+
+.breadcrumb {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.3em;
+}
+
+.breadcrumb:hover {
+  color: var(--accent);
+}
+
+.breadcrumb-separator {
+  opacity: 0.6;
+}
+
 .roll-title {
   align-items: baseline;
   display: flex;

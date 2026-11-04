@@ -187,8 +187,10 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
   return (
     <section>
       <div className="roll-title">
-        <Link to="/">All rolls</Link>
-        <span className="muted" aria-hidden="true">
+        <Link to="/" className="breadcrumb">
+          All rolls
+        </Link>
+        <span className="breadcrumb-separator" aria-hidden="true">
           /
         </span>
         <h1>New roll</h1>

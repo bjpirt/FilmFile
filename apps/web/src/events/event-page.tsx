@@ -47,8 +47,10 @@ export function EventPage({
     <section>
       <div className="page-heading">
         <div className="roll-title">
-          <Link to="/events">Events</Link>
-          <span className="muted" aria-hidden="true">
+          <Link to="/events" className="breadcrumb">
+            Events
+          </Link>
+          <span className="breadcrumb-separator" aria-hidden="true">
             /
           </span>
           <h1>{event.name}</h1>

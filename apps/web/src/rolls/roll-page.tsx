@@ -542,8 +542,10 @@ export function RollPage({
     <section>
       <div className="page-heading">
         <div className="roll-title">
-          <Link to="/">All rolls</Link>
-          <span className="muted" aria-hidden="true">
+          <Link to="/" className="breadcrumb">
+            All rolls
+          </Link>
+          <span className="breadcrumb-separator" aria-hidden="true">
             /
           </span>
           <h1>

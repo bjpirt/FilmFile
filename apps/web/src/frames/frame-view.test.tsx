@@ -94,7 +94,9 @@ describe('opened from a roll', () => {
 
     const image = await screen.findByRole('img', { name: '12340002.jpg' });
     expect(image.getAttribute('src')).toContain('size=large');
-    expect(screen.getByText('2026-014')).toBeDefined();
+    // The roll is named only in the way back.
+    expect(screen.getByRole('link', { name: 'Roll 2026-014' })).toBeDefined();
+    expect(screen.queryByText('2026-014')).toBeNull();
     expect(filmstrip()).toEqual(['Frame 1', 'Frame 2 (shown)', 'Frame 3']);
   });
 

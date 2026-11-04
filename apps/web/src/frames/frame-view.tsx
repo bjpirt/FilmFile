@@ -205,9 +205,13 @@ export function FrameView({
   return (
     <section className="frame-view">
       <div className="frame-view-bar">
-        <Link to={back.to}>{back.label}</Link>
+        <Link to={back.to} className="breadcrumb">
+          {back.label}
+        </Link>
+        <span className="breadcrumb-separator" aria-hidden="true">
+          /
+        </span>
         <h1>Frame {shown.frame.number ?? 'with no number'}</h1>
-        <span className="muted numbers">{shown.roll.roll}</span>
         {shown.frame.rating !== null && (
           <span
             className="rating"
