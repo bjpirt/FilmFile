@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { addCamera, createRoll } from './support/journeys.ts';
+import { addCamera, chooseAction, createRoll } from './support/journeys.ts';
 
 test('describe a roll: add its name, notes, date shot and a new camera later, and find them on the roll and in the rolls list', async ({
   page,
 }) => {
   await createRoll(page, '2025-401');
 
-  await page.getByRole('button', { name: 'Edit details' }).click();
+  await chooseAction(page, 'Edit details');
   const details = page.getByRole('form', { name: 'Roll details' });
   await details.getByLabel('Name').fill('Westfjords');
   await details.getByLabel('Notes').fill('Puffins at Látrabjarg.');

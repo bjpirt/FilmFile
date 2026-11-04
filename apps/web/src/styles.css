@@ -173,6 +173,13 @@ select {
   color: var(--text-muted);
   margin-bottom: var(--space-5);
   padding: var(--space-4) var(--space-5);
+  position: relative;
+}
+
+.drop-zone-close {
+  position: absolute;
+  right: var(--space-4);
+  top: var(--space-4);
 }
 
 .drop-zone label {
@@ -865,6 +872,58 @@ button.danger {
 .browse-toggle-space {
   flex: none;
   width: 2.75rem;
+}
+
+/* A button opening a menu of actions, the menu just under it at its right. */
+.menu-button {
+  position: relative;
+}
+
+.menu-button > button {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--space-2);
+}
+
+.menu {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  min-width: 13rem;
+  padding: var(--space-1);
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 5;
+}
+
+.menu button {
+  background: none;
+  border: 0;
+  border-radius: var(--radius-small);
+  text-align: left;
+  width: 100%;
+}
+
+.menu button:hover,
+.menu button:focus-visible {
+  background: var(--border);
+  outline: none;
+}
+
+.menu .set-apart {
+  border-top: 1px solid var(--border);
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
+}
+
+.danger-text {
+  color: var(--danger);
 }
 
 .icon-button {

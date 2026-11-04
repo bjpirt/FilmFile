@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { fixtureSets } from '../../apps/backend/test/support/lab-scans.ts';
 import {
   changeFrameNumber,
+  chooseAction,
   createRoll,
   deleteFrame,
   rollsShown,
@@ -107,7 +108,7 @@ test('catalogue a roll: create it with its details and scans, correct a number, 
   ).toBeVisible();
   await expect(framesShown(page)).toHaveText(['1', '2', '3', '4']);
 
-  await page.getByRole('button', { name: 'Delete roll…' }).click();
+  await chooseAction(page, 'Delete roll…');
   await page
     .getByRole('alertdialog', { name: 'Delete roll 2026-014' })
     .getByRole('button', { name: 'Delete roll' })

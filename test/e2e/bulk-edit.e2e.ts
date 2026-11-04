@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { fixtureSets } from '../../apps/backend/test/support/lab-scans.ts';
-import { createRoll } from './support/journeys.ts';
+import { chooseAction, createRoll } from './support/journeys.ts';
 
 test('bulk edit: select some of a roll’s frames, give them another camera and put them in an event, leaving the rest with the roll’s', async ({
   page,
@@ -16,7 +16,7 @@ test('bulk edit: select some of a roll’s frames, give them another camera and 
     scans: fixtureSets.headToTail,
   });
 
-  await page.getByRole('button', { name: 'Select' }).click();
+  await chooseAction(page, 'Select frames');
   await page.getByRole('checkbox', { name: 'Select frame 2' }).click();
   await page
     .getByRole('checkbox', { name: 'Select frame 4' })

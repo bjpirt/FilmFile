@@ -100,15 +100,44 @@ function renderPage(archive: FakeArchive) {
   );
 }
 
+/** Chooses one of the roll's actions from its Actions menu. */
+async function chooseAction(name: string) {
+  fireEvent.click(await screen.findByRole('button', { name: 'Actions' }));
+  fireEvent.click(screen.getByRole('menuitem', { name }));
+}
+
 function chooseScans(...files: File[]) {
   // On a roll with frames, the drop zone opens from Add scans.
   if (screen.queryByLabelText('Choose scans') === null) {
-    fireEvent.click(screen.getByRole('button', { name: 'Add scans' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add scans' }));
   }
   fireEvent.change(screen.getByLabelText('Choose scans'), {
     target: { files },
   });
 }
+
+test('offers the roll’s actions in one menu, selecting and renumbering once it has frames', async () => {
+  renderPage(archiveWith([aFrameWithScan('1', '12340001.jpg')]));
+  fireEvent.click(await screen.findByRole('button', { name: 'Actions' }));
+
+  expect(
+    screen.getAllByRole('menuitem').map((item) => item.textContent),
+  ).toEqual([
+    'Edit details',
+    'Add scans',
+    'Select frames',
+    'Renumber…',
+    'Delete roll…',
+  ]);
+  cleanup();
+
+  renderPage(archiveWith());
+  fireEvent.click(await screen.findByRole('button', { name: 'Actions' }));
+  expect(
+    screen.getAllByRole('menuitem').map((item) => item.textContent),
+  ).toEqual(['Edit details', 'Add scans', 'Delete roll…']);
+});
 
 test('heads the page with the roll number and how many frames it has', async () => {
   renderPage(
@@ -168,9 +197,7 @@ describe('editing the details', () => {
   };
 
   async function editDetails() {
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Edit details' }),
-    );
+    await chooseAction('Edit details');
   }
 
   /** A field by its label, ignoring the required marker, as a screen reader names it. */
@@ -203,11 +230,6 @@ describe('editing the details', () => {
     expect(field('Month').value).toBe('09');
     expect(field('Day').value).toBe('14');
     expect(field('Time').value).toBe('');
-    expect(
-      screen
-        .getByRole('button', { name: 'Edit details' })
-        .getAttribute('aria-expanded'),
-    ).toBe('true');
   });
 
   test('saves the details, sending the roll’s ETag, and shows them', async () => {
@@ -493,7 +515,7 @@ describe('selecting frames', () => {
 
   async function startSelecting(archive = archiveWith(threeFrames())) {
     renderPage(archive);
-    fireEvent.click(await screen.findByRole('button', { name: 'Select' }));
+    await chooseAction('Select frames');
     return archive;
   }
 
@@ -563,7 +585,7 @@ describe('selecting frames', () => {
     expect(screen.queryByRole('checkbox')).toBeNull();
     expect(screen.getByRole('link', { name: 'Open frame 1' })).toBeDefined();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Select' }));
+    await chooseAction('Select frames');
     expect(ticked()).toEqual([]);
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.queryByRole('checkbox')).toBeNull();
@@ -590,7 +612,7 @@ describe('setting details on selected frames', () => {
         },
       );
     renderPage(service);
-    fireEvent.click(await screen.findByRole('button', { name: 'Select' }));
+    await chooseAction('Select frames');
     for (const number of numbers) {
       fireEvent.click(
         screen.getByRole('checkbox', { name: `Select frame ${number}` }),
@@ -706,7 +728,7 @@ describe('deleting selected frames', () => {
       aFrameWithScan('3', '12340003.jpg'),
     ]);
     renderPage(service);
-    fireEvent.click(await screen.findByRole('button', { name: 'Select' }));
+    await chooseAction('Select frames');
     for (const number of numbers) {
       fireEvent.click(
         screen.getByRole('checkbox', { name: `Select frame ${number}` }),
@@ -796,9 +818,7 @@ describe('deleting the roll', () => {
       aFrameWithScan('2', '12340002.jpg'),
     ]);
     renderPage(service);
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Delete roll…' }),
-    );
+    await chooseAction('Delete roll…');
 
     const confirm = screen.getByRole('alertdialog', {
       name: 'Delete roll 2026-014',
@@ -819,9 +839,7 @@ describe('deleting the roll', () => {
 
   test('asks more simply for a roll with no frames', async () => {
     renderPage(archiveWith());
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Delete roll…' }),
-    );
+    await chooseAction('Delete roll…');
 
     expect(screen.getByRole('alertdialog').textContent).toBe(
       'Delete this roll?Delete rollCancel',
@@ -831,9 +849,7 @@ describe('deleting the roll', () => {
   test('keeps the roll on Cancel', async () => {
     const service = archiveWith();
     renderPage(service);
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Delete roll…' }),
-    );
+    await chooseAction('Delete roll…');
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
@@ -844,9 +860,7 @@ describe('deleting the roll', () => {
   test('refuses to delete a roll changed since the page loaded', async () => {
     const service = archiveWith();
     renderPage(service);
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Delete roll…' }),
-    );
+    await chooseAction('Delete roll…');
     service.changeRoll(rollId);
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete roll' }));
@@ -860,16 +874,16 @@ describe('deleting the roll', () => {
 });
 
 describe('adding scans', () => {
-  test('opens the drop zone from Add scans on a roll with frames', async () => {
+  test('opens the drop zone from Add scans on a roll with frames, and closes it', async () => {
     renderPage(archiveWith([aFrameWithScan('1', '12340001.jpg')]));
-    const addScans = await screen.findByRole('button', { name: 'Add scans' });
+    await screen.findByRole('button', { name: 'Actions' });
     expect(screen.queryByLabelText('Choose scans')).toBeNull();
-    expect(addScans.getAttribute('aria-expanded')).toBe('false');
 
-    fireEvent.click(addScans);
-
+    await chooseAction('Add scans');
     expect(screen.getByLabelText('Choose scans')).toBeDefined();
-    expect(addScans.getAttribute('aria-expanded')).toBe('true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByLabelText('Choose scans')).toBeNull();
   });
 
   test('shows the drop zone straight away on a roll with no frames', async () => {
@@ -1063,7 +1077,7 @@ describe('renumbering', () => {
       aFrameWithScan('3', '12340003.jpg'),
     ]);
     renderPage(service);
-    fireEvent.click(await screen.findByRole('button', { name: 'Renumber…' }));
+    await chooseAction('Renumber…');
     return service;
   }
 
@@ -1181,7 +1195,7 @@ describe('renumbering', () => {
     const archive = archiveWith([aFrameWithScan('1', '12340001.jpg')]);
     archive.failSaves();
     renderPage(archive);
-    fireEvent.click(await screen.findByRole('button', { name: 'Renumber…' }));
+    await chooseAction('Renumber…');
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 

@@ -1,4 +1,5 @@
 import { BinIcon } from '../bin-icon.tsx';
+import { MenuButton } from '../menu-button.tsx';
 import type { ApiClient } from '@filmfile/contracts/client';
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -580,38 +581,53 @@ export function RollPage({
             </button>
           </div>
         ) : (
-          <div className="page-actions">
-            <button
-              type="button"
-              aria-expanded={editingDetails}
-              aria-controls="edit-details"
-              onClick={() => {
-                setEditingDetails(!editingDetails);
-              }}
-            >
-              Edit details
-            </button>
-            {frames.length > 0 && (
-              <button
-                type="button"
-                aria-expanded={dropZoneOpen}
-                aria-controls="drop-zone"
-                onClick={() => {
-                  setAddingScans(!addingScans);
-                }}
-              >
-                Add scans
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setConfirmingRollDelete(true);
-              }}
-            >
-              Delete roll…
-            </button>
-          </div>
+          // While selecting or renumbering, what's being done takes the menu's place.
+          selection === undefined &&
+          renumbering === undefined && (
+            <div className="page-actions">
+              <MenuButton
+                label="Actions"
+                items={[
+                  {
+                    label: 'Edit details',
+                    select: () => {
+                      setEditingDetails(true);
+                    },
+                  },
+                  {
+                    label: 'Add scans',
+                    select: () => {
+                      setAddingScans(true);
+                    },
+                  },
+                  ...(frames.length === 0
+                    ? []
+                    : [
+                        {
+                          label: 'Select frames',
+                          select: () => {
+                            setSelection(noSelection);
+                          },
+                        },
+                        {
+                          label: 'Renumber…',
+                          select: () => {
+                            startRenumbering(frames);
+                          },
+                        },
+                      ]),
+                  {
+                    label: 'Delete roll…',
+                    danger: true,
+                    setApart: true,
+                    select: () => {
+                      setConfirmingRollDelete(true);
+                    },
+                  },
+                ]}
+              />
+            </div>
+          )
         )}
       </div>
 
@@ -665,6 +681,17 @@ export function RollPage({
           }}
         >
           <p>Drop individual scans here</p>
+          {frames.length > 0 && (
+            <button
+              type="button"
+              className="drop-zone-close"
+              onClick={() => {
+                setAddingScans(false);
+              }}
+            >
+              Close
+            </button>
+          )}
           <label>
             Choose scans
             <input
@@ -787,26 +814,7 @@ export function RollPage({
                 </>
               )}
             </div>
-          ) : renumbering === undefined ? (
-            <div className="sheet-controls">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelection(noSelection);
-                }}
-              >
-                Select
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  startRenumbering(frames);
-                }}
-              >
-                Renumber…
-              </button>
-            </div>
-          ) : (
+          ) : renumbering === undefined ? null : (
             <RenumberPanel
               settings={renumbering}
               changing={changing}

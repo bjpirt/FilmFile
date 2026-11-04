@@ -137,6 +137,12 @@ export async function createRoll(
 }
 
 /** Chooses Add new… for the camera and gives the new camera's make and model. */
+/** Chooses one of the open roll's actions from its Actions menu. */
+export async function chooseAction(page: Page, name: string): Promise<void> {
+  await page.getByRole('button', { name: 'Actions' }).click();
+  await page.getByRole('menuitem', { name }).click();
+}
+
 export async function addCamera(
   page: Page,
   { make, model }: { readonly make: string; readonly model: string },
@@ -152,7 +158,7 @@ export async function addScans(page: Page, set: FixtureSet): Promise<void> {
   const chooser = page.getByLabel('Choose scans');
   // On a roll with frames, the drop zone opens from Add scans.
   if (!(await chooser.isVisible())) {
-    await page.getByRole('button', { name: 'Add scans' }).click();
+    await chooseAction(page, 'Add scans');
   }
   await chooser.setInputFiles(await scanFiles(set));
   await expect(
@@ -169,7 +175,7 @@ export async function renumber(
     direction,
   }: { from: 'first' | 'last'; number: string; direction: 'up' | 'down' },
 ): Promise<void> {
-  await page.getByRole('button', { name: 'Renumber…' }).click();
+  await chooseAction(page, 'Renumber…');
   await page.getByLabel('Which scan').selectOption(from);
   await page.getByLabel(`Frame number of the ${from} scan`).fill(number);
   await page.getByLabel('Counting').selectOption(direction);
