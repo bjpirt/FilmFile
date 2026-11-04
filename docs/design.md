@@ -389,6 +389,7 @@ apps/
       contracts/           port contract suites
       fixtures/            generated fixture archives and lab scans
   web/                     @filmfile/web — React UI
+  desktop/                 @filmfile/desktop — the Electron app: starts the service and opens a window on it (D54)
 packages/
   contracts/               @filmfile/contracts — API schemas, OpenAPI, typed client
 ```
@@ -414,9 +415,10 @@ packages/
 
 - Listens on `127.0.0.1` by default. Network or cloud access requires authentication, to be designed with the cloud adapters.
 - Serves the built web UI at `/`, so the UI and API share one origin and the Origin check needs no exceptions. In development, Vite proxies `/api` to the service, and the service's allowed UI origin is set to the Vite dev server's through configuration.
-- Runs as a background service (launchd on macOS).
+- Runs inside the desktop app (D54): Electron's main process starts it in a `utilityProcess` on a free port and stops it on quitting, and only one copy of the app runs, so there's one writer. It can still be started on its own (`pnpm start`) for development and a browser.
 - "Open in editor" launches the editor when the UI is on the same machine; otherwise the UI shows the path.
 - The UI only displays generated JPEG/WebP previews, since browsers can't show TIFF or raw.
+- The desktop app's window is locked down (context isolation, sandbox, no Node.js in the page, no preload), sends links elsewhere to the default browser, and refuses permission requests. The archive is chosen in the app's own dialogs and kept in its per-computer settings (D52).
 - There is **no CLI** for now. If one is added, it's an API client, not a second writer.
 
 ---

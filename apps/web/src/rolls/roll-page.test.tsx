@@ -1262,6 +1262,34 @@ test('marks a frame with notes, as it marks details of its own', async () => {
   expect(within(frame ?? document.body).getByText('Has notes')).toBeDefined();
 });
 
+test('marks a frame with more than one version, saying how many', async () => {
+  const one = aFrameWithScan('1', '12340001.jpg');
+  const [scan] = aFrameWithScan('2', '12340002.jpg').versions;
+  const three = aFrameWithScan('2', '12340002.jpg');
+  renderPage(
+    archiveWith([
+      one,
+      {
+        ...three,
+        versions: [
+          ...three.versions,
+          ...(scan === undefined
+            ? []
+            : [
+                { ...scan, id: '01JC8Z7K3M0000000000000002', sha256: 'raw' },
+                { ...scan, id: '01JC8Z7K3M0000000000000003', sha256: 'final' },
+              ]),
+        ],
+      },
+    ]),
+  );
+
+  const [first, second] = await screen.findAllByRole('listitem');
+  expect(within(second ?? document.body).getByText('3 versions')).toBeDefined();
+  // A frame with just its scan has nothing to say.
+  expect(within(first ?? document.body).queryByText(/versions$/)).toBeNull();
+});
+
 test('shows a placeholder for a frame with no scan', async () => {
   renderPage(
     archiveWith([
