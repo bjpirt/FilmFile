@@ -59,7 +59,7 @@ Archive
   - The API never invents a roll number: creating a roll requires one. The UI suggests the next free number for the year but never fills it in for you.
   - Lists sort by roll number by default, or by shot date when chosen. Roll-level shot dates are optional and kept for reference; within a roll, frame-number order is shot order.
   - A roll number can be changed only by an explicit rename, which checks the new number is free and moves the roll's folder. The roll's ULID doesn't change, so links survive. Files inside the folder never move relative to it.
-- **Frame:** identified by the **frame number printed on the film**, as free text of up to 9 characters: `"0"`, `"23"`, `"00"`, `"-1"`, `"12A"`, or `"14-15"` for a panoramic frame spanning two numbers. `null` for a scan that's not yet identified. Frames sort naturally: by leading number (negatives first), then as text. 120 film uses position on the roll. A frame holds metadata and zero or more versions; a frame with no versions is valid (e.g. a frame the lab skipped, catalogued from the negatives). `defaultVersion` optionally names the version to show; when unset, the newest version is shown.
+- **Frame:** identified by the **frame number printed on the film**, as free text of up to 9 characters: `"0"`, `"23"`, `"00"`, `"-1"`, `"12A"`, or `"14-15"` for a panoramic frame spanning two numbers. `null` for a scan that's not yet identified. Frames sort naturally: by leading number (negatives first), then as text. 120 film uses position on the roll. A frame holds metadata and zero or more versions; a frame with no versions is valid (e.g. a frame the lab skipped, catalogued from the negatives). `defaultVersion` optionally names the version to show; when unset, the first version is shown (D46). A frame can have its own date shot, in place of its roll's (D47).
 - **Version:** a file with a ULID, a content hash, its pixel dimensions and parents. Versions have no `kind`: a version is a version, and the frame's `defaultVersion` decides which one is shown. Low-res display images are generated previews in the cache, never versions. `defaultVersion` and `parents` refer to version IDs, never paths. Phase 2 adds raws, masters (editor exports), edits and exports; how the service tells them apart where behaviour differs (e.g. never writing metadata into raws) is an open question (section 15). **`parents` is a list**, since a master may come from several raws (brackets, stitched sections, trichrome).
 - **Event:** a named happening with optional dates, location and parent event. Rolls and frames belong to events (section 7).
 
@@ -135,7 +135,7 @@ Version entries (from Phase 2) look like:
 
 ## 6. Metadata layering
 
-**Inheritable fields** live in a `meta` object, which has the same shape at every level: `camera`, `lens`, `film`, `location`, `tags`, `author`, `copyright`, `licence` (more may be added).
+**Inheritable fields** live in a `meta` object, which has the same shape at every level: `camera`, `lens`, `film`, `location`, `tags`, `author`, `copyright`, `licence` (more may be added). A frame can't set `film`: a roll is one film (D45).
 
 **Resolution order, general to specific:**
 
