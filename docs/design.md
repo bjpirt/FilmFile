@@ -189,7 +189,7 @@ Lab scans are low-res JPEGs of every frame named `BBBBNNNN.jpg` (batch, scan ind
 
 Every version is a kind (D48): a **Scan**, ready to view at whatever resolution (the lab's low-res scans, or a positive of my own); a **Raw scan**, the negative or slide as scanned, not yet processed; or a **Final**, processed and edited. The kind is chosen as a version is added and can be changed; resolution isn't a kind, since it's measured from the image. Raw scans are Sony ARW raws or TIFFs, never written to; an ARW's thumbnail comes from the preview JPEG it carries. Versions are first added to one chosen frame at a time; exporting raw scans for NegPy or Darktable, adding many frames' raw scans or finals at once, and the scan-list workflow below come later.
 
-1. Frames are marked **needs hi-res** while browsing lab scans.
+1. Frames are marked **to scan** while browsing lab scans (U22a); the mark goes when a raw scan is added.
 2. The tool produces an ordered **scan list** (e.g. `2026-014: 3, 7, 12A, 23`).
 3. Raws are shot in that order and imported as versions of their frames, matched to frames by capture time against the list, using the same anchors-and-exceptions approach.
 4. Including the film border is encouraged, so the frame number is visible.
