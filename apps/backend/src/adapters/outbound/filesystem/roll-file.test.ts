@@ -14,6 +14,10 @@ import { parseRollFile, rollFileContent } from './roll-file.ts';
 
 const ulid = fc.stringMatching(/^[0-9A-HJKMNP-TV-Z]{26}$/);
 
+const aSlug = fc
+  .stringMatching(/^[a-z0-9]{1,8}(-[a-z0-9]{1,8}){0,3}$/)
+  .filter(isSlug);
+
 const aVersion = fc.record({
   id: ulid.filter(isVersionId),
   file: fc.string(),
@@ -36,6 +40,10 @@ const aFrame = fc.record({
     nil: null,
   }),
   notes: fc.option(fc.string(), { nil: null }),
+  camera: fc.option(aSlug, { nil: null }),
+  film: fc.option(aSlug, { nil: null }),
+  lens: fc.option(aSlug, { nil: null }),
+  events: fc.option(fc.array(aSlug, { maxLength: 3 }), { nil: null }),
   defaultVersion: fc.option(ulid.filter(isVersionId), { nil: null }),
   number: fc.option(
     fc.string({ minLength: 1, maxLength: 9 }).filter(isFrameNumber),
@@ -127,6 +135,64 @@ describe('roll.json', () => {
         lens: 'nikon-nikkor-50mm',
       },
     });
+  });
+
+  test('keeps a frame’s own details, and says nothing of those it inherits', () => {
+    const json = {
+      schema: 2,
+      id: '01M6EAAP694BKWR9HZ4N5Z54XD',
+      roll: '2026-014',
+      frames: [
+        {
+          id: '01M6EAAP694BKWR9HZ4N5Z54XE',
+          number: '1',
+          versions: [],
+        },
+        {
+          id: '01M6EAAP694BKWR9HZ4N5Z54XF',
+          number: '2',
+          events: ['iceland-2026'],
+          meta: { lens: 'nikon-nikkor-105mm' },
+          versions: [],
+        },
+      ],
+    };
+    const read = parseRollFile(JSON.stringify(json));
+
+    expect(read).toMatchObject({
+      ok: true,
+      value: {
+        frames: [
+          { camera: null, lens: null, events: null },
+          {
+            camera: null,
+            lens: 'nikon-nikkor-105mm',
+            events: ['iceland-2026'],
+          },
+        ],
+      },
+    });
+    const written: unknown = read.ok && JSON.parse(rollFileContent(read.value));
+    expect(written).toEqual(
+      expect.objectContaining({
+        frames: [
+          // Inheriting it all, it says nothing of meta or events, as before frames had their own.
+          {
+            id: '01M6EAAP694BKWR9HZ4N5Z54XE',
+            number: '1',
+            title: null,
+            rating: null,
+            notes: null,
+            defaultVersion: null,
+            versions: [],
+          },
+          expect.objectContaining({
+            events: ['iceland-2026'],
+            meta: { lens: 'nikon-nikkor-105mm' },
+          }),
+        ],
+      }),
+    );
   });
 
   test('reads a schema 1 roll’s description as its notes, and writes it back as notes', () => {

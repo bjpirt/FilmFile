@@ -173,6 +173,47 @@
               "null"
             ]
           },
+          "camera": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe",
+            "description": "The frame's own camera, in place of its roll's, or null to use the roll's."
+          },
+          "film": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe"
+          },
+          "lens": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe"
+          },
+          "events": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string",
+              "maxLength": 60,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "example": "nikon-fe"
+            },
+            "description": "The events the frame is in, in place of its roll's, or null to use the roll's."
+          },
           "defaultVersion": {
             "type": [
               "string",
@@ -195,6 +236,10 @@
           "title",
           "rating",
           "notes",
+          "camera",
+          "film",
+          "lens",
+          "events",
           "defaultVersion",
           "versions"
         ]
@@ -540,6 +585,48 @@
               "null"
             ],
             "maxLength": 5000
+          },
+          "camera": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe",
+            "description": "The frame's own camera, or null to use its roll's again."
+          },
+          "film": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe"
+          },
+          "lens": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe"
+          },
+          "events": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string",
+              "maxLength": 60,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "example": "nikon-fe"
+            },
+            "maxItems": 50,
+            "description": "The frame's own events, or null to use its roll's again."
           },
           "defaultVersion": {
             "type": [

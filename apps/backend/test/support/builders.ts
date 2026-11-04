@@ -68,6 +68,10 @@ export function aFrame(
     title: null,
     rating: null,
     notes: null,
+    camera: null,
+    film: null,
+    lens: null,
+    events: null,
     defaultVersion:
       overrides.defaultVersion === undefined
         ? null

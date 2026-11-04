@@ -1,5 +1,5 @@
 import type { Archive } from '../archive/archive.ts';
-import type { Roll } from '../rolls/roll.ts';
+import type { Frame, Roll } from '../rolls/roll.ts';
 import type { DetailsLayer } from './details.ts';
 
 // The layers a frame's details are resolved from. A detail a record doesn't
@@ -27,6 +27,21 @@ export function rollLayer(
       ...(roll.film === null ? {} : { film: roll.film }),
       ...(roll.lens === null ? {} : { lens: roll.lens }),
       ...(roll.event === null ? {} : { events: [roll.event] }),
+    },
+  };
+}
+
+/** A frame's own camera, film stock, lens and events, the most specific layer (U15). */
+export function frameLayer(
+  frame: Pick<Frame, 'id' | 'camera' | 'film' | 'lens' | 'events'>,
+): DetailsLayer {
+  return {
+    source: { layer: 'frame', id: frame.id },
+    details: {
+      ...(frame.camera === null ? {} : { camera: frame.camera }),
+      ...(frame.film === null ? {} : { film: frame.film }),
+      ...(frame.lens === null ? {} : { lens: frame.lens }),
+      ...(frame.events === null ? {} : { events: frame.events }),
     },
   };
 }

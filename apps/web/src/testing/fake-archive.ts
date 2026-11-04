@@ -84,6 +84,10 @@ export function aFrame(number: string | null, file: string): Frame {
     title: null,
     rating: null,
     notes: null,
+    camera: null,
+    film: null,
+    lens: null,
+    events: null,
     defaultVersion: null,
     versions: [
       {
@@ -361,8 +365,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     return Response.json(roll, { status: 201 });
   }
 
-  /** What a frame inherits, as the service resolves it: the archive's author and copyright, then the roll's equipment and event. */
-  function detailsOf(roll: Roll): FrameDetails {
+  /** A frame's details, as the service resolves them: the archive's author and copyright, then the roll's equipment and event, then the frame's own. */
+  function detailsOf(roll: Roll, frame: Frame): FrameDetails {
     const fromArchive = (value: string) => ({
       value,
       source: { layer: 'archive' as const, id: setUpArchive.id },
@@ -371,15 +375,32 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       value,
       source: { layer: 'roll' as const, id: roll.id },
     });
+    const fromFrame = <T>(value: T) => ({
+      value,
+      source: { layer: 'frame' as const, id: frame.id },
+    });
+    const either = <T>(own: T | null, inherited: T | null) =>
+      own !== null
+        ? fromFrame(own)
+        : inherited === null
+          ? undefined
+          : fromRoll(inherited);
+    const camera = either(frame.camera, roll.camera);
+    const film = either(frame.film, roll.film);
+    const lens = either(frame.lens, roll.lens);
+    const events = either(
+      frame.events,
+      roll.event === null ? null : [roll.event],
+    );
     return {
       ...(settings === null ? {} : { author: fromArchive(settings.author) }),
       ...(settings?.copyright === undefined || settings.copyright === null
         ? {}
         : { copyright: fromArchive(settings.copyright) }),
-      ...(roll.camera === null ? {} : { camera: fromRoll(roll.camera) }),
-      ...(roll.film === null ? {} : { film: fromRoll(roll.film) }),
-      ...(roll.lens === null ? {} : { lens: fromRoll(roll.lens) }),
-      ...(roll.event === null ? {} : { events: fromRoll([roll.event]) }),
+      ...(camera === undefined ? {} : { camera }),
+      ...(film === undefined ? {} : { film }),
+      ...(lens === undefined ? {} : { lens }),
+      ...(events === undefined ? {} : { events }),
     };
   }
 
@@ -469,6 +490,10 @@ export function fakeArchive(contents: ArchiveContents = {}) {
           title: null,
           rating: null,
           notes: null,
+          camera: null,
+          film: null,
+          lens: null,
+          events: null,
           defaultVersion: null,
           versions: [],
         };
@@ -497,7 +522,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       return notFound();
     }
     if (versions === 'details') {
-      return Response.json(detailsOf(roll));
+      return Response.json(detailsOf(roll, frame));
     }
     if (versions === undefined && request.method === 'DELETE') {
       const refused = checkIfMatch(request, roll.id);

@@ -29,6 +29,10 @@ describe('POST /api/rolls/{id}/frames', () => {
       title: null,
       rating: null,
       notes: null,
+      camera: null,
+      film: null,
+      lens: null,
+      events: null,
       defaultVersion: null,
       versions: [],
     });
@@ -122,6 +126,10 @@ describe('PATCH /api/rolls/{id}/frames/{frameId}', () => {
       title: null,
       rating: null,
       notes: null,
+      camera: null,
+      film: null,
+      lens: null,
+      events: null,
       defaultVersion: null,
       versions: [],
     });
@@ -501,6 +509,42 @@ describe('GET /api/rolls/{id}/frames/{frameId}/details', () => {
         source: { layer: 'archive', id: archiveId },
       },
       camera: { value: 'nikon-fe', source: { layer: 'roll', id: rollId } },
+    });
+  });
+
+  test('the frame’s own camera and events win over its roll’s', async () => {
+    await post('/api/equipment/cameras', { make: 'Nikon', model: 'FE' });
+    await post('/api/equipment/cameras', { make: 'Leica', model: 'M6' });
+    await post('/api/events', { name: 'Westfjords' });
+    const rollId = String(
+      idOf(
+        await (
+          await post('/api/rolls', { roll: '2026-014', camera: 'nikon-fe' })
+        ).json(),
+      ),
+    );
+    const frameId = String(
+      idOf(await (await post(`/api/rolls/${rollId}/frames`, {})).json()),
+    );
+    const etag = (await request(`/api/rolls/${rollId}`)).headers.get('ETag');
+    const patched = await request(`/api/rolls/${rollId}/frames/${frameId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'If-Match': etag ?? '' },
+      body: JSON.stringify({ camera: 'leica-m6', events: ['westfjords'] }),
+    });
+    expect(await patched.json()).toMatchObject({
+      camera: 'leica-m6',
+      events: ['westfjords'],
+    });
+
+    const details: unknown = await (
+      await request(`/api/rolls/${rollId}/frames/${frameId}/details`)
+    ).json();
+
+    const fromFrame = { layer: 'frame', id: frameId };
+    expect(details).toEqual({
+      camera: { value: 'leica-m6', source: fromFrame },
+      events: { value: ['westfjords'], source: fromFrame },
     });
   });
 

@@ -1835,6 +1835,17 @@ export interface components {
             rating: number | null;
             notes: string | null;
             /**
+             * @description The frame's own camera, in place of its roll's, or null to use the roll's.
+             * @example nikon-fe
+             */
+            camera: string | null;
+            /** @example nikon-fe */
+            film: string | null;
+            /** @example nikon-fe */
+            lens: string | null;
+            /** @description The events the frame is in, in place of its roll's, or null to use the roll's. */
+            events: string[] | null;
+            /**
              * @description The version shown for the frame, or null for its newest.
              * @example 01M6EAAP694BKWR9HZ4N5Z54XD
              */
@@ -1941,6 +1952,17 @@ export interface components {
             /** @description 1 to 5 stars, or null to clear the rating. */
             rating?: number | null;
             notes?: string | null;
+            /**
+             * @description The frame's own camera, or null to use its roll's again.
+             * @example nikon-fe
+             */
+            camera?: string | null;
+            /** @example nikon-fe */
+            film?: string | null;
+            /** @example nikon-fe */
+            lens?: string | null;
+            /** @description The frame's own events, or null to use its roll's again. */
+            events?: string[] | null;
             /**
              * @description The version to show for the frame, one of its own, or null to show its newest.
              * @example 01M6EAAP694BKWR9HZ4N5Z54XD

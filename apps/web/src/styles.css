@@ -491,6 +491,22 @@ select {
   position: relative;
 }
 
+/* A frame with details of its own: a small label at the picture's bottom left. */
+.own-details {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-small);
+  bottom: var(--space-2);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  left: var(--space-2);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  padding: 0.2rem 0.35rem;
+  position: absolute;
+  text-transform: uppercase;
+}
+
 /* Selecting frames: a checkbox at each frame's top left, and the frames chosen outlined. */
 .selectable {
   cursor: pointer;

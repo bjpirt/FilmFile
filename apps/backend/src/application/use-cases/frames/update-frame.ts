@@ -9,20 +9,62 @@ import type {
 } from '../../../domain/shared/domain-error.ts';
 import type { FrameId, RollId } from '../../../domain/shared/ids.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
+import type { Slug } from '../../../domain/shared/slug.ts';
+import type { EquipmentRepository } from '../../ports/equipment-repository.ts';
+import type { EventRepository } from '../../ports/event-repository.ts';
 import type { RollRepository } from '../../ports/roll-repository.ts';
+import { knownCamera } from '../rolls/known-camera.ts';
+import { knownEvent } from '../rolls/known-event.ts';
+import { knownFilmStock } from '../rolls/known-film-stock.ts';
+import { knownLens } from '../rolls/known-lens.ts';
 import { textOrNull } from '../rolls/text-or-null.ts';
 
+/** Every slug, if each is an event in the archive. */
+async function knownEvents(
+  events: EventRepository,
+  ctx: ArchiveContext,
+  slugs: readonly string[],
+): Promise<Result<readonly Slug[], ValidationFailed>> {
+  const known: Slug[] = [];
+  for (const slug of slugs) {
+    const event = await knownEvent(events, ctx, slug);
+    if (!event.ok) {
+      return err({
+        kind: 'validation-failed',
+        issues: [
+          {
+            path: ['events'],
+            message: `${slug} is not an event in the archive`,
+          },
+        ],
+      });
+    }
+    known.push(event.value);
+  }
+  return ok(known);
+}
+
 /**
- * Changes a frame's number, the version shown for it (D15), or how it's
- * described: its title, rating and notes. Saved only if the roll hasn't
- * changed since the caller read it at `expectedVersion`. A detail left out
- * stays as it is; null, or blank text, clears it.
+ * Changes a frame's number, the version shown for it (D15), how it's
+ * described (title, rating and notes), or its own camera, film stock, lens
+ * and events, which take the place of its roll's (U15). Saved only if the
+ * roll hasn't changed since the caller read it at `expectedVersion`. A
+ * detail left out stays as it is; null, or blank text, clears it, so the
+ * frame uses its roll's equipment and events again.
  */
 export class UpdateFrame {
   readonly #rolls: RollRepository;
+  readonly #equipment: EquipmentRepository;
+  readonly #events: EventRepository;
 
-  constructor(rolls: RollRepository) {
+  constructor(
+    rolls: RollRepository,
+    equipment: EquipmentRepository,
+    events: EventRepository,
+  ) {
     this.#rolls = rolls;
+    this.#equipment = equipment;
+    this.#events = events;
   }
 
   async execute(
@@ -38,6 +80,12 @@ export class UpdateFrame {
       /** One to five stars (D39). */
       readonly rating?: number | null | undefined;
       readonly notes?: string | null | undefined;
+      /** Slugs of equipment in the archive. */
+      readonly camera?: string | null | undefined;
+      readonly film?: string | null | undefined;
+      readonly lens?: string | null | undefined;
+      /** Slugs of events in the archive. */
+      readonly events?: readonly string[] | null | undefined;
     },
   ): Promise<
     Result<
@@ -58,6 +106,34 @@ export class UpdateFrame {
         : parseRating(input.rating);
     if (!rating.ok) {
       return rating;
+    }
+    const camera =
+      input.camera === undefined || input.camera === null
+        ? ok(input.camera)
+        : await knownCamera(this.#equipment, ctx, input.camera);
+    if (!camera.ok) {
+      return camera;
+    }
+    const film =
+      input.film === undefined || input.film === null
+        ? ok(input.film)
+        : await knownFilmStock(this.#equipment, ctx, input.film);
+    if (!film.ok) {
+      return film;
+    }
+    const lens =
+      input.lens === undefined || input.lens === null
+        ? ok(input.lens)
+        : await knownLens(this.#equipment, ctx, input.lens);
+    if (!lens.ok) {
+      return lens;
+    }
+    const events =
+      input.events === undefined || input.events === null
+        ? ok(input.events)
+        : await knownEvents(this.#events, ctx, input.events);
+    if (!events.ok) {
+      return events;
     }
     const current = await this.#rolls.get(ctx, input.rollId);
     if (current === undefined) {
@@ -90,6 +166,10 @@ export class UpdateFrame {
       ...(input.title === undefined ? {} : { title: textOrNull(input.title) }),
       ...(rating.value === undefined ? {} : { rating: rating.value }),
       ...(input.notes === undefined ? {} : { notes: textOrNull(input.notes) }),
+      ...(camera.value === undefined ? {} : { camera: camera.value }),
+      ...(film.value === undefined ? {} : { film: film.value }),
+      ...(lens.value === undefined ? {} : { lens: lens.value }),
+      ...(events.value === undefined ? {} : { events: events.value }),
     };
     // Saved against the version the caller read, so a change made since is never overwritten.
     const saved = await this.#rolls.save(

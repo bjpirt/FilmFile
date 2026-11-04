@@ -27,6 +27,7 @@ import {
 } from './renumber-panel.tsx';
 import { describeUpload } from './describe-upload.ts';
 import { uploadScans, type UploadReport } from './upload-scans.ts';
+import { ownDetails } from './own-details.ts';
 import {
   noSelection,
   selectAll,
@@ -128,6 +129,26 @@ function RollAbout({
       )}
       {roll.notes !== null && <p className="roll-notes">{roll.notes}</p>}
     </div>
+  );
+}
+
+/** A small mark on a frame whose details differ from its roll's (U15), named in full for screen readers. */
+function OwnDetailsMark({
+  frame,
+  roll,
+}: {
+  readonly frame: Frame;
+  readonly roll: Roll;
+}) {
+  const own = ownDetails(frame, roll);
+  if (own === undefined) {
+    return null;
+  }
+  return (
+    <span className="own-details" title={own}>
+      <span aria-hidden="true">Own</span>
+      <span className="visually-hidden">{own}</span>
+    </span>
   );
 }
 
@@ -783,6 +804,7 @@ export function RollPage({
                         <BinIcon size={16} />
                       </button>
                     )}
+                  <OwnDetailsMark frame={frame} roll={roll.data.roll} />
                 </div>
                 {renumbering === undefined ? (
                   <FrameNumberEditor

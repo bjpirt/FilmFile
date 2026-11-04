@@ -80,7 +80,7 @@ export function useCasesFor({
     updateRoll: new UpdateRoll(rolls, equipment, events),
     deleteRoll: new DeleteRoll(rolls, holding, clock),
     createFrame: new CreateFrame(rolls, ids),
-    updateFrame: new UpdateFrame(rolls),
+    updateFrame: new UpdateFrame(rolls, equipment, events),
     updateVersion: new UpdateVersion(rolls),
     updateFrameNumbers: new UpdateFrameNumbers(rolls),
     deleteFrame: new DeleteFrame(rolls, holding, clock),

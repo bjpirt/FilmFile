@@ -29,6 +29,7 @@ import {
   type RollId,
 } from '../../../src/domain/shared/ids.ts';
 import { aJpeg } from '../../support/a-jpeg.ts';
+import { aCamera, aLens, anEvent } from '../../support/builders.ts';
 import { checked } from '../../support/checked.ts';
 
 const ctx: ArchiveContext = {
@@ -43,19 +44,21 @@ async function setUp() {
   const ids = new SequentialIdGenerator();
   const clock = new FixedClock('2026-11-02T12:00:00.000Z');
   const holding: HoldingArea = new InMemoryHoldingArea();
-  const created = await new CreateRoll(
-    rolls,
-    new InMemoryEquipmentRepository(),
-    new InMemoryEventRepository(),
-    ids,
-  ).execute(ctx, {
-    roll: '2026-014',
-  });
+  const equipment = new InMemoryEquipmentRepository();
+  const events = new InMemoryEventRepository();
+  const created = await new CreateRoll(rolls, equipment, events, ids).execute(
+    ctx,
+    {
+      roll: '2026-014',
+    },
+  );
   if (!created.ok) {
     throw new Error('setup failed');
   }
   return {
     rolls,
+    equipment,
+    events,
     previews,
     holding,
     roll: created.value,
@@ -70,7 +73,7 @@ async function setUp() {
     ),
     getOriginal: new GetOriginal(rolls, blobs),
     getThumbnail: new GetThumbnail(rolls, blobs, previews),
-    updateFrame: new UpdateFrame(rolls),
+    updateFrame: new UpdateFrame(rolls, equipment, events),
     updateVersion: new UpdateVersion(rolls),
     updateFrameNumbers: new UpdateFrameNumbers(rolls),
   };
@@ -105,6 +108,10 @@ describe('CreateFrame', () => {
         title: null,
         rating: null,
         notes: null,
+        camera: null,
+        film: null,
+        lens: null,
+        events: null,
         defaultVersion: null,
         versions: [],
       },
@@ -162,6 +169,10 @@ describe('UpdateFrame', () => {
           title: null,
           rating: null,
           notes: null,
+          camera: null,
+          film: null,
+          lens: null,
+          events: null,
           defaultVersion: null,
           versions: [],
         },
@@ -301,6 +312,95 @@ describe('UpdateFrame', () => {
       }),
     ).toEqual({ ok: false, error: { kind: 'not-found', entity, id: missing } });
   });
+});
+
+describe('UpdateFrame with the frame’s own details', () => {
+  async function withAFrame() {
+    const setup = await setUp();
+    await setup.equipment.createCamera(ctx, aCamera('Leica', 'M6'));
+    await setup.equipment.createLens(
+      ctx,
+      aLens('Leica', 'Summicron', { focalLength: 35, maxAperture: 2 }),
+    );
+    await setup.events.create(ctx, anEvent('Iceland 2026'));
+    await setup.events.create(ctx, anEvent('Westfjords'));
+    const frameId = await aFrameIn(setup.createFrame, setup.roll.id);
+    const read = await setup.rolls.get(ctx, setup.roll.id);
+    return { ...setup, frameId, version: read?.version ?? '' };
+  }
+
+  test('gives the frame its own camera, lens and events', async () => {
+    const { rolls, roll, frameId, version, updateFrame } = await withAFrame();
+
+    const updated = await updateFrame.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      expectedVersion: version,
+      camera: 'leica-m6',
+      lens: aLens('Leica', 'Summicron', { focalLength: 35, maxAperture: 2 })
+        .slug,
+      events: ['westfjords', 'iceland-2026'],
+    });
+
+    const own = {
+      camera: 'leica-m6',
+      film: null,
+      lens: aLens('Leica', 'Summicron', { focalLength: 35, maxAperture: 2 })
+        .slug,
+      events: ['westfjords', 'iceland-2026'],
+    };
+    expect(updated).toMatchObject({ ok: true, value: { frame: own } });
+    expect((await rolls.get(ctx, roll.id))?.roll.frames[0]).toMatchObject(own);
+  });
+
+  test('goes back to the roll’s with null', async () => {
+    const { roll, frameId, version, updateFrame } = await withAFrame();
+    const set = await updateFrame.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      expectedVersion: version,
+      camera: 'leica-m6',
+      events: ['westfjords'],
+    });
+
+    const cleared = await updateFrame.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      expectedVersion: set.ok ? set.value.version : '',
+      camera: null,
+      events: null,
+    });
+
+    expect(cleared).toMatchObject({
+      ok: true,
+      value: { frame: { camera: null, events: null } },
+    });
+  });
+
+  test.each([
+    ['camera', { camera: 'nikon-f3' }],
+    ['film', { film: 'kodak-gold-200' }],
+    ['lens', { lens: 'zeiss-planar' }],
+    ['events', { events: ['westfjords', 'nowhere'] }],
+  ])(
+    'refuses a %s not in the archive, saving nothing',
+    async (path, change) => {
+      const { rolls, roll, frameId, version, updateFrame } = await withAFrame();
+
+      expect(
+        await updateFrame.execute(ctx, {
+          rollId: roll.id,
+          frameId,
+          expectedVersion: version,
+          ...change,
+        }),
+      ).toMatchObject({
+        ok: false,
+        error: { kind: 'validation-failed', issues: [{ path: [path] }] },
+      });
+      expect((await rolls.get(ctx, roll.id))?.version).toBe(version);
+    },
+  );
 });
 
 describe('DeleteFrame', () => {

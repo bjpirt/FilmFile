@@ -52,6 +52,29 @@ describe('GetFrameDetails', () => {
     });
   });
 
+  test('a frame’s own details win over its roll’s', async () => {
+    const rolls = new InMemoryRollRepository();
+    const leica = aCamera('Leica', 'M6').slug;
+    const frame = { ...aFrame(), camera: leica };
+    const roll = {
+      ...aRoll({ frames: [frame] }),
+      camera: aCamera('Nikon', 'FE').slug,
+    };
+    await rolls.create(ctx, roll);
+
+    const details = await new GetFrameDetails(
+      rolls,
+      new InMemoryArchiveRepository(),
+    ).execute(ctx, { rollId: roll.id, frameId: frame.id });
+
+    expect(details).toEqual({
+      ok: true,
+      value: {
+        camera: { value: leica, source: { layer: 'frame', id: frame.id } },
+      },
+    });
+  });
+
   test('gives only the roll’s when the archive isn’t set up', async () => {
     const { roll, getDetails } = await setUp(false);
 

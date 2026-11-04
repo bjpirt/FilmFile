@@ -70,6 +70,10 @@ function aFrameWithScan(number: string | null, file: string): Frame {
     title: null,
     rating: null,
     notes: null,
+    camera: null,
+    film: null,
+    lens: null,
+    events: null,
     defaultVersion: null,
     versions: [
       {
@@ -1000,6 +1004,25 @@ describe('renumbering', () => {
   });
 });
 
+test('marks frames with details of their own, saying which', async () => {
+  renderPage(
+    archiveWith(
+      [
+        { ...aFrameWithScan('1', '12340001.jpg'), camera: 'leica-m6' },
+        { ...aFrameWithScan('2', '12340002.jpg'), camera: 'nikon-fe' },
+      ],
+      { camera: 'nikon-fe' },
+    ),
+  );
+
+  const [first, second] = await screen.findAllByRole('listitem');
+  expect(
+    within(first ?? document.body).getByText('Its own camera'),
+  ).toBeDefined();
+  // The same camera as the roll's is no difference worth marking.
+  expect(within(second ?? document.body).queryByText(/^Its own/)).toBeNull();
+});
+
 test('shows a placeholder for a frame with no scan', async () => {
   renderPage(
     archiveWith([
@@ -1009,6 +1032,10 @@ test('shows a placeholder for a frame with no scan', async () => {
         title: null,
         rating: null,
         notes: null,
+        camera: null,
+        film: null,
+        lens: null,
+        events: null,
         defaultVersion: null,
         versions: [],
       },

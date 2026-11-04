@@ -29,6 +29,15 @@ export interface Frame {
   readonly title: string | null;
   readonly rating: Rating | null;
   readonly notes: string | null;
+  /**
+   * The frame's own camera, film stock and lens, by slug, where they differ
+   * from its roll's; null uses the roll's (design section 6).
+   */
+  readonly camera: Slug | null;
+  readonly film: Slug | null;
+  readonly lens: Slug | null;
+  /** The events the frame is in, by slug, in place of its roll's; null uses the roll's. */
+  readonly events: readonly Slug[] | null;
   /** The version shown for the frame; when null, its newest (D15). */
   readonly defaultVersion: VersionId | null;
   readonly versions: readonly Version[];

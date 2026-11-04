@@ -52,6 +52,16 @@ export const frame = z
       .nullable()
       .meta({ description: '1 to 5 stars, or null for none (D39).' }),
     notes: z.string().nullable(),
+    camera: slug.nullable().meta({
+      description:
+        "The frame's own camera, in place of its roll's, or null to use the roll's.",
+    }),
+    film: slug.nullable(),
+    lens: slug.nullable(),
+    events: z.array(slug).nullable().meta({
+      description:
+        "The events the frame is in, in place of its roll's, or null to use the roll's.",
+    }),
     defaultVersion: ulid.nullable().meta({
       description: 'The version shown for the frame, or null for its newest.',
     }),
@@ -172,6 +182,14 @@ export const updateFrameRequest = z
       .optional()
       .meta({ description: '1 to 5 stars, or null to clear the rating.' }),
     notes: z.string().max(5000).nullable().optional(),
+    camera: slug.nullable().optional().meta({
+      description: "The frame's own camera, or null to use its roll's again.",
+    }),
+    film: slug.nullable().optional(),
+    lens: slug.nullable().optional(),
+    events: z.array(slug).max(50).nullable().optional().meta({
+      description: "The frame's own events, or null to use its roll's again.",
+    }),
     defaultVersion: ulid.nullable().optional().meta({
       description:
         'The version to show for the frame, one of its own, or null to show its newest.',

@@ -33,6 +33,10 @@ function aRollOf(roll: string, frames: number): Roll {
       title: null,
       rating: null,
       notes: null,
+      camera: null,
+      film: null,
+      lens: null,
+      events: null,
       defaultVersion: null,
       versions: [],
     })),
@@ -69,6 +73,10 @@ function aRollWithScans(roll: string, scans: number): Roll {
         title: null,
         rating: null,
         notes: null,
+        camera: null,
+        film: null,
+        lens: null,
+        events: null,
         defaultVersion: null,
         versions: [
           {

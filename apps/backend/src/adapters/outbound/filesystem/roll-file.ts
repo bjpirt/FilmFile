@@ -81,6 +81,19 @@ const storedVersion = z.object({
     .optional(),
 });
 
+/** The inheritable details a roll or frame sets (design section 6), by equipment slug. */
+const storedMeta = z.object({
+  camera: branded<Slug>(isSlug, 'must be a slug like nikon-fe').optional(),
+  film: branded<Slug>(
+    isSlug,
+    'must be a slug like kodak-portra-400',
+  ).optional(),
+  lens: branded<Slug>(
+    isSlug,
+    'must be a slug like nikon-nikkor-ai-s-50mm-f-1-8',
+  ).optional(),
+});
+
 /** A frame as roll.json (and a deleted frame's frame.json) holds it. */
 export const storedFrame = z.object({
   id: branded<FrameId>(isFrameId, 'must be a ULID'),
@@ -98,6 +111,11 @@ export const storedFrame = z.object({
     .nullable()
     .default(null),
   notes: z.string().nullable().default(null),
+  // Only on a frame that has its own (U15); otherwise its roll's apply.
+  events: z
+    .array(branded<Slug>(isSlug, 'must be a slug like iceland-2026'))
+    .optional(),
+  meta: storedMeta.optional(),
   defaultVersion: branded<VersionId>(isVersionId, 'must be a ULID')
     .nullable()
     .default(null),
@@ -120,20 +138,7 @@ const storedRoll = z.object({
   event: branded<Slug>(isSlug, 'must be a slug like iceland-2026')
     .nullable()
     .default(null),
-  // The roll's inheritable details (design section 6), by equipment slug.
-  meta: z
-    .object({
-      camera: branded<Slug>(isSlug, 'must be a slug like nikon-fe').optional(),
-      film: branded<Slug>(
-        isSlug,
-        'must be a slug like kodak-portra-400',
-      ).optional(),
-      lens: branded<Slug>(
-        isSlug,
-        'must be a slug like nikon-nikkor-ai-s-50mm-f-1-8',
-      ).optional(),
-    })
-    .default({}),
+  meta: storedMeta.default({}),
   frames: z.array(storedFrame),
 });
 
@@ -195,8 +200,13 @@ export function parseRollFile(text: string): Result<Roll, string> {
 
 /** A frame as read from its stored form. */
 export function frameFromStored(stored: z.output<typeof storedFrame>): Frame {
+  const { meta, events, ...rest } = stored;
   return {
-    ...stored,
+    ...rest,
+    camera: meta?.camera ?? null,
+    film: meta?.film ?? null,
+    lens: meta?.lens ?? null,
+    events: events ?? null,
     versions: stored.versions.map(({ transform, ...version }) => ({
       ...version,
       added: new Date(version.added),
@@ -213,6 +223,17 @@ export function storedFrameOf(frame: Frame): z.input<typeof storedFrame> {
     title: frame.title,
     rating: frame.rating,
     notes: frame.notes,
+    // Only what the frame sets itself, so a frame that inherits it all says nothing.
+    ...(frame.events === null ? {} : { events: [...frame.events] }),
+    ...(frame.camera === null && frame.film === null && frame.lens === null
+      ? {}
+      : {
+          meta: {
+            ...(frame.camera === null ? {} : { camera: frame.camera }),
+            ...(frame.film === null ? {} : { film: frame.film }),
+            ...(frame.lens === null ? {} : { lens: frame.lens }),
+          },
+        }),
     defaultVersion: frame.defaultVersion,
     versions: frame.versions.map((version) => ({
       id: version.id,
