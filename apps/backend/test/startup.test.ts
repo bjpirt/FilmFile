@@ -1,18 +1,25 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
 import { createServer } from 'node:net';
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterEach, expect, test } from 'vitest';
+import { afterEach, beforeEach, expect, test } from 'vitest';
 
 const main = path.resolve(import.meta.dirname, '../src/main.ts');
 let service: ChildProcess | undefined;
+let folder = '';
+
+beforeEach(() => {
+  folder = mkdtempSync(path.join(tmpdir(), 'filmfile-startup-'));
+});
 
 afterEach(async () => {
   if (service?.exitCode === null) {
     service.kill();
     await once(service, 'exit');
   }
+  rmSync(folder, { recursive: true, force: true });
 });
 
 // The service checks requests against its port, so it needs a real one, not 0.
@@ -27,13 +34,23 @@ async function freePort(): Promise<number> {
   return address.port;
 }
 
-async function startService(): Promise<ChildProcess> {
+async function startService(
+  filmFileFolder = folder,
+  cache = path.join(folder, '.cache'),
+): Promise<ChildProcess> {
   return spawn(process.execPath, [main], {
     env: {
       ...process.env,
-      FILMFILE_ARCHIVE: tmpdir(),
+      FILMFILE_FOLDER: filmFileFolder,
+      FILMFILE_CACHE: cache,
       FILMFILE_PORT: String(await freePort()),
     },
+  });
+}
+
+function exitCode(child: ChildProcess): Promise<number | null> {
+  return new Promise((resolve) => {
+    child.once('exit', resolve);
   });
 }
 
@@ -72,4 +89,45 @@ test('stops cleanly when asked to', async () => {
   child.kill('SIGTERM');
 
   expect(await exited).toBe(0);
+});
+
+test('makes a Library in an empty FilmFile folder', async () => {
+  service = await startService();
+  await waitForListeningUrl(service);
+
+  expect(readdirSync(folder).filter((name) => !name.startsWith('.'))).toEqual([
+    'Library',
+  ]);
+});
+
+test('refuses a folder of other files, saying so, and leaves it alone', async () => {
+  writeFileSync(path.join(folder, 'holiday.jpg'), '');
+  const child = await startService(folder, path.join(tmpdir(), 'cache'));
+  service = child;
+  let said = '';
+  child.stderr?.on('data', (chunk: Buffer) => {
+    said += chunk.toString();
+  });
+
+  const code = await exitCode(child);
+
+  expect(code).toBe(1);
+  expect(said).toContain('isn’t a FilmFile folder');
+  expect(readdirSync(folder)).toEqual(['holiday.jpg']);
+});
+
+test('stops without FILMFILE_FOLDER, saying to set it', async () => {
+  const env: NodeJS.ProcessEnv = { ...process.env, FILMFILE_PORT: '4399' };
+  delete env.FILMFILE_FOLDER;
+  const child = spawn(process.execPath, [main], { env });
+  service = child;
+  let said = '';
+  child.stderr.on('data', (chunk: Buffer) => {
+    said += chunk.toString();
+  });
+
+  const code = await exitCode(child);
+
+  expect(code).toBe(1);
+  expect(said).toContain('Set FILMFILE_FOLDER to your FilmFile folder.');
 });

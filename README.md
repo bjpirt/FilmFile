@@ -11,7 +11,7 @@ Needs Node 26 and pnpm.
 ```sh
 pnpm install
 pnpm dev                                   # backend and UI with live reload, using .dev-archive/
-pnpm build && FILMFILE_ARCHIVE=~/archive pnpm start   # the built UI, served by the backend
+mkdir -p ~/FilmFile && pnpm build && FILMFILE_FOLDER=~/FilmFile pnpm start   # the built UI, served by the backend
 ```
 
 The UI is at http://localhost:5173 with `pnpm dev`, or http://127.0.0.1:4310 with `pnpm start`. API docs are at `/api/docs`. `pnpm verify` runs the checks and tests CI runs; `pnpm e2e` runs the end-to-end tests in Chromium (once: `pnpm exec playwright install chromium`).

@@ -1,14 +1,21 @@
-import { app, dialog, Menu, session, type BrowserWindow } from 'electron';
+import {
+  app,
+  dialog,
+  Menu,
+  session,
+  shell,
+  type BrowserWindow,
+} from 'electron';
 import path from 'node:path';
 import { appMenu } from './app-menu.ts';
-import { chooseArchive } from './choose-archive.ts';
+import { chooseFolder } from './choose-folder.ts';
 import { readSettings, saveSettings } from './desktop-settings.ts';
-import { findArchive } from './find-archive.ts';
+import { findFolder } from './find-folder.ts';
 import { openWindow } from './open-window.ts';
 import { startService, type Service } from './start-service.ts';
 
-// The desktop app (U82, D54): starts the service on the archive and opens a
-// window on it. Nothing here awaits at the top level: Electron can't fire
+// The desktop app (U82, D54): starts the service on the FilmFile folder and
+// opens a window on it. Nothing here awaits at the top level: Electron can't fire
 // `ready` until this module has finished loading.
 
 app.setName('FilmFile');
@@ -24,29 +31,42 @@ if (app.requestSingleInstanceLock()) {
 function run(): void {
   let window: BrowserWindow | undefined;
   let service: Service | undefined;
+  let folder: string | undefined;
   let stopping = false;
   // This computer's settings, not the archive's (D52).
   const settingsFile = () =>
     path.join(app.getPath('userData'), 'settings.json');
 
-  /** Starts the service on `archive` and opens a window on it, closing those of the archive open before. */
-  async function open(archive: string): Promise<void> {
-    const next = await startService(archive);
+  /** Starts the service on the FilmFile folder and opens a window on it, closing those of the folder open before. */
+  async function open(next: string): Promise<void> {
+    const started = await startService(next);
     const previous = { window, service };
-    service = next;
-    window = openWindow(next.origin);
+    folder = next;
+    service = started;
+    window = openWindow(started.origin);
     previous.window?.close();
     await previous.service?.stop();
   }
 
-  /** File › Open Archive… (U83): asks for another archive, opens it and remembers it. */
+  /** File › Open FilmFile Folder… (FF-105): asks for another folder, opens it and remembers it. */
   async function openAnother(): Promise<void> {
-    const archive = await chooseArchive(window);
-    if (archive === undefined) {
+    const chosen = await chooseFolder(window);
+    if (chosen === undefined) {
       return;
     }
-    await saveSettings(settingsFile(), { archive });
-    await open(archive);
+    await open(chosen);
+    await saveSettings(settingsFile(), { folder: chosen });
+  }
+
+  /** File › Show FilmFile Folder in Finder. */
+  async function showFolder(): Promise<void> {
+    if (folder === undefined) {
+      return;
+    }
+    const problem = await shell.openPath(folder);
+    if (problem !== '') {
+      throw new Error(problem);
+    }
   }
 
   app.on('second-instance', () => {
@@ -85,26 +105,31 @@ function run(): void {
         },
       );
       Menu.setApplicationMenu(
-        appMenu(() => {
-          openAnother().catch(couldNot('open that archive'));
+        appMenu({
+          openFolder: () => {
+            openAnother().catch(couldNot('open that folder'));
+          },
+          showFolder: () => {
+            showFolder().catch(couldNot('show the folder'));
+          },
         }),
       );
-      // FILMFILE_ARCHIVE, when set, is for development and the journeys.
-      const given = process.env.FILMFILE_ARCHIVE ?? '';
+      // FILMFILE_FOLDER, when set, is for development and the journeys.
+      const given = process.env.FILMFILE_FOLDER ?? '';
       if (given !== '') {
         await open(given);
         return;
       }
-      const remembered = (await readSettings(settingsFile())).archive;
-      const archive = await findArchive(remembered);
-      if (archive === undefined) {
+      const remembered = (await readSettings(settingsFile())).folder;
+      const chosen = await findFolder(remembered);
+      if (chosen === undefined) {
         app.quit();
         return;
       }
-      if (archive !== remembered) {
-        await saveSettings(settingsFile(), { archive });
+      await open(chosen);
+      if (chosen !== remembered) {
+        await saveSettings(settingsFile(), { folder: chosen });
       }
-      await open(archive);
     })
     .catch((error: unknown) => {
       couldNot('start')(error);

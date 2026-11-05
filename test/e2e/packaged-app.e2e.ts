@@ -1,6 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fixtureSets } from '../../apps/backend/test/support/lab-scans.ts';
@@ -24,8 +30,9 @@ let app: ChildProcess | undefined;
 
 test.beforeEach(() => {
   folder = mkdtempSync(path.join(tmpdir(), 'filmfile-packaged-'));
+  mkdirSync(path.join(folder, 'Library'));
   writeFileSync(
-    path.join(folder, 'archive.json'),
+    path.join(folder, 'Library', 'archive.json'),
     `${JSON.stringify({ schema: 1, id: '01JC8Y0000000000000000000E', meta: { author: 'Packaged' } }, null, 2)}\n`,
   );
 });
@@ -49,7 +56,7 @@ test('the packaged app runs the service, which serves the UI and makes thumbnail
   app = spawn(binary, [], {
     env: {
       ...process.env,
-      FILMFILE_ARCHIVE: folder,
+      FILMFILE_FOLDER: folder,
       FILMFILE_CACHE: path.join(folder, '.cache'),
       FILMFILE_PORT: '4313',
     },

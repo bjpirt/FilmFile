@@ -9,8 +9,8 @@
   "scripts": {
     "prepare": "git config core.hooksPath .githooks",
     "start": "pnpm --filter @filmfile/backend start",
-    "start:dev": "FILMFILE_ARCHIVE=\"$PWD/.dev-archive\" pnpm start",
-    "dev": "FILMFILE_ARCHIVE=\"$PWD/.dev-archive\" FILMFILE_UI_ORIGIN=http://localhost:5173 pnpm --parallel --filter @filmfile/backend --filter @filmfile/web dev",
+    "start:dev": "mkdir -p .dev-folder && FILMFILE_FOLDER=\"$PWD/.dev-folder\" pnpm start",
+    "dev": "mkdir -p .dev-folder && FILMFILE_FOLDER=\"$PWD/.dev-folder\" FILMFILE_UI_ORIGIN=http://localhost:5173 pnpm --parallel --filter @filmfile/backend --filter @filmfile/web dev",
     "build": "pnpm --filter @filmfile/web build",
     "desktop": "pnpm build && pnpm --filter @filmfile/desktop start",
     "package": "pnpm build && pnpm --filter @filmfile/desktop package",

@@ -1,20 +1,30 @@
-import { app, BaseWindow, dialog } from 'electron';
+import { app, BaseWindow, dialog, shell } from 'electron';
 
 // Loaded into the desktop app by its journeys (`-r`, as Playwright loads its
 // own), before the app itself: answers the system's dialogs as a person
 // would, in turn, from FILMFILE_TEST_DIALOGS (`{ "choose": folder }` in a
-// folder picker, `{ "button": label }` in a message), and keeps what each
-// said in `dialogsShown` for the journey to read. Also keeps the app's
-// settings in FILMFILE_TEST_USER_DATA, not the real ones.
+// folder picker, `{ "cancel": true }` to cancel one, `{ "button": label }` in
+// a message), and keeps what each said in `dialogsShown` for the journey to
+// read. Doesn't open anything for real: the paths the app asks the system to
+// open (Show FilmFile Folder in Finder) are kept in `pathsOpened`. Also keeps
+// the app's settings in FILMFILE_TEST_USER_DATA, not the real ones.
 
 interface Answer {
   readonly choose?: string;
+  readonly cancel?: boolean;
   readonly button?: string;
 }
 
 const answers: Answer[] = parseAnswers(process.env.FILMFILE_TEST_DIALOGS);
 const shown: object[] = [];
 Reflect.set(globalThis, 'dialogsShown', shown);
+const opened: string[] = [];
+Reflect.set(globalThis, 'pathsOpened', opened);
+
+shell.openPath = (path: string) => {
+  opened.push(path);
+  return Promise.resolve('');
+};
 
 const userData = process.env.FILMFILE_TEST_USER_DATA;
 if (userData !== undefined) {

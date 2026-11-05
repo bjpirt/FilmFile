@@ -3,6 +3,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export interface LocalConfig {
+  /** The FilmFile folder: everything FilmFile keeps (D57). */
+  readonly folderPath: string;
+  /** The library, the folder's `Library/` (D63). */
   readonly archivePath: string;
   readonly cachePath: string;
   readonly port: number;
@@ -17,6 +20,9 @@ interface System {
 
 const defaultPort = 4310;
 
+/** The library's folder inside the FilmFile folder (D63). */
+export const libraryName = 'Library';
+
 // Where `pnpm build` puts the web UI.
 const builtUi = fileURLToPath(new URL('../../../web/dist', import.meta.url));
 
@@ -25,14 +31,16 @@ export function readLocalConfig(
   env: NodeJS.ProcessEnv,
   system: System = { platform: process.platform, home: homedir() },
 ): LocalConfig {
-  const archivePath = env.FILMFILE_ARCHIVE;
-  if (archivePath === undefined || archivePath === '') {
-    throw new Error(
-      'Set FILMFILE_ARCHIVE to the folder that holds the archive.',
-    );
+  const folderPath = env.FILMFILE_FOLDER;
+  if (folderPath === undefined || folderPath === '') {
+    throw new Error('Set FILMFILE_FOLDER to your FilmFile folder.');
+  }
+  if (!path.isAbsolute(folderPath)) {
+    throw new Error('FILMFILE_FOLDER must be an absolute path.');
   }
   return {
-    archivePath,
+    folderPath,
+    archivePath: path.join(folderPath, libraryName),
     cachePath: env.FILMFILE_CACHE ?? defaultCachePath(env, system),
     port: Number(env.FILMFILE_PORT ?? defaultPort),
     uiPath: env.FILMFILE_UI ?? builtUi,

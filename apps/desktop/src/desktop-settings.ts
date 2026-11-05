@@ -3,11 +3,12 @@ import { z } from 'zod';
 
 /** What the app remembers on this computer, not in the archive (D52). */
 export interface DesktopSettings {
-  /** The archive's folder, as chosen (U83). */
-  readonly archive?: string;
+  /** The FilmFile folder, as chosen (FF-105). */
+  readonly folder?: string;
 }
 
-const settingsFile = z.object({ archive: z.string().min(1).optional() });
+// An `archive` from before the FilmFile folder isn't read: the folder is chosen again.
+const settingsFile = z.object({ folder: z.string().min(1).optional() });
 
 /** The settings saved in `file`, or none if it isn't there or can't be read. */
 export async function readSettings(file: string): Promise<DesktopSettings> {
@@ -25,10 +26,10 @@ export async function readSettings(file: string): Promise<DesktopSettings> {
     return {};
   }
   const parsed = settingsFile.safeParse(json);
-  if (!parsed.success || parsed.data.archive === undefined) {
+  if (!parsed.success || parsed.data.folder === undefined) {
     return {};
   }
-  return { archive: parsed.data.archive };
+  return { folder: parsed.data.folder };
 }
 
 /** Saves the settings to `file` in one step, so a crash never leaves half a file. */

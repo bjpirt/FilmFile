@@ -1,8 +1,22 @@
 import { serve } from '@hono/node-server';
 import { composeLocal } from './composition/compose-local.ts';
+import { prepareFolder } from './composition/prepare-folder.ts';
 import { readLocalConfig } from './composition/read-local-config.ts';
 
-const config = readLocalConfig(process.env);
+// A missing setting or a folder that isn't a FilmFile folder stops the
+// service with a message (exit code 1), not a stack trace.
+async function readConfig() {
+  try {
+    const config = readLocalConfig(process.env);
+    await prepareFolder(config.folderPath);
+    return config;
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
+}
+
+const config = await readConfig();
 
 const server = serve(
   {

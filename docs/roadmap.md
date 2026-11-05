@@ -6,7 +6,7 @@ Each task is about one commit: small enough to review in one sitting, with its t
 
 `[x]` done, `[ ]` to do, `[-]` dropped or replaced (with where it went).
 
-**Next up:** 1. Multi-version frames, finished off.
+**Next up:** 1. Multi-version frames, finished off, then 2. The FilmFile folder (FF-150).
 
 ---
 
@@ -26,7 +26,6 @@ What a frame has is seen at a glance on its thumbnail, a roll's frames are group
 
 Everything FilmFile keeps in one folder chosen once: the library (the archive) and, beside it, what's made from it (D57).
 
-- [ ] [FF-105 The FilmFile folder](tasks/FF-105.md): one folder holding the library, chosen with a folder chooser in the app or `FILMFILE_FOLDER` for the service.
 - [ ] [FF-150 Settings for the whole FilmFile folder](tasks/FF-150.md): the archive's details become `settings.json` at the folder's top level and `/api/settings`, with the folder's path shown in Settings.
 
 ### 3. Roll numbers
@@ -103,7 +102,7 @@ Key journeys, each named by the task that adds it:
 | Organise by event (U12a–U12c, FF-130) | Create an event, put rolls in it, and browse to them by event; give it a date on the Events page; open it to see its frames from every roll, grouped by roll; later, an event inside another, whose frames show under its parent too |
 | First run (1b.2) | On an archive never set up, any page asks for setup first; give the author and see the copyright made from it, land on the page asked for, then change the copyright, be taken back to the rolls, and find it in Settings after a reload. Runs against a server of its own, since it needs an empty archive |
 | Bulk edit (U16, U17) | Select a run of a roll's frames, give them another camera and put them in an event, then find them marked as having their own, with the camera in their details, the roll's other frames left as they were, and just those frames on the event's page |
-| Desktop app (U82–U84) | The app opens FilmFile in its own window on the Rolls page, its page can't use Node.js or open windows, quitting stops the service, and a second copy doesn't start; on first launch it asks for the archive, refuses a folder of other files and remembers the choice; Open Archive… switches; an archive gone missing is asked for again. Launches the app itself, on folders of its own, answering its dialogs; and, once built, the packaged app serves the UI and makes thumbnails |
+| Desktop app (U82–U84, FF-105) | The app opens FilmFile in its own window on the Rolls page, its page can't use Node.js or open windows, quitting stops the service, and a second copy doesn't start; on first launch it explains and asks for the FilmFile folder, refuses folders of other files and archive folders, makes a Library in an empty one and remembers the choice; Open FilmFile Folder… switches; Show FilmFile Folder in Finder opens it; a folder gone missing or no longer a FilmFile folder is asked for again. Launches the app itself, on folders of its own, answering its dialogs; and, once built, the packaged app serves the UI and makes thumbnails |
 
 ---
 
@@ -393,6 +392,12 @@ More than one version of a frame: a low-res scan to preview every frame, a hi-re
 What a frame has is seen at a glance on its thumbnail, a roll's frames are grouped by event, the version shown is chosen with a star, and frames can be marked to scan.
 
 - [x] [FF-148 Stars on thumbnails](tasks/FF-148.md)
+
+### The FilmFile folder
+
+Everything FilmFile keeps in one folder chosen once: the library (the archive) and, beside it, what's made from it (D57).
+
+- [x] [FF-105 The FilmFile folder](tasks/FF-105.md)
 
 ### Desktop app
 

@@ -1,36 +1,56 @@
 import { expect, test } from 'vitest';
 import { readLocalConfig } from './read-local-config.ts';
 
-const archive = { FILMFILE_ARCHIVE: '/photos/archive' };
+const folder = { FILMFILE_FOLDER: '/photos/FilmFile' };
 const mac = { platform: 'darwin', home: '/Users/ben' } as const;
 const linux = { platform: 'linux', home: '/home/ben' } as const;
 
-test('reads the archive folder from FILMFILE_ARCHIVE', () => {
-  expect(readLocalConfig(archive, mac).archivePath).toBe('/photos/archive');
+test('reads the FilmFile folder from FILMFILE_FOLDER, and keeps the library in its Library folder', () => {
+  const config = readLocalConfig(folder, mac);
+
+  expect(config.folderPath).toBe('/photos/FilmFile');
+  expect(config.archivePath).toBe('/photos/FilmFile/Library');
 });
 
-test('refuses to start without an archive folder', () => {
-  expect(() => readLocalConfig({}, mac)).toThrow('Set FILMFILE_ARCHIVE');
+test('refuses to start without a FilmFile folder', () => {
+  expect(() => readLocalConfig({}, mac)).toThrow(
+    'Set FILMFILE_FOLDER to your FilmFile folder.',
+  );
+  expect(() => readLocalConfig({ FILMFILE_FOLDER: '' }, mac)).toThrow(
+    'Set FILMFILE_FOLDER',
+  );
+});
+
+test('no longer reads FILMFILE_ARCHIVE', () => {
+  expect(() =>
+    readLocalConfig({ FILMFILE_ARCHIVE: '/photos/archive' }, mac),
+  ).toThrow('Set FILMFILE_FOLDER');
+});
+
+test('refuses a FilmFile folder that isn’t an absolute path', () => {
+  expect(() => readLocalConfig({ FILMFILE_FOLDER: 'FilmFile' }, mac)).toThrow(
+    'FILMFILE_FOLDER must be an absolute path',
+  );
 });
 
 test('uses port 4310 when none is set', () => {
-  expect(readLocalConfig(archive, mac).port).toBe(4310);
+  expect(readLocalConfig(folder, mac).port).toBe(4310);
 });
 
 test('reads the port from FILMFILE_PORT', () => {
-  expect(readLocalConfig({ ...archive, FILMFILE_PORT: '5000' }, mac).port).toBe(
+  expect(readLocalConfig({ ...folder, FILMFILE_PORT: '5000' }, mac).port).toBe(
     5000,
   );
 });
 
 test('serves the UI built in apps/web/dist', () => {
-  expect(readLocalConfig(archive, mac).uiPath).toMatch(/apps\/web\/dist$/);
+  expect(readLocalConfig(folder, mac).uiPath).toMatch(/apps\/web\/dist$/);
 });
 
 test('reads where the built UI is from FILMFILE_UI, as the packaged app has it elsewhere', () => {
   expect(
     readLocalConfig(
-      { ...archive, FILMFILE_UI: '/Applications/FilmFile.app/web' },
+      { ...folder, FILMFILE_UI: '/Applications/FilmFile.app/web' },
       mac,
     ).uiPath,
   ).toBe('/Applications/FilmFile.app/web');
@@ -39,7 +59,7 @@ test('reads where the built UI is from FILMFILE_UI, as the packaged app has it e
 test('reads the origin of a separately served UI from FILMFILE_UI_ORIGIN', () => {
   expect(
     readLocalConfig(
-      { ...archive, FILMFILE_UI_ORIGIN: 'http://localhost:5173' },
+      { ...folder, FILMFILE_UI_ORIGIN: 'http://localhost:5173' },
       mac,
     ).uiOrigin,
   ).toBe('http://localhost:5173');
@@ -47,8 +67,7 @@ test('reads the origin of a separately served UI from FILMFILE_UI_ORIGIN', () =>
 
 test('reads the cache folder from FILMFILE_CACHE', () => {
   expect(
-    readLocalConfig({ ...archive, FILMFILE_CACHE: '/tmp/cache' }, mac)
-      .cachePath,
+    readLocalConfig({ ...folder, FILMFILE_CACHE: '/tmp/cache' }, mac).cachePath,
   ).toBe('/tmp/cache');
 });
 
@@ -62,7 +81,7 @@ test.each([
     '/home/ben/cache/filmfile',
   ],
 ])('uses the OS cache folder on %s', (_name, env, system, expected) => {
-  expect(readLocalConfig({ ...archive, ...env }, system).cachePath).toBe(
+  expect(readLocalConfig({ ...folder, ...env }, system).cachePath).toBe(
     expected,
   );
 });

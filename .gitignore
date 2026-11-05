@@ -12,7 +12,8 @@ coverage/
 test-results/
 playwright-report/
 
-# Archive used by pnpm start:dev
+# FilmFile folder used by pnpm start:dev
+.dev-folder/
 .dev-archive/
 
 # Local configuration and secrets

@@ -32,11 +32,12 @@ function serviceFiles(): { readonly main: string; readonly ui?: string } {
 }
 
 /**
- * Starts the service on `archive` in its own process, on a free port of
- * 127.0.0.1 (or FILMFILE_PORT's) and with this process's other settings, and
- * resolves once it answers.
+ * Starts the service on the FilmFile folder `folder` in its own process, on a
+ * free port of 127.0.0.1 (or FILMFILE_PORT's) and with this process's other
+ * settings, and resolves once it answers. The service checks the folder and
+ * stops, saying why, if it isn't a FilmFile folder (D63).
  */
-export async function startService(archive: string): Promise<Service> {
+export async function startService(folder: string): Promise<Service> {
   // A port given is used as it is, so the packaged app can be checked from outside.
   const given = Number(process.env.FILMFILE_PORT ?? '');
   const port = Number.isInteger(given) && given > 0 ? given : await freePort();
@@ -44,7 +45,7 @@ export async function startService(archive: string): Promise<Service> {
   const service = utilityProcess.fork(main, [], {
     env: {
       ...process.env,
-      FILMFILE_ARCHIVE: archive,
+      FILMFILE_FOLDER: folder,
       FILMFILE_PORT: String(port),
       ...(ui === undefined ? {} : { FILMFILE_UI: ui }),
     },

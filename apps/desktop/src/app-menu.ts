@@ -2,9 +2,16 @@ import { Menu } from 'electron';
 
 /**
  * The app's menus: Electron's standard ones (copy and paste among them),
- * with File's "Open Archive…" (U83).
+ * with File's "Open FilmFile Folder…" (FF-105) and "Show FilmFile Folder in
+ * Finder".
  */
-export function appMenu(openArchive: () => void): Menu {
+export function appMenu({
+  openFolder,
+  showFolder,
+}: {
+  readonly openFolder: () => void;
+  readonly showFolder: () => void;
+}): Menu {
   const mac = process.platform === 'darwin';
   return Menu.buildFromTemplate([
     ...(mac ? [{ role: 'appMenu' as const }] : []),
@@ -12,10 +19,17 @@ export function appMenu(openArchive: () => void): Menu {
       label: 'File',
       submenu: [
         {
-          id: 'open-archive',
-          label: 'Open Archive…',
+          id: 'open-folder',
+          label: 'Open FilmFile Folder…',
           accelerator: 'CmdOrCtrl+O',
-          click: openArchive,
+          click: openFolder,
+        },
+        {
+          id: 'show-folder',
+          label: mac
+            ? 'Show FilmFile Folder in Finder'
+            : 'Show FilmFile Folder',
+          click: showFolder,
         },
         { type: 'separator' },
         mac ? { role: 'close' } : { role: 'quit' },

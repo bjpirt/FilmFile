@@ -16,23 +16,29 @@ afterEach(() => {
   rmSync(folder, { recursive: true, force: true });
 });
 
-test('has no archive before one is chosen', async () => {
+test('has no folder before one is chosen', async () => {
   expect(await readSettings(file)).toEqual({});
 });
 
-test('remembers the archive chosen', async () => {
-  await saveSettings(file, { archive: '/Volumes/Photos/FilmFile' });
+test('remembers the FilmFile folder chosen', async () => {
+  await saveSettings(file, { folder: '/Volumes/Photos/FilmFile' });
 
   expect(await readSettings(file)).toEqual({
-    archive: '/Volumes/Photos/FilmFile',
+    folder: '/Volumes/Photos/FilmFile',
   });
   expect(readFileSync(file, 'utf8')).toBe(
-    '{\n  "archive": "/Volumes/Photos/FilmFile"\n}\n',
+    '{\n  "folder": "/Volumes/Photos/FilmFile"\n}\n',
   );
 });
 
+test('ignores the archive an earlier version remembered', async () => {
+  writeFileSync(file, '{ "archive": "/Volumes/Photos/archive" }');
+
+  expect(await readSettings(file)).toEqual({});
+});
+
 test('starts afresh from settings it can’t read', async () => {
-  writeFileSync(file, '{ "archive": 12 ');
+  writeFileSync(file, '{ "folder": 12 ');
 
   expect(await readSettings(file)).toEqual({});
 });
