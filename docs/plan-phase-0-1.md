@@ -214,7 +214,7 @@ All take `ArchiveContext` and return `Result`. Each one that writes also updates
 |---|---|
 | `InitialiseArchive`, `GetArchive`, `UpdateArchive` | First run creates `archive.json`; update covers its name and meta (no labs, D35) |
 | `ListEquipment`, `CreateEquipment` | |
-| `CreateRoll`, `UpdateRoll`, `GetResolvedRoll`, `ListRolls` | `CreateRoll` requires an explicit roll number. `ListRolls` queries the index with filters (year, camera, film, tag) and sorts by roll number (default) or shot date |
+| `CreateRoll`, `UpdateRoll`, `GetResolvedRoll`, `ListRolls` | `CreateRoll` requires a shot date with at least a year (D73); its number is assigned from that year when omitted. `ListRolls` queries the index with filters (shot year, camera, film, tag) and sorts by roll number (default) or shot date |
 | `RenameRoll` | Changes the roll number: checks it's free, moves the folder, re-indexes. The ULID is unchanged |
 | `CreateFrame` | Appends a frame (JSON: frame number and other fields optional) to an existing roll. No version token needed: the service locks the roll and appends |
 | `AddVersion` | Uploads one file as a version of a frame and records its pixel dimensions. Phase 1 takes lab scans only, kept under their file names; rejects names the service doesn't accept, files over 200 MB, and files whose signature isn't an allowed image type. Appends under the roll's lock, without a version token. A file whose hash is already in the roll returns `AlreadyExists` with the existing frame and version, so retries are safe |
@@ -271,7 +271,7 @@ React + Vite + TanStack Query, using only the generated client from `@filmfile/c
   1. Choose an existing roll, or create one first (roll number, camera, lens and film pickers). The roll number field starts empty; the UI offers the next free number in a year as a one-click suggestion, worked out from the roll list.
   2. Drag the lab's folder (or files) onto the page. For each scan, a frame is created and the scan uploaded as its version, with progress; files the service wouldn't accept are listed. Dropping the folder again after an interruption completes the import, since duplicates are recognised by hash.
   3. **Numbering:** thumbnails in scan order with proposed frame numbers. Set the starting anchor and direction, mark skips and overrides, see warnings live, and save the numbers with one bulk update.
-- **Rolls:** a grid of rolls (their first frames), filterable by year, camera, film and tag, sortable by roll number or shot date.
+- **Rolls:** a grid of rolls (their first frames), filterable by shot year, camera, film and tag, sortable by roll number or shot date.
 - **Roll:** a contact sheet in frame-number order, with the roll's details.
 - **Frame:** a large preview of the default version with previous/next, the frame's versions with "Set as default", and resolved metadata where every value shows its source (frame, roll, archive). Keyboard: arrows to move, Esc back.
 
