@@ -6,6 +6,7 @@ import { aJpeg } from '../support/a-jpeg.ts';
 import { anImage } from '../support/an-image.ts';
 import { aRaw } from '../support/a-raw.ts';
 import { apiFor, idOf } from '../support/api.ts';
+import { folderOfRoll } from '../support/roll-folder.ts';
 import { useTempArchive } from '../support/temp-archive.ts';
 
 const archive = useTempArchive();
@@ -90,8 +91,8 @@ describe('POST /api/rolls/{id}/frames/{frameId}/versions', () => {
 
     const stored = await readFile(
       path.join(
-        archive.path(),
-        'rolls/2026/2026-014/frames',
+        await folderOfRoll(archive.path(), '2026-014'),
+        'frames',
         frameId.slice(-8),
         versionId.slice(-8),
         '12340014.jpg',
@@ -150,12 +151,13 @@ describe('POST /api/rolls/{id}/frames/{frameId}/versions', () => {
 
     const roll: unknown = await (await request(`/api/rolls/${rollId}`)).json();
     expect(roll).toMatchObject({ frames: [{ versions }] });
+    const folder = await folderOfRoll(archive.path(), '2026-014');
     const files = await Promise.all(
       versions.map((version) =>
         readFile(
           path.join(
-            archive.path(),
-            'rolls/2026/2026-014/frames',
+            folder,
+            'frames',
             frameId.slice(-8),
             String(idOf(version)).slice(-8),
             '12340014.jpg',

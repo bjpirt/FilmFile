@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { aJpeg } from '../support/a-jpeg.ts';
 import { apiFor, idOf } from '../support/api.ts';
+import { folderOfRoll } from '../support/roll-folder.ts';
 import { useTempArchive } from '../support/temp-archive.ts';
 
 const archive = useTempArchive();
@@ -548,7 +549,9 @@ describe('DELETE /api/rolls/{id}/frames/{frameId}', () => {
       new Uint8Array(await readFile(path.join(folder, scans[0] ?? ''))),
     ).toEqual(scan);
     expect(
-      await readdir(path.join(archive.path(), 'rolls/2026/2026-014/frames')),
+      await readdir(
+        path.join(await folderOfRoll(archive.path(), '2026-014'), 'frames'),
+      ),
     ).toEqual([]);
   });
 

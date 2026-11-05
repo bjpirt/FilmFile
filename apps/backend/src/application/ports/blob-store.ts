@@ -1,10 +1,9 @@
-import type { RollNumber } from '../../domain/rolls/roll-number.ts';
 import type { ArchiveContext } from '../../domain/shared/archive-context.ts';
-import type { FrameId, VersionId } from '../../domain/shared/ids.ts';
+import type { FrameId, RollId, VersionId } from '../../domain/shared/ids.ts';
 
-/** Where a new version's file goes: its roll, frame and version, and its original name. */
+/** Where a new version's file goes: its roll (by ID), frame and version, and its original name. */
 export interface NewBlob {
-  readonly roll: RollNumber;
+  readonly rollId: RollId;
   readonly frameId: FrameId;
   readonly versionId: VersionId;
   readonly fileName: string;
@@ -21,6 +20,6 @@ export interface BlobStore {
    */
   put(ctx: ArchiveContext, blob: NewBlob, bytes: Uint8Array): Promise<string>;
 
-  /** A stored file, by the roll and the path `put` returned. */
-  get(ctx: ArchiveContext, roll: RollNumber, file: string): Promise<Uint8Array>;
+  /** A stored file, by the roll's ID and the path `put` returned. */
+  get(ctx: ArchiveContext, rollId: RollId, file: string): Promise<Uint8Array>;
 }

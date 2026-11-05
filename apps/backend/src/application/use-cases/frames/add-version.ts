@@ -97,7 +97,7 @@ export class AddVersion {
     const file = await this.#blobs.put(
       ctx,
       {
-        roll: roll.roll,
+        rollId: roll.id,
         frameId: frame.id,
         versionId,
         fileName: input.fileName,

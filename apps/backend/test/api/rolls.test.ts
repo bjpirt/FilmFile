@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { aJpeg } from '../support/a-jpeg.ts';
 import { apiFor, idOf } from '../support/api.ts';
+import { folderOfRoll } from '../support/roll-folder.ts';
 import { useTempArchive } from '../support/temp-archive.ts';
 
 const archive = useTempArchive();
@@ -34,13 +35,17 @@ describe('POST /api/rolls', () => {
     expect(idOf(body)).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
   });
 
-  test('saves the roll as roll.json in its year folder', async () => {
+  test('saves the roll as roll.json in a folder named for its number and ID, in its year folder', async () => {
     const response = await createRoll('2026-014');
     const created: unknown = await response.json();
 
+    // Its folder is named by the roll's number and the end of its ID (D66).
+    expect(path.basename(await folderOfRoll(archive.path(), '2026-014'))).toBe(
+      `2026-014-${String(idOf(created)).slice(-8)}`,
+    );
     const saved: unknown = JSON.parse(
       await readFile(
-        path.join(archive.path(), 'rolls/2026/2026-014/roll.json'),
+        path.join(await folderOfRoll(archive.path(), '2026-014'), 'roll.json'),
         'utf8',
       ),
     );
@@ -320,10 +325,14 @@ describe('DELETE /api/rolls/{id}', () => {
     ).toMatchObject({ schema: 1, roll: { id, roll: '2026-014' } });
     expect(
       JSON.parse(
-        await readFile(path.join(folder, '2026-014', 'roll.json'), 'utf8'),
+        await readFile(
+          path.join(folder, `2026-014-${id.slice(-8)}`, 'roll.json'),
+          'utf8',
+        ),
       ),
     ).toMatchObject({ id, frames: [{ versions: [{}] }] });
-    expect(await readdir(path.join(archive.path(), 'rolls/2026'))).toEqual([]);
+    // The year's folder goes with its last roll.
+    expect(await readdir(path.join(archive.path(), 'rolls'))).toEqual([]);
   });
 
   test('requires If-Match', async () => {

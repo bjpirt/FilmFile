@@ -9,8 +9,9 @@ import type {
 } from '../../../application/ports/holding-area.ts';
 import { folderName } from '../../../domain/rolls/folder-names.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
+import type { RollId } from '../../../domain/shared/ids.ts';
 import { hasErrorCode } from './error-codes.ts';
-import { rollFolder } from './filesystem-roll-repository.ts';
+import { findRollFolder } from './roll-folder.ts';
 import { heldFrameFileContent, parseHeldFrameFile } from './held-frame-file.ts';
 import { heldRollFileContent, parseHeldRollFile } from './held-roll-file.ts';
 import {
@@ -45,7 +46,7 @@ function heldIn(name: string, text: string): Held {
  * folder of its own: `deleted/2026-11-02T120000Z-frame-01JC8Z…/` holding
  * frame.json and the frame's folder as it was, or
  * `deleted/2026-11-02T120000Z-roll-01JC8Z…/` holding roll-deleted.json and
- * the roll's folder (`2026-014/`) as it was, or
+ * the roll's folder (`2026-014-Q2P7RM4K/`) as it was, or
  * `deleted/2026-11-02T120000Z-version-01JC8Z…/` holding version.json and the
  * version's folder as it was.
  */
@@ -54,6 +55,11 @@ export class FilesystemHoldingArea implements HoldingArea {
 
   constructor(archivePath: string) {
     this.#archivePath = archivePath;
+  }
+
+  /** The folder a held thing came out of: its roll's, found by its ID, whatever it's called. */
+  #rollFolder(rollId: RollId): Promise<string | undefined> {
+    return findRollFolder(this.#archivePath, rollId);
   }
 
   /** A new dated folder under deleted/ with its JSON written first; never one that exists. */
@@ -82,13 +88,14 @@ export class FilesystemHoldingArea implements HoldingArea {
       heldFrameFileContent(held),
     );
     const frameFolder = folderName(held.frame.id);
+    const rollFolder = await this.#rollFolder(held.rollId);
+    if (rollFolder === undefined) {
+      // A roll with no folder has no files of the frame's to move.
+      return;
+    }
     try {
       await rename(
-        safePath(
-          rollFolder(this.#archivePath, held.roll),
-          'frames',
-          frameFolder,
-        ),
+        safePath(rollFolder, 'frames', frameFolder),
         safePath(folder, frameFolder),
       );
     } catch (error) {
@@ -109,14 +116,13 @@ export class FilesystemHoldingArea implements HoldingArea {
       heldVersionFileContent(held),
     );
     const versionFolder = folderName(held.version.id);
+    const rollFolder = await this.#rollFolder(held.rollId);
+    if (rollFolder === undefined) {
+      return;
+    }
     try {
       await rename(
-        safePath(
-          rollFolder(this.#archivePath, held.roll),
-          'frames',
-          folderName(held.frameId),
-          versionFolder,
-        ),
+        safePath(rollFolder, 'frames', folderName(held.frameId), versionFolder),
         safePath(folder, versionFolder),
       );
     } catch (error) {
@@ -136,10 +142,11 @@ export class FilesystemHoldingArea implements HoldingArea {
       'roll-deleted.json',
       heldRollFileContent(held),
     );
-    await rename(
-      rollFolder(this.#archivePath, held.roll),
-      safePath(folder, held.roll),
-    );
+    const rollFolder = await this.#rollFolder(held.rollId);
+    if (rollFolder === undefined) {
+      throw new Error(`roll ${held.rollId} has no folder to hold`);
+    }
+    await rename(rollFolder, safePath(folder, path.basename(rollFolder)));
   }
 
   async list(): Promise<readonly Held[]> {

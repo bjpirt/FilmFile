@@ -2,7 +2,7 @@ import type {
   BlobStore,
   NewBlob,
 } from '../../../application/ports/blob-store.ts';
-import type { RollNumber } from '../../../domain/rolls/roll-number.ts';
+import type { RollId } from '../../../domain/shared/ids.ts';
 
 /** Image files kept in memory, for tests. Write-once, like the real store. */
 export class InMemoryBlobStore implements BlobStore {
@@ -10,7 +10,7 @@ export class InMemoryBlobStore implements BlobStore {
 
   put(_ctx: unknown, blob: NewBlob, bytes: Uint8Array): Promise<string> {
     const file = `${blob.frameId}/${blob.versionId}/${blob.fileName}`;
-    const key = `${blob.roll}/${file}`;
+    const key = `${blob.rollId}/${file}`;
     if (this.#files.has(key)) {
       return Promise.reject(new Error(`${key} already exists`));
     }
@@ -18,10 +18,10 @@ export class InMemoryBlobStore implements BlobStore {
     return Promise.resolve(file);
   }
 
-  get(_ctx: unknown, roll: RollNumber, file: string): Promise<Uint8Array> {
-    const bytes = this.#files.get(`${roll}/${file}`);
+  get(_ctx: unknown, rollId: RollId, file: string): Promise<Uint8Array> {
+    const bytes = this.#files.get(`${rollId}/${file}`);
     return bytes === undefined
-      ? Promise.reject(new Error(`no file ${roll}/${file}`))
+      ? Promise.reject(new Error(`no file ${rollId}/${file}`))
       : Promise.resolve(bytes);
   }
 }

@@ -29,6 +29,6 @@ export class GetOriginal {
     if (roll === undefined || version === undefined) {
       return err({ kind: 'not-found', entity: 'version', id: input.versionId });
     }
-    return ok(await this.#blobs.get(ctx, roll.roll, version.file));
+    return ok(await this.#blobs.get(ctx, roll.id, version.file));
   }
 }

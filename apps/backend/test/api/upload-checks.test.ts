@@ -3,6 +3,7 @@ import path from 'node:path';
 import { beforeEach, describe, expect, test } from 'vitest';
 import { aJpeg } from '../support/a-jpeg.ts';
 import { apiFor, idOf } from '../support/api.ts';
+import { folderOfRoll } from '../support/roll-folder.ts';
 import { useTempArchive } from '../support/temp-archive.ts';
 
 const archive = useTempArchive();
@@ -32,7 +33,10 @@ function upload(body: BodyInit): Promise<Response> {
 
 /** Files stored for the roll's frames, to check that a refused upload left nothing. */
 async function storedFiles(): Promise<string[]> {
-  const frames = path.join(archive.path(), 'rolls/2026/2026-014/frames');
+  const frames = path.join(
+    await folderOfRoll(archive.path(), '2026-014'),
+    'frames',
+  );
   return readdir(frames, { recursive: true }).catch(() => []);
 }
 

@@ -45,7 +45,7 @@ export class GetThumbnail {
         version.sha256,
         input.size,
         input.rotate,
-        () => this.#blobs.get(ctx, roll.roll, version.file),
+        () => this.#blobs.get(ctx, roll.id, version.file),
       ),
     );
   }
