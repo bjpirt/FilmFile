@@ -25,7 +25,7 @@ afterEach(cleanup);
 const iceland = { slug: 'iceland-2026', name: 'Iceland 2026', date: '2026-09' };
 
 /** Two rolls at Iceland 2026, shot in this order, and one roll elsewhere. */
-function anArchive(): FakeArchive {
+function aSettings(): FakeArchive {
   return fakeArchive({
     events: [iceland],
     cameras: [{ slug: 'nikon-fe', make: 'Nikon', model: 'FE' }],
@@ -66,7 +66,7 @@ function framesShown(): string[] {
 }
 
 test('shows the event, then the frames of all its rolls, in shot order', async () => {
-  renderPage(anArchive());
+  renderPage(aSettings());
 
   expect(
     await screen.findByRole('heading', { level: 1, name: 'Iceland 2026' }),
@@ -117,7 +117,7 @@ test('shows each frame’s rating and marks on its thumbnail, as the roll page d
 });
 
 test('groups the frames by roll, each group leading to its roll, kept in the address', async () => {
-  renderPage(anArchive());
+  renderPage(aSettings());
   await screen.findByText('3 frames');
 
   fireEvent.change(screen.getByLabelText('Group by'), {
@@ -139,7 +139,7 @@ test('groups the frames by roll, each group leading to its roll, kept in the add
 
 test('groups the frames by camera, with frames whose roll has none last', async () => {
   window.history.replaceState(null, '', '/events/iceland-2026?group=camera');
-  renderPage(anArchive());
+  renderPage(aSettings());
 
   await screen.findByText('3 frames');
   expect(

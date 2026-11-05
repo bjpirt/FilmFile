@@ -19,6 +19,7 @@ afterAll(async () => {
 
 function request(url: string, init?: RequestInit): Promise<Response> {
   const app = composeLocal({
+    folderPath: '/unused',
     archivePath: '/unused',
     cachePath: '/unused',
     uiPath,

@@ -12,6 +12,7 @@ function request(
   host = `127.0.0.1:${String(port)}`,
 ): Promise<Response> {
   const app = composeLocal({
+    folderPath: '/unused',
     archivePath: '/unused',
     cachePath: '/unused',
     port,

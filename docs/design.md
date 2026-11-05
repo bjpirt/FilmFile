@@ -332,7 +332,7 @@ Outbound ports, defined in `application/ports/` and implemented by outbound adap
 
 | Port | Responsibility | Local adapter | Cloud adapter (later) |
 |---|---|---|---|
-| `ArchiveRepository` | Read and save `settings.json` (id and meta; named `ArchiveRepository` until FF-150) | JSON file | S3 object |
+| `SettingsRepository` | Read and save `settings.json` at the FilmFile folder's top level (id and meta) | JSON file | S3 object |
 | `RollRepository` | Get, list, create, save and rename rolls. Every read returns a **version token**; `save(roll, expectedVersion)` fails with `ConcurrencyConflict` if it changed; `create` and `rename` fail if the roll number is taken | JSON files: lock, ETag check, temp file + rename | S3 `If-Match` / `If-None-Match` conditional writes |
 | `EquipmentRepository` | Cameras, lenses, films | JSON files | S3 objects |
 | `BlobStore` | Write-once storage of image files: `put` (streams, returns SHA-256 and size), `get`, `stat`. Never overwrites | A folder per version in the archive | S3 with Standard-IA / Deep Archive classes |

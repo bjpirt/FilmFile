@@ -1,7 +1,7 @@
 import type { ApiClient } from '@filmfile/contracts/client';
-import { SettingsPage } from './archive/settings-page.tsx';
-import { SetUpPage } from './archive/set-up-page.tsx';
-import { useArchive, type ReadArchive } from './archive/use-archive.ts';
+import { SettingsPage } from './settings/settings-page.tsx';
+import { SetUpPage } from './settings/set-up-page.tsx';
+import { useSettings, type ReadSettings } from './settings/use-settings.ts';
 import { EventPage } from './events/event-page.tsx';
 import { EventsPage } from './events/events-page.tsx';
 import { EventFramePage } from './frames/event-frame-page.tsx';
@@ -27,15 +27,15 @@ function Page({
   api,
   path,
   browseOpen,
-  archive,
+  settings,
 }: {
   readonly api: ApiClient;
   readonly path: string;
   readonly browseOpen: boolean;
-  readonly archive: ReadArchive;
+  readonly settings: ReadSettings;
 }) {
   if (path === '/settings') {
-    return <SettingsPage api={api} read={archive} />;
+    return <SettingsPage api={api} read={settings} />;
   }
   if (path === '/') {
     return <RollsPage api={api} browseOpen={browseOpen} />;
@@ -113,10 +113,10 @@ function BrowseToggle({
 export function App({ api }: { readonly api: ApiClient }) {
   const path = usePath();
   const [browseOpen, setBrowseOpen] = useState(rememberedBrowseOpen);
-  const archive = useArchive(api);
+  const settings = useSettings(api);
 
-  // Nothing but setting up until the archive is set up (D43).
-  if (archive.data === undefined || archive.data === null) {
+  // Nothing but setting up until FilmFile is set up (D43).
+  if (settings.data === undefined || settings.data === null) {
     return (
       <>
         <header className="app-header">
@@ -126,10 +126,10 @@ export function App({ api }: { readonly api: ApiClient }) {
           </div>
         </header>
         <main className="page">
-          {archive.isPending ? (
+          {settings.isPending ? (
             <p>Loading…</p>
-          ) : archive.isError ? (
-            <p>Couldn't load the archive. Is the service running?</p>
+          ) : settings.isError ? (
+            <p>Couldn't load the settings. Is the service running?</p>
           ) : (
             <SetUpPage api={api} />
           )}
@@ -175,7 +175,7 @@ export function App({ api }: { readonly api: ApiClient }) {
           api={api}
           path={path}
           browseOpen={browseOpen}
-          archive={archive.data}
+          settings={settings.data}
         />
       </main>
     </>

@@ -1,4 +1,4 @@
-import type { Archive } from '../../src/domain/archive/archive.ts';
+import type { Settings } from '../../src/domain/settings/settings.ts';
 import { cameraLabel, type Camera } from '../../src/domain/equipment/camera.ts';
 import { slugFor } from '../../src/domain/shared/slug.ts';
 import { isEventDate } from '../../src/domain/events/event-date.ts';
@@ -187,11 +187,11 @@ export function labScanFrames(count: number): Frame[] {
   });
 }
 
-/** An archive by the given author, by default with no copyright. */
-export function anArchive(
+/** Settings by the given author, by default with no copyright. */
+export function aSettings(
   author = 'Ben Pirt',
   details: { readonly copyright?: string } = {},
-): Archive {
+): Settings {
   return {
     id: checked(ulidFor(9), isArchiveId),
     author,

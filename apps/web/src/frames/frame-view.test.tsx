@@ -14,7 +14,7 @@ import {
   aFrame,
   aRoll,
   fakeArchive,
-  setUpArchive,
+  setUpSettings,
   type FakeArchive,
 } from '../testing/fake-archive.ts';
 
@@ -354,7 +354,7 @@ describe('the frame’s details and versions', () => {
       rolls: [twice],
       cameras: [{ slug: 'nikon-fe', make: 'Nikon', model: 'FE' }],
       settings: {
-        ...setUpArchive,
+        ...setUpSettings,
         author: 'Ben Pirt',
         copyright: '© Ben Pirt. All rights reserved.',
       },
@@ -840,7 +840,7 @@ describe('a frame’s own details, and those it inherits', () => {
     const archive = fakeArchive({
       rolls: [roll],
       cameras: [nikon, leica],
-      settings: { ...setUpArchive, author: 'Ben Pirt' },
+      settings: { ...setUpSettings, author: 'Ben Pirt' },
     });
     openAt(`/rolls/${roll.id}/frames/${roll.frames[0]?.id ?? ''}`, archive);
     return archive;

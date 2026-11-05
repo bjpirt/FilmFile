@@ -1,17 +1,17 @@
-import type { Archive } from '../archive/archive.ts';
+import type { Settings } from '../settings/settings.ts';
 import type { Frame, Roll } from '../rolls/roll.ts';
 import type { DetailsLayer } from './details.ts';
 
 // The layers a frame's details are resolved from. A detail a record doesn't
 // have is left out, so it's inherited rather than cleared.
 
-/** The archive's author and copyright, the most general layer. */
-export function archiveLayer(archive: Archive): DetailsLayer {
+/** The archive-wide author and copyright, the most general layer. */
+export function archiveLayer(settings: Settings): DetailsLayer {
   return {
-    source: { layer: 'archive', id: archive.id },
+    source: { layer: 'archive', id: settings.id },
     details: {
-      author: archive.author,
-      ...(archive.copyright === null ? {} : { copyright: archive.copyright }),
+      author: settings.author,
+      ...(settings.copyright === null ? {} : { copyright: settings.copyright }),
     },
   };
 }

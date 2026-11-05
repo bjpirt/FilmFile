@@ -1719,7 +1719,7 @@ export interface paths {
         };
         trace?: never;
     };
-    "/api/archive": {
+    "/api/settings": {
         parameters: {
             query?: never;
             header?: never;
@@ -1727,8 +1727,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get the archive's details
-         * @description The response's ETag is the archive's version, for If-Match.
+         * Get FilmFile's settings
+         * @description The response's ETag is the settings' version, for If-Match. It also says where the FilmFile folder is, read-only.
          */
         get: {
             parameters: {
@@ -1739,16 +1739,16 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description The archive's details. */
+                /** @description The settings. */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Archive"];
+                        "application/json": components["schemas"]["Settings"];
                     };
                 };
-                /** @description The archive isn't set up yet. */
+                /** @description FilmFile isn't set up yet. */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -1760,7 +1760,7 @@ export interface paths {
             };
         };
         put?: never;
-        /** Set the archive up */
+        /** Set FilmFile up */
         post: {
             parameters: {
                 query?: never;
@@ -1770,17 +1770,17 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["CreateArchiveRequest"];
+                    "application/json": components["schemas"]["CreateSettingsRequest"];
                 };
             };
             responses: {
-                /** @description The archive, set up. */
+                /** @description The settings, set up. */
                 201: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Archive"];
+                        "application/json": components["schemas"]["Settings"];
                     };
                 };
                 /** @description The body is not valid JSON. */
@@ -1792,7 +1792,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description The archive is already set up. */
+                /** @description FilmFile is already set up. */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -1825,14 +1825,14 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change the archive's author or copyright
-         * @description Send the archive's ETag as If-Match: the change is refused if the archive has changed since. The response's ETag is the archive's new version.
+         * Change the author or copyright
+         * @description Send the settings' ETag as If-Match: the change is refused if they have changed since. The response's ETag is their new version.
          */
         patch: {
             parameters: {
                 query?: never;
                 header?: {
-                    /** @description The archive's ETag, from when it was read. */
+                    /** @description The settings' ETag, from when they were read. */
                     "if-match"?: string;
                 };
                 path?: never;
@@ -1840,17 +1840,17 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["UpdateArchiveRequest"];
+                    "application/json": components["schemas"]["UpdateSettingsRequest"];
                 };
             };
             responses: {
-                /** @description The archive, changed. */
+                /** @description The settings, changed. */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["Archive"];
+                        "application/json": components["schemas"]["Settings"];
                     };
                 };
                 /** @description The body is not valid JSON. */
@@ -1862,7 +1862,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description The archive isn't set up yet. */
+                /** @description FilmFile isn't set up yet. */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -1871,7 +1871,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description The archive has changed since it was read. */
+                /** @description The settings have changed since they were read. */
                 409: {
                     headers: {
                         [name: string]: unknown;
@@ -2314,7 +2314,7 @@ export interface components {
             /** @example 2026-09 */
             date?: string | null;
         };
-        Archive: {
+        Settings: {
             id: string;
             /**
              * @description Who took the photographs; frames inherit it.
@@ -2326,14 +2326,19 @@ export interface components {
              * @example © Ben Pirt. All rights reserved.
              */
             copyright: string | null;
+            /**
+             * @description The FilmFile folder's absolute path: read-only, chosen when FilmFile starts (by the desktop app, or FILMFILE_FOLDER) and never set through the API. The one absolute path any response carries (D64).
+             * @example /Users/ben/Pictures/FilmFile
+             */
+            folder: string;
         };
-        /** @description Sets the archive up, once (D43). */
-        CreateArchiveRequest: {
+        /** @description Sets FilmFile up, once (D43). The FilmFile folder can’t be set here. */
+        CreateSettingsRequest: {
             author: string;
             copyright?: string;
         };
-        /** @description The details to change. A detail left out stays as it is; null clears the copyright. The author can’t be cleared. */
-        UpdateArchiveRequest: {
+        /** @description The details to change. A detail left out stays as it is; null clears the copyright. The author can’t be cleared, and the FilmFile folder can’t be set here. */
+        UpdateSettingsRequest: {
             author?: string;
             copyright?: string | null;
         };

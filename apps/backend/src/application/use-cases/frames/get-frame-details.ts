@@ -9,7 +9,7 @@ import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type { NotFound } from '../../../domain/shared/domain-error.ts';
 import type { FrameId, RollId } from '../../../domain/shared/ids.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
-import type { ArchiveRepository } from '../../ports/archive-repository.ts';
+import type { SettingsRepository } from '../../ports/settings-repository.ts';
 import type { RollRepository } from '../../ports/roll-repository.ts';
 
 /**
@@ -18,11 +18,11 @@ import type { RollRepository } from '../../ports/roll-repository.ts';
  */
 export class GetFrameDetails {
   readonly #rolls: RollRepository;
-  readonly #archives: ArchiveRepository;
+  readonly #settings: SettingsRepository;
 
-  constructor(rolls: RollRepository, archives: ArchiveRepository) {
+  constructor(rolls: RollRepository, settings: SettingsRepository) {
     this.#rolls = rolls;
-    this.#archives = archives;
+    this.#settings = settings;
   }
 
   async execute(
@@ -37,10 +37,10 @@ export class GetFrameDetails {
     if (frame === undefined) {
       return err({ kind: 'not-found', entity: 'frame', id: input.frameId });
     }
-    const archive = (await this.#archives.get(ctx))?.archive;
+    const settings = (await this.#settings.get(ctx))?.settings;
     return ok(
       resolveDetails([
-        ...(archive === undefined ? [] : [archiveLayer(archive)]),
+        ...(settings === undefined ? [] : [archiveLayer(settings)]),
         rollLayer(roll),
         frameLayer(frame),
       ]),

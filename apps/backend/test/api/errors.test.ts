@@ -42,6 +42,7 @@ function correlationIdOf(body: unknown): unknown {
 function requestMissingFile() {
   const reports: { correlationId: string; error: unknown }[] = [];
   const app = composeLocal({
+    folderPath: archive.folder(),
     archivePath: archive.path(),
     cachePath: archive.cachePath(),
     port,

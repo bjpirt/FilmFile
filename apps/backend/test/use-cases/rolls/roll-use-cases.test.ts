@@ -18,7 +18,7 @@ import { UpdateRoll } from '../../../src/application/use-cases/rolls/update-roll
 import type { ArchiveContext } from '../../../src/domain/shared/archive-context.ts';
 import { isArchiveId, isRollId } from '../../../src/domain/shared/ids.ts';
 
-function anArchive(): ArchiveContext {
+function aSettings(): ArchiveContext {
   const archiveId = '00000000000000000000000000';
   if (!isArchiveId(archiveId)) {
     throw new Error('not a ULID');
@@ -39,7 +39,7 @@ function setUp() {
       holding,
       new FixedClock('2026-11-02T12:00:00.000Z'),
     ),
-    ctx: anArchive(),
+    ctx: aSettings(),
     createCamera: new CreateCamera(equipment),
     createFilmStock: new CreateFilmStock(equipment),
     createLens: new CreateLens(equipment),

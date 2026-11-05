@@ -51,7 +51,7 @@ test.beforeEach(() => {
     mkdirSync(made);
   }
   writeFileSync(
-    path.join(filmFile, 'Library', 'archive.json'),
+    path.join(filmFile, 'settings.json'),
     `${JSON.stringify({ schema: 1, id: '01JC8Y0000000000000000000B', meta: { author: 'Desktop' } }, null, 2)}\n`,
   );
 });
@@ -194,7 +194,7 @@ test('on first launch the app explains, asks for the FilmFile folder, refuses ot
 
   // An empty folder becomes a new FilmFile folder, set up in the window as in a browser.
   await expect(
-    window.getByRole('heading', { name: 'Set up your archive' }),
+    window.getByRole('heading', { name: 'Set up FilmFile' }),
   ).toBeVisible();
   expect(await dialogsShown(app)).toEqual([
     welcome,
@@ -213,7 +213,7 @@ test('on first launch the app explains, asks for the FilmFile folder, refuses ot
   const again = await launchChoosing([]);
   await expect(
     (await again.firstWindow()).getByRole('heading', {
-      name: 'Set up your archive',
+      name: 'Set up FilmFile',
     }),
   ).toBeVisible();
   expect(await dialogsShown(again)).toEqual([]);
@@ -231,7 +231,7 @@ test('cancelling the folder chooser goes back to the first-launch message', asyn
 
   await expect(
     (await app.firstWindow()).getByRole('heading', {
-      name: 'Set up your archive',
+      name: 'Set up FilmFile',
     }),
   ).toBeVisible();
 
@@ -262,7 +262,7 @@ test('File › Open FilmFile Folder… switches to another FilmFile folder, and 
   });
 
   await expect(
-    (await opened).getByRole('heading', { name: 'Set up your archive' }),
+    (await opened).getByRole('heading', { name: 'Set up FilmFile' }),
   ).toBeVisible();
   expect(app.windows()).toHaveLength(1);
   expect(readdirSync(other)).toEqual(['Library']);

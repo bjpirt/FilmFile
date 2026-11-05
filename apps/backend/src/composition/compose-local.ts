@@ -1,7 +1,7 @@
 import type { OpenAPIHono } from '@hono/zod-openapi';
 import { createApp } from '../adapters/inbound/http/create-app.ts';
 import type { ReportError } from '../adapters/inbound/http/middleware/error-handler.ts';
-import { FilesystemArchiveRepository } from '../adapters/outbound/filesystem/filesystem-archive-repository.ts';
+import { FilesystemSettingsRepository } from '../adapters/outbound/filesystem/filesystem-settings-repository.ts';
 import { FilesystemEquipmentRepository } from '../adapters/outbound/filesystem/filesystem-equipment-repository.ts';
 import { FilesystemEventRepository } from '../adapters/outbound/filesystem/filesystem-event-repository.ts';
 import { FilesystemHoldingArea } from '../adapters/outbound/filesystem/filesystem-holding-area.ts';
@@ -20,8 +20,9 @@ import { useCasesFor } from './use-cases-for.ts';
 // dimensions (a decompression bomb) can't exhaust memory.
 export const maxPixels = 100_000_000;
 
-/** Wires the service for running on this machine: the archive on disk, sharp, the system clock. */
+/** Wires the service for running on this machine: the FilmFile folder on disk (its settings at the top, the archive in its Library), sharp, the system clock. */
 export function composeLocal(config: {
+  readonly folderPath: string;
   readonly archivePath: string;
   readonly cachePath: string;
   readonly uiPath?: string;
@@ -36,7 +37,7 @@ export function composeLocal(config: {
     ...config,
     ctx: localArchive(),
     useCases: useCasesFor({
-      archives: new FilesystemArchiveRepository(config.archivePath),
+      settings: new FilesystemSettingsRepository(config.folderPath),
       rolls: new FilesystemRollRepository(config.archivePath),
       equipment: new FilesystemEquipmentRepository(config.archivePath),
       events: new FilesystemEventRepository(config.archivePath),

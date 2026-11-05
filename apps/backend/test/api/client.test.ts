@@ -9,6 +9,7 @@ const archive = useTempArchive();
 
 function client() {
   const app = composeLocal({
+    folderPath: archive.folder(),
     archivePath: archive.path(),
     cachePath: archive.cachePath(),
     port,

@@ -6,7 +6,7 @@ Each task is about one commit: small enough to review in one sitting, with its t
 
 `[x]` done, `[ ]` to do, `[-]` dropped or replaced (with where it went).
 
-**Next up:** 1. Multi-version frames, finished off, then 2. The FilmFile folder (FF-150).
+**Next up:** 1. Multi-version frames, finished off.
 
 ---
 
@@ -22,13 +22,7 @@ What a frame has is seen at a glance on its thumbnail, a roll's frames are group
 - [ ] [FF-103 Choose the version shown](tasks/FF-103.md): a star on each version in the frame view chooses the one shown everywhere.
 - [ ] [FF-104 Mark frames to scan](tasks/FF-104.md): mark frames to be scanned at higher resolution.
 
-### 2. The FilmFile folder
-
-Everything FilmFile keeps in one folder chosen once: the library (the archive) and, beside it, what's made from it (D57).
-
-- [ ] [FF-150 Settings for the whole FilmFile folder](tasks/FF-150.md): the archive's details become `settings.json` at the folder's top level and `/api/settings`, with the folder's path shown in Settings.
-
-### 3. Roll numbers
+### 2. Roll numbers
 
 Roll numbers can be put in date order after importing a batch of rolls, then locked once the physical sleeve is labelled, so they never change again (D59).
 
@@ -36,7 +30,7 @@ Roll numbers can be put in date order after importing a batch of rolls, then loc
 - [ ] [FF-107 Lock a roll's number](tasks/FF-107.md): once the sleeve is labelled, a roll's number can't change.
 - [ ] [FF-108 Number rolls by date](tasks/FF-108.md): put a year's unlocked rolls in date order with a preview first.
 
-### 4. Finding your way around the library
+### 3. Finding your way around the library
 
 The library keeps IDs in its folder names, so nothing moves when frames are renumbered (D17); it's made easy to find your way around another way (D58).
 
@@ -44,7 +38,7 @@ The library keeps IDs in its folder names, so nothing moves when frames are renu
 - [ ] [FF-110 A contents file in each roll's folder](tasks/FF-110.md): `contents.txt` in each roll's folder says which frame each folder is.
 - [ ] [FF-111 The browse folder](tasks/FF-111.md): `Browse/` in the FilmFile folder: links to every roll's files, named by frame number.
 
-### 5. Integrate with NegPy
+### 4. Integrate with NegPy
 
 The round trip of design section 9: a roll's raw scans go where NegPy can find them, and NegPy's exports come back as Finals by themselves. NegPy can't be told to open files from outside (no command line, URL scheme or other way in), so FilmFile keeps a folder of rolls, `Editors/NegPy/` in the FilmFile folder (FF-105), which NegPy imports once with "Import Subfolders as Rolls…" and picks new rolls up from with Refresh (D51).
 
@@ -53,7 +47,7 @@ The round trip of design section 9: a roll's raw scans go where NegPy can find t
 - [ ] [FF-114 Exports brought in by themselves](tasks/FF-114.md): the service watches the NegPy folder and brings exports in as they appear.
 - [ ] [FF-115 NegPy's recipes kept](tasks/FF-115.md): NegPy's `.negpy` edit is kept with each Final it made.
 
-### 6. Exports
+### 5. Exports
 
 Frames marked for export are kept in `Exports/` as JPEGs carrying everything known about them, made from the version shown and kept in step as frames change (D60).
 
@@ -61,7 +55,7 @@ Frames marked for export are kept in `Exports/` as JPEGs carrying everything kno
 - [ ] [FF-117 The export folder](tasks/FF-117.md): `Exports/` holds a JPEG of every frame marked for export, kept in step.
 - [ ] [FF-118 What an export says about itself](tasks/FF-118.md): exports carry the frame's details as EXIF, IPTC and XMP.
 
-### 7. Event sites
+### 6. Event sites
 
 An event's best frames as a small static website, made into `Sites/` and published to S3 when wanted (design section 12, D61).
 
@@ -69,7 +63,7 @@ An event's best frames as a small static website, made into `Sites/` and publish
 - [ ] [FF-120 Make an event's site](tasks/FF-120.md): a static site of an event's chosen frames, made in `Sites/`.
 - [ ] [FF-121 Publish a site to S3](tasks/FF-121.md): upload an event's site to an S3 bucket, and take it down again.
 
-### 8. Index and maintenance
+### 7. Index and maintenance
 
 - [ ] [FF-122 `CatalogueIndex`](tasks/FF-122.md): rolls, frames and equipment indexed in SQLite in the cache.
 - [ ] [FF-123 `RebuildIndex`](tasks/FF-123.md): rebuild the index from the archive.
@@ -395,9 +389,10 @@ What a frame has is seen at a glance on its thumbnail, a roll's frames are group
 
 ### The FilmFile folder
 
-Everything FilmFile keeps in one folder chosen once: the library (the archive) and, beside it, what's made from it (D57).
+Everything FilmFile keeps in one folder chosen once: the library (the archive) and, beside it, its settings and what's made from it (D57, D65).
 
 - [x] [FF-105 The FilmFile folder](tasks/FF-105.md)
+- [x] [FF-150 Settings for the whole FilmFile folder](tasks/FF-150.md)
 
 ### Desktop app
 

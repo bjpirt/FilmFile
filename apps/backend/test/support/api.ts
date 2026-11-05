@@ -25,6 +25,7 @@ export function apiFor(
     if (app === undefined || appArchive !== archive.path()) {
       appArchive = archive.path();
       app = composeLocal({
+        folderPath: archive.folder(),
         archivePath: archive.path(),
         cachePath: archive.cachePath(),
         port,

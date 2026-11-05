@@ -1,28 +1,32 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { navigate } from '../routing.tsx';
-import { ArchiveForm } from './archive-form.tsx';
-import type { ReadArchive } from './use-archive.ts';
+import { SettingsForm } from './settings-form.tsx';
+import type { ReadSettings } from './use-settings.ts';
 
-/** The archive's author and copyright, changed after first run; saving goes back to the rolls. */
+/**
+ * The author and copyright, changed after first run (saving goes back to the
+ * rolls), and where the FilmFile folder is, which can't be changed here
+ * (D64).
+ */
 export function SettingsPage({
   api,
   read,
 }: {
   readonly api: ApiClient;
-  readonly read: ReadArchive;
+  readonly read: ReadSettings;
 }) {
   const queryClient = useQueryClient();
 
   return (
     <section className="settings">
       <h1>Settings</h1>
-      <ArchiveForm
+      <SettingsForm
         label="Settings"
-        initial={read.archive}
+        initial={read.settings}
         submit="Save"
         save={async (details) => {
-          const { data, response } = await api.PATCH('/api/archive', {
+          const { data, response } = await api.PATCH('/api/settings', {
             params: { header: { 'if-match': read.etag } },
             body: details,
           });
@@ -32,14 +36,20 @@ export function SettingsPage({
           if (data === undefined) {
             return "Couldn't save them. Is the service running?";
           }
-          queryClient.setQueryData<ReadArchive>(['archive'], {
-            archive: data,
+          queryClient.setQueryData<ReadSettings>(['settings'], {
+            settings: data,
             etag: response.headers.get('ETag') ?? read.etag,
           });
           navigate('/');
           return undefined;
         }}
       />
+      <h2>FilmFile folder</h2>
+      <p className="folder-path">{read.settings.folder}</p>
+      <p className="muted">
+        Change it in the app with File › Open FilmFile Folder…, or set
+        FILMFILE_FOLDER and restart.
+      </p>
     </section>
   );
 }

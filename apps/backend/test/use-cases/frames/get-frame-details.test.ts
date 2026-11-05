@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { InMemoryArchiveRepository } from '../../../src/adapters/outbound/memory/in-memory-archive-repository.ts';
+import { InMemorySettingsRepository } from '../../../src/adapters/outbound/memory/in-memory-settings-repository.ts';
 import { InMemoryRollRepository } from '../../../src/adapters/outbound/memory/in-memory-roll-repository.ts';
 import { GetFrameDetails } from '../../../src/application/use-cases/frames/get-frame-details.ts';
 import { isShotDate } from '../../../src/domain/rolls/shot-date.ts';
@@ -7,7 +7,7 @@ import { isFrameId } from '../../../src/domain/shared/ids.ts';
 import {
   aCamera,
   aFrame,
-  anArchive,
+  aSettings,
   aRoll,
   ctx,
 } from '../../support/builders.ts';
@@ -17,19 +17,19 @@ const missing = checked('01JC8Z7K3M0000000000000000', isFrameId);
 
 async function setUp(withArchive = true) {
   const rolls = new InMemoryRollRepository();
-  const archives = new InMemoryArchiveRepository();
+  const settings = new InMemorySettingsRepository();
   const roll = {
     ...aRoll({ frames: [aFrame()] }),
     camera: aCamera('Nikon', 'FE').slug,
   };
   await rolls.create(ctx, roll);
   if (withArchive) {
-    await archives.create(
+    await settings.create(
       ctx,
-      anArchive('Ben Pirt', { copyright: '© Ben Pirt' }),
+      aSettings('Ben Pirt', { copyright: '© Ben Pirt' }),
     );
   }
-  return { roll, getDetails: new GetFrameDetails(rolls, archives) };
+  return { roll, getDetails: new GetFrameDetails(rolls, settings) };
 }
 
 describe('GetFrameDetails', () => {
@@ -42,7 +42,7 @@ describe('GetFrameDetails', () => {
       frameId: frame?.id ?? missing,
     });
 
-    const archive = { layer: 'archive', id: anArchive().id };
+    const archive = { layer: 'archive', id: aSettings().id };
     expect(details).toEqual({
       ok: true,
       value: {
@@ -65,7 +65,7 @@ describe('GetFrameDetails', () => {
 
     const details = await new GetFrameDetails(
       rolls,
-      new InMemoryArchiveRepository(),
+      new InMemorySettingsRepository(),
     ).execute(ctx, { rollId: roll.id, frameId: frame.id });
 
     expect(details).toEqual({
@@ -87,7 +87,7 @@ describe('GetFrameDetails', () => {
 
     const details = await new GetFrameDetails(
       rolls,
-      new InMemoryArchiveRepository(),
+      new InMemorySettingsRepository(),
     ).execute(ctx, { rollId: roll.id, frameId: frame.id });
 
     expect(details).toEqual({

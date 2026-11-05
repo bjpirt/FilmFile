@@ -1,8 +1,8 @@
 import type { ValidationFailed } from '../../../domain/shared/domain-error.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
 
-/** The archive's author, trimmed; it can't be blank (D44). */
-export function archiveAuthor(
+/** The author, trimmed; it can't be blank (D44). */
+export function settingsAuthor(
   author: string,
 ): Result<string, ValidationFailed> {
   const trimmed = author.trim();

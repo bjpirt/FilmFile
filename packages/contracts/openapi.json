@@ -1368,7 +1368,7 @@
         },
         "description": "The details to change. A detail left out stays as it is; a null date clears it. The slug never changes."
       },
-      "Archive": {
+      "Settings": {
         "type": "object",
         "properties": {
           "id": {
@@ -1386,15 +1386,21 @@
             ],
             "description": "The copyright notice; frames inherit it.",
             "example": "© Ben Pirt. All rights reserved."
+          },
+          "folder": {
+            "type": "string",
+            "description": "The FilmFile folder's absolute path: read-only, chosen when FilmFile starts (by the desktop app, or FILMFILE_FOLDER) and never set through the API. The one absolute path any response carries (D64).",
+            "example": "/Users/ben/Pictures/FilmFile"
           }
         },
         "required": [
           "id",
           "author",
-          "copyright"
+          "copyright",
+          "folder"
         ]
       },
-      "CreateArchiveRequest": {
+      "CreateSettingsRequest": {
         "type": "object",
         "properties": {
           "author": {
@@ -1410,9 +1416,9 @@
         "required": [
           "author"
         ],
-        "description": "Sets the archive up, once (D43)."
+        "description": "Sets FilmFile up, once (D43). The FilmFile folder can’t be set here."
       },
-      "UpdateArchiveRequest": {
+      "UpdateSettingsRequest": {
         "type": "object",
         "properties": {
           "author": {
@@ -1428,7 +1434,7 @@
             "maxLength": 200
           }
         },
-        "description": "The details to change. A detail left out stays as it is; null clears the copyright. The author can’t be cleared."
+        "description": "The details to change. A detail left out stays as it is; null clears the copyright. The author can’t be cleared, and the FilmFile folder can’t be set here."
       }
     },
     "parameters": {}
@@ -3385,23 +3391,23 @@
         }
       }
     },
-    "/api/archive": {
+    "/api/settings": {
       "get": {
-        "summary": "Get the archive's details",
-        "description": "The response's ETag is the archive's version, for If-Match.",
+        "summary": "Get FilmFile's settings",
+        "description": "The response's ETag is the settings' version, for If-Match. It also says where the FilmFile folder is, read-only.",
         "responses": {
           "200": {
-            "description": "The archive's details.",
+            "description": "The settings.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Archive"
+                  "$ref": "#/components/schemas/Settings"
                 }
               }
             }
           },
           "404": {
-            "description": "The archive isn't set up yet.",
+            "description": "FilmFile isn't set up yet.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3413,24 +3419,24 @@
         }
       },
       "post": {
-        "summary": "Set the archive up",
+        "summary": "Set FilmFile up",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateArchiveRequest"
+                "$ref": "#/components/schemas/CreateSettingsRequest"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "The archive, set up.",
+            "description": "The settings, set up.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Archive"
+                  "$ref": "#/components/schemas/Settings"
                 }
               }
             }
@@ -3446,7 +3452,7 @@
             }
           },
           "409": {
-            "description": "The archive is already set up.",
+            "description": "FilmFile is already set up.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3478,16 +3484,16 @@
         }
       },
       "patch": {
-        "summary": "Change the archive's author or copyright",
-        "description": "Send the archive's ETag as If-Match: the change is refused if the archive has changed since. The response's ETag is the archive's new version.",
+        "summary": "Change the author or copyright",
+        "description": "Send the settings' ETag as If-Match: the change is refused if they have changed since. The response's ETag is their new version.",
         "parameters": [
           {
             "schema": {
               "type": "string",
-              "description": "The archive's ETag, from when it was read."
+              "description": "The settings' ETag, from when they were read."
             },
             "required": false,
-            "description": "The archive's ETag, from when it was read.",
+            "description": "The settings' ETag, from when they were read.",
             "name": "if-match",
             "in": "header"
           }
@@ -3497,18 +3503,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateArchiveRequest"
+                "$ref": "#/components/schemas/UpdateSettingsRequest"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "The archive, changed.",
+            "description": "The settings, changed.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Archive"
+                  "$ref": "#/components/schemas/Settings"
                 }
               }
             }
@@ -3524,7 +3530,7 @@
             }
           },
           "404": {
-            "description": "The archive isn't set up yet.",
+            "description": "FilmFile isn't set up yet.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3534,7 +3540,7 @@
             }
           },
           "409": {
-            "description": "The archive has changed since it was read.",
+            "description": "The settings have changed since they were read.",
             "content": {
               "application/json": {
                 "schema": {

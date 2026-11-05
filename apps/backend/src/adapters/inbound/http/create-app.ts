@@ -10,7 +10,7 @@ import { securityHeaders } from './middleware/security-headers.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import { docsRoutes } from './routes/docs.ts';
 import { equipmentRoutes, type EquipmentUseCases } from './routes/equipment.ts';
-import { archiveRoutes, type ArchiveUseCases } from './routes/archive.ts';
+import { settingsRoutes, type SettingsUseCases } from './routes/settings.ts';
 import { eventRoutes, type EventUseCases } from './routes/events.ts';
 import { rollRoutes, type RollUseCases } from './routes/rolls.ts';
 import { uiRoutes } from './routes/ui.ts';
@@ -28,11 +28,13 @@ const getHealth = createRoute({
 });
 
 export function createApp(config: {
+  /** The FilmFile folder's path, which Settings says (D64). */
+  readonly folderPath: string;
   readonly ctx: ArchiveContext;
   readonly useCases: RollUseCases &
     EquipmentUseCases &
     EventUseCases &
-    ArchiveUseCases;
+    SettingsUseCases;
   readonly uiPath?: string;
   readonly port: number;
   readonly uiOrigin?: string;
@@ -47,7 +49,7 @@ export function createApp(config: {
   app.route('/api/rolls', rollRoutes(config));
   app.route('/api/equipment', equipmentRoutes(config));
   app.route('/api/events', eventRoutes(config));
-  app.route('/api/archive', archiveRoutes(config));
+  app.route('/api/settings', settingsRoutes(config));
   app.doc31('/api/openapi.json', {
     openapi: '3.1.0',
     info: { title: 'FilmFile API', version: '0.0.0' },

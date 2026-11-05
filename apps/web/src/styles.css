@@ -1485,3 +1485,12 @@ textarea {
 .required {
   color: var(--accent);
 }
+
+/* Settings: where the FilmFile folder is, as text to select and copy (D64). */
+.settings .folder-path {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.9rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+  user-select: text;
+}

@@ -36,13 +36,18 @@ test('takes a folder with only hidden files in it as empty', async () => {
 
 test('leaves a folder that has a Library as it is', async () => {
   mkdirSync(path.join(folder, 'Library'));
-  writeFileSync(path.join(folder, 'Library', 'archive.json'), '{}');
+  mkdirSync(path.join(folder, 'Library', 'rolls'));
+  writeFileSync(path.join(folder, 'settings.json'), '{}');
   mkdirSync(path.join(folder, 'Exports'));
 
   await prepareFolder(folder);
 
-  expect(readdirSync(folder).sort()).toEqual(['Exports', 'Library']);
-  expect(readdirSync(path.join(folder, 'Library'))).toEqual(['archive.json']);
+  expect(readdirSync(folder).sort()).toEqual([
+    'Exports',
+    'Library',
+    'settings.json',
+  ]);
+  expect(readdirSync(path.join(folder, 'Library'))).toEqual(['rolls']);
 });
 
 test('takes a Library that was never set up as a FilmFile folder', async () => {

@@ -4,7 +4,7 @@ import path from 'node:path';
 
 // Starts the backend, serving the built UI, on a new FilmFile folder and
 // cache that are removed when it stops. Playwright runs this as its web servers:
-// `serve.ts <port> set-up` with the archive already set up, for the journeys
+// `serve.ts <port> set-up` with FilmFile already set up, for the journeys
 // that start from there, and `serve.ts <port>` with an empty one, for
 // first-run setup.
 
@@ -17,10 +17,10 @@ process.on('exit', () => {
 });
 
 if (mode === 'set-up') {
-  const library = path.join(folder, 'Library');
-  mkdirSync(library);
+  // The Library the service would make, so a folder with a settings file passes its check.
+  mkdirSync(path.join(folder, 'Library'));
   writeFileSync(
-    path.join(library, 'archive.json'),
+    path.join(folder, 'settings.json'),
     `${JSON.stringify({ schema: 1, id: '01JC8Y0000000000000000000A', meta: { author: 'Journeys' } }, null, 2)}\n`,
   );
 }

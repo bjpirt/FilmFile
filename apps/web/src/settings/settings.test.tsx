@@ -12,7 +12,7 @@ import { App } from '../app.tsx';
 import {
   aRoll,
   fakeArchive,
-  setUpArchive,
+  setUpSettings,
   type ArchiveContents,
   type FakeArchive,
 } from '../testing/fake-archive.ts';
@@ -42,12 +42,12 @@ function fill(form: HTMLElement, label: string, value: string) {
 
 describe('first-run setup', () => {
   test.each(['/', '/events', `/rolls/${aRoll('2026-014').id}`])(
-    'asks for the archive to be set up first, at %s',
+    'asks for FilmFile to be set up first, at %s',
     async (path) => {
       openAt(path, { settings: null, rolls: [aRoll('2026-014')] });
 
       expect(
-        await screen.findByRole('heading', { name: 'Set up your archive' }),
+        await screen.findByRole('heading', { name: 'Set up FilmFile' }),
       ).toBeDefined();
       expect(screen.queryByRole('navigation', { name: 'Main' })).toBeNull();
     },
@@ -56,7 +56,7 @@ describe('first-run setup', () => {
   test('sets it up with its author and a copyright made from it, then shows the page asked for', async () => {
     const archive = openAt('/events', { settings: null });
     const form = await screen.findByRole('form', {
-      name: 'Set up your archive',
+      name: 'Set up FilmFile',
     });
 
     fill(form, 'Author', 'Ben Pirt');
@@ -64,9 +64,7 @@ describe('first-run setup', () => {
       'value',
       '© Ben Pirt. All rights reserved.',
     );
-    fireEvent.click(
-      within(form).getByRole('button', { name: 'Set up archive' }),
-    );
+    fireEvent.click(within(form).getByRole('button', { name: 'Set up' }));
 
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Events' }),
@@ -80,7 +78,7 @@ describe('first-run setup', () => {
   test('keeps a copyright written by hand when the author changes', async () => {
     openAt('/', { settings: null });
     const form = await screen.findByRole('form', {
-      name: 'Set up your archive',
+      name: 'Set up FilmFile',
     });
 
     fill(form, 'Author', 'Ben');
@@ -96,14 +94,12 @@ describe('first-run setup', () => {
   test('leaves the copyright out when it’s cleared', async () => {
     const archive = openAt('/', { settings: null });
     const form = await screen.findByRole('form', {
-      name: 'Set up your archive',
+      name: 'Set up FilmFile',
     });
 
     fill(form, 'Author', 'Ben Pirt');
     fill(form, 'Copyright', '');
-    fireEvent.click(
-      within(form).getByRole('button', { name: 'Set up archive' }),
-    );
+    fireEvent.click(within(form).getByRole('button', { name: 'Set up' }));
 
     await screen.findByRole('heading', { level: 1, name: 'Rolls' });
     expect(archive.settings()).toMatchObject({
@@ -115,12 +111,10 @@ describe('first-run setup', () => {
   test('asks for an author before setting it up', async () => {
     const archive = openAt('/', { settings: null });
     const form = await screen.findByRole('form', {
-      name: 'Set up your archive',
+      name: 'Set up FilmFile',
     });
 
-    fireEvent.click(
-      within(form).getByRole('button', { name: 'Set up archive' }),
-    );
+    fireEvent.click(within(form).getByRole('button', { name: 'Set up' }));
 
     expect((await screen.findByRole('alert')).textContent).toBe(
       'Enter who the photographs are by.',
@@ -144,7 +138,7 @@ describe('first-run setup', () => {
 
     expect(
       await screen.findByText(
-        "Couldn't load the archive. Is the service running?",
+        "Couldn't load the settings. Is the service running?",
       ),
     ).toBeDefined();
   });
@@ -152,12 +146,12 @@ describe('first-run setup', () => {
 
 describe('the settings page', () => {
   const settings = {
-    ...setUpArchive,
+    ...setUpSettings,
     author: 'Ben',
     copyright: '© Ben. All rights reserved.',
   };
 
-  test('opens from the header, showing the archive’s details', async () => {
+  test('opens from the header, showing the author and copyright', async () => {
     openAt('/', { settings });
 
     fireEvent.click(await screen.findByRole('link', { name: 'Settings' }));
@@ -172,7 +166,7 @@ describe('the settings page', () => {
     );
   });
 
-  test('saves changes with the archive’s ETag, the copyright following the author, then shows the rolls', async () => {
+  test('saves changes with the settings’ ETag, the copyright following the author, then shows the rolls', async () => {
     const archive = openAt('/settings', { settings });
     const form = await screen.findByRole('form', { name: 'Settings' });
 
@@ -188,6 +182,20 @@ describe('the settings page', () => {
       copyright: '© Ben Pirt. All rights reserved.',
     });
     expect(archive.ifMatches).toEqual(['"v1"']);
+  });
+
+  test('shows where the FilmFile folder is, and how to change it', async () => {
+    openAt('/settings', { settings });
+
+    expect(
+      await screen.findByRole('heading', { name: 'FilmFile folder' }),
+    ).toBeDefined();
+    expect(screen.getByText(settings.folder)).toBeDefined();
+    expect(
+      screen.getByText(
+        'Change it in the app with File › Open FilmFile Folder…, or set FILMFILE_FOLDER and restart.',
+      ),
+    ).toBeDefined();
   });
 
   test('leaves a copyright of its own alone when the author changes', async () => {
@@ -220,7 +228,7 @@ describe('the settings page', () => {
   test('says when the settings changed elsewhere, keeping them', async () => {
     const archive = openAt('/settings', { settings });
     const form = await screen.findByRole('form', { name: 'Settings' });
-    archive.changeArchive();
+    archive.changeSettings();
 
     fill(form, 'Author', 'Someone else');
     fireEvent.click(within(form).getByRole('button', { name: 'Save' }));

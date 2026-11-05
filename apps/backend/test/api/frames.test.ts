@@ -583,7 +583,7 @@ describe('DELETE /api/rolls/{id}/frames/{frameId}', () => {
 
 describe('GET /api/rolls/{id}/frames/{frameId}/details', () => {
   test('gives the details the frame inherits, from the archive and its roll', async () => {
-    await post('/api/archive', { author: 'Ben Pirt' });
+    await post('/api/settings', { author: 'Ben Pirt' });
     await post('/api/equipment/cameras', { make: 'Nikon', model: 'FE' });
     const rollId = String(
       idOf(
@@ -601,7 +601,7 @@ describe('GET /api/rolls/{id}/frames/{frameId}/details', () => {
     );
 
     expect(response.status).toBe(200);
-    const archiveId = idOf(await (await request('/api/archive')).json());
+    const archiveId = idOf(await (await request('/api/settings')).json());
     expect(await response.json()).toEqual({
       author: {
         value: 'Ben Pirt',

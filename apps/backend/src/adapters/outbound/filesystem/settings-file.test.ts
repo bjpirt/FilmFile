@@ -1,15 +1,15 @@
 import { describe, expect, test } from 'vitest';
 import { isArchiveId } from '../../../domain/shared/ids.ts';
-import { archiveFileContent, parseArchiveFile } from './archive-file.ts';
+import { settingsFileContent, parseSettingsFile } from './settings-file.ts';
 
 const id = '01JC8Y0000000000000000000A';
 if (!isArchiveId(id)) {
   throw new Error(`bad test data: ${id}`);
 }
 
-describe('archive.json', () => {
+describe('settings.json', () => {
   test('keeps the author and copyright in meta, and no copyright it hasn’t', () => {
-    const text = archiveFileContent({
+    const text = settingsFileContent({
       id,
       author: 'Ben Pirt',
       copyright: null,
@@ -24,7 +24,7 @@ describe('archive.json', () => {
 
   test('ignores a name written before archives had none (D44)', () => {
     expect(
-      parseArchiveFile(
+      parseSettingsFile(
         JSON.stringify({
           schema: 1,
           id,
@@ -37,7 +37,7 @@ describe('archive.json', () => {
 
   test('refuses a file without an author', () => {
     expect(() =>
-      parseArchiveFile(JSON.stringify({ schema: 1, id, meta: {} })),
+      parseSettingsFile(JSON.stringify({ schema: 1, id, meta: {} })),
     ).toThrow();
   });
 });

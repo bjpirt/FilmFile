@@ -1,8 +1,8 @@
 import { useState, type SubmitEvent } from 'react';
 import { RequiredMarker } from '../forms/required-marker.tsx';
 
-/** The archive's details as the form saves them; a blank copyright is null. */
-export interface ArchiveDetails {
+/** The details as the form saves them; a blank copyright is null. */
+export interface SettingsDetails {
   readonly author: string;
   readonly copyright: string | null;
 }
@@ -13,11 +13,11 @@ export function copyrightFor(author: string): string {
 }
 
 /**
- * The archive's author and copyright, to set up or change. The copyright
+ * The author and copyright, to set up or change. The copyright
  * follows the author as it's typed, for as long as it's the one made from
  * the author; once changed by hand, it's left alone.
  */
-export function ArchiveForm({
+export function SettingsForm({
   label,
   initial,
   submit,
@@ -25,11 +25,11 @@ export function ArchiveForm({
 }: {
   /** The form's name, for screen readers, e.g. "Settings". */
   readonly label: string;
-  readonly initial: ArchiveDetails;
+  readonly initial: SettingsDetails;
   /** The submit button's text. */
   readonly submit: string;
   /** Saves the details, giving what to tell the person if they weren't saved. */
-  readonly save: (details: ArchiveDetails) => Promise<string | undefined>;
+  readonly save: (details: SettingsDetails) => Promise<string | undefined>;
 }) {
   const [author, setAuthor] = useState(initial.author);
   const [copyright, setCopyright] = useState(initial.copyright ?? '');
@@ -56,7 +56,7 @@ export function ArchiveForm({
   return (
     // noValidate: the form's own message explains a missing author.
     <form
-      className="roll-details archive-form"
+      className="roll-details settings-form"
       aria-label={label}
       noValidate
       onSubmit={(event) => void send(event)}

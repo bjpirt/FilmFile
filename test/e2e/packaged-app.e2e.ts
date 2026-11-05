@@ -32,7 +32,7 @@ test.beforeEach(() => {
   folder = mkdtempSync(path.join(tmpdir(), 'filmfile-packaged-'));
   mkdirSync(path.join(folder, 'Library'));
   writeFileSync(
-    path.join(folder, 'Library', 'archive.json'),
+    path.join(folder, 'settings.json'),
     `${JSON.stringify({ schema: 1, id: '01JC8Y0000000000000000000E', meta: { author: 'Packaged' } }, null, 2)}\n`,
   );
 });

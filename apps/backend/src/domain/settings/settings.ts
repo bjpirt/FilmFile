@@ -1,7 +1,11 @@
 import type { ArchiveId } from '../shared/ids.ts';
 
-/** The archive itself: who the photographs are by (D44). */
-export interface Archive {
+/**
+ * What FilmFile is set up with as a whole (D65): who the photographs are by
+ * (D44), and the author and copyright frames inherit. It doesn't hold the
+ * FilmFile folder's own path, which the service is told when it starts (D64).
+ */
+export interface Settings {
   readonly id: ArchiveId;
   /** Who took the photographs, e.g. "Ben Pirt". Frames inherit it. */
   readonly author: string;

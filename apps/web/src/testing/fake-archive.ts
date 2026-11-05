@@ -1,8 +1,8 @@
 import {
-  createArchiveRequest,
-  updateArchiveRequest,
-  type Archive,
-} from '@filmfile/contracts/archive';
+  createSettingsRequest,
+  updateSettingsRequest,
+  type Settings,
+} from '@filmfile/contracts/settings';
 import { createApiClient, type ApiClient } from '@filmfile/contracts/client';
 import {
   createCameraRequest,
@@ -47,15 +47,16 @@ export interface ArchiveContents {
   readonly films?: readonly FilmStock[];
   readonly lenses?: readonly Lens[];
   readonly events?: readonly Event[];
-  /** The archive's own details; set up by default, or null if it isn't yet. */
-  readonly settings?: Archive | null;
+  /** FilmFile's settings; set up by default, or null if they aren't yet. */
+  readonly settings?: Settings | null;
 }
 
-/** An archive that's been set up, as every page but first-run setup expects. */
-export const setUpArchive: Archive = {
+/** Settings that have been set up, as every page but first-run setup expects. */
+export const setUpSettings: Settings = {
   id: '01JC8Y0000000000000000000A',
   author: 'Test author',
   copyright: null,
+  folder: '/Users/test/Pictures/FilmFile',
 };
 
 /** A roll with no details or frames, its ID made from its number: 2026-014 → 01JC8Z7K3M0000000002026014. */
@@ -181,7 +182,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   const lenses = [...(contents.lenses ?? [])];
   const events = [...(contents.events ?? [])];
   let settings =
-    contents.settings === undefined ? setUpArchive : contents.settings;
+    contents.settings === undefined ? setUpSettings : contents.settings;
   /** Every request, as "METHOD /path?query". */
   const requests: string[] = [];
   /** The If-Match header of every PATCH, in order. */
@@ -375,7 +376,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   function detailsOf(roll: Roll, frame: Frame): FrameDetails {
     const fromArchive = (value: string) => ({
       value,
-      source: { layer: 'archive' as const, id: setUpArchive.id },
+      source: { layer: 'archive' as const, id: setUpSettings.id },
     });
     const fromRoll = <T>(value: T) => ({
       value,
@@ -413,22 +414,22 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     };
   }
 
-  async function archiveRoute(request: Request): Promise<Response> {
+  async function settingsRoute(request: Request): Promise<Response> {
     if (request.method === 'GET') {
       return settings === null
         ? notFound()
-        : Response.json(settings, { headers: { ETag: etagOf('archive') } });
+        : Response.json(settings, { headers: { ETag: etagOf('settings') } });
     }
     if (request.method === 'POST') {
       if (settings !== null) {
         return Response.json({ error: 'already set up' }, { status: 409 });
       }
-      const body = await bodyOf(request, createArchiveRequest);
+      const body = await bodyOf(request, createSettingsRequest);
       if (!body.ok) {
         return body.response;
       }
       settings = {
-        ...setUpArchive,
+        ...setUpSettings,
         author: body.value.author,
         copyright: body.value.copyright ?? null,
       };
@@ -437,11 +438,11 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     if (settings === null) {
       return notFound();
     }
-    const refused = checkIfMatch(request, 'archive');
+    const refused = checkIfMatch(request, 'settings');
     if (refused !== undefined) {
       return refused;
     }
-    const body = await bodyOf(request, updateArchiveRequest);
+    const body = await bodyOf(request, updateSettingsRequest);
     if (!body.ok) {
       return body.response;
     }
@@ -452,8 +453,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         Object.entries(body.value).filter(([, value]) => value !== undefined),
       ),
     };
-    change('archive');
-    return Response.json(settings, { headers: { ETag: etagOf('archive') } });
+    change('settings');
+    return Response.json(settings, { headers: { ETag: etagOf('settings') } });
   }
 
   async function rollRoute(
@@ -692,8 +693,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       return notFound();
     }
     switch (resource ?? '') {
-      case 'archive':
-        return archiveRoute(request);
+      case 'settings':
+        return settingsRoute(request);
       case 'equipment':
         return equipment(request, rest[0] ?? '');
       case 'events':
@@ -745,11 +746,11 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     changeRoll(id: string) {
       change(id);
     },
-    /** The archive's own details as they are now, or null if it isn't set up. */
+    /** The settings as they are now, or null if FilmFile isn't set up. */
     settings: () => settings,
-    /** Changes the archive's details elsewhere, as another tab would. */
-    changeArchive() {
-      change('archive');
+    /** Changes the settings elsewhere, as another tab would. */
+    changeSettings() {
+      change('settings');
     },
     /** Changes an event elsewhere, as another tab would. */
     changeEvent(slug: string) {
