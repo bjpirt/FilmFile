@@ -56,6 +56,7 @@ Archive
 ```
 
 - **Roll:** identified by my roll number in the form `YYYY-NNN`, e.g. `2026-014`. `YYYY` is the year the roll was shot; `NNN` is the next free number in that year when the roll is catalogued, so a roll catalogued late gets a later number than rolls shot after it. Rolls aren't numbered when the film is loaded. Its folder is `rolls/YYYY/YYYY-NNN-<ID>/`, its number and ID, renamed as the number changes until it's filed (D66). Rolls are found by their `roll.json`, never by the folder's name. The lab batch is in the scans' file names; labs aren't recorded (D35).
+  - Roll numbers are unique: the roll repository refuses one that another roll has (D70).
   - A new roll is numbered automatically with the next free number, from its date shot's year or this year's, and can be changed until it's filed (D67).
   - Lists sort by roll number by default, or by shot date when chosen. Roll-level shot dates are optional and kept for reference; within a roll, frame-number order is shot order.
   - Until it's **filed**, a roll's number can be changed, by hand or by "Number rolls…", which puts each year's unfiled rolls in date-shot order after that year's filed ones; each change renames the roll's folder to match (D66, D68). The roll's ULID doesn't change, so links survive.
