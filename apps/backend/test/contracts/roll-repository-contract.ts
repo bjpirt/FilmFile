@@ -120,6 +120,64 @@ export function rollRepositoryContract(
       expect(await rolls.get(ctx, first.id)).toEqual(read);
     });
 
+    test('refuses to change a filed roll number, changing nothing', async () => {
+      const rolls = makeRepository();
+      const filed = { ...aRoll(), filed: true };
+      const newNumber = aRoll({ roll: '2026-015' }).roll;
+      await rolls.create(ctx, filed);
+      const read = await rolls.get(ctx, filed.id);
+
+      const saved = await rolls.saveRenumbered(
+        ctx,
+        { ...filed, roll: newNumber },
+        read?.version ?? '',
+      );
+
+      expect(saved).toEqual(
+        err({
+          kind: 'validation-failed',
+          issues: [
+            {
+              path: ['roll'],
+              message: "A filed roll's number can't be changed.",
+            },
+          ],
+        }),
+      );
+      expect(await rolls.get(ctx, filed.id)).toEqual(read);
+    });
+
+    test('marks and unmarks a roll as filed without changing its number', async () => {
+      const rolls = makeRepository();
+      const roll = aRoll();
+      await rolls.create(ctx, roll);
+      const firstRead = await rolls.get(ctx, roll.id);
+
+      const marked = await rolls.saveRenumbered(
+        ctx,
+        { ...roll, filed: true },
+        firstRead?.version ?? '',
+      );
+      expect(marked.ok).toBe(true);
+
+      const filedRead = await rolls.get(ctx, roll.id);
+      expect(filedRead?.roll).toMatchObject({
+        roll: roll.roll,
+        filed: true,
+      });
+
+      const unmarked = await rolls.saveRenumbered(
+        ctx,
+        { ...roll, filed: false },
+        filedRead?.version ?? '',
+      );
+      expect(unmarked.ok).toBe(true);
+      expect((await rolls.get(ctx, roll.id))?.roll).toMatchObject({
+        roll: roll.roll,
+        filed: false,
+      });
+    });
+
     test('lets saveRenumbered keep a roll’s own number, as any other save does', async () => {
       const rolls = makeRepository();
       const roll = aRoll();

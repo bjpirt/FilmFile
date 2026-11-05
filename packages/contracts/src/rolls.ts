@@ -93,6 +93,7 @@ export const roll = z
   .object({
     id: ulid,
     roll: rollNumber,
+    filed: z.boolean(),
     name: z.string().nullable().meta({
       description: 'A name for the roll, or null.',
       example: 'Iceland, first day',
@@ -156,6 +157,7 @@ export const createRollRequest = z
 export const updateRollRequest = z
   .object({
     roll: rollNumber.optional(),
+    filed: z.boolean().optional(),
     name: z.string().max(100).nullable().optional(),
     notes: z.string().max(5000).nullable().optional(),
     shot: shotDate.nullable().optional(),

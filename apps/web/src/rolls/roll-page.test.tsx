@@ -126,6 +126,7 @@ test('offers the roll’s actions in one menu, selecting and renumbering once it
   expect(
     screen.getAllByRole('menuitem').map((item) => item.textContent),
   ).toEqual([
+    'Mark as filed',
     'Edit details',
     'Add scans',
     'Bulk edit',
@@ -138,7 +139,7 @@ test('offers the roll’s actions in one menu, selecting and renumbering once it
   fireEvent.click(await screen.findByRole('button', { name: 'Actions' }));
   expect(
     screen.getAllByRole('menuitem').map((item) => item.textContent),
-  ).toEqual(['Edit details', 'Add scans', 'Delete roll…']);
+  ).toEqual(['Mark as filed', 'Edit details', 'Add scans', 'Delete roll…']);
 });
 
 test('heads the page with the roll number and how many frames it has', async () => {
@@ -1594,4 +1595,80 @@ test('says when the roll does not exist', async () => {
   renderPage(fakeArchive());
 
   expect(await screen.findByText('There is no such roll.')).toBeDefined();
+});
+
+test('marks a roll as filed and shows a padlock on its heading, not its frames', async () => {
+  const service = archiveWith([aFrameWithScan('1', '12340001.jpg')]);
+  renderPage(service);
+
+  await chooseAction('Mark as filed');
+
+  const padlocks = await screen.findAllByRole('img', { name: 'Filed' });
+  expect(padlocks).toHaveLength(1);
+  expect(padlocks[0]?.closest('h1')).not.toBeNull();
+});
+
+test('asks before unmarking a filed roll and then removes its padlock', async () => {
+  const service = archiveWith([], { filed: true });
+  renderPage(service);
+  await chooseAction('Unmark as filed…');
+
+  const confirmation = await screen.findByRole('alertdialog', {
+    name: 'Unmark as filed',
+  });
+  expect(confirmation.textContent).toContain(
+    "Only unmark it if its negatives aren't filed under this number.",
+  );
+  fireEvent.click(
+    within(confirmation).getByRole('button', { name: 'Unmark as filed' }),
+  );
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Actions' }));
+  expect(
+    await screen.findByRole('menuitem', { name: 'Mark as filed' }),
+  ).toBeDefined();
+  expect(screen.queryByRole('img', { name: 'Filed' })).toBeNull();
+});
+
+test('cancelling the unmark confirmation keeps the roll filed', async () => {
+  const service = archiveWith([], { filed: true });
+  renderPage(service);
+  await chooseAction('Unmark as filed…');
+
+  const confirmation = await screen.findByRole('alertdialog', {
+    name: 'Unmark as filed',
+  });
+  fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }));
+
+  expect(screen.queryByRole('alertdialog')).toBeNull();
+  expect(screen.getByRole('img', { name: 'Filed' })).toBeDefined();
+  fireEvent.click(await screen.findByRole('button', { name: 'Actions' }));
+  expect(
+    await screen.findByRole('menuitem', { name: 'Unmark as filed…' }),
+  ).toBeDefined();
+});
+
+test('shows a filed roll number as read-only in Edit details', async () => {
+  renderPage(archiveWith([], { filed: true }));
+  await chooseAction('Edit details');
+
+  const note = screen.getByText('Filed: unmark it to change the number.');
+  const filedNumber = note.parentElement?.querySelector('.filed-roll-number');
+  expect(filedNumber?.textContent).toBe('2026-014');
+  expect(
+    filedNumber?.querySelector('[role="img"][aria-label="Filed"]'),
+  ).not.toBeNull();
+  expect(screen.queryByRole('textbox', { name: 'Roll number' })).toBeNull();
+});
+
+test('says when filing is refused because the roll changed elsewhere', async () => {
+  const service = archiveWith();
+  renderPage(service);
+  service.changeRoll(rollId);
+
+  await chooseAction('Mark as filed');
+
+  expect((await screen.findByRole('alert')).textContent).toContain(
+    'This roll changed since you opened it.',
+  );
 });

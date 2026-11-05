@@ -66,6 +66,7 @@ describe('CreateRoll', () => {
       value: {
         id: '00000000000000000000000001',
         roll: '2026-014',
+        filed: false,
         name: null,
         notes: null,
         shot: null,

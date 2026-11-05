@@ -866,6 +866,16 @@ button.danger {
   padding: var(--space-3) var(--space-4) var(--space-4);
 }
 
+.roll-card-number {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+}
+
+.roll-card-number .filed-mark {
+  margin-left: 0;
+}
+
 .roll-number {
   font-family: var(--font-numbers);
   font-size: 1.2rem;
@@ -1020,6 +1030,23 @@ button.danger {
 
 .roll-title .roll-number {
   font-size: 1.75rem;
+}
+
+.filed-mark,
+.filed-roll-number [role='img'] {
+  align-items: center;
+  color: var(--text-muted);
+  display: inline-flex;
+}
+
+.filed-mark {
+  margin-left: var(--space-2);
+}
+
+.filed-roll-number {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
 }
 
 .proposed-number {

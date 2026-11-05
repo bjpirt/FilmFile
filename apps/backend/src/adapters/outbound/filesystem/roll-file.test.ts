@@ -63,6 +63,7 @@ const aFrame = fc.record({
 const aRoll: fc.Arbitrary<Roll> = fc.record({
   id: ulid.filter(isRollId),
   roll: fc.stringMatching(/^\d{4}-\d{3}$/).filter(isRollNumber),
+  filed: fc.boolean(),
   name: fc.option(fc.string(), { nil: null }),
   notes: fc.option(fc.string(), { nil: null }),
   shot: fc.option(
@@ -301,6 +302,31 @@ describe('roll.json', () => {
         lens: null,
       },
     });
+  });
+
+  test('reads a roll without a filed field as unfiled', () => {
+    const read = parseRollFile(
+      JSON.stringify({
+        schema: 2,
+        id: '01M6EAAP694BKWR9HZ4N5Z54XD',
+        roll: '2026-014',
+        frames: [],
+      }),
+    );
+
+    expect(read).toMatchObject({
+      ok: true,
+      value: { filed: false },
+    });
+    if (!read.ok) {
+      throw new Error(read.error);
+    }
+
+    const unfiledContent = rollFileContent(read.value);
+    const filedContent = rollFileContent({ ...read.value, filed: true });
+
+    expect(JSON.parse(unfiledContent)).not.toHaveProperty('filed');
+    expect(JSON.parse(filedContent)).toMatchObject({ filed: true });
   });
 
   test.each([

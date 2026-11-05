@@ -110,6 +110,7 @@ export class CreateRoll {
     const rollWith = (number: RollNumber): Roll => ({
       id,
       roll: number,
+      filed: false,
       name: textOrNull(input.name),
       notes: textOrNull(input.notes),
       shot: shot.value,

@@ -1,6 +1,7 @@
 import type { Camera, FilmStock } from '@filmfile/contracts/equipment';
 import type { Event } from '@filmfile/contracts/events';
 import type { Roll } from '@filmfile/contracts/rolls';
+import { PadlockIcon } from '../padlock-icon.tsx';
 import { cameraName } from '../equipment/use-cameras.ts';
 import { filmStockName } from '../equipment/use-film-stocks.ts';
 import { eventName } from '../events/use-events.ts';
@@ -46,9 +47,21 @@ export function RollCard({
         )}
       </div>
       <div className="roll-card-body">
-        <Link to={`/rolls/${roll.id}`} className="roll-number">
-          {roll.roll}
-        </Link>
+        <div className="roll-card-number">
+          <Link to={`/rolls/${roll.id}`} className="roll-number">
+            {roll.roll}
+          </Link>
+          {roll.filed && (
+            <span
+              className="filed-mark"
+              role="img"
+              aria-label="Filed"
+              title="Filed"
+            >
+              <PadlockIcon size={18} />
+            </span>
+          )}
+        </div>
         <span className="muted">{frameCount(roll.frames.length)}</span>
       </div>
       {(roll.name !== null || about !== '') && (

@@ -145,6 +145,7 @@ const storedRoll = z.object({
     isRollNumber,
     'must be a roll number like 2026-014',
   ),
+  filed: z.boolean().default(false),
   // Added after the first rolls were written, which read as having none.
   name: z.string().nullable().default(null),
   notes: z.string().nullable().default(null),
@@ -199,10 +200,12 @@ export function parseRollFile(text: string): Result<Roll, string> {
     );
     return err(`it doesn't match the roll format (${issues.join('; ')})`);
   }
-  const { id, roll, name, notes, shot, event, meta, frames } = parsed.data;
+  const { id, roll, filed, name, notes, shot, event, meta, frames } =
+    parsed.data;
   return ok({
     id,
     roll,
+    filed,
     name,
     notes,
     shot,
@@ -289,6 +292,7 @@ export function rollFileContent(roll: Roll): string {
     schema: currentSchema,
     id: roll.id,
     roll: roll.roll,
+    ...(roll.filed ? { filed: true } : {}),
     name: roll.name,
     notes: roll.notes,
     shot: roll.shot,

@@ -1,6 +1,6 @@
 # FilmFile — Design
 
-*Status: design agreed, not yet built. Last updated 2 November 2026.*
+*Status: design agreed, not yet built. Last updated 5 November 2026.*
 
 A local-first tool for organising and cataloguing film photographs: physical negatives, the lab's low-res scans, my own hi-res camera scans, and the edits and exports made from them. It backs up and syncs through S3, and publishes selected images to a web gallery and other sites.
 
@@ -62,7 +62,7 @@ Archive
   - Until it's **filed**, a roll's number can be changed, by hand or by "Number rolls…", which puts each year's unfiled rolls in date-shot order after that year's filed ones; each change renames the roll's folder to match (D66, D68). The roll's ULID doesn't change, so links survive.
   - Marking a roll as filed, once its negatives are in the physical archive, fixes its number for good so its folder is never renamed again (D66, D68). `roll.json` stores `filed: true` only when set; without the field, the roll is unfiled. Roll API responses always include `filed` as a boolean, and `PATCH` can set or clear it (D71).
   - Attempts to change the number of an already-filed roll fail as a validation error (422); 409 remains for a stale version token (D71).
-  - The UI shows a padlock after the roll number and in each frame thumbnail's mark group on that roll's page; the thumbnail mark describes the roll (D72).
+  - The UI shows a padlock after the roll number on its card in the rolls view and in the roll page heading. Individual frame thumbnails and list rows have no padlock. In Edit details the filed number stays visible and has a padlock (D72).
 - **Frame:** identified by the **frame number printed on the film**, as free text of up to 9 characters: `"0"`, `"23"`, `"00"`, `"-1"`, `"12A"`, or `"14-15"` for a panoramic frame spanning two numbers. `null` for a scan that's not yet identified. Frames sort naturally: by leading number (negatives first), then as text. 120 film uses position on the roll. A frame holds metadata and zero or more versions; a frame with no versions is valid (e.g. a frame the lab skipped, catalogued from the negatives). `defaultVersion` optionally names the version to show; when unset, the first version is shown (D46). A frame can have its own date shot, in place of its roll's (D47).
 - **Version:** a file with a ULID, a content hash, its pixel dimensions and parents. Versions have no `kind`: a version is a version, and the frame's `defaultVersion` decides which one is shown. Low-res display images are generated previews in the cache, never versions. `defaultVersion` and `parents` refer to version IDs, never paths. Phase 2 adds raws, masters (editor exports), edits and exports; how the service tells them apart where behaviour differs (e.g. never writing metadata into raws) is an open question (section 15). **`parents` is a list**, since a master may come from several raws (brackets, stitched sections, trichrome).
 - **Event:** a named happening with optional dates, location and parent event. Rolls and frames belong to events (section 7).

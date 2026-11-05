@@ -13,6 +13,7 @@ import type { LensChoice } from '../equipment/lens-choice.ts';
 import { LensField } from '../equipment/lens-field.tsx';
 import { DateShotFields } from './date-shot-fields.tsx';
 import { shotFieldsOf, shotFrom, type ShotFields } from './shot-fields.ts';
+import { PadlockIcon } from '../padlock-icon.tsx';
 
 /** A roll's details as the panel saves them: all of them, blank ones as null. */
 export interface RollDetails {
@@ -109,21 +110,38 @@ export function EditDetailsPanel({
     >
       <label>
         <span>
-          Roll number{' '}
-          <span className="required" aria-hidden="true">
-            *
-          </span>
+          Roll number
+          {!roll.filed && (
+            <>
+              {' '}
+              <span className="required" aria-hidden="true">
+                *
+              </span>
+            </>
+          )}
         </span>
-        <input
-          className="numbers"
-          value={rollNumber}
-          placeholder="2026-014"
-          required
-          autoFocus
-          onChange={(event) => {
-            setRollNumber(event.target.value);
-          }}
-        />
+        {roll.filed ? (
+          <>
+            <span className="filed-roll-number">
+              <span className="numbers">{roll.roll}</span>
+              <span role="img" aria-label="Filed" title="Filed">
+                <PadlockIcon size={18} />
+              </span>
+            </span>
+            <span>Filed: unmark it to change the number.</span>
+          </>
+        ) : (
+          <input
+            className="numbers"
+            value={rollNumber}
+            placeholder="2026-014"
+            required
+            autoFocus
+            onChange={(event) => {
+              setRollNumber(event.target.value);
+            }}
+          />
+        )}
       </label>
       <label>
         Name

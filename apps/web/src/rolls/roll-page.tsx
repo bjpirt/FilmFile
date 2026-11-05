@@ -34,6 +34,7 @@ import { describeUpload } from './describe-upload.ts';
 import { uploadScans, type UploadReport } from './upload-scans.ts';
 import { AssignToFrames, type FramesChange } from './assign-to-frames.tsx';
 import { FrameMarks } from './frame-marks.tsx';
+import { PadlockIcon } from '../padlock-icon.tsx';
 import {
   noSelection,
   selectAll,
@@ -159,6 +160,9 @@ export function RollPage({
   );
   const [deleteFailed, setDeleteFailed] = useState(false);
   const [confirmingRollDelete, setConfirmingRollDelete] = useState(false);
+  const [confirmingUnfile, setConfirmingUnfile] = useState(false);
+  const [filedSaveFailed, setFiledSaveFailed] = useState(false);
+  const [filedSaving, setFiledSaving] = useState(false);
   const [editingDetails, setEditingDetails] = useState(false);
   const [savingNumbers, setSavingNumbers] = useState(false);
   const [numbersNotSaved, setNumbersNotSaved] = useState(false);
@@ -471,6 +475,36 @@ export function RollPage({
     return undefined;
   }
 
+  async function saveFiled(filed: boolean) {
+    if (roll.data === undefined || filedSaving) {
+      return;
+    }
+    setFiledSaveFailed(false);
+    setFiledSaving(true);
+    try {
+      const { response } = await api.PATCH('/api/rolls/{rollId}', {
+        params: {
+          path: { rollId },
+          header: { 'if-match': roll.data.etag },
+        },
+        body: { filed },
+      });
+      if (response.status === 409) {
+        setChangedElsewhere(true);
+        setConfirmingUnfile(false);
+        return;
+      }
+      if (!response.ok) {
+        setFiledSaveFailed(true);
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ['rolls'] });
+      setConfirmingUnfile(false);
+    } finally {
+      setFiledSaving(false);
+    }
+  }
+
   async function reload() {
     await queryClient.invalidateQueries({ queryKey: ['rolls', rollId] });
     setChangedElsewhere(false);
@@ -538,10 +572,49 @@ export function RollPage({
           <h1>
             <span className="visually-hidden">Roll </span>
             <span className="roll-number">{roll.data.roll.roll}</span>
+            {roll.data.roll.filed && (
+              <span
+                className="filed-mark"
+                role="img"
+                aria-label="Filed"
+                title="Filed"
+              >
+                <PadlockIcon size={18} />
+              </span>
+            )}
           </h1>
           <span className="muted">{frameCount(frames.length)}</span>
         </div>
-        {confirmingRollDelete ? (
+        {confirmingUnfile ? (
+          <div
+            role="alertdialog"
+            aria-label="Unmark as filed"
+            className="page-actions confirm-roll-delete"
+          >
+            <p>
+              Only unmark it if its negatives aren&apos;t filed under this
+              number.
+            </p>
+            <button
+              type="button"
+              className="primary"
+              disabled={filedSaving}
+              onClick={() => void saveFiled(false)}
+            >
+              Unmark as filed
+            </button>
+            <button
+              type="button"
+              disabled={filedSaving}
+              autoFocus
+              onClick={() => {
+                setConfirmingUnfile(false);
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : confirmingRollDelete ? (
           // In place of the buttons, so nothing below moves.
           <div
             role="alertdialog"
@@ -578,6 +651,19 @@ export function RollPage({
               <MenuButton
                 label="Actions"
                 items={[
+                  roll.data.roll.filed
+                    ? {
+                        label: 'Unmark as filed…',
+                        select: () => {
+                          setConfirmingUnfile(true);
+                        },
+                      }
+                    : {
+                        label: 'Mark as filed',
+                        select: () => {
+                          void saveFiled(true);
+                        },
+                      },
                   {
                     label: 'Edit details',
                     select: () => {
@@ -620,6 +706,12 @@ export function RollPage({
           )
         )}
       </div>
+
+      {filedSaveFailed && (
+        <p role="alert">
+          Couldn&apos;t change the filing status. Is the service running?
+        </p>
+      )}
 
       {editingDetails && (
         <EditDetailsPanel

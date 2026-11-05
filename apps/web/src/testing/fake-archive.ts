@@ -65,6 +65,7 @@ export function aRoll(roll: string, details: Partial<Roll> = {}): Roll {
   return {
     id: `01JC8Z7K3M000000000${roll.replace('-', '')}`,
     roll,
+    filed: false,
     name: null,
     notes: null,
     shot: null,
@@ -379,6 +380,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     const roll: Roll = {
       id: newId(),
       roll: number,
+      filed: false,
       name: body.value.name ?? null,
       notes: body.value.notes ?? null,
       shot: body.value.shot ?? null,

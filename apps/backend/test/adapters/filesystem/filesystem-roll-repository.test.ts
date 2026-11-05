@@ -285,6 +285,45 @@ describe('renaming a roll’s folder when its number changes', () => {
     ]);
   });
 
+  test('leaves a roll’s folder alone when it is marked as filed', async () => {
+    const rolls = repository();
+    const roll = aRoll();
+    await rolls.create(ctx, roll);
+    const read = await rolls.get(ctx, roll.id);
+
+    const saved = await rolls.saveRenumbered(
+      ctx,
+      { ...roll, filed: true },
+      read?.version ?? '',
+    );
+
+    expect(saved.ok).toBe(true);
+    expect(await names(path.join(archive.path(), 'rolls', '2026'))).toEqual([
+      path.basename(rollFolder(roll.roll)),
+    ]);
+  });
+
+  test('leaves a roll’s folder alone when it is unmarked as filed', async () => {
+    const rolls = repository();
+    const roll = aRoll();
+    await rolls.create(ctx, { ...roll, filed: true });
+    const filed = await rolls.get(ctx, roll.id);
+
+    const saved = await rolls.saveRenumbered(
+      ctx,
+      { ...roll, filed: false },
+      filed?.version ?? '',
+    );
+
+    expect(saved.ok).toBe(true);
+    expect(await findRollFolder(archive.path(), roll.id)).toBe(
+      rollFolder(roll.roll),
+    );
+    expect(await names(path.join(archive.path(), 'rolls', '2026'))).toEqual([
+      path.basename(rollFolder(roll.roll)),
+    ]);
+  });
+
   test('renames a folder named by number alone the first time its number changes', async () => {
     const rolls = repository();
     await rolls.create(ctx, aRoll());

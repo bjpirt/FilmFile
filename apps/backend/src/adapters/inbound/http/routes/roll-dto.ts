@@ -33,6 +33,7 @@ export function rollDto(roll: Roll): RollDto {
   return {
     id: roll.id,
     roll: roll.roll,
+    filed: roll.filed,
     name: roll.name,
     notes: roll.notes,
     shot: roll.shot,

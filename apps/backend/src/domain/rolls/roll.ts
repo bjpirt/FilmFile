@@ -51,6 +51,7 @@ export interface Frame {
 export interface Roll {
   readonly id: RollId;
   readonly roll: RollNumber;
+  readonly filed: boolean;
   /** A name for the roll, e.g. "Iceland, first day", or null. */
   readonly name: string | null;
   /** The roll's own notes, e.g. how it was developed; its frames don't inherit them (D40). */

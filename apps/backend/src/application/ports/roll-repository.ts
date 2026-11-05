@@ -5,6 +5,7 @@ import type {
   AlreadyExists,
   ConcurrencyConflict,
   NotFound,
+  ValidationFailed,
 } from '../../domain/shared/domain-error.ts';
 import type { RollId } from '../../domain/shared/ids.ts';
 import type { Result } from '../../domain/shared/result.ts';
@@ -69,7 +70,12 @@ export interface RollRepository {
     ctx: ArchiveContext,
     roll: Roll,
     expectedVersion: string,
-  ): Promise<Result<string, NotFound | ConcurrencyConflict | AlreadyExists>>;
+  ): Promise<
+    Result<
+      string,
+      NotFound | ConcurrencyConflict | AlreadyExists | ValidationFailed
+    >
+  >;
 
   /**
    * Reads the roll, applies `apply` and saves what it returns, with no other

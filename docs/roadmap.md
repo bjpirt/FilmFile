@@ -26,7 +26,6 @@ What a frame has is seen at a glance on its thumbnail, a roll's frames are group
 
 Rolls are imported before their year or order is certain: each gets a number straight away, dates are set, then "Number rolls…" puts a year's rolls in date order, and the negatives are filed in that order. Once a roll is marked as filed, its number never changes. Every roll's folder is named by its number and ID (`2026-014-Q2P7RM4K`), renamed as it's renumbered without clashing (D66–D68).
 
-- [ ] [FF-107 Mark a roll as filed](tasks/FF-107.md): "Mark as filed" fixes a roll's number for good.
 - [ ] [FF-108 Number rolls by date](tasks/FF-108.md): renumber the rolls not yet filed in date order, year by year, after the filed ones, with a preview.
 
 ### 3. Finding your way around the library
@@ -213,7 +212,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D69 | A frame's folder is `<frame number>-<ID>` (`unnumbered-<ID>` without one, the number cleaned to letters, digits and hyphens) and a version's `<kind>-<ID>`, renamed when the frame is renumbered or the kind changes, so the library reads in Finder. `roll.json` records each version's path, updated in the same save as a rename; recovering a rename cut short is for later (FF-156). Files keep their original names and are never changed. Renames cost a re-upload in backup, rare once raws are added. Replaces D17 and D58. | FF-155, FF-156 |
 | D70 | Roll numbers are unique, enforced by the roll repository under a lock: creating a roll, and changing a number, which only the repository's `saveRenumbered` does (`save` and `change` never change one), refuse another roll's number, so no two requests can both take one. A number that's taken is a 422 on `roll`, leaving 409 for "changed since it was read". A number's year needn't match the year shot, and renumbering never asks or warns, even for a roll with raws. Rolls can no longer swap numbers one save at a time; a batch operation does it (FF-108). | FF-106, FF-108 |
 | D71 | `roll.json` stores `filed: true` only for filed rolls; its absence means unfiled. Roll API responses always include a boolean `filed`, and `PATCH` can set or clear it. Changing the number of an already-filed roll is a 422 validation failure; 409 remains for a stale version token. | FF-107, FF-108 |
-| D72 | A filed roll has a padlock named "Filed" after its number in the roll heading and in each frame thumbnail's mark group on that roll's page; the thumbnail mark describes the roll. In Edit details the number remains visible as non-editable text with the padlock. Marking is immediate; unmarking requires an in-page confirmation with a warning. | FF-107 |
+| D72 | A filed roll has a padlock named "Filed" after its number on its card in the rolls view and in the roll heading; individual frame thumbnails and list rows have no padlock. In Edit details the number remains visible as non-editable text with the padlock. Marking is immediate; unmarking requires an in-page confirmation with a warning. | FF-107 |
 
 ---
 
@@ -404,6 +403,7 @@ Rolls are imported before their year or order is certain: each gets a number str
 - [x] [FF-151 Roll folders named by number and ID](tasks/FF-151.md)
 - [x] [FF-106 Change a roll's number](tasks/FF-106.md)
 - [x] [FF-152 New rolls numbered automatically](tasks/FF-152.md)
+- [x] [FF-107 Mark a roll as filed](tasks/FF-107.md)
 
 ### The FilmFile folder
 

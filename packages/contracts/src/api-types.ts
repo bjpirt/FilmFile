@@ -1931,6 +1931,7 @@ export interface components {
              * @example 2026-014
              */
             roll: string;
+            filed: boolean;
             /**
              * @description A name for the roll, or null.
              * @example Iceland, first day
@@ -2066,6 +2067,7 @@ export interface components {
              * @example 2026-014
              */
             roll?: string;
+            filed?: boolean;
             name?: string | null;
             notes?: string | null;
             /** @example 2026-09-14 */

@@ -49,6 +49,7 @@ export class UpdateRoll {
       readonly expectedVersion: string;
       /** The roll's number, `YYYY-NNN`; its year needn't be the year shot. */
       readonly roll?: string | undefined;
+      readonly filed?: boolean | undefined;
       readonly name?: string | null | undefined;
       readonly notes?: string | null | undefined;
       readonly shot?: string | null | undefined;
@@ -111,6 +112,7 @@ export class UpdateRoll {
     const roll = {
       ...current.roll,
       ...(number.value === undefined ? {} : { roll: number.value }),
+      ...(input.filed === undefined ? {} : { filed: input.filed }),
       ...(input.name === undefined ? {} : { name: textOrNull(input.name) }),
       ...(input.notes === undefined ? {} : { notes: textOrNull(input.notes) }),
       ...(shot.value === undefined ? {} : { shot: shot.value }),

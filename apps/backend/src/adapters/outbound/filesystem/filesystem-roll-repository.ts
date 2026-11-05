@@ -15,6 +15,7 @@ import type {
   AlreadyExists,
   ConcurrencyConflict,
   NotFound,
+  ValidationFailed,
 } from '../../../domain/shared/domain-error.ts';
 import type { RollId } from '../../../domain/shared/ids.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
@@ -187,7 +188,12 @@ export class FilesystemRollRepository implements RollRepository {
     _ctx: ArchiveContext,
     roll: Roll,
     expectedVersion: string,
-  ): Promise<Result<string, NotFound | ConcurrencyConflict | AlreadyExists>> {
+  ): Promise<
+    Result<
+      string,
+      NotFound | ConcurrencyConflict | AlreadyExists | ValidationFailed
+    >
+  > {
     return this.#lock.run(roll.id, async () => {
       const current = await this.#find(roll.id);
       if (current === undefined) {
@@ -198,6 +204,17 @@ export class FilesystemRollRepository implements RollRepository {
           kind: 'concurrency-conflict',
           entity: 'roll',
           id: roll.id,
+        });
+      }
+      if (current.roll.filed && current.roll.roll !== roll.roll) {
+        return err({
+          kind: 'validation-failed',
+          issues: [
+            {
+              path: ['roll'],
+              message: "A filed roll's number can't be changed.",
+            },
+          ],
         });
       }
       const content = rollFileContent(roll);

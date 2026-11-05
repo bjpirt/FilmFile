@@ -23,6 +23,7 @@ describe('POST /api/rolls', () => {
     expect(body).toEqual({
       id: idOf(body),
       roll: '2026-014',
+      filed: false,
       name: null,
       notes: null,
       shot: null,
@@ -405,6 +406,59 @@ describe('PATCH /api/rolls/{id}', () => {
     );
 
     expect(response.status).toBe(404);
+  });
+
+  test('marks and unmarks a roll as filed in the API', async () => {
+    const { url, etag } = await aRollWithDetails();
+
+    const filed = await patch(url, { filed: true }, etag);
+
+    expect(filed.status).toBe(200);
+    expect(await filed.json()).toMatchObject({ filed: true });
+
+    const unfiled = await patch(
+      url,
+      { filed: false },
+      filed.headers.get('ETag') ?? '',
+    );
+
+    expect(unfiled.status).toBe(200);
+    expect(await unfiled.json()).toMatchObject({ filed: false });
+  });
+
+  test('refuses to change a filed roll number with a 422', async () => {
+    const { url, etag } = await aRollWithDetails();
+    const filed = await patch(url, { filed: true }, etag);
+    const filedEtag = filed.headers.get('ETag') ?? '';
+
+    const response = await patch(url, { roll: '2026-015' }, filedEtag);
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({
+      issues: [
+        {
+          path: ['roll'],
+          message: "A filed roll's number can't be changed.",
+        },
+      ],
+    });
+    expect(await (await request(url)).json()).toMatchObject({
+      roll: '2026-014',
+      filed: true,
+    });
+    expect((await request(url)).headers.get('ETag')).toBe(filedEtag);
+  });
+
+  test('refuses to mark a roll filed with an outdated ETag', async () => {
+    const { url, etag } = await aRollWithDetails();
+    await patch(url, { name: 'Changed elsewhere' }, etag);
+
+    const response = await patch(url, { filed: true }, etag);
+
+    expect(response.status).toBe(409);
+    expect(await (await request(url)).json()).toMatchObject({
+      filed: false,
+    });
   });
 });
 

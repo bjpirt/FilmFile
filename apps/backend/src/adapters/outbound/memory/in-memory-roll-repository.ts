@@ -10,6 +10,7 @@ import type {
   AlreadyExists,
   ConcurrencyConflict,
   NotFound,
+  ValidationFailed,
 } from '../../../domain/shared/domain-error.ts';
 import type { RollId } from '../../../domain/shared/ids.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
@@ -89,13 +90,18 @@ export class InMemoryRollRepository implements RollRepository {
     _ctx: ArchiveContext,
     roll: Roll,
     expectedVersion: string,
-  ): Promise<Result<string, NotFound | ConcurrencyConflict | AlreadyExists>> {
+  ): Promise<
+    Result<
+      string,
+      NotFound | ConcurrencyConflict | AlreadyExists | ValidationFailed
+    >
+  > {
     // One at a time across rolls, so two can't both take a number.
     return this.#lock.run('numbers', () => {
       const current = this.#rolls.get(roll.id);
       let result: Result<
         string,
-        NotFound | ConcurrencyConflict | AlreadyExists
+        NotFound | ConcurrencyConflict | AlreadyExists | ValidationFailed
       >;
       if (current === undefined) {
         result = err({ kind: 'not-found', entity: 'roll', id: roll.id });
@@ -104,6 +110,16 @@ export class InMemoryRollRepository implements RollRepository {
           kind: 'concurrency-conflict',
           entity: 'roll',
           id: roll.id,
+        });
+      } else if (current.roll.filed && current.roll.roll !== roll.roll) {
+        result = err({
+          kind: 'validation-failed',
+          issues: [
+            {
+              path: ['roll'],
+              message: "A filed roll's number can't be changed.",
+            },
+          ],
         });
       } else if (
         [...this.#rolls.values()].some(

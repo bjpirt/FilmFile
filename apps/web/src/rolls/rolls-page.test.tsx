@@ -114,6 +114,24 @@ test('shows each roll as a card with its first three scans', async () => {
   expect(screen.getByText('5 frames')).toBeDefined();
 });
 
+test('shows a filed padlock after the number on the roll card, not in list view', async () => {
+  const filedRoll = { ...aRollWithScans('2026-014', 1), filed: true };
+  renderPage(fakeArchive({ rolls: [filedRoll] }));
+
+  const padlock = await screen.findByRole('img', { name: 'Filed' });
+  const card = padlock.closest('li');
+  const cardBody = card?.querySelector('.roll-card-body');
+  const numberGroup = cardBody?.querySelector('.roll-card-number');
+  expect(numberGroup?.firstElementChild?.textContent).toBe('2026-014');
+  expect(numberGroup?.lastElementChild?.getAttribute('aria-label')).toBe(
+    'Filed',
+  );
+  expect(cardBody?.lastElementChild?.textContent).toBe('1 frame');
+
+  showList();
+  expect(screen.queryByRole('img', { name: 'Filed' })).toBeNull();
+});
+
 describe('grouping, browsing and the address', () => {
   const someRolls = () =>
     fakeArchive({

@@ -55,6 +55,9 @@
             "description": "The year the roll was shot and a number, YYYY-NNN.",
             "example": "2026-014"
           },
+          "filed": {
+            "type": "boolean"
+          },
           "name": {
             "type": [
               "string",
@@ -127,6 +130,7 @@
         "required": [
           "id",
           "roll",
+          "filed",
           "name",
           "notes",
           "shot",
@@ -455,6 +459,9 @@
             "pattern": "^\\d{4}-\\d{3}$",
             "description": "The year the roll was shot and a number, YYYY-NNN.",
             "example": "2026-014"
+          },
+          "filed": {
+            "type": "boolean"
           },
           "name": {
             "type": [
