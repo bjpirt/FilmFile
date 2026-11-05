@@ -24,7 +24,7 @@ FilmFile runs on localhost without login, but **any website the user visits can 
 - Validate every input with Zod at the boundary, including path parameters, query strings and headers. Roll numbers, file names and lab patterns have strict formats.
 - **Never build filesystem paths from user input directly.** Resolve every path through one helper that rejects absolute paths, `..`, separators in names, and anything that resolves outside the archive or cache root.
 - **Uploads:** maximum file size, an allow-list of image types checked by file signature (magic bytes) rather than extension, and sharp's input pixel limit.
-- Responses expose DTOs only, never internal objects or absolute paths.
+- Responses expose DTOs only, never internal objects or absolute paths. The one exception is the read-only `folder` field of `GET /api/settings` (FF-150), the FilmFile folder's path, so Settings can show it (D64). No route accepts a folder path: it's set by `FILMFILE_FOLDER` or the desktop app's native chooser only.
 
 **Dependencies and CI (supply chain)**
 

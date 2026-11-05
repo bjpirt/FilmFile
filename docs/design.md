@@ -68,10 +68,11 @@ Archive
 
 ## 4. Archive layout
 
-Everything FilmFile keeps is in one **FilmFile folder**, chosen once per computer (D57). Only `Library/`, the archive, is the source of truth, backed up and synced; the rest is made from it and can be made again. Caches stay in the OS cache folder.
+Everything FilmFile keeps is in one **FilmFile folder**, chosen once per computer (D57): in the desktop app with the system's folder chooser, otherwise by the service's `FILMFILE_FOLDER` (D63). Only a valid folder opens, an empty one or one with a `Library/`, and a path is never set through the API (D64). Only `Library/`, the archive, and `settings.json` are the source of truth, backed up and synced; the rest is made from them and can be made again. Caches stay in the OS cache folder.
 
 ```
 FilmFile/
+  settings.json  author and copyright, and later what else is set for FilmFile as a whole (D65)
   Library/       the archive, below
   Exports/       JPEGs of the frames marked for export, kept in step (D60)
   Sites/         event sites, ready to upload (D61)
@@ -84,7 +85,6 @@ The archive (`Library/`):
 ```
 Library/
   README.txt                       # what the library's folders are (written by FilmFile)
-  archive.json                     # archive-wide settings
   equipment/
     cameras/nikon-fe.json
     lenses/nikkor-50-1.8-ais.json
@@ -123,7 +123,7 @@ Library/
 
 All files are JSON, carry `"schema": <n>`, and validate against Zod schemas owned by the filesystem adapter (which also generate JSON Schemas for reference). Readers migrate older schema versions in memory; files are rewritten in the current version the next time they're saved. A file that can't be read (not valid JSON, not matching its schema, or written by a newer version of FilmFile) is reported, not allowed to hide the rest: the roll list names the roll and the problem, and the file is never changed or deleted. These persistence schemas are separate from the domain model and the API contracts (section 13.3).
 
-- **archive.json:** `id`, `meta` (archive-wide defaults: author and copyright; a licence later, D42), and later workflow settings. Labs aren't stored (D35).
+- **settings.json:** in the FilmFile folder beside `Library/` (D65): `id`, `meta` (archive-wide defaults: author and copyright; a licence later, D42), and later export recipes, event site defaults and workflow settings. It never holds the folder's own path, nor values that differ on each computer (D52). Labs aren't stored (D35).
 - **roll.json:** roll fields, roll `meta`, and the `frames` array, each frame holding its own fields, `meta`, its `event` and `versions`. A full example is in `docs/plan-phase-0-1.md`.
 - **Equipment:** one file per item; the slug is the file name.
 - **Event:** `id`, `name`, optional `parent` (event slug), `dates`, `notes`, and `meta` defaults (e.g. `location`).
@@ -237,7 +237,7 @@ Every version is a kind (D48): a **Scan**, ready to view at whatever resolution 
 
 ## 10. Storage, sync and backup
 
-**S3 has three roles:** backup, sync between devices, and hosting the public gallery (in a separate bucket). Backup and sync cover the library (`Library/`) only (D57).
+**S3 has three roles:** backup, sync between devices, and hosting the public gallery (in a separate bucket). Backup and sync cover the library (`Library/`) and `settings.json` only (D57, D65).
 
 | Content | Storage class | Purpose |
 |---|---|---|
@@ -332,7 +332,7 @@ Outbound ports, defined in `application/ports/` and implemented by outbound adap
 
 | Port | Responsibility | Local adapter | Cloud adapter (later) |
 |---|---|---|---|
-| `ArchiveRepository` | Read and save `archive.json` (name and meta) | JSON file | S3 object |
+| `ArchiveRepository` | Read and save `settings.json` (id and meta; named `ArchiveRepository` until FF-150) | JSON file | S3 object |
 | `RollRepository` | Get, list, create, save and rename rolls. Every read returns a **version token**; `save(roll, expectedVersion)` fails with `ConcurrencyConflict` if it changed; `create` and `rename` fail if the roll number is taken | JSON files: lock, ETag check, temp file + rename | S3 `If-Match` / `If-None-Match` conditional writes |
 | `EquipmentRepository` | Cameras, lenses, films | JSON files | S3 objects |
 | `BlobStore` | Write-once storage of image files: `put` (streams, returns SHA-256 and size), `get`, `stat`. Never overwrites | A folder per version in the archive | S3 with Standard-IA / Deep Archive classes |
@@ -433,10 +433,10 @@ packages/
 
 - Listens on `127.0.0.1` by default. Network or cloud access requires authentication, to be designed with the cloud adapters.
 - Serves the built web UI at `/`, so the UI and API share one origin and the Origin check needs no exceptions. In development, Vite proxies `/api` to the service, and the service's allowed UI origin is set to the Vite dev server's through configuration.
-- Runs inside the desktop app (D54): Electron's main process starts it in a `utilityProcess` on a free port and stops it on quitting, and only one copy of the app runs, so there's one writer. It can still be started on its own (`pnpm start`) for development and a browser.
+- Runs inside the desktop app (D54): Electron's main process starts it in a `utilityProcess` on a free port and stops it on quitting, and only one copy of the app runs, so there's one writer. It can still be started on its own (`pnpm start`, with `FILMFILE_FOLDER` set) for development and a browser.
 - "Open in editor" launches the editor when the UI is on the same machine; otherwise the UI shows the path.
 - The UI only displays generated JPEG/WebP previews, since browsers can't show TIFF or raw.
-- The desktop app's window is locked down (context isolation, sandbox, no Node.js in the page, no preload), sends links elsewhere to the default browser, and refuses permission requests. The archive is chosen in the app's own dialogs and kept in its per-computer settings (D52).
+- The desktop app's window is locked down (context isolation, sandbox, no Node.js in the page, no preload), sends links elsewhere to the default browser, and refuses permission requests. The FilmFile folder is chosen in the app's own dialogs and kept in its per-computer settings (D52); Settings shows where it is through a read-only `folder` field of `GET /api/settings`, the one absolute path the API returns (D64).
 - There is **no CLI** for now. If one is added, it's an API client, not a second writer.
 
 ---
