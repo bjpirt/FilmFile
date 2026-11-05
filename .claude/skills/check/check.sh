@@ -3,7 +3,10 @@
 # browser journeys, printing a short summary: counts when all is well, and
 # only the failures otherwise.
 #
-# Usage: .claude/skills/check/check.sh [--e2e] [--e2e-only] [--times N]
+# Usage: .claude/skills/check/check.sh [--e2e] [--desktop] [--e2e-only] [--times N]
+#   --e2e      the browser journeys only (pnpm e2e:web)
+#   --desktop  every journey, the desktop app's among them, which launches
+#              Electron (pnpm e2e): for the last check of a task or branch
 set -uo pipefail
 cd "$(dirname "$0")/../../.."
 
@@ -16,10 +19,12 @@ fi
 
 run_verify=1
 run_e2e=0
+e2e_script=e2e:web
 times=1
 while [ $# -gt 0 ]; do
   case "$1" in
     --e2e) run_e2e=1 ;;
+    --desktop) run_e2e=1; e2e_script=e2e ;;
     --e2e-only) run_e2e=1; run_verify=0 ;;
     --times) times="$2"; shift ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
@@ -46,7 +51,7 @@ fi
 
 if [ "$run_e2e" = 1 ]; then
   for i in $(seq 1 "$times"); do
-    out=$(pnpm -s e2e 2>&1)
+    out=$(pnpm -s "$e2e_script" 2>&1)
     if [ $? = 0 ]; then
       echo "e2e run $i: ok — $(echo "$out" | grep -E '[0-9]+ passed' | tail -1 | xargs)"
     else

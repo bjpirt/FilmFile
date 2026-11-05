@@ -591,6 +591,21 @@ select {
   position: relative;
 }
 
+/* A frame's rating as filled stars at the picture's top left, straight on it, with a shadow to read over a bright scan (D62). */
+.frame-stars {
+  color: var(--accent);
+  font-size: 1rem;
+  left: var(--space-2);
+  letter-spacing: 0.05em;
+  line-height: 1;
+  pointer-events: none;
+  position: absolute;
+  text-shadow:
+    0 0 3px rgb(0 0 0 / 0.9),
+    0 1px 2px rgb(0 0 0 / 0.8);
+  top: var(--space-2);
+}
+
 /* Icons at the picture's bottom left, each the delete icon's size: details of its own or notes, and more than one version. */
 .frame-marks {
   bottom: var(--space-2);
@@ -607,6 +622,27 @@ select {
   color: var(--text-muted);
   display: flex;
   padding: var(--space-1);
+}
+
+/* The same marks, smaller, on the filmstrip's small tiles. */
+.filmstrip .frame-stars {
+  font-size: 0.6rem;
+  left: 0.3rem;
+  top: 0.3rem;
+}
+
+.filmstrip .frame-marks {
+  bottom: 0.3rem;
+  left: 0.3rem;
+}
+
+.filmstrip .frame-mark {
+  padding: 0.15rem;
+}
+
+.filmstrip .frame-mark svg {
+  height: 0.7rem;
+  width: 0.7rem;
 }
 
 /* Selecting frames: a checkbox at each frame's top left, and the frames chosen outlined. */

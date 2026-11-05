@@ -16,7 +16,6 @@ Each task is about one commit: small enough to review in one sitting, with its t
 
 What a frame has is seen at a glance on its thumbnail, a roll's frames are grouped by event, the version shown is chosen with a star, and frames can be marked to scan. The group's finished tasks are under Done.
 
-- [ ] [FF-148 Stars on thumbnails](tasks/FF-148.md): a frame's rating as filled stars on every thumbnail, with U69 and U70's icons on the event page and filmstrip too.
 - [ ] [FF-149 Rate from a thumbnail](tasks/FF-149.md): point at a thumbnail's stars and click one to rate the frame.
 - [ ] [FF-101 One event per frame](tasks/FF-101.md): a frame's own event is one event, not a list (D50).
 - [ ] [FF-102 A roll's frames grouped by event](tasks/FF-102.md): a roll whose frames are in more than one event shows them under a heading for each.
@@ -384,6 +383,12 @@ More than one version of a frame: a low-res scan to preview every frame, a hi-re
 - [x] [U20 Raw scans as versions](tasks/U20.md)
 - [x] [U69 Own details or notes as an icon](tasks/U69.md)
 - [x] [U70 Many versions as an icon](tasks/U70.md)
+
+### Multi-version frames, finished off
+
+What a frame has is seen at a glance on its thumbnail, a roll's frames are grouped by event, the version shown is chosen with a star, and frames can be marked to scan.
+
+- [x] [FF-148 Stars on thumbnails](tasks/FF-148.md)
 
 ### Desktop app
 

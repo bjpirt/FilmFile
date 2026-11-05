@@ -33,9 +33,7 @@ import {
 import { describeUpload } from './describe-upload.ts';
 import { uploadScans, type UploadReport } from './upload-scans.ts';
 import { AssignToFrames, type FramesChange } from './assign-to-frames.tsx';
-import { ownDetails } from './own-details.ts';
-import { TextIcon } from '../text-icon.tsx';
-import { VersionsIcon } from '../versions-icon.tsx';
+import { FrameMarks } from './frame-marks.tsx';
 import {
   noSelection,
   selectAll,
@@ -137,44 +135,6 @@ function RollAbout({
       )}
       {roll.notes !== null && <p className="roll-notes">{roll.notes}</p>}
     </div>
-  );
-}
-
-/**
- * Small icons at a frame's bottom left, each named in full for screen
- * readers and on hover: details of its own or notes (U69), and more than one
- * version (U70).
- */
-function FrameMarks({
-  frame,
-  roll,
-}: {
-  readonly frame: Frame;
-  readonly roll: Roll;
-}) {
-  const own = ownDetails(frame, roll);
-  const versions =
-    frame.versions.length > 1
-      ? `${String(frame.versions.length)} versions`
-      : undefined;
-  if (own === undefined && versions === undefined) {
-    return null;
-  }
-  return (
-    <span className="frame-marks">
-      {own !== undefined && (
-        <span className="frame-mark" title={own}>
-          <TextIcon size={16} />
-          <span className="visually-hidden">{own}</span>
-        </span>
-      )}
-      {versions !== undefined && (
-        <span className="frame-mark" title={versions}>
-          <VersionsIcon size={16} />
-          <span className="visually-hidden">{versions}</span>
-        </span>
-      )}
-    </span>
   );
 }
 
@@ -934,7 +894,11 @@ export function RollPage({
                         <BinIcon size={16} />
                       </button>
                     )}
-                  <FrameMarks frame={frame} roll={roll.data.roll} />
+                  <FrameMarks
+                    frame={frame}
+                    roll={roll.data.roll}
+                    stars={selection === undefined}
+                  />
                 </div>
                 {renumbering === undefined ? (
                   <FrameNumberEditor

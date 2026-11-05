@@ -75,6 +75,63 @@ function filmstrip(): string[] {
     );
 }
 
+describe('the filmstrip’s marks', () => {
+  test('shows a frame’s rating and marks on its thumbnail, and says the rating in its link’s name', async () => {
+    const rated = aFrame('1', '12340001.jpg');
+    const [scan] = rated.versions;
+    const marked = aRoll('2026-014', {
+      frames: [
+        {
+          ...rated,
+          rating: 4,
+          notes: 'Lens cap half on',
+          versions: scan === undefined ? [] : [scan, { ...scan, id: 'v2' }],
+        },
+        aFrame('2', '12340002.jpg'),
+      ],
+    });
+    openAt(
+      `/rolls/${marked.id}/frames/${marked.frames[0]?.id ?? ''}`,
+      fakeArchive({ rolls: [marked] }),
+    );
+    await screen.findByRole('heading', { name: 'Frame 1' });
+
+    const strip = within(screen.getByRole('list', { name: 'Filmstrip' }));
+    const [first, second] = strip.getAllByRole('listitem');
+    expect(
+      strip.getByRole('link', { name: 'Frame 1, rated 4 of 5' }),
+    ).toBeDefined();
+    expect(first?.querySelector('.frame-stars')?.textContent).toContain('★★★★');
+    expect(first?.querySelector('[title="Has notes"]')).not.toBeNull();
+    expect(first?.querySelector('[title="2 versions"]')).not.toBeNull();
+    // The link says it all, so the marks are left out for screen readers.
+    expect(
+      first?.querySelector('.frame-marks')?.closest('[aria-hidden]'),
+    ).not.toBeNull();
+    expect(strip.getByRole('link', { name: 'Frame 2' })).toBeDefined();
+    expect(second?.querySelector('.frame-stars')).toBeNull();
+  });
+
+  test('updates a frame’s stars in the filmstrip as it is rated', async () => {
+    openAt(`/rolls/${roll.id}/frames/${frameId('1')}`);
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Show details' }),
+    );
+    const details = await screen.findByRole('complementary', {
+      name: 'About this frame',
+    });
+
+    fireEvent.click(within(details).getByRole('button', { name: '3 stars' }));
+
+    expect(
+      await within(screen.getByRole('list', { name: 'Filmstrip' })).findByRole(
+        'link',
+        { name: 'Frame 1, rated 3 of 5' },
+      ),
+    ).toBeDefined();
+  });
+});
+
 describe('opened from a roll', () => {
   test('opens from the roll page by clicking a frame', async () => {
     openAt(`/rolls/${roll.id}`);

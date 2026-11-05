@@ -85,13 +85,13 @@ test('catalogue a roll: create it with its details and scans, correct a number, 
   await expect(page.getByText('Ice on black sand')).toBeVisible();
   await page.getByRole('textbox', { name: 'Notes' }).blur();
   await page.keyboard.press('4');
-  await expect(page.getByLabel('Rated 4 of 5')).toBeVisible();
+  await expect(page.getByLabel('Rated 4 of 5', { exact: true })).toBeVisible();
   await page.reload();
   await expect(
     page.getByRole('heading', { level: 1, name: 'Frame 5' }),
   ).toBeVisible();
   await expect(page.getByText('Ice on black sand')).toBeVisible();
-  await expect(page.getByLabel('Rated 4 of 5')).toBeVisible();
+  await expect(page.getByLabel('Rated 4 of 5', { exact: true })).toBeVisible();
 
   // Delete it from the frame view, which moves on to the frame before.
   await page.getByRole('button', { name: 'Delete frame' }).click();

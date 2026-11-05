@@ -1290,6 +1290,44 @@ test('marks a frame with more than one version, saying how many', async () => {
   expect(within(first ?? document.body).queryByText(/versions$/)).toBeNull();
 });
 
+test('shows a frame’s rating as stars on its thumbnail, and none for a frame not rated', async () => {
+  renderPage(
+    archiveWith([
+      { ...aFrameWithScan('1', '12340001.jpg'), rating: 4 },
+      aFrameWithScan('2', '12340002.jpg'),
+    ]),
+  );
+
+  const [rated, unrated] = await screen.findAllByRole('listitem');
+  const stars = within(rated ?? document.body).getByText('Rated 4 of 5');
+  expect(stars.closest('.frame-stars')?.textContent).toContain('★★★★');
+  expect(within(unrated ?? document.body).queryByText(/^Rated/)).toBeNull();
+});
+
+test('hides the stars while selecting frames, and shows them again when done', async () => {
+  renderPage(
+    archiveWith([{ ...aFrameWithScan('1', '12340001.jpg'), rating: 4 }]),
+  );
+  await screen.findByText('Rated 4 of 5');
+
+  await chooseAction('Bulk edit');
+  expect(screen.queryByText('Rated 4 of 5')).toBeNull();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+  expect(await screen.findByText('Rated 4 of 5')).toBeDefined();
+});
+
+test('shows the stars while renumbering', async () => {
+  renderPage(
+    archiveWith([{ ...aFrameWithScan('1', '12340001.jpg'), rating: 2 }]),
+  );
+  await screen.findByText('Rated 2 of 5');
+
+  await chooseAction('Renumber…');
+
+  expect(screen.getByText('Rated 2 of 5')).toBeDefined();
+});
+
 test('shows a placeholder for a frame with no scan', async () => {
   renderPage(
     archiveWith([

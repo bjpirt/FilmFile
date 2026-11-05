@@ -3,6 +3,7 @@ import type { Frame, Roll } from '@filmfile/contracts/rolls';
 import { useEffect, useRef, useState } from 'react';
 import { BinIcon } from '../bin-icon.tsx';
 import { MenuButton } from '../menu-button.tsx';
+import { FrameMarks, ratingText } from '../rolls/frame-marks.tsx';
 import { Thumbnail } from '../rolls/thumbnail.tsx';
 import { Link, navigate } from '../routing.tsx';
 import {
@@ -625,14 +626,25 @@ export function FrameView({
             key={`${item.roll.id}-${item.frame.id}`}
             ref={i === current ? currentInStrip : undefined}
           >
-            <Link
-              to={addressOf(item)}
-              replace
-              aria-label={labelOf(item)}
-              {...(i === current ? { 'aria-current': 'true' } : {})}
-            >
-              <Thumbnail rollId={item.roll.id} frame={item.frame} decorative />
-            </Link>
+            <div className="frame-picture">
+              <Link
+                to={addressOf(item)}
+                replace
+                aria-label={
+                  item.frame.rating === null
+                    ? labelOf(item)
+                    : `${labelOf(item)}, ${ratingText(item.frame.rating).toLowerCase()}`
+                }
+                {...(i === current ? { 'aria-current': 'true' } : {})}
+              >
+                <Thumbnail
+                  rollId={item.roll.id}
+                  frame={item.frame}
+                  decorative
+                />
+              </Link>
+              <FrameMarks frame={item.frame} roll={item.roll} readers={false} />
+            </div>
           </li>
         ))}
       </ol>

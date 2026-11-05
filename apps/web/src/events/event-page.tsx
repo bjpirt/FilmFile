@@ -1,5 +1,6 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import { formatShot } from '../rolls/format-shot.ts';
+import { FrameMarks } from '../rolls/frame-marks.tsx';
 import { Thumbnail } from '../rolls/thumbnail.tsx';
 import { Link, navigate, useSearch } from '../routing.tsx';
 import { groupingOf, groupings, useEventFrames } from './event-frames.ts';
@@ -104,12 +105,15 @@ export function EventPage({
                   key={`${roll.id}-${frame.id}`}
                   aria-label={`Frame ${frame.number ?? 'with no number'} of roll ${roll.roll}`}
                 >
-                  <Link
-                    to={`/events/${slug}/frames/${frame.id}${grouping}`}
-                    aria-label={`Open frame ${frame.number ?? 'with no number'} of roll ${roll.roll}`}
-                  >
-                    <Thumbnail rollId={roll.id} frame={frame} />
-                  </Link>
+                  <div className="frame-picture">
+                    <Link
+                      to={`/events/${slug}/frames/${frame.id}${grouping}`}
+                      aria-label={`Open frame ${frame.number ?? 'with no number'} of roll ${roll.roll}`}
+                    >
+                      <Thumbnail rollId={roll.id} frame={frame} />
+                    </Link>
+                    <FrameMarks frame={frame} roll={roll} />
+                  </div>
                   <span className="frame-caption">
                     <span className="frame-number">{frame.number ?? '—'}</span>
                     <span className="muted numbers">{roll.roll}</span>

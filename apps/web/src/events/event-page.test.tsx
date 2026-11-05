@@ -83,6 +83,39 @@ test('shows the event, then the frames of all its rolls, in shot order', async (
   ).toEqual(['56780036.jpg', '12340001.jpg', '12340002.jpg']);
 });
 
+test('shows each frame’s rating and marks on its thumbnail, as the roll page does', async () => {
+  const [first, second] = [
+    aFrame('1', '12340001.jpg'),
+    aFrame('2', '12340002.jpg'),
+  ];
+  const [scan] = second.versions;
+  renderPage(
+    fakeArchive({
+      events: [iceland],
+      rolls: [
+        aRoll('2026-014', {
+          event: 'iceland-2026',
+          shot: '2026-09-14',
+          frames: [
+            { ...first, rating: 5, notes: 'Lens cap half on' },
+            {
+              ...second,
+              versions: scan === undefined ? [] : [scan, { ...scan, id: 'v2' }],
+            },
+          ],
+        }),
+      ],
+    }),
+  );
+
+  const [one, two] = await screen.findAllByRole('listitem');
+  expect(within(one ?? document.body).getByText('Rated 5 of 5')).toBeDefined();
+  expect(within(one ?? document.body).getByText('Has notes')).toBeDefined();
+  expect(within(one ?? document.body).queryByText('2 versions')).toBeNull();
+  expect(within(two ?? document.body).getByText('2 versions')).toBeDefined();
+  expect(within(two ?? document.body).queryByText(/^Rated/)).toBeNull();
+});
+
 test('groups the frames by roll, each group leading to its roll, kept in the address', async () => {
   renderPage(anArchive());
   await screen.findByText('3 frames');
