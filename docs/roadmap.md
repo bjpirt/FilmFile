@@ -26,7 +26,7 @@ What a frame has is seen at a glance on its thumbnail, a roll's frames are group
 
 Rolls are imported before their year or order is certain: each gets a number straight away, dates are set, then "Number rolls…" puts a year's rolls in date order, and the negatives are filed in that order. Once a roll is marked as filed, its number never changes. Every roll's folder is named by its number and ID (`2026-014-Q2P7RM4K`), renamed as it's renumbered without clashing (D66–D68).
 
-- [ ] [FF-152 New rolls numbered automatically](tasks/FF-152.md): a new roll gets the next free number, from its year shot or this year's, changeable.
+- [ ] [FF-152 New rolls numbered automatically](tasks/FF-152.md): New roll opens with the next free number filled in, and a roll created with none is given one.
 - [ ] [FF-107 Mark a roll as filed](tasks/FF-107.md): "Mark as filed" fixes a roll's number for good.
 - [ ] [FF-108 Number rolls by date](tasks/FF-108.md): renumber the rolls not yet filed in date order, year by year, after the filed ones, with a preview.
 
