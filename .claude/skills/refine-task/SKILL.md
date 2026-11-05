@@ -65,6 +65,11 @@ Before the first question, tell the user how many decisions you found and
 roughly how many rounds of questions that is. If the user says to take the
 recommendations for the rest, do so and say which you took.
 
+When every decision is answered, ask the user whether there's anything else
+they'd like to change or add to the task before you update it. Ask about
+any new decisions their answer raises, as above, and ask again until they
+say there's nothing more.
+
 ## 4. Update the task
 
 Rewrite `docs/tasks/<ID>.md` with the answers, in the `write-task` shape:

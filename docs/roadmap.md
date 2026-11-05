@@ -16,7 +16,8 @@ Each task is about one commit: small enough to review in one sitting, with its t
 
 What a frame has is seen at a glance on its thumbnail, a roll's frames are grouped by event, the version shown is chosen with a star, and frames can be marked to scan. The group's finished tasks are under Done.
 
-- [ ] [FF-100 Stars on thumbnails](tasks/FF-100.md): a frame's rating as small stars wherever its thumbnail is.
+- [ ] [FF-148 Stars on thumbnails](tasks/FF-148.md): a frame's rating as filled stars on every thumbnail, with U69 and U70's icons on the event page and filmstrip too.
+- [ ] [FF-149 Rate from a thumbnail](tasks/FF-149.md): point at a thumbnail's stars and click one to rate the frame.
 - [ ] [FF-101 One event per frame](tasks/FF-101.md): a frame's own event is one event, not a list (D50).
 - [ ] [FF-102 A roll's frames grouped by event](tasks/FF-102.md): a roll whose frames are in more than one event shows them under a heading for each.
 - [ ] [FF-103 Choose the version shown](tasks/FF-103.md): a star on each version in the frame view chooses the one shown everywhere.
@@ -191,7 +192,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D46 | A frame shows its first version, its lab scan, unless one is chosen to show: a later camera raw or edit doesn't take its place by being added. Choosing which version is shown waits (FF-103). Replaces D15's newest. | U60, U61, U34, U28b |
 | D47 | A frame can have its own date and time shot, in place of its roll's, like its camera, lens and events: a roll can be shot over several days. It's resolved and shown with the other details. | U59 |
 | D48 | A version is a kind: Scan (ready to view, at any resolution), Raw scan (the negative or slide as scanned, before processing) or Final (processed), chosen as it's added and changeable later. Resolution isn't a kind: it's measured from the image and shown. Replaces D34's `source` and settles D16's open question. | U64, U20, FF-141, FF-112, FF-134, FF-135 |
-| D49 | A thumbnail has one icon for whatever a frame has of its own, details or notes, rather than one for each, to keep small thumbnails uncluttered; its name says which. | U69, FF-100 |
+| D49 | A thumbnail has one icon for whatever a frame has of its own, details or notes, rather than one for each, to keep small thumbnails uncluttered; its name says which. | U69, FF-148 |
 | D50 | A frame is in at most one event of its own, as a roll is, replacing D25's several: the browser only ever gave one, and a day inside a trip is a sub-event (FF-130), whose frames are in its parent too. Each frame then sits under one heading when a roll is grouped by event. | FF-101, FF-102, FF-130 |
 | D51 | A roll is opened in NegPy through a folder of symbolic links outside the archive, one subfolder per roll, imported once in NegPy as a parent of rolls and refreshed there. NegPy has no command line or other way in; it reads through links, writes exports and `.negpy` files beside the link (keeping the path it was given), and refuses to export over a source it reaches through a link. Outside the archive, because NegPy writes beside its files and can move them to the Trash; originals are made read-only as a guard. Links over clones because the archive may be on another drive. Settles FF-112's zip-or-folder question. | FF-112, U73, FF-109, FF-113 |
 | D52 | Settings that belong to a computer, not the archive, such as the FilmFile folder (D57), are kept in a settings file in the OS config directory: a path on one computer means nothing on another, and the archive is synced. | U73 |
@@ -206,6 +207,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D59 | A roll's number can be locked once its sleeve is labelled, and is then never changed. Before that, a year's unlocked rolls can be renumbered to follow their shot dates, after the year's locked rolls, with a preview first. | FF-106, FF-107, FF-108 |
 | D60 | Exports are made files, kept in step by the service in `Exports/`: one JPEG per frame marked for export, from the version shown, carrying the frame's details as EXIF and XMP written by sharp. They're never originals, so remaking or removing one is safe; raws are never written to. | FF-116, FF-117, FF-118, FF-144 |
 | D61 | An event's site is static HTML, CSS and web-sized images made into `Sites/`, showing the event's frames rated at least a chosen number of stars, with frames added or left off by hand. No GPS, no originals, and no metadata but author and copyright. Publishing uploads it to an S3 bucket with an AWS profile from `~/.aws`; FilmFile keeps no keys. | FF-119, FF-120, FF-121 |
+| D62 | A thumbnail shows a frame's rating as filled stars at its top left, straight on the picture, and nothing for a frame with no rating. Pointing at it shows all five, the rest outlined, and pointing at a star previews that rating in a dimmer amber; a click rates the frame rather than opening it, and clicking the current rating clears it, as in the frame view (D39). Rating on thumbnails is by mouse only: on touch and from the keyboard, frames are rated in the frame view. The stars give way to the checkbox while bulk editing. Every thumbnail (roll page, event page, filmstrip) shows the same marks. | FF-148, FF-149 |
 
 ---
 
@@ -395,6 +397,7 @@ FilmFile as a Mac app, opened from the Dock rather than by starting a service an
 
 Tasks from the first plan that turned out differently:
 
+- [-] [FF-100 Stars on thumbnails](tasks/FF-100.md): *split into FF-148 (showing) and FF-149 (rating by clicking).*
 - U73 The NegPy folder: *replaced by FF-105, whose `Editors/NegPy/` it is (D57).*
 - U21 Add a raw to a frame: *replaced by U64 and U20, adding a raw scan to one frame with its "+"; dropping raws onto frames on the roll page and marking frames that have them are for later if wanted.*
 - U49 Invariants *(was 1.1.7)*: *the checks saving doesn't already make are in FF-125 CheckIntegrity; ratings are checked when roll.json is read (D39).*
