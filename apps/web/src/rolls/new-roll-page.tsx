@@ -1,6 +1,6 @@
 import type { ApiClient } from '@filmfile/contracts/client';
-import { useQueryClient } from '@tanstack/react-query';
-import { useState, type SubmitEvent } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState, type SubmitEvent } from 'react';
 import type { CameraChoice } from '../equipment/camera-choice.ts';
 import { CameraField } from '../equipment/camera-field.tsx';
 import { chooseCamera } from '../equipment/choose-camera.ts';
@@ -22,6 +22,7 @@ import { Link, navigate } from '../routing.tsx';
 import { DateShotFields } from './date-shot-fields.tsx';
 import { describeUpload } from './describe-upload.ts';
 import { droppedFiles } from './dropped-files.ts';
+import { nextRollNumber } from './next-roll-number.ts';
 import { shotFrom, type ShotFields } from './shot-fields.ts';
 import { uploadScans, type UploadReport } from './upload-scans.ts';
 
@@ -50,7 +51,22 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
   const films = useFilmStocks(api);
   const lenses = useLenses(api);
   const events = useEvents(api);
+  // The rolls there are, to number this one after (D67).
+  const rolls = useQuery({
+    queryKey: ['rolls'],
+    queryFn: async () => {
+      const { data } = await api.GET('/api/rolls');
+      if (data === undefined) {
+        throw new Error("Couldn't load the rolls.");
+      }
+      return data;
+    },
+  });
   const [rollNumber, setRollNumber] = useState('');
+  // The number starts as the next free one, and follows the year, until it's
+  // typed over. A ref, set as it's typed, so a suggestion arriving at that
+  // moment can't take its place.
+  const numberTyped = useRef(false);
   const [name, setName] = useState('');
   const [notes, setNotes] = useState('');
   const [camera, setCamera] = useState<CameraChoice>(nothingPicked);
@@ -69,7 +85,36 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
   const [progress, setProgress] = useState<Progress>({ kind: 'editing' });
   const [problem, setProblem] = useState<string | undefined>(undefined);
 
+  // The next free number of this year, or of the year once it's changed by
+  // hand to a whole year (a half-typed one changes nothing), until the number
+  // is typed over. While the year hasn't been changed it follows the number (D27).
+  useEffect(() => {
+    if (numberTyped.current || rolls.data === undefined) {
+      return;
+    }
+    const year = yearChanged
+      ? /^\d{4}$/.test(shot.year)
+        ? shot.year
+        : undefined
+      : String(new Date().getFullYear());
+    if (year === undefined) {
+      return;
+    }
+    const next = nextRollNumber(year, [
+      ...rolls.data.rolls.map((r) => r.roll),
+      ...rolls.data.unreadable.map((u) => u.folder),
+    ]);
+    if (next === undefined) {
+      return;
+    }
+    setRollNumber(next);
+    if (!yearChanged && shot.year !== year) {
+      setShot((now) => ({ ...now, year }));
+    }
+  }, [rolls.data, yearChanged, shot.year]);
+
   function changeRollNumber(value: string) {
+    numberTyped.current = true;
     setRollNumber(value);
     const year = /^\d{4}/.exec(value)?.[0];
     if (!yearChanged && year !== undefined) {

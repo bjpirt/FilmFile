@@ -35,6 +35,68 @@ describe('POST /api/rolls', () => {
     expect(idOf(body)).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
   });
 
+  describe('with no roll number', () => {
+    test('gives the next free number of the year shot, and says which', async () => {
+      await createRoll('2025-031');
+
+      const response = await post('/api/rolls', { shot: '2025-06' });
+
+      expect(response.status).toBe(201);
+      expect(await response.json()).toMatchObject({
+        roll: '2025-032',
+        shot: '2025-06',
+      });
+    });
+
+    test('gives this year’s next, by the service’s clock, when there is no date', async () => {
+      const response = await post('/api/rolls', {});
+
+      expect(response.status).toBe(201);
+      expect(await response.json()).toMatchObject({
+        roll: `${String(new Date().getFullYear())}-001`,
+      });
+    });
+
+    test('counts a number an unreadable roll’s folder is named for', async () => {
+      const broken = path.join(archive.path(), 'rolls/2025/2025-020-ABCD1234');
+      await mkdir(broken, { recursive: true });
+      await writeFile(path.join(broken, 'roll.json'), '{ not json');
+
+      const response = await post('/api/rolls', { shot: '2025' });
+
+      expect(await response.json()).toMatchObject({ roll: '2025-021' });
+    });
+
+    test('gives rolls created at once different numbers', async () => {
+      const responses = await Promise.all(
+        Array.from({ length: 5 }, () => post('/api/rolls', { shot: '2024' })),
+      );
+
+      const numbers = await Promise.all(
+        responses.map(async (r) => {
+          const body: unknown = await r.json();
+          return typeof body === 'object' && body !== null && 'roll' in body
+            ? body.roll
+            : undefined;
+        }),
+      );
+      expect(responses.map((r) => r.status)).toEqual([201, 201, 201, 201, 201]);
+      expect(numbers.sort()).toEqual([
+        '2024-001',
+        '2024-002',
+        '2024-003',
+        '2024-004',
+        '2024-005',
+      ]);
+    });
+
+    test('still keeps a number that is sent', async () => {
+      const response = await post('/api/rolls', { roll: '2026-123' });
+
+      expect(await response.json()).toMatchObject({ roll: '2026-123' });
+    });
+  });
+
   test('saves the roll as roll.json in a folder named for its number and ID, in its year folder', async () => {
     const response = await createRoll('2026-014');
     const created: unknown = await response.json();

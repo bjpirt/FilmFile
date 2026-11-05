@@ -9,7 +9,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
   aRoll,
   fakeArchive,
@@ -23,7 +23,16 @@ beforeEach(() => {
   window.history.replaceState(null, '', '/rolls/new');
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
+
+/** Today as the page sees it, with timers left alone. */
+function today(date: string) {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(date));
+}
 
 function renderPage(archive: FakeArchive) {
   render(
@@ -539,14 +548,123 @@ test('marks the roll number and year as required', () => {
   expect(field('Name').required).toBe(false);
 });
 
-test('asks for a roll number', () => {
+test('asks for a roll number when it is emptied', async () => {
   const service = fakeArchive();
   renderPage(service);
+  await waitFor(() => {
+    expect(field('Roll number').value).not.toBe('');
+  });
 
+  fill('Roll number', '');
   create();
 
   expect(screen.getByText('Enter a roll number like 2026-014.')).toBeDefined();
   expect(service.created).toEqual([]);
+});
+
+describe('the roll number', () => {
+  beforeEach(() => {
+    today('2026-07-01T12:00:00Z');
+  });
+
+  test('opens as this year’s next free number, with the year to match', async () => {
+    renderPage(
+      fakeArchive({
+        rolls: [aRoll('2026-014'), aRoll('2026-003'), aRoll('2025-031')],
+      }),
+    );
+
+    await waitFor(() => {
+      expect(field('Roll number').value).toBe('2026-015');
+    });
+    expect(field('Year').value).toBe('2026');
+  });
+
+  test('starts a year with no rolls at 001', async () => {
+    renderPage(fakeArchive({ rolls: [aRoll('2025-031')] }));
+
+    await waitFor(() => {
+      expect(field('Roll number').value).toBe('2026-001');
+    });
+  });
+
+  test('counts a number an unreadable roll’s folder is named for', async () => {
+    renderPage(
+      fakeArchive({
+        rolls: [aRoll('2026-014')],
+        unreadable: [{ folder: '2026-020-ABCD1234', problem: 'not JSON' }],
+      }),
+    );
+
+    await waitFor(() => {
+      expect(field('Roll number').value).toBe('2026-021');
+    });
+  });
+
+  test('creates the roll with the number it opened with', async () => {
+    const service = fakeArchive({ rolls: [aRoll('2026-014')] });
+    renderPage(service);
+    await waitFor(() => {
+      expect(field('Roll number').value).toBe('2026-015');
+    });
+
+    create();
+
+    await waitToOpen(rollId);
+    expect(service.created).toEqual([{ roll: '2026-015', shot: '2026' }]);
+  });
+
+  test('follows the year when it is changed by hand, as long as the number is not typed over', async () => {
+    renderPage(fakeArchive({ rolls: [aRoll('2026-014'), aRoll('2025-031')] }));
+    await waitFor(() => {
+      expect(field('Roll number').value).toBe('2026-015');
+    });
+
+    fill('Year', '2025');
+    await waitFor(() => {
+      expect(field('Roll number').value).toBe('2025-032');
+    });
+
+    // Half a year changes nothing.
+    fill('Year', '202');
+    expect(field('Roll number').value).toBe('2025-032');
+  });
+
+  test('keeps a number typed by hand, whatever the year becomes', async () => {
+    renderPage(fakeArchive({ rolls: [aRoll('2025-031')] }));
+    await waitFor(() => {
+      expect(field('Roll number').value).toBe('2026-001');
+    });
+
+    fill('Roll number', '2026-099');
+    fill('Year', '2025');
+
+    expect(field('Roll number').value).toBe('2026-099');
+  });
+
+  test('doesn’t replace a number typed before the suggestion arrives', async () => {
+    const service = fakeArchive({ rolls: [aRoll('2026-014')] });
+    renderPage(service);
+
+    fill('Roll number', '2026-500');
+    await waitFor(() => {
+      expect(service.requests).toContain('GET /api/rolls');
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(field('Roll number').value).toBe('2026-500');
+  });
+
+  test('keeps the year following a typed number until the year is changed', async () => {
+    renderPage(fakeArchive());
+    await waitFor(() => {
+      expect(field('Roll number').value).toBe('2026-001');
+    });
+
+    fill('Roll number', '2024-007');
+
+    expect(field('Year').value).toBe('2024');
+  });
 });
 
 test('says when the roll number is taken, and stays on the page', async () => {

@@ -405,7 +405,7 @@
           "roll": {
             "type": "string",
             "pattern": "^\\d{4}-\\d{3}$",
-            "description": "The year the roll was shot and a number, YYYY-NNN.",
+            "description": "The roll's number. Left out, the roll gets the next free number of the year it was shot, or this year's (D67).",
             "example": "2026-014"
           },
           "name": {
@@ -445,10 +445,7 @@
             "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
             "example": "nikon-fe"
           }
-        },
-        "required": [
-          "roll"
-        ]
+        }
       },
       "UpdateRollRequest": {
         "type": "object",

@@ -43,7 +43,13 @@ function setUp() {
     createCamera: new CreateCamera(equipment),
     createFilmStock: new CreateFilmStock(equipment),
     createLens: new CreateLens(equipment),
-    createRoll: new CreateRoll(rolls, equipment, events, ids),
+    createRoll: new CreateRoll(
+      rolls,
+      equipment,
+      events,
+      ids,
+      new FixedClock('2026-11-02T12:00:00.000Z'),
+    ),
     createEvent: new CreateEvent(events),
     listRolls: new ListRolls(rolls),
     getRoll: new GetRoll(rolls),
@@ -206,6 +212,85 @@ describe('CreateRoll', () => {
     ).toMatchObject({
       ok: false,
       error: { kind: 'validation-failed', issues: [{ path: ['shot'] }] },
+    });
+  });
+
+  describe('with no roll number', () => {
+    test('gives the next free number of the year shot', async () => {
+      const { ctx, createRoll } = setUp();
+      await createRoll.execute(ctx, { roll: '2025-031' });
+      await createRoll.execute(ctx, { roll: '2025-032' });
+
+      expect(await createRoll.execute(ctx, { shot: '2025-06' })).toMatchObject({
+        ok: true,
+        value: { roll: '2025-033', shot: '2025-06' },
+      });
+    });
+
+    test('gives this year’s, by the clock, when there is no date', async () => {
+      const { ctx, createRoll } = setUp();
+      await createRoll.execute(ctx, { roll: '2026-014' });
+
+      expect(await createRoll.execute(ctx, {})).toMatchObject({
+        ok: true,
+        value: { roll: '2026-015' },
+      });
+    });
+
+    test('starts a year at 001', async () => {
+      const { ctx, createRoll } = setUp();
+
+      expect(await createRoll.execute(ctx, { shot: '2019' })).toMatchObject({
+        ok: true,
+        value: { roll: '2019-001' },
+      });
+    });
+
+    test('gives different numbers to rolls created at once', async () => {
+      const { ctx, createRoll, listRolls } = setUp();
+
+      const created = await Promise.all(
+        Array.from({ length: 6 }, () =>
+          createRoll.execute(ctx, { shot: '2026' }),
+        ),
+      );
+
+      expect(created.every((r) => r.ok)).toBe(true);
+      const listed = await listRolls.execute(ctx);
+      expect(listed.rolls.map((r) => r.roll)).toEqual([
+        '2026-001',
+        '2026-002',
+        '2026-003',
+        '2026-004',
+        '2026-005',
+        '2026-006',
+      ]);
+    });
+
+    test('has none to give once a year has 999, as a problem with the number', async () => {
+      const { ctx, createRoll } = setUp();
+      await createRoll.execute(ctx, { roll: '2026-999' });
+
+      expect(await createRoll.execute(ctx, { shot: '2026' })).toEqual({
+        ok: false,
+        error: {
+          kind: 'validation-failed',
+          issues: [
+            { path: ['roll'], message: 'no roll numbers are left for 2026' },
+          ],
+        },
+      });
+    });
+
+    test('still refuses a date shot that is not a real date', async () => {
+      const { ctx, createRoll } = setUp();
+
+      expect(
+        await createRoll.execute(ctx, { shot: '2026-02-30' }),
+      ).toMatchObject({
+        ok: false,
+        error: { kind: 'validation-failed', issues: [{ path: ['shot'] }] },
+      });
     });
   });
 

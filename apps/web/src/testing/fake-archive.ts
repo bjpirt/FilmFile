@@ -1,3 +1,4 @@
+import { nextRollNumber } from '../rolls/next-roll-number.ts';
 import {
   createSettingsRequest,
   updateSettingsRequest,
@@ -352,15 +353,32 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       return body.response;
     }
     created.push(body.value);
-    if (rolls.some((roll) => roll.roll === body.value.roll)) {
+    // A roll sent with no number gets the next free one, as the service gives.
+    const number =
+      body.value.roll ??
+      nextRollNumber(
+        /^\d{4}/.exec(body.value.shot ?? '')?.[0] ??
+          String(new Date().getFullYear()),
+        rolls.map((r) => r.roll),
+      );
+    if (number === undefined) {
       return Response.json(
-        { error: `roll ${body.value.roll} already exists` },
+        {
+          error: 'invalid request',
+          issues: [{ path: ['roll'], message: 'no roll numbers are left' }],
+        },
+        { status: 422 },
+      );
+    }
+    if (rolls.some((roll) => roll.roll === number)) {
+      return Response.json(
+        { error: `roll ${number} already exists` },
         { status: 409 },
       );
     }
     const roll: Roll = {
       id: newId(),
-      roll: body.value.roll,
+      roll: number,
       name: body.value.name ?? null,
       notes: body.value.notes ?? null,
       shot: body.value.shot ?? null,

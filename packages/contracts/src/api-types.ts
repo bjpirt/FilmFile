@@ -2042,10 +2042,10 @@ export interface components {
         };
         CreateRollRequest: {
             /**
-             * @description The year the roll was shot and a number, YYYY-NNN.
+             * @description The roll's number. Left out, the roll gets the next free number of the year it was shot, or this year's (D67).
              * @example 2026-014
              */
-            roll: string;
+            roll?: string;
             name?: string;
             notes?: string;
             /** @example 2026-09-14 */

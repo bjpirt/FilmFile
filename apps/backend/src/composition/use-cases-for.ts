@@ -77,7 +77,7 @@ export function useCasesFor({
     getSettings: new GetSettings(settings),
     initialiseSettings: new InitialiseSettings(settings, ids),
     updateSettings: new UpdateSettings(settings),
-    createRoll: new CreateRoll(rolls, equipment, events, ids),
+    createRoll: new CreateRoll(rolls, equipment, events, ids, clock),
     getRoll: new GetRoll(rolls),
     listRolls: new ListRolls(rolls),
     updateRoll: new UpdateRoll(rolls, equipment, events),
