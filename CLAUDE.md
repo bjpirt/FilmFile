@@ -5,11 +5,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **FilmFile** is a local-first tool for cataloguing film photographs: rolls, frames and multiple versions of each image, organised by roll and by nested events, with metadata as JSON on the filesystem, S3 backup and sync, and workflows that run when things change.
 
 - **Design:** `docs/design.md`; section 13 defines the architecture. Read it before design decisions, and raise any conflict rather than silently diverging. When a design decision is made or changed, update it and remove it from the open questions.
-- **Roadmap:** `docs/roadmap.md`, the work still to do grouped by feature in order, then what's for later, the decisions, and what's done. Work through it in order and keep it true (the `write-task` skill). `docs/plan-phase-0-1.md` was the first plan, with formats, fields and routes in detail.
+- **Roadmap:** `docs/roadmap.md`, an index of the work still to do grouped by feature in order, then what's for later, the decisions, and what's done; each task's detail and acceptance criteria are in `docs/tasks/<ID>.md`. Work through it in order, build to the acceptance criteria, and keep both true (the `write-task` skill). `docs/plan-phase-0-1.md` was the first plan, with formats, fields and routes in detail.
 
 ## Skills
 
-Use the project skills in `.claude/skills/` instead of doing these by hand: `check` (format, verify and journeys, with a short summary), `screenshot`, `add-roll-detail` (the checklist for a new roll detail), `write-task`, `security-rules` (before touching HTTP, uploads, paths, dependencies or CI) and `testing-conventions` (before writing tests or adding a port).
+Use the project skills in `.claude/skills/` instead of doing these by hand: `check` (format, verify and journeys, with a short summary), `screenshot`, `add-roll-detail` (the checklist for a new roll detail), `write-task`, `refine-task` (questions about every decision in a task, before it's built), `security-rules` (before touching HTTP, uploads, paths, dependencies or CI) and `testing-conventions` (before writing tests or adding a port).
 
 ## How we work: make it work, then make it pretty
 

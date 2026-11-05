@@ -1,41 +1,85 @@
 ---
 name: write-task
-description: How to add, split, reorder, tick off and rewrite tasks and decisions in FilmFile's roadmap (docs/roadmap.md). Use whenever the user asks to plan, split, move or change a task, or when a task is finished.
+description: How to add, split, reorder, tick off and rewrite tasks and decisions in FilmFile's roadmap (docs/roadmap.md, an index) and their task files (docs/tasks/<ID>.md). Use whenever the user asks to plan, split, move or change a task, or when a task is finished.
 ---
 
 # Write a task
 
-The roadmap is `docs/roadmap.md`: **To do**, as numbered feature groups in
-the order they'll be done; then the key journeys, **Later** (tasks set
-aside, or not yet given a place), the **Decisions** table, and **Done** (what's been built, by
-stage, with what was replaced or dropped). "Next up" at the top names the
-current group. Tasks are delivered one at a time, driven from what the user
-sees, and "make it work, then make it pretty" (CLAUDE.md).
+The roadmap, `docs/roadmap.md`, is an index: **To do**, as numbered feature
+groups in the order they'll be done; then the key journeys, **Later** (tasks
+set aside, or not yet given a place), the **Decisions** table, and **Done**
+(what's been built, by stage, with what was replaced or dropped). "Next up"
+at the top names the current group. Each task is one line there, linking to
+its own file in `docs/tasks/`, which holds the detail. Tasks are delivered
+one at a time, driven from what the user sees, and "make it work, then make
+it pretty" (CLAUDE.md).
 
-## A task
+## In the roadmap
 
 ```
-- [ ] **U12c An event's frames.** One paragraph: what the user can do and
-  see, where (page, control, address), what's kept and how, edge cases, and
-  which journey it adds or extends. Decisions by number (D33).
+- [ ] [FF-104 Mark frames to scan](tasks/FF-104.md): mark frames to be scanned at higher resolution.
 ```
 
-- **ID**: every task to do is a `U` number. A new task takes the next free
-  one (find the highest with `grep -o 'U[0-9]*' docs/roadmap.md | sort -V |
-  tail -1`). A task keeps its ID once given, since decisions cite it; one
-  first planned under an older code says so once, `*(Was 1.1.6.)*`. Split a
-  task by suffixing letters (`U9a`, `U9b`). Never reuse an ID for something
-  else. Done keeps the codes tasks were built under (S1.2, H.5, N3), as
-  commit messages name them.
+The ID and title, linked, then a short summary of what it gives the user.
+Done tasks drop the summary: `- [x] [FF-104 Mark frames to scan](tasks/FF-104.md)`.
+
+## A task file
+
+`docs/tasks/<ID>.md`, in this shape:
+
+```markdown
+# FF-104 Mark frames to scan
+
+**Status:** to do · **Group:** 1. Multi-version frames, finished off · **Was:** U22a
+
+## Why
+
+What it lets me do, and why that matters, in a sentence or two.
+
+## What
+
+What it is, where it lives in the UI, in a short paragraph. *(Split from FF-131.)*
+
+## Acceptance criteria
+
+- [ ] One thing a person can see or do, in the UI's own words ("Mark to
+      scan" in the frame view's bar marks the frame; it then reads …).
+- [ ] Edge cases and failures: a 409, nothing to show, the limits.
+
+## Not in this task
+
+- What someone might expect that's left out, and the task it's in (FF-131).
+
+## Notes
+
+- Data (roll.json fields), API routes, decisions by number (D50), what it
+  needs first, and the tests or journey it adds.
+```
+
+- **Status**: `to do` (in a group), `later`, `done` or `dropped`; **Was:**
+  names an older code the task was first planned under, if it had one. Later
+  tasks have only Why (optional) and What, and "Written when the task is
+  planned into a group." under Acceptance criteria. Done tasks have "What
+  was built" (see Finishing a task).
+- **Acceptance criteria** are written when a task goes into a group, before
+  it's built, and the user reviews them then. Each is something a person can
+  see or do, or something the API or files on disk do, checkable by a test.
+  They map onto the tests: each one has a test that proves it.
+- **ID**: a new task takes the next free FF-number, three digits from 100
+  (`FF-148`), whatever part of FilmFile it's in. A task keeps its ID once
+  given, since decisions and commits cite it; done tasks keep the codes they
+  were built under (`U82`, `N3`, `1.3.2`). Split a task into new FF-numbers,
+  each with its own file, saying in each "*(Split from FF-104.)*", and
+  move the one split to Replaced or dropped. Never reuse an ID. The file
+  name is the ID (`FF-104.md`).
 - **Groups**: a task sits in the feature group it'll be done in. Reordering
-  work means moving groups or tasks; update "Next up" to match.
-- **Later**: a task set aside, or not yet given a place, sits, ID unchanged, in Later; when picked
-  up it moves into the feature group it'll be done in.
-- **Done**: a finished task moves, ticked, from To do into Done, under the
-  feature group's own heading there (add one if it's the group's first).
+  work means moving groups or index lines; update "Next up" and each moved
+  task file's Group line to match.
+- **Later**: a task set aside moves, ID unchanged, to Later; when picked up
+  it moves into a group and gets its acceptance criteria.
 - **Commit-sized**: one review's worth. Split when it spans backend and UI
-  for a new kind of record and also adds browsing (record it first, find by
-  it second), or when a choice would block half of it.
+  for a new kind of record and also adds browsing, or when a choice would
+  block half of it.
 - **User value first**: describe behaviour in the UI's words (labels,
   buttons, headings), not internals. Don't add fields the UI doesn't use yet.
 - **Don't build ahead**: a later task says when an abstraction arrives.
@@ -49,27 +93,31 @@ sees, and "make it work, then make it pretty" (CLAUDE.md).
 
 ## Decisions
 
-Add a row to the table for any choice a later reader would question:
-`| D34 | What was decided and why, in a sentence or two. | U12c |`. Number
-them in order; a superseded decision is struck through and points to its
-replacement. Design changes also go in `docs/design.md` (and out of its open
-questions).
+Add a row to the roadmap's table for any choice a later reader would
+question: `| D62 | What was decided and why, in a sentence or two. | FF-104 |`.
+Number them in order; a superseded decision is struck through and points to
+its replacement. Design changes also go in `docs/design.md` (and out of its
+open questions).
 
 ## Keeping the roadmap consistent
 
-When a task is added, split, moved or renamed, search the file for its ID
-(`grep -n "U12c" docs/roadmap.md`) and update every reference: the
-decisions' "Affects" column, the "Key journeys" table, and notes in other
-tasks that point at it. Also update
-`docs/plan-phase-0-1.md` where it lists fields or routes.
+When a task is added, split, moved or renamed, search for its ID
+(`grep -rn "FF-104" docs`) and update every reference: the index line, task
+files that mention it, the decisions' "Affects" column, the "Key journeys"
+table, and `docs/design.md`. Also update `docs/plan-phase-0-1.md` where it
+lists fields or routes.
 
 ## Finishing a task
 
-- Tick it (`- [x]`), rewrite its text to say what was actually built
-  (routes, file names, what's shown), and move it into Done, so the
-  roadmap stays true. When its group is finished, point "Next up" at the
-  next group.
+- Tick each acceptance criterion in its file as its test passes. One that
+  turned out differently is reworded to what was built, with a note why.
+- Set **Status:** to `done` with **Built in:** the group's name, and add
+  "## What was built": the routes, file names and what's shown, as built.
+- Tick its index line (`- [x]`), drop its summary, and move it into Done,
+  under the group's heading there (add one, with the group's intro, if it's
+  the group's first). When its group is finished, remove the group from To
+  do, renumber the rest, and point "Next up" at the next.
 - Record any decision made along the way.
-- Run `pnpm prettier --check docs` (or the check skill).
-- Commit only when the user asks; plan changes and code can go in separate
-  commits if the user wants them apart.
+- Run the check skill (Prettier covers the roadmap's index; Markdown
+  tables aren't reformatted).
+- Commit only when the user asks.

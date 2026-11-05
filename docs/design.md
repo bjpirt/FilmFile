@@ -33,7 +33,7 @@ The phased roadmap is in section 14, and the detailed plan for the first phases 
 1. **The filesystem is the source of truth.** JSON files plus image files are the archive. Every database is a cache that can be rebuilt by scanning the tree.
 2. **The API service is the only writer.** Every write goes through a use case and a repository port: it's validated, saved only if the record hasn't changed since it was read (version token), atomic, and serialised with a stable key order so unchanged data produces byte-identical files.
 3. **Originals are never modified or permanently deleted.** Lab scans, raws and editor exports are only ever added. An edit creates a new version, never an overwrite. Deleting a frame or roll moves its files into the archive's `deleted/` holding area; only I empty it.
-4. **Never write metadata into raws.** NegPy identifies files by content hash, so changing EXIF changes the hash. Catalogue metadata is stamped into exports only.
+4. **Never write metadata into raws.** NegPy identifies files by content hash, so changing EXIF changes the hash. Catalogue metadata is stamped into exports only (the JPEGs made in `Exports/`, D60).
 5. **Frame identity lives in `roll.json`, not in paths.** Each frame has a folder, and each version a folder inside it, named by the end of their ULIDs; files keep their original names. Renumbering frames changes metadata only; files never move.
 6. **Stable IDs.** Archives, rolls, frames, versions and events have ULIDs, so renaming a roll or event doesn't break links, sync or published URLs.
 7. **Catalogue and operational state are separate.** `roll.json` holds the catalogue; `.state.json` holds workflow state, which changes far more often.
@@ -59,6 +59,7 @@ Archive
   - The API never invents a roll number: creating a roll requires one. The UI suggests the next free number for the year but never fills it in for you.
   - Lists sort by roll number by default, or by shot date when chosen. Roll-level shot dates are optional and kept for reference; within a roll, frame-number order is shot order.
   - A roll number can be changed only by an explicit rename, which checks the new number is free and moves the roll's folder. The roll's ULID doesn't change, so links survive. Files inside the folder never move relative to it.
+  - Once a roll's sleeve is labelled, its number is **locked** and never changes again. Before that, a year's unlocked rolls can be renumbered to follow their shot dates, after the year's locked rolls (D59).
 - **Frame:** identified by the **frame number printed on the film**, as free text of up to 9 characters: `"0"`, `"23"`, `"00"`, `"-1"`, `"12A"`, or `"14-15"` for a panoramic frame spanning two numbers. `null` for a scan that's not yet identified. Frames sort naturally: by leading number (negatives first), then as text. 120 film uses position on the roll. A frame holds metadata and zero or more versions; a frame with no versions is valid (e.g. a frame the lab skipped, catalogued from the negatives). `defaultVersion` optionally names the version to show; when unset, the first version is shown (D46). A frame can have its own date shot, in place of its roll's (D47).
 - **Version:** a file with a ULID, a content hash, its pixel dimensions and parents. Versions have no `kind`: a version is a version, and the frame's `defaultVersion` decides which one is shown. Low-res display images are generated previews in the cache, never versions. `defaultVersion` and `parents` refer to version IDs, never paths. Phase 2 adds raws, masters (editor exports), edits and exports; how the service tells them apart where behaviour differs (e.g. never writing metadata into raws) is an open question (section 15). **`parents` is a list**, since a master may come from several raws (brackets, stitched sections, trichrome).
 - **Event:** a named happening with optional dates, location and parent event. Rolls and frames belong to events (section 7).
@@ -67,8 +68,22 @@ Archive
 
 ## 4. Archive layout
 
+Everything FilmFile keeps is in one **FilmFile folder**, chosen once per computer (D57). Only `Library/`, the archive, is the source of truth, backed up and synced; the rest is made from it and can be made again. Caches stay in the OS cache folder.
+
 ```
-archive/
+FilmFile/
+  Library/       the archive, below
+  Exports/       JPEGs of the frames marked for export, kept in step (D60)
+  Sites/         event sites, ready to upload (D61)
+  Editors/       folders of links for editors: NegPy/, later darktable/ (D51)
+  Browse/        links to every roll's files, named by frame number (D58)
+```
+
+The archive (`Library/`):
+
+```
+Library/
+  README.txt                       # what the library's folders are (written by FilmFile)
   archive.json                     # archive-wide settings
   equipment/
     cameras/nikon-fe.json
@@ -86,6 +101,7 @@ archive/
       _folder.json                 # optional defaults for a group of rolls (later phase)
       2026-014/
         roll.json                  # roll, frames and versions
+        contents.txt               # frames by number, with their folders and files (written by FilmFile)
         .state.json                # tool-owned workflow state
         frames/
           Q2P7RM4K/                # one folder per frame: the end of its ULID
@@ -99,7 +115,7 @@ archive/
 - Folders are named by ID, not frame number, so renumbering never moves files.
 - NegPy doesn't need the raws in one folder: it can build a virtual roll from frames anywhere, and keys its edits by file content, so files can move.
 - Every file is listed in `roll.json` with its SHA-256 and size, so corruption, outside edits and stray files are detectable.
-- If browsing by frame number or by kind in Finder is ever wanted, the tool can generate a read-only folder of symlinks.
+- Folder names stay IDs, so renumbering never moves an original, never makes backup upload raws again, and never breaks links (D58). Finding your way around is made easy instead: each roll's `contents.txt` lists its frames by number with their folders and files, and `Browse/` holds links named by frame number (`Browse/2026/2026-014 Westfjords/12A - DSC04412.ARW`), both kept in step by the service.
 
 ---
 
@@ -189,7 +205,7 @@ Lab scans are low-res JPEGs of every frame named `BBBBNNNN.jpg` (batch, scan ind
 
 Every version is a kind (D48): a **Scan**, ready to view at whatever resolution (the lab's low-res scans, or a positive of my own); a **Raw scan**, the negative or slide as scanned, not yet processed; or a **Final**, processed and edited. The kind is chosen as a version is added and can be changed; resolution isn't a kind, since it's measured from the image. Raw scans are Sony ARW raws or TIFFs, never written to; an ARW's thumbnail comes from the preview JPEG it carries. Versions are first added to one chosen frame at a time; exporting raw scans for NegPy or Darktable, adding many frames' raw scans or finals at once, and the scan-list workflow below come later.
 
-1. Frames are marked **to scan** while browsing lab scans (U22a); the mark goes when a raw scan is added.
+1. Frames are marked **to scan** while browsing lab scans (FF-104); the mark goes when a raw scan is added.
 2. The tool produces an ordered **scan list** (e.g. `2026-014: 3, 7, 12A, 23`).
 3. Raws are shot in that order and imported as versions of their frames, matched to frames by capture time against the list, using the same anchors-and-exceptions approach.
 4. Including the film border is encouraged, so the frame number is visible.
@@ -209,19 +225,19 @@ Every version is a kind (D48): a **Scan**, ready to view at whatever resolution 
 
 - Open source (GPL-3), Python + PyQt6. It never modifies source files and keeps edits in its own SQLite database keyed by a fingerprint of the file's content (its size and sampled bytes), so a copy or link of a raw keeps its edit.
 - **No way in from outside:** no command line, URL scheme or other channel to open files. Its Library holds folder rolls and virtual rolls; "Import Subfolders as Rolls…" remembers a parent folder, and Refresh adds its new subfolders as rolls.
-- **The NegPy folder (D51, D52):** a folder outside the archive, set per computer, with a subfolder per roll (`2026-014 Nikon FE Portra 400 2026-03-14/`, named for NegPy's "Infer from Folder Name", with a hidden `.filmfile.json` naming the roll's ID) holding symbolic links to its raw scans, named `<roll>_Frame<frame>_<original name>`. NegPy reads through the links, writes exports and sidecars beside the link's path, and refuses to export over a source reached through a link. Originals are read-only, in case another program would write through a link.
+- **The NegPy folder (D51, D57):** `Editors/NegPy/` in the FilmFile folder, outside the archive, with a subfolder per roll (`2026-014 Nikon FE Portra 400 2026-03-14/`, named for NegPy's "Infer from Folder Name", with a hidden `.filmfile.json` naming the roll's ID) holding symbolic links to its raw scans, named `<roll>_Frame<frame>_<original name>`. NegPy reads through the links, writes exports and sidecars beside the link's path, and refuses to export over a source reached through a link. Originals are read-only, in case another program would write through a link.
 - **Exports back (D53):** NegPy writes each export to a `.part` file and renames it, by default into `export/` beside the source, named `{{ original_name }}`. The service watches the NegPy folder and brings each export in as a Final of the frame its name starts with (`2026-014_Frame012A_`), with the raw scan it came from as its parent. NegPy's `{{ roll }}` and `{{ frame }}` read a `<roll>_Frame<n>` name too, but only the digits of a frame number.
 - It writes per-frame **`.negpy` sidecars** (`<source name>.negpy`, beside the source) on export ("Save on Export") or via "Export Sidecars", and reads them when opening a roll only for frames with no database entry ("Load Edit from Sidecar…" forces it).
 - **Recipes are stored twice:** the current sidecar next to the raw, and a hash-named snapshot in the export's version folder, so every export is reproducible.
 - **Do not import NegPy code.** Reading its file formats is fine.
 
-**darktable (later, U79–U81):** the same editor folder and names. darktable can be started on a roll's folder when it isn't already running, keeps edits in `<file>.<ext>.xmp` sidecars beside each image (captured as recipes), reads an XMP already there on import (so the service can write catalogue details into it first), and exports to `darktable_exported/` beside the source.
+**darktable (later, FF-145–FF-147):** the same editor folder and names. darktable can be started on a roll's folder when it isn't already running, keeps edits in `<file>.<ext>.xmp` sidecars beside each image (captured as recipes), reads an XMP already there on import (so the service can write catalogue details into it first), and exports to `darktable_exported/` beside the source.
 
 ---
 
 ## 10. Storage, sync and backup
 
-**S3 has three roles:** backup, sync between devices, and hosting the public gallery (in a separate bucket).
+**S3 has three roles:** backup, sync between devices, and hosting the public gallery (in a separate bucket). Backup and sync cover the library (`Library/`) only (D57).
 
 | Content | Storage class | Purpose |
 |---|---|---|
@@ -256,6 +272,7 @@ To decide later: the definition format for triggers, filters and steps.
 
 ## 12. Web gallery
 
+- **Event sites first (D61):** an event's frames rated at least a chosen number of stars, with frames added or left off by hand, made into a static site in `Sites/<event>/` (HTML, CSS and web-sized images; no GPS, no originals, metadata only author and copyright), then uploaded to an S3 bucket with an AWS profile from `~/.aws`.
 - A publishing workflow renders a static site from selected frames or albums into a **separate public bucket** behind CloudFront.
 - Per-album options: unlisted or public, strip GPS, watermark, show or hide camera and film details.
 - Unpublishing is an explicit action that removes those exports.
