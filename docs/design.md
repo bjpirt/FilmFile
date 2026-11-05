@@ -55,11 +55,11 @@ Archive
                └─ Attachments   editor recipe sidecars (e.g. .negpy)
 ```
 
-- **Roll:** identified by my roll number in the form `YYYY-NNN`, e.g. `2026-014`. `YYYY` is the year the roll was shot; `NNN` is the next free number in that year when the roll is catalogued, so a roll catalogued late gets a later number than rolls shot after it. Rolls aren't numbered when the film is loaded. The roll's folder is `rolls/YYYY/YYYY-NNN/`. The lab batch is in the scans' file names; labs aren't recorded (D35).
-  - The API never invents a roll number: creating a roll requires one. The UI suggests the next free number for the year but never fills it in for you.
+- **Roll:** identified by my roll number in the form `YYYY-NNN`, e.g. `2026-014`. `YYYY` is the year the roll was shot; `NNN` is the next free number in that year when the roll is catalogued, so a roll catalogued late gets a later number than rolls shot after it. Rolls aren't numbered when the film is loaded. Its folder is `rolls/YYYY/YYYY-NNN-<ID>/`, its number and ID, renamed as the number changes until it's filed (D66). Rolls are found by their `roll.json`, never by the folder's name. The lab batch is in the scans' file names; labs aren't recorded (D35).
+  - A new roll is numbered automatically with the next free number, from its date shot's year or this year's, and can be changed until it's filed (D67).
   - Lists sort by roll number by default, or by shot date when chosen. Roll-level shot dates are optional and kept for reference; within a roll, frame-number order is shot order.
-  - A roll number can be changed only by an explicit rename, which checks the new number is free and moves the roll's folder. The roll's ULID doesn't change, so links survive. Files inside the folder never move relative to it.
-  - Once a roll's sleeve is labelled, its number is **locked** and never changes again. Before that, a year's unlocked rolls can be renumbered to follow their shot dates, after the year's locked rolls (D59).
+  - Until it's **filed**, a roll's number can be changed, by hand or by "Number rolls…", which puts each year's unfiled rolls in date-shot order after that year's filed ones; each change renames the roll's folder to match (D66, D68). The roll's ULID doesn't change, so links survive.
+  - Marking a roll as filed, once its negatives are in the physical archive, fixes its number for good so its folder is never renamed again (D66, D68).
 - **Frame:** identified by the **frame number printed on the film**, as free text of up to 9 characters: `"0"`, `"23"`, `"00"`, `"-1"`, `"12A"`, or `"14-15"` for a panoramic frame spanning two numbers. `null` for a scan that's not yet identified. Frames sort naturally: by leading number (negatives first), then as text. 120 film uses position on the roll. A frame holds metadata and zero or more versions; a frame with no versions is valid (e.g. a frame the lab skipped, catalogued from the negatives). `defaultVersion` optionally names the version to show; when unset, the first version is shown (D46). A frame can have its own date shot, in place of its roll's (D47).
 - **Version:** a file with a ULID, a content hash, its pixel dimensions and parents. Versions have no `kind`: a version is a version, and the frame's `defaultVersion` decides which one is shown. Low-res display images are generated previews in the cache, never versions. `defaultVersion` and `parents` refer to version IDs, never paths. Phase 2 adds raws, masters (editor exports), edits and exports; how the service tells them apart where behaviour differs (e.g. never writing metadata into raws) is an open question (section 15). **`parents` is a list**, since a master may come from several raws (brackets, stitched sections, trichrome).
 - **Event:** a named happening with optional dates, location and parent event. Rolls and frames belong to events (section 7).
@@ -77,14 +77,13 @@ FilmFile/
   Exports/       JPEGs of the frames marked for export, kept in step (D60)
   Sites/         event sites, ready to upload (D61)
   Editors/       folders of links for editors: NegPy/, later darktable/ (D51)
-  Browse/        links to every roll's files, named by frame number (D58)
+  Browse/        links to every roll's files, named by frame number (parked, FF-111)
 ```
 
 The archive (`Library/`):
 
 ```
 Library/
-  README.txt                       # what the library's folders are (written by FilmFile)
   equipment/
     cameras/nikon-fe.json
     lenses/nikkor-50-1.8-ais.json
@@ -99,23 +98,21 @@ Library/
   rolls/
     2026/
       _folder.json                 # optional defaults for a group of rolls (later phase)
-      2026-014/
+      2026-014-K0P3XW2D/           # a roll: its number and ID, renamed as it's renumbered until it's filed (D66)
         roll.json                  # roll, frames and versions
-        contents.txt               # frames by number, with their folders and files (written by FilmFile)
         .state.json                # tool-owned workflow state
         frames/
-          Q2P7RM4K/                # one folder per frame: the end of its ULID
-            8F3WXB1C/  12340001.jpg               # one folder per version, original names
-            K0D9TZ6E/  DSC_4821.NEF, DSC_4821.negpy
-            V5M2QH8A/  DSC_4821.tif, 3f9a….negpy  # an export and its recipe snapshot
+          1-Q2P7RM4K/              # one folder per frame: its number and the end of its ULID (D69)
+            scan-8F3WXB1C/      12340001.jpg               # one folder per version: its kind and ID; original names
+            raw-scan-K0D9TZ6E/  DSC_4821.ARW, DSC_4821.negpy
+            final-V5M2QH8A/     DSC_4821.tif, 3f9a….negpy  # an export and its recipe snapshot
 ```
 
-- A folder per version means a file never needs a kind to decide where it goes, files with the same name (such as a re-exported master) never clash, and a file's sidecars sit beside it. Deleting a frame or version moves one folder.
-- Folder names are the last 8 characters of the ULID (its random part), unique within their parent folder. They are never used to find anything: `roll.json` records each version's path.
-- Folders are named by ID, not frame number, so renumbering never moves files.
+- A folder per version means files with the same name (such as a re-exported master) never clash, and a file's sidecars sit beside it. Deleting a frame or version moves one folder.
+- Folder names are a label and the last 8 characters of the ULID (its random part): rolls `YYYY-NNN-<ID>`, frames `<frame number>-<ID>` (`unnumbered-<ID>` without one, the number cleaned to letters, digits and hyphens), versions `<kind>-<ID>`. The IDs keep names unique, so renumbering can swap names without clashes (D66, D69).
+- Labels follow renumbering and kind changes; files keep their original names and are never changed. `roll.json` records each version's path, updated in the same save as a rename; a rename cut short is recovered by the ID in the name (later, FF-156). A rename makes backup and sync see the files as new, which matters only for raws renumbered after they're added.
 - NegPy doesn't need the raws in one folder: it can build a virtual roll from frames anywhere, and keys its edits by file content, so files can move.
 - Every file is listed in `roll.json` with its SHA-256 and size, so corruption, outside edits and stray files are detectable.
-- Folder names stay IDs, so renumbering never moves an original, never makes backup upload raws again, and never breaks links (D58). Finding your way around is made easy instead: each roll's `contents.txt` lists its frames by number with their folders and files, and `Browse/` holds links named by frame number (`Browse/2026/2026-014 Westfjords/12A - DSC04412.ARW`), both kept in step by the service.
 
 ---
 

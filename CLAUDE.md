@@ -37,7 +37,7 @@ Simple first (the design's ports are the only planned abstractions; three simila
 - The service is the only writer. Saves require the expected version token and are atomic, with stable key order so unchanged data is byte-identical.
 - Never modify or permanently delete originals (lab scans, raws, editor exports). Versions are only added; the blob store is write-once. Deleting moves files to the archive's `deleted/`, which only the user empties.
 - Never write metadata into raws; stamp catalogue metadata into exports only.
-- Frame identity lives in `roll.json`. Each version's files sit in `frames/<frame>/<version>/` (last 8 ULID characters), with original names. Renumbering never moves files.
+- Frame identity lives in `roll.json`. Folders are named by a label and the last 8 ULID characters: rolls `YYYY-NNN-<ID>/`, frames `<frame number>-<ID>/`, versions `<kind>-<ID>/`; each version's files keep their original names. Labels follow renumbering and kind changes, and `roll.json` records each version's path (D66, D69). Files themselves are never renamed or changed.
 - IDs are ULIDs; never use paths or file names as identity (equipment and events are named by slug, per the design).
 - Caches (index, previews, locks) live in the OS cache directory, never in the archive.
 - No destructive operation without an explicit request. Do not import NegPy code (GPL-3); reading its formats is fine.

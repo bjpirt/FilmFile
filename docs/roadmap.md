@@ -24,19 +24,20 @@ What a frame has is seen at a glance on its thumbnail, a roll's frames are group
 
 ### 2. Roll numbers
 
-Roll numbers can be put in date order after importing a batch of rolls, then locked once the physical sleeve is labelled, so they never change again (D59).
+Rolls are imported before their year or order is certain: each gets a number straight away, dates are set, then "Number rolls…" puts a year's rolls in date order, and the negatives are filed in that order. Once a roll is marked as filed, its number never changes. Every roll's folder is named by its number and ID (`2026-014-Q2P7RM4K`), renamed as it's renumbered without clashing (D66–D68).
 
-- [ ] [FF-106 Change a roll's number](tasks/FF-106.md): "Change roll number…" on a roll, moving its folder and keeping its ID.
-- [ ] [FF-107 Lock a roll's number](tasks/FF-107.md): once the sleeve is labelled, a roll's number can't change.
-- [ ] [FF-108 Number rolls by date](tasks/FF-108.md): put a year's unlocked rolls in date order with a preview first.
+- [ ] [FF-151 Roll folders named by number and ID](tasks/FF-151.md): every roll's folder is `2026-014-Q2P7RM4K`, renamed with its number without clashes.
+- [ ] [FF-152 New rolls numbered automatically](tasks/FF-152.md): a new roll gets the next free number, from its year shot or this year's, changeable.
+- [ ] [FF-106 Change a roll's number](tasks/FF-106.md): a roll not yet filed has its number changed in Edit details.
+- [ ] [FF-107 Mark a roll as filed](tasks/FF-107.md): "Mark as filed" fixes a roll's number for good.
+- [ ] [FF-108 Number rolls by date](tasks/FF-108.md): renumber the rolls not yet filed in date order, year by year, after the filed ones, with a preview.
 
 ### 3. Finding your way around the library
 
-The library keeps IDs in its folder names, so nothing moves when frames are renumbered (D17); it's made easy to find your way around another way (D58).
+The library is readable in Finder: rolls, frames and versions are named by number or kind with their IDs (D66, D69). (A Browse folder of links is parked, FF-111.)
 
+- [ ] [FF-155 Frame and version folders named by number and kind](tasks/FF-155.md): `frames/12A-K0D9TZ6E/raw-scan-V5M2QH8A/`, renamed when renumbered or a kind changes.
 - [ ] [FF-109 Originals read-only](tasks/FF-109.md): the service makes originals read-only, so nothing reaching them through a link can change them.
-- [ ] [FF-110 A contents file in each roll's folder](tasks/FF-110.md): `contents.txt` in each roll's folder says which frame each folder is.
-- [ ] [FF-111 The browse folder](tasks/FF-111.md): `Browse/` in the FilmFile folder: links to every roll's files, named by frame number.
 
 ### 4. Integrate with NegPy
 
@@ -117,8 +118,12 @@ Tasks for later, in no particular order: some set aside on purpose, some not yet
 - [ ] [FF-139 Windows and Linux](tasks/FF-139.md): the app for Windows and Linux.
 - [ ] [FF-140 No open port](tasks/FF-140.md): a private protocol instead of a port on 127.0.0.1.
 - [ ] [FF-141 The kind of scans a roll starts with](tasks/FF-141.md): choosing what kind the scans a roll starts with are.
-- [ ] [FF-142 Roll creation in full](tasks/FF-142.md): a roll number suggested on New roll.
+- [ ] [FF-142 Roll creation in full](tasks/FF-142.md): a taken roll number shown before submitting.
 - [ ] [FF-143 Robust upload](tasks/FF-143.md): uploads that skip bad files, retry and resume.
+- [ ] [FF-153 Roll number patterns](tasks/FF-153.md): roll numbers in a pattern of my own, set in Settings.
+- [ ] [FF-154 Import many rolls at once](tasks/FF-154.md): a folder of folders of scans, one roll each, numbered automatically.
+- [ ] [FF-156 Recover folders by their ID](tasks/FF-156.md): finish a rename that was cut short, finding folders by the ID in their names.
+- [ ] [FF-111 The browse folder](tasks/FF-111.md): `Browse/` in the FilmFile folder: links to every roll's files, named by frame number.
 - [ ] [FF-144 Export recipes](tasks/FF-144.md): export sizes, formats and what's left out.
 
 ### Integrate with darktable
@@ -143,17 +148,17 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D4 | Lab scan uploads are limited to 200 MB per file, checked while streaming. | 1.3.6, 1.4.4 |
 | D5 | *Superseded by D11:* there are no import sessions or staging. | |
 | D6 | ~~Unconfirmed numbering badge~~: dropped. Rolls have no "numbering confirmed" state (D20). | — |
-| D7 | Roll numbers are `YYYY-NNN` (e.g. `2026-014`), stored under `rolls/YYYY/YYYY-NNN/`. `YYYY` is the year shot; `NNN` is the next free number in that year when catalogued. No other formats. | 1.1.1, 1.2.1 |
-| D8 | The API never invents a roll number; `CreateRoll` requires one. The UI suggests the next free number for a year, worked out from the roll list, but the field starts empty. | 1.3.3, FF-142 |
+| D7 | Roll numbers are `YYYY-NNN` (e.g. `2026-014`), stored under `rolls/YYYY/YYYY-NNN/` once filed (D66). `YYYY` is the year shot; `NNN` is the next free number in that year when catalogued. No other formats. | 1.1.1, 1.2.1 |
+| D8 | ~~The API never invents a roll number; `CreateRoll` requires one. The UI suggests the next free number for a year, worked out from the roll list, but the field starts empty.~~ Replaced by D67. | 1.3.3, FF-142 |
 | D9 | Roll lists sort by roll number by default, or by shot date when chosen. Roll shot dates are optional. | FF-122, FF-124, 1b.6 |
-| D10 | A roll number can be changed only by an explicit rename, which moves the roll's folder. The ULID is unchanged. | 0.4.1, 1.3.15, 1c.2 |
+| D10 | ~~A roll number can be changed only by an explicit rename, which moves the roll's folder. The ULID is unchanged.~~ Replaced by D66. | 0.4.1, 1.3.15, 1c.2 |
 | D11 | The API has no import workflow. A roll is created first, then each frame is created and its lab scan uploaded as a version (D13); the UI drives the import. Frame numbers are optional on creation and can be set later. Creating a frame is an append that doesn't need `If-Match`; a scan whose hash is already in the roll returns 409, so retries are safe. Frames can be added to a roll that already has frames. | 1.3.6, 1.4.4, FF-142–1b.5 |
 | D12 | Frames and rolls can be deleted as explicit, confirmed actions (any roll, not only an empty one: D38). Nothing is permanently deleted: deleted items move into `deleted/` in the archive, one dated folder each with the files and their JSON, and only the user empties it. No restore in the UI in Phase 1. | 0.4.1, 1.2.3, 1.3.16, 1c.2, U38 |
 | D13 | Image data and metadata have separate endpoints. Frames are JSON; images are uploaded as versions of a frame (`POST …/frames/{frameId}/versions?file=…`, raw body). Versions have ULIDs and no `kind`; `defaultVersion` and `parents` refer to version IDs, never paths. Phase 1 uploads lab scans only. A frame with no versions is valid. `defaultVersion` is optional; when unset the newest version is shown. A single version can be deleted into the holding area. Originals are read by version ID. | 1.1.1, FF-125, 1.3.6, 1.3.11, 1.3.16, 1.4.3, 1.4.4, FF-143, 1b.7, 1b.8 |
 | D14 | No "preview" versions: on-screen images are generated previews of the frame's shown version, cached outside the archive. Every version records `width` and `height`, read by the `ImageInspector` port at upload. | 1.1.1, 1.2.7, 1.3.6 |
 | D15 | A frame's `defaultVersion` (optional version ID) is the version the UI shows; when unset, ~~the newest~~ its first version is shown (D46). It lives on the frame rather than as a flag on versions, so there can only be one. Set from the frame view. | 1.1.1, FF-125, 1b.8 |
 | D16 | ~~Versions have no `kind`~~ (replaced by D48): a version is a version, and `defaultVersion` decides what's shown. How Phase 2 tells raws, masters and lab scans apart where behaviour differs is an open question; a `source` attribute recording where a file came from may be added then. | 1.1.1, S1.5 |
-| D17 | Files are stored by version, not by kind: `frames/<frame>/<version>/<original name>`, each folder named by the last 8 characters of the ULID and unique within its parent. Same-named files never clash, sidecars sit beside their file, and deletes move one folder. NegPy can build a virtual roll from frames anywhere, so it doesn't need a `raw/` folder. | S1.5, 1.2 |
+| D17 | ~~Files are stored by version, not by kind: `frames/<frame>/<version>/<original name>`, each folder named by the last 8 characters of the ULID and unique within its parent. Same-named files never clash, sidecars sit beside their file, and deletes move one folder. NegPy can build a virtual roll from frames anywhere, so it doesn't need a `raw/` folder.~~ Replaced by D69. | S1.5, 1.2 |
 | D18 | A `roll.json` that can't be read (invalid JSON, not matching the schema, or from a newer FilmFile) doesn't fail the roll list: it's listed under `unreadable` with the problem, and shown in the UI. It's never changed or deleted, and a new roll can't be created over it. | H.8 |
 | D19 | Frame numbering is driven from the UI. A frame number is free text of up to 9 characters, sorted naturally (leading number, negatives first, then text). Upload keeps numbering new frames in file-name order. Renumbering is a first number and a direction (plain integers, below zero if need be), worked out in the UI with a preview; the API stores only the numbers, in one save guarded by the roll's version. No anchors, overrides, skips or warnings; `00` is typed by hand. | N1–N8 |
 | D20 | No "numbering confirmed" state, badge or button: a roll's numbers are simply what they are, corrected by editing or renumbering. | N7, N8 (dropped) |
@@ -196,14 +201,18 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 
 **Still open:** see `docs/design.md`, section 15.
 | D57 | Everything FilmFile keeps is in one FilmFile folder, chosen once per computer: `Library/` (the archive; with `settings.json`, D65, the only parts backed up and synced), `Exports/`, `Sites/`, `Editors/` and `Browse/`, which are made from the library and can be made again. Caches stay in the OS cache folder. Replaces U73's separate NegPy folder setting. | FF-105, FF-111, FF-117, FF-120, FF-112 |
-| D58 | Folder names in the library stay IDs (D17), so renumbering never moves an original: renames would make backup and sync upload raws again (and pay Glacier's 180-day minimum twice) and break links. The library is made easy to find your way around instead, with a `contents.txt` in each roll's folder and a `Browse/` folder of links named by frame number. | FF-110, FF-111 |
-| D59 | A roll's number can be locked once its sleeve is labelled, and is then never changed. Before that, a year's unlocked rolls can be renumbered to follow their shot dates, after the year's locked rolls, with a preview first. | FF-106, FF-107, FF-108 |
+| D58 | ~~Folder names in the library stay IDs (D17), so renumbering never moves an original: renames would make backup and sync upload raws again (and pay Glacier's 180-day minimum twice) and break links. The library is made easy to find your way around instead, with a `contents.txt` in each roll's folder and a `Browse/` folder of links named by frame number.~~ Replaced by D69. | FF-110, FF-111 |
+| D59 | ~~A roll's number can be locked once its sleeve is labelled, and is then never changed. Before that, a year's unlocked rolls can be renumbered to follow their shot dates, after the year's locked rolls, with a preview first.~~ Replaced by D68. | FF-106, FF-107, FF-108 |
 | D60 | Exports are made files, kept in step by the service in `Exports/`: one JPEG per frame marked for export, from the version shown, carrying the frame's details as EXIF and XMP written by sharp. They're never originals, so remaking or removing one is safe; raws are never written to. | FF-116, FF-117, FF-118, FF-144 |
 | D61 | An event's site is static HTML, CSS and web-sized images made into `Sites/`, showing the event's frames rated at least a chosen number of stars, with frames added or left off by hand. No GPS, no originals, and no metadata but author and copyright. Publishing uploads it to an S3 bucket with an AWS profile from `~/.aws`; FilmFile keeps no keys. | FF-119, FF-120, FF-121 |
 | D62 | A thumbnail shows a frame's rating as filled stars at its top left, straight on the picture, and nothing for a frame with no rating. Pointing at it shows all five, the rest outlined, and pointing at a star previews that rating in a dimmer amber; a click rates the frame rather than opening it, and clicking the current rating clears it, as in the frame view (D39). Rating on thumbnails is by mouse only: on touch and from the keyboard, frames are rated in the frame view. The stars give way to the checkbox while bulk editing. Every thumbnail (roll page, event page, filmstrip) shows the same marks. | FF-148, FF-149 |
 | D63 | The service needs `FILMFILE_FOLDER`, a FilmFile folder, and its library is the folder's `Library/`; `FILMFILE_ARCHIVE` goes. Only a valid folder opens: an empty one (the service makes `Library/`) or one with a `Library/`, so a library that has moved or whose drive isn't mounted is never quietly replaced by an empty one. An archive that isn't in a FilmFile folder isn't opened. Only `Library/` is made at first; each other folder is made by the task that first needs it. The service checks, since a browser or development run has no dialogs, and the desktop app checks first only to show its own. | FF-105 |
 | D64 | A folder path is set only by the environment (`FILMFILE_FOLDER`) or the desktop app's native folder chooser, never through the API, so no request can point the service at a folder. It's read back as one read-only field, `folder`, of `GET /api/settings`, so Settings can show it: the one exception to the rule that responses carry no absolute paths, since the user chose it and it's their own machine. It isn't stored in `settings.json`. | FF-105, FF-150 |
 | D65 | The archive's details (id, author and copyright) move out of `Library/archive.json` into a `settings.json` at the FilmFile folder's top level, and the API is `/api/settings`, so one file and one resource hold everything FilmFile-wide that's coming (export recipes, event site defaults, the S3 bucket), not just the library's defaults. It's backed up and synced with `Library/`. Values that differ on each computer (the folder, an AWS profile) stay out of it (D52). | FF-150, FF-121 |
+| D66 | Every roll's folder is `rolls/YYYY/YYYY-NNN-<ID>/` (its number and the last 8 characters of its ULID, hyphenated), filed or not, renamed whenever its number changes; the ID keeps names unique, so rolls can swap numbers without a clash, and filing renames nothing. Rolls are found by their `roll.json`, never by the folder's name, so old-style and half-renamed folders keep working. Renames make backup and sync see the files as new, but they mostly happen while a roll holds only the lab's small scans. Replaces D10. | FF-151, FF-106, FF-107, FF-108 |
+| D67 | A new roll is numbered automatically with the next free `YYYY-NNN` (one more than the year's highest), the year from its date shot or this year's, and can be changed before it's filed. Replaces D8. | FF-152, FF-142 |
+| D68 | Marking a roll as filed fixes its number for good. "Number rolls…" renumbers every roll that isn't filed so that, in each year, numbers follow dates shot, after that year's filed rolls; rolls with no date keep theirs. So a roll filed later always goes after the negatives already on the shelf, even if it was shot earlier. Patterns other than `YYYY-NNN` come later (FF-153). Replaces D59. | FF-107, FF-108, FF-153 |
+| D69 | A frame's folder is `<frame number>-<ID>` (`unnumbered-<ID>` without one, the number cleaned to letters, digits and hyphens) and a version's `<kind>-<ID>`, renamed when the frame is renumbered or the kind changes, so the library reads in Finder. `roll.json` records each version's path, updated in the same save as a rename; recovering a rename cut short is for later (FF-156). Files keep their original names and are never changed. Renames cost a re-upload in backup, rare once raws are added. Replaces D17 and D58. | FF-155, FF-156 |
 
 ---
 
@@ -406,6 +415,7 @@ FilmFile as a Mac app, opened from the Dock rather than by starting a service an
 
 Tasks from the first plan that turned out differently:
 
+- [-] [FF-110 A contents file in each roll's folder](tasks/FF-110.md): *dropped: folders named by number and kind (D66, D69) say which frame and version each is.*
 - [-] [FF-100 Stars on thumbnails](tasks/FF-100.md): *split into FF-148 (showing) and FF-149 (rating by clicking).*
 - U73 The NegPy folder: *replaced by FF-105, whose `Editors/NegPy/` it is (D57).*
 - U21 Add a raw to a frame: *replaced by U64 and U20, adding a raw scan to one frame with its "+"; dropping raws onto frames on the roll page and marking frames that have them are for later if wanted.*
