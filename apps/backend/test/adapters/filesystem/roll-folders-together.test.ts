@@ -34,14 +34,15 @@ test('a file added while the roll’s number changes ends up in the roll’s ren
       file = await blobs.put(ctx, blob, new Uint8Array([1, 2, 3]));
       return ok({ roll: read, value: file });
     }),
-    rolls.change(ctx, roll.id, (read) =>
-      Promise.resolve(
-        ok({
-          roll: { ...read, roll: aRoll({ roll: '2026-020' }).roll },
-          value: 'renamed',
-        }),
+    rolls
+      .get(ctx, roll.id)
+      .then((read) =>
+        rolls.saveRenumbered(
+          ctx,
+          { ...roll, roll: aRoll({ roll: '2026-020' }).roll },
+          read?.version ?? '',
+        ),
       ),
-    ),
   ]);
 
   const folder = await findRollFolder(archive.path(), roll.id);

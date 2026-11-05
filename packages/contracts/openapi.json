@@ -453,6 +453,12 @@
       "UpdateRollRequest": {
         "type": "object",
         "properties": {
+          "roll": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{3}$",
+            "description": "The year the roll was shot and a number, YYYY-NNN.",
+            "example": "2026-014"
+          },
           "name": {
             "type": [
               "string",
@@ -512,7 +518,7 @@
             "example": "nikon-fe"
           }
         },
-        "description": "The details to change. A detail left out stays as it is; null clears it."
+        "description": "The details to change. A detail left out stays as it is; null clears it. A roll number another roll has is refused with an issue on `roll`."
       },
       "CreateFrameRequest": {
         "type": "object",

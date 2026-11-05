@@ -2059,8 +2059,13 @@ export interface components {
             /** @example nikon-fe */
             lens?: string;
         };
-        /** @description The details to change. A detail left out stays as it is; null clears it. */
+        /** @description The details to change. A detail left out stays as it is; null clears it. A roll number another roll has is refused with an issue on `roll`. */
         UpdateRollRequest: {
+            /**
+             * @description The year the roll was shot and a number, YYYY-NNN.
+             * @example 2026-014
+             */
+            roll?: string;
             name?: string | null;
             notes?: string | null;
             /** @example 2026-09-14 */

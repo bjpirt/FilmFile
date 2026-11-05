@@ -27,7 +27,6 @@ What a frame has is seen at a glance on its thumbnail, a roll's frames are group
 Rolls are imported before their year or order is certain: each gets a number straight away, dates are set, then "Number rolls…" puts a year's rolls in date order, and the negatives are filed in that order. Once a roll is marked as filed, its number never changes. Every roll's folder is named by its number and ID (`2026-014-Q2P7RM4K`), renamed as it's renumbered without clashing (D66–D68).
 
 - [ ] [FF-152 New rolls numbered automatically](tasks/FF-152.md): a new roll gets the next free number, from its year shot or this year's, changeable.
-- [ ] [FF-106 Change a roll's number](tasks/FF-106.md): a roll's number is changed in Edit details, and no two rolls can share one.
 - [ ] [FF-107 Mark a roll as filed](tasks/FF-107.md): "Mark as filed" fixes a roll's number for good.
 - [ ] [FF-108 Number rolls by date](tasks/FF-108.md): renumber the rolls not yet filed in date order, year by year, after the filed ones, with a preview.
 
@@ -212,7 +211,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D67 | A new roll is numbered automatically with the next free `YYYY-NNN` (one more than the year's highest), the year from its date shot or this year's, and can be changed before it's filed. Replaces D8. | FF-152, FF-142 |
 | D68 | Marking a roll as filed fixes its number for good. "Number rolls…" renumbers every roll that isn't filed so that, in each year, numbers follow dates shot, after that year's filed rolls; rolls with no date keep theirs. So a roll filed later always goes after the negatives already on the shelf, even if it was shot earlier. Patterns other than `YYYY-NNN` come later (FF-153). Replaces D59. | FF-107, FF-108, FF-153 |
 | D69 | A frame's folder is `<frame number>-<ID>` (`unnumbered-<ID>` without one, the number cleaned to letters, digits and hyphens) and a version's `<kind>-<ID>`, renamed when the frame is renumbered or the kind changes, so the library reads in Finder. `roll.json` records each version's path, updated in the same save as a rename; recovering a rename cut short is for later (FF-156). Files keep their original names and are never changed. Renames cost a re-upload in backup, rare once raws are added. Replaces D17 and D58. | FF-155, FF-156 |
-| D70 | Roll numbers are unique, enforced by the roll repository under a lock (creating, saving or changing a roll refuses another roll's number), so no two requests can both take one. A number that's taken is a 422 on `roll`, leaving 409 for "changed since it was read". A number's year needn't match the year shot, and renumbering never asks or warns, even for a roll with raws. Rolls can no longer swap numbers one save at a time; a batch operation does it (FF-108). | FF-106, FF-108 |
+| D70 | Roll numbers are unique, enforced by the roll repository under a lock: creating a roll, and changing a number, which only the repository's `saveRenumbered` does (`save` and `change` never change one), refuse another roll's number, so no two requests can both take one. A number that's taken is a 422 on `roll`, leaving 409 for "changed since it was read". A number's year needn't match the year shot, and renumbering never asks or warns, even for a roll with raws. Rolls can no longer swap numbers one save at a time; a batch operation does it (FF-108). | FF-106, FF-108 |
 
 ---
 
@@ -401,6 +400,7 @@ What a frame has is seen at a glance on its thumbnail, a roll's frames are group
 Rolls are imported before their year or order is certain: each gets a number straight away, dates are set, then "Number rolls…" puts a year's rolls in date order, and the negatives are filed in that order. Once a roll is marked as filed, its number never changes. Every roll's folder is named by its number and ID (`2026-014-Q2P7RM4K`), renamed as it's renumbered without clashing (D66–D68).
 
 - [x] [FF-151 Roll folders named by number and ID](tasks/FF-151.md)
+- [x] [FF-106 Change a roll's number](tasks/FF-106.md)
 
 ### The FilmFile folder
 

@@ -429,13 +429,17 @@ export function RollPage({
       return event.problem;
     }
     await queryClient.invalidateQueries({ queryKey: ['events'] });
-    const { response } = await api.PATCH('/api/rolls/{rollId}', {
+    // The number is sent only if it was changed, so saving anything else
+    // never depends on it.
+    const { roll: number, ...others } = details;
+    const { response, error } = await api.PATCH('/api/rolls/{rollId}', {
       params: {
         path: { rollId },
         header: { 'if-match': roll.data.etag },
       },
       body: {
-        ...details,
+        ...others,
+        ...(number === roll.data.roll.roll ? {} : { roll: number }),
         camera: camera.slug,
         film: film.slug,
         lens: lens.slug,
@@ -447,10 +451,16 @@ export function RollPage({
       setChangedElsewhere(true);
       return undefined;
     }
-    // The panel checks the year and the equipment exists, so the date is all
-    // the service can refuse.
+    // The panel checks the number's form, the year and that the equipment
+    // exists, so what the service can refuse is a number another roll has, or the date.
     if (response.status === 422) {
-      return "That date doesn't exist. Check the day and month.";
+      const aboutNumber =
+        error !== undefined &&
+        'issues' in error &&
+        error.issues.some((i) => i.path[0] === 'roll');
+      return aboutNumber
+        ? `Roll ${number} already exists.`
+        : "That date doesn't exist. Check the day and month.";
     }
     if (!response.ok) {
       return "Couldn't save the details. Is the service running?";

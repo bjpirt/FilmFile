@@ -16,6 +16,8 @@ import { shotFieldsOf, shotFrom, type ShotFields } from './shot-fields.ts';
 
 /** A roll's details as the panel saves them: all of them, blank ones as null. */
 export interface RollDetails {
+  /** The roll's number, `YYYY-NNN`. */
+  readonly roll: string;
   readonly name: string | null;
   readonly notes: string | null;
   readonly shot: string;
@@ -33,7 +35,7 @@ function textOrNull(text: string): string | null {
   return text.trim() === '' ? null : text.trim();
 }
 
-/** A roll's name, notes, date shot, camera, lens, film stock and event, to change and save. */
+/** A roll's number, name, notes, date shot, camera, lens, film stock and event, to change and save. */
 export function EditDetailsPanel({
   roll,
   cameras,
@@ -52,6 +54,7 @@ export function EditDetailsPanel({
   readonly save: (details: RollDetails) => Promise<string | undefined>;
   readonly cancel: () => void;
 }) {
+  const [rollNumber, setRollNumber] = useState(roll.roll);
   const [name, setName] = useState(roll.name ?? '');
   const [notes, setNotes] = useState(roll.notes ?? '');
   const [shot, setShot] = useState<ShotFields>(shotFieldsOf(roll.shot));
@@ -66,6 +69,12 @@ export function EditDetailsPanel({
 
   async function submit(event: SubmitEvent) {
     event.preventDefault();
+    if (!/^\d{4}-\d{3}$/.test(rollNumber.trim())) {
+      setProblem(
+        'Enter a roll number like 2026-014: the year it was shot, then three digits.',
+      );
+      return;
+    }
     const entered = shotFrom(shot);
     // A roll needs at least the year it was shot, as when it was created.
     if (!entered.valid || entered.shot === undefined) {
@@ -75,6 +84,7 @@ export function EditDetailsPanel({
     setProblem(undefined);
     setSaving(true);
     const notSaved = await save({
+      roll: rollNumber.trim(),
       name: textOrNull(name),
       notes: textOrNull(notes),
       shot: entered.shot,
@@ -98,11 +108,28 @@ export function EditDetailsPanel({
       onSubmit={(event) => void submit(event)}
     >
       <label>
+        <span>
+          Roll number{' '}
+          <span className="required" aria-hidden="true">
+            *
+          </span>
+        </span>
+        <input
+          className="numbers"
+          value={rollNumber}
+          placeholder="2026-014"
+          required
+          autoFocus
+          onChange={(event) => {
+            setRollNumber(event.target.value);
+          }}
+        />
+      </label>
+      <label>
         Name
         <input
           value={name}
           maxLength={100}
-          autoFocus
           onChange={(event) => {
             setName(event.target.value);
           }}

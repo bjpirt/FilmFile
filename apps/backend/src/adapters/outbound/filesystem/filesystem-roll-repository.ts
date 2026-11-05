@@ -34,6 +34,15 @@ interface StoredRoll extends VersionedRoll {
   readonly file: string;
 }
 
+/** `save` and `change` never change a roll's number: that's `saveRenumbered`'s (D70). */
+function sameNumber(before: Roll, after: Roll): void {
+  if (before.roll !== after.roll) {
+    throw new Error(
+      `roll ${before.id} was saved with another number: a number is changed with saveRenumbered`,
+    );
+  }
+}
+
 /** Whether an unreadable roll's folder is named for this roll number: `2026-014` or `2026-014-Q2P7RM4K`. */
 function namedFor(folder: string, roll: RollNumber): boolean {
   return folder === roll || folder.startsWith(`${roll}-`);
@@ -98,6 +107,15 @@ export class FilesystemRollRepository implements RollRepository {
     return found && { roll: found.roll, version: found.version };
   }
 
+  /** Whether another roll has this roll's number; a roll that can't be read counts if its folder is named for it. */
+  async #numberTaken(roll: Roll): Promise<boolean> {
+    const { stored, unreadable } = await this.#readAll();
+    return (
+      stored.some((s) => s.roll.id !== roll.id && s.roll.roll === roll.roll) ||
+      unreadable.some((u) => namedFor(u.folder, roll.roll))
+    );
+  }
+
   async create(
     _ctx: ArchiveContext,
     roll: Roll,
@@ -105,11 +123,7 @@ export class FilesystemRollRepository implements RollRepository {
     // The number is checked and the folder made together, so two new rolls
     // can't both take it. A roll that can't be read counts: it's never built over.
     return this.#years.run('years', async () => {
-      const { stored, unreadable } = await this.#readAll();
-      if (
-        stored.some((s) => s.roll.roll === roll.roll) ||
-        unreadable.some((u) => namedFor(u.folder, roll.roll))
-      ) {
+      if (await this.#numberTaken(roll)) {
         return err({ kind: 'already-exists', entity: 'roll', id: roll.roll });
       }
       const folder = rollFolderFor(this.#archivePath, roll);
@@ -125,34 +139,22 @@ export class FilesystemRollRepository implements RollRepository {
   }
 
   /**
-   * Writes a roll in place of `current`, first renaming its folder if its
-   * number changed (D66): the folder, then roll.json inside it, so a rename
-   * cut short leaves a roll that's still found, in a folder named for its new
-   * number. Returns the new version.
+   * Moves a roll's folder for its new number, to another year's folder if
+   * need be (D66); returns the roll.json in it. The folder is moved first,
+   * then roll.json written in it, so a move cut short leaves a roll that's
+   * still found, in a folder named for its new number. Called with the
+   * years' turn taken.
    */
-  async #write(current: StoredRoll, roll: Roll): Promise<string> {
-    const content = rollFileContent(roll);
-    const file =
-      roll.roll === current.roll.roll
-        ? current.file
-        : await this.#rename(current, roll);
-    await writeAtomically(file, content);
-    return versionOf(content);
-  }
-
-  /** Renames a roll's folder for its new number, to another year's folder if need be; returns the roll.json in it. */
-  async #rename(current: StoredRoll, roll: Roll): Promise<string> {
+  async #move(current: StoredRoll, roll: Roll): Promise<string> {
     const from = path.dirname(current.file);
     const to = rollFolderFor(this.#archivePath, roll);
     if (from !== to) {
-      await this.#years.run('years', async () => {
-        if (await exists(to)) {
-          throw new Error(`${to} already exists, so ${from} can't be renamed`);
-        }
-        await mkdir(path.dirname(to), { recursive: true });
-        await rename(from, to);
-        await removeIfEmpty(path.dirname(from));
-      });
+      if (await exists(to)) {
+        throw new Error(`${to} already exists, so ${from} can't be renamed`);
+      }
+      await mkdir(path.dirname(to), { recursive: true });
+      await rename(from, to);
+      await removeIfEmpty(path.dirname(from));
     }
     return safePath(to, 'roll.json');
   }
@@ -174,7 +176,45 @@ export class FilesystemRollRepository implements RollRepository {
           id: roll.id,
         });
       }
-      return ok(await this.#write(current, roll));
+      sameNumber(current.roll, roll);
+      const content = rollFileContent(roll);
+      await writeAtomically(current.file, content);
+      return ok(versionOf(content));
+    });
+  }
+
+  saveRenumbered(
+    _ctx: ArchiveContext,
+    roll: Roll,
+    expectedVersion: string,
+  ): Promise<Result<string, NotFound | ConcurrencyConflict | AlreadyExists>> {
+    return this.#lock.run(roll.id, async () => {
+      const current = await this.#find(roll.id);
+      if (current === undefined) {
+        return err({ kind: 'not-found', entity: 'roll', id: roll.id });
+      }
+      if (current.version !== expectedVersion) {
+        return err({
+          kind: 'concurrency-conflict',
+          entity: 'roll',
+          id: roll.id,
+        });
+      }
+      const content = rollFileContent(roll);
+      if (roll.roll === current.roll.roll) {
+        await writeAtomically(current.file, content);
+        return ok(versionOf(content));
+      }
+      // The number is checked, and the folder moved, with no other roll
+      // taking a number or making a year folder in between.
+      return this.#years.run('years', async () => {
+        if (await this.#numberTaken(roll)) {
+          return err({ kind: 'already-exists', entity: 'roll', id: roll.roll });
+        }
+        const file = await this.#move(current, roll);
+        await writeAtomically(file, content);
+        return ok(versionOf(content));
+      });
     });
   }
 
@@ -192,7 +232,8 @@ export class FilesystemRollRepository implements RollRepository {
       if (!changed.ok) {
         return changed;
       }
-      await this.#write(current, changed.value.roll);
+      sameNumber(current.roll, changed.value.roll);
+      await writeAtomically(current.file, rollFileContent(changed.value.roll));
       return ok(changed.value.value);
     });
   }

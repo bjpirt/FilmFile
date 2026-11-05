@@ -15,6 +15,15 @@ import type { RollId } from '../../../domain/shared/ids.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
 import { KeyedLock } from '../node/keyed-lock.ts';
 
+/** `save` and `change` never change a roll's number: that's `saveRenumbered`'s (D70). */
+function sameNumber(before: Roll, after: Roll): void {
+  if (before.roll !== after.roll) {
+    throw new Error(
+      `roll ${before.id} was saved with another number: a number is changed with saveRenumbered`,
+    );
+  }
+}
+
 /** Rolls kept in memory, for tests. Versions count up from 1 per save. */
 export class InMemoryRollRepository implements RollRepository {
   readonly #rolls = new Map<RollId, VersionedRoll>();
@@ -69,6 +78,40 @@ export class InMemoryRollRepository implements RollRepository {
           id: roll.id,
         });
       } else {
+        sameNumber(current.roll, roll);
+        result = ok(this.#store(roll));
+      }
+      return Promise.resolve(result);
+    });
+  }
+
+  saveRenumbered(
+    _ctx: ArchiveContext,
+    roll: Roll,
+    expectedVersion: string,
+  ): Promise<Result<string, NotFound | ConcurrencyConflict | AlreadyExists>> {
+    // One at a time across rolls, so two can't both take a number.
+    return this.#lock.run('numbers', () => {
+      const current = this.#rolls.get(roll.id);
+      let result: Result<
+        string,
+        NotFound | ConcurrencyConflict | AlreadyExists
+      >;
+      if (current === undefined) {
+        result = err({ kind: 'not-found', entity: 'roll', id: roll.id });
+      } else if (current.version !== expectedVersion) {
+        result = err({
+          kind: 'concurrency-conflict',
+          entity: 'roll',
+          id: roll.id,
+        });
+      } else if (
+        [...this.#rolls.values()].some(
+          (r) => r.roll.id !== roll.id && r.roll.roll === roll.roll,
+        )
+      ) {
+        result = err({ kind: 'already-exists', entity: 'roll', id: roll.roll });
+      } else {
         result = ok(this.#store(roll));
       }
       return Promise.resolve(result);
@@ -89,6 +132,7 @@ export class InMemoryRollRepository implements RollRepository {
       if (!changed.ok) {
         return changed;
       }
+      sameNumber(current.roll, changed.value.roll);
       this.#store(changed.value.roll);
       return ok(changed.value.value);
     });

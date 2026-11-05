@@ -515,6 +515,104 @@ describe('UpdateRoll', () => {
     ).toMatchObject({ ok: false, error: { kind: 'validation-failed' } });
   });
 
+  test('changes the roll’s number, leaving the rest', async () => {
+    const { ctx, id, version, updateRoll, getRoll } = await aCreatedRoll();
+
+    const updated = await updateRoll.execute(ctx, {
+      id,
+      expectedVersion: version,
+      roll: '2026-009',
+    });
+
+    expect(updated).toEqual(await getRoll.execute(ctx, { id }));
+    expect(updated).toMatchObject({
+      ok: true,
+      value: { roll: { id, roll: '2026-009', name: 'Iceland' } },
+    });
+  });
+
+  test('refuses something that is not a roll number, changing nothing', async () => {
+    const { ctx, id, version, updateRoll, getRoll } = await aCreatedRoll();
+
+    expect(
+      await updateRoll.execute(ctx, {
+        id,
+        expectedVersion: version,
+        roll: '26-9',
+      }),
+    ).toEqual({
+      ok: false,
+      error: {
+        kind: 'validation-failed',
+        issues: [
+          { path: ['roll'], message: 'must be a roll number like 2026-014' },
+        ],
+      },
+    });
+    expect(await getRoll.execute(ctx, { id })).toMatchObject({
+      ok: true,
+      value: { roll: { roll: '2026-014' } },
+    });
+  });
+
+  test('refuses a roll number another roll has, as a problem with the number, changing nothing', async () => {
+    const { ctx, id, version, updateRoll, getRoll, createRoll } =
+      await aCreatedRoll();
+    await createRoll.execute(ctx, { roll: '2026-015', shot: '2026' });
+
+    expect(
+      await updateRoll.execute(ctx, {
+        id,
+        expectedVersion: version,
+        roll: '2026-015',
+      }),
+    ).toEqual({
+      ok: false,
+      error: {
+        kind: 'validation-failed',
+        issues: [
+          { path: ['roll'], message: 'is already used by another roll' },
+        ],
+      },
+    });
+    expect(await getRoll.execute(ctx, { id })).toMatchObject({
+      ok: true,
+      value: { roll: { roll: '2026-014' } },
+    });
+  });
+
+  test('takes the roll’s own number as no change', async () => {
+    const { ctx, id, version, updateRoll } = await aCreatedRoll();
+
+    expect(
+      await updateRoll.execute(ctx, {
+        id,
+        expectedVersion: version,
+        roll: '2026-014',
+        name: 'Westfjords',
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: { roll: { roll: '2026-014', name: 'Westfjords' } },
+    });
+  });
+
+  test('lets a number’s year differ from the year shot', async () => {
+    const { ctx, id, version, updateRoll } = await aCreatedRoll();
+
+    expect(
+      await updateRoll.execute(ctx, {
+        id,
+        expectedVersion: version,
+        shot: '2025',
+        roll: '2026-020',
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: { roll: { roll: '2026-020', shot: '2025' } },
+    });
+  });
+
   test('refuses when the roll changed since it was read', async () => {
     const { ctx, id, updateRoll } = await aCreatedRoll();
 

@@ -1,3 +1,4 @@
+import { parseRollNumber } from '../../../domain/rolls/roll-number.ts';
 import { parseShotDate } from '../../../domain/rolls/shot-date.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type {
@@ -20,10 +21,11 @@ import { knownLens } from './known-lens.ts';
 import { textOrNull } from './text-or-null.ts';
 
 /**
- * Changes a roll's details: name, notes, date shot, event, camera,
- * film stock and lens. A detail left
- * out stays as it is; null or blank clears it. Saved only if the roll hasn't
- * changed since the caller read it at `expectedVersion`.
+ * Changes a roll's details: its roll number, name, notes, date shot, event,
+ * camera, film stock and lens. A detail left out stays as it is; null or
+ * blank clears it. A number another roll has is refused as a problem with
+ * the number (D70). Saved only if the roll hasn't changed since the caller
+ * read it at `expectedVersion`.
  */
 export class UpdateRoll {
   readonly #rolls: RollRepository;
@@ -45,6 +47,8 @@ export class UpdateRoll {
     input: {
       readonly id: RollId;
       readonly expectedVersion: string;
+      /** The roll's number, `YYYY-NNN`; its year needn't be the year shot. */
+      readonly roll?: string | undefined;
       readonly name?: string | null | undefined;
       readonly notes?: string | null | undefined;
       readonly shot?: string | null | undefined;
@@ -60,6 +64,11 @@ export class UpdateRoll {
   ): Promise<
     Result<VersionedRoll, NotFound | ConcurrencyConflict | ValidationFailed>
   > {
+    const number =
+      input.roll === undefined ? ok(undefined) : parseRollNumber(input.roll);
+    if (!number.ok) {
+      return number;
+    }
     const shot =
       input.shot === undefined || input.shot === null
         ? ok(input.shot)
@@ -101,6 +110,7 @@ export class UpdateRoll {
     }
     const roll = {
       ...current.roll,
+      ...(number.value === undefined ? {} : { roll: number.value }),
       ...(input.name === undefined ? {} : { name: textOrNull(input.name) }),
       ...(input.notes === undefined ? {} : { notes: textOrNull(input.notes) }),
       ...(shot.value === undefined ? {} : { shot: shot.value }),
@@ -109,7 +119,22 @@ export class UpdateRoll {
       ...(film.value === undefined ? {} : { film: film.value }),
       ...(lens.value === undefined ? {} : { lens: lens.value }),
     };
-    const saved = await this.#rolls.save(ctx, roll, input.expectedVersion);
-    return saved.ok ? ok({ roll, version: saved.value }) : saved;
+    const saved = await this.#rolls.saveRenumbered(
+      ctx,
+      roll,
+      input.expectedVersion,
+    );
+    if (saved.ok) {
+      return ok({ roll, version: saved.value });
+    }
+    const failure = saved.error;
+    return failure.kind === 'already-exists'
+      ? err({
+          kind: 'validation-failed',
+          issues: [
+            { path: ['roll'], message: 'is already used by another roll' },
+          ],
+        })
+      : err(failure);
   }
 }

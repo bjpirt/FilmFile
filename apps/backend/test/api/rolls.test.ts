@@ -214,6 +214,69 @@ describe('PATCH /api/rolls/{id}', () => {
     });
   }
 
+  test('changes the roll’s number, keeping its ID, renaming its folder and putting it in its new place in the list', async () => {
+    const { url, etag } = await aRollWithDetails();
+    const other: unknown = await (
+      await post('/api/rolls', { roll: '2026-010' })
+    ).json();
+
+    const response = await patch(url, { roll: '2026-005' }, etag);
+
+    expect(response.status).toBe(200);
+    const changed: unknown = await response.json();
+    expect(changed).toMatchObject({ roll: '2026-005', name: 'Iceland' });
+    expect(idOf(changed)).toBe(url.split('/').at(-1));
+    expect(path.basename(await folderOfRoll(archive.path(), '2026-005'))).toBe(
+      `2026-005-${String(idOf(changed)).slice(-8)}`,
+    );
+    expect(await readdir(path.join(archive.path(), 'rolls/2026'))).toHaveLength(
+      2,
+    );
+    const listed: unknown = await (await request('/api/rolls')).json();
+    expect(listed).toMatchObject({
+      rolls: [{ roll: '2026-005' }, { id: idOf(other), roll: '2026-010' }],
+    });
+    expect((await request(url)).status).toBe(200);
+  });
+
+  test('refuses a number another roll has, as a problem with the number, changing nothing', async () => {
+    const { url, etag } = await aRollWithDetails();
+    await post('/api/rolls', { roll: '2026-015' });
+
+    const response = await patch(url, { roll: '2026-015' }, etag);
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({
+      issues: [{ path: ['roll'], message: 'is already used by another roll' }],
+    });
+    expect(await (await request(url)).json()).toMatchObject({
+      roll: '2026-014',
+    });
+    expect((await request(url)).headers.get('ETag')).toBe(etag);
+  });
+
+  test('refuses something that is not a roll number', async () => {
+    const { url, etag } = await aRollWithDetails();
+
+    expect((await patch(url, { roll: '14' }, etag)).status).toBe(422);
+  });
+
+  test('takes the roll’s own number as no change', async () => {
+    const { url, etag } = await aRollWithDetails();
+
+    const response = await patch(
+      url,
+      { roll: '2026-014', name: 'Westfjords' },
+      etag,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      roll: '2026-014',
+      name: 'Westfjords',
+    });
+  });
+
   test('changes the details sent, with the new version as its ETag', async () => {
     const { url, etag } = await aRollWithDetails();
 

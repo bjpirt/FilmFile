@@ -222,16 +222,103 @@ describe('editing the details', () => {
     fireEvent.change(select, { target: { value: chosen.value } });
   }
 
-  test('opens with the roll’s details filled in', async () => {
+  test('opens with the roll number first, then the details, filled in', async () => {
     renderPage(archiveWith([], iceland));
     await editDetails();
 
+    const labels = within(screen.getByRole('form', { name: 'Roll details' }))
+      .getAllByRole('textbox')
+      .map((box) => box.closest('label')?.textContent.replace('*', '').trim());
+    expect(labels[0]).toBe('Roll number');
+    expect(field('Roll number').value).toBe('2026-014');
     expect(field('Name').value).toBe('Iceland');
     expect(field('Notes').value).toBe('Jökulsárlón at dawn.');
     expect(field('Year').value).toBe('2026');
     expect(field('Month').value).toBe('09');
     expect(field('Day').value).toBe('14');
     expect(field('Time').value).toBe('');
+  });
+
+  test('changes the roll’s number, showing it at once in the heading and the breadcrumb', async () => {
+    const service = archiveWith([], iceland);
+    renderPage(service);
+    await editDetails();
+
+    fill('Roll number', '2026-009');
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Roll 2026-009' }),
+    ).toBeDefined();
+    expect(service.rolls[0]?.roll).toBe('2026-009');
+    expect(service.rollUpdates).toEqual([
+      expect.objectContaining({ roll: '2026-009' }),
+    ]);
+  });
+
+  test('sends the number only when it was changed', async () => {
+    const service = archiveWith([], iceland);
+    renderPage(service);
+    await editDetails();
+
+    fill('Name', 'Westfjords');
+    fill('Roll number', '2026-009');
+    fill('Roll number', '2026-014');
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+
+    await screen.findByText('Westfjords');
+    expect(service.rollUpdates).toHaveLength(1);
+    expect(service.rollUpdates[0]).not.toHaveProperty('roll');
+  });
+
+  test.each(['2026-9', '14', 'Iceland', ' '])(
+    'refuses %j as a roll number before sending anything',
+    async (typed) => {
+      const service = archiveWith([], iceland);
+      renderPage(service);
+      await editDetails();
+
+      fill('Roll number', typed);
+      fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+
+      expect((await screen.findByRole('alert')).textContent).toBe(
+        'Enter a roll number like 2026-014: the year it was shot, then three digits.',
+      );
+      expect(service.rollUpdates).toEqual([]);
+    },
+  );
+
+  test('refuses a number another roll has, keeping the panel open and changing nothing', async () => {
+    const service = fakeArchive({
+      rolls: [aRoll('2026-014', iceland), aRoll('2026-009')],
+    });
+    renderPage(service);
+    await editDetails();
+
+    fill('Roll number', '2026-009');
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Roll 2026-009 already exists.',
+    );
+    expect(field('Roll number').value).toBe('2026-009');
+    expect(service.rolls[0]?.roll).toBe('2026-014');
+  });
+
+  test('keeps a number whose year isn’t the year shot, and says nothing', async () => {
+    const service = archiveWith([], iceland);
+    renderPage(service);
+    await editDetails();
+
+    fill('Roll number', '2024-030');
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+
+    await screen.findByRole('heading', { level: 1, name: 'Roll 2024-030' });
+    expect(service.rolls[0]).toMatchObject({
+      roll: '2024-030',
+      shot: '2026-09-14',
+    });
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   test('saves the details, sending the roll’s ETag, and shows them', async () => {

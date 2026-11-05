@@ -152,6 +152,7 @@ export const createRollRequest = z
 
 export const updateRollRequest = z
   .object({
+    roll: rollNumber.optional(),
     name: z.string().max(100).nullable().optional(),
     notes: z.string().max(5000).nullable().optional(),
     shot: shotDate.nullable().optional(),
@@ -163,7 +164,7 @@ export const updateRollRequest = z
   .meta({
     id: 'UpdateRollRequest',
     description:
-      'The details to change. A detail left out stays as it is; null clears it.',
+      'The details to change. A detail left out stays as it is; null clears it. A roll number another roll has is refused with an issue on `roll`.',
   });
 
 /** The number printed on the film beside a frame: any text of 1 to 9 characters (D19). */

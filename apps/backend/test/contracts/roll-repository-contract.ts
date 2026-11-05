@@ -77,6 +77,135 @@ export function rollRepositoryContract(
       });
     });
 
+    test('changes a roll’s number with saveRenumbered, giving the new version', async () => {
+      const rolls = makeRepository();
+      const roll = aRoll();
+      await rolls.create(ctx, roll);
+      const read = await rolls.get(ctx, roll.id);
+      const renumbered = { ...roll, roll: aRoll({ roll: '2026-009' }).roll };
+
+      const saved = await rolls.saveRenumbered(
+        ctx,
+        renumbered,
+        read?.version ?? '',
+      );
+
+      expect(saved.ok && saved.value).not.toBe(read?.version);
+      expect(await rolls.get(ctx, roll.id)).toEqual({
+        roll: renumbered,
+        version: saved.ok && saved.value,
+      });
+      expect((await rolls.list(ctx)).rolls.map((r) => r.roll)).toEqual([
+        '2026-009',
+      ]);
+    });
+
+    test('refuses to renumber a roll to a number another roll has, changing nothing', async () => {
+      const rolls = makeRepository();
+      const first = aRoll();
+      const second = aRoll({ id: ulidFor(2), roll: '2026-015' });
+      await rolls.create(ctx, first);
+      await rolls.create(ctx, second);
+      const read = await rolls.get(ctx, first.id);
+
+      const saved = await rolls.saveRenumbered(
+        ctx,
+        { ...first, roll: second.roll },
+        read?.version ?? '',
+      );
+
+      expect(saved).toEqual(
+        err({ kind: 'already-exists', entity: 'roll', id: '2026-015' }),
+      );
+      expect(await rolls.get(ctx, first.id)).toEqual(read);
+    });
+
+    test('lets saveRenumbered keep a roll’s own number, as any other save does', async () => {
+      const rolls = makeRepository();
+      const roll = aRoll();
+      await rolls.create(ctx, roll);
+      const read = await rolls.get(ctx, roll.id);
+
+      const saved = await rolls.saveRenumbered(
+        ctx,
+        { ...roll, name: 'Westfjords' },
+        read?.version ?? '',
+      );
+
+      expect(saved.ok).toBe(true);
+      expect((await rolls.get(ctx, roll.id))?.roll.name).toBe('Westfjords');
+    });
+
+    test('refuses saveRenumbered when the roll changed since it was read', async () => {
+      const rolls = makeRepository();
+      const roll = aRoll();
+      await rolls.create(ctx, roll);
+
+      expect(
+        await rolls.saveRenumbered(
+          ctx,
+          { ...roll, roll: aRoll({ roll: '2026-009' }).roll },
+          'stale',
+        ),
+      ).toEqual(
+        err({ kind: 'concurrency-conflict', entity: 'roll', id: roll.id }),
+      );
+      expect((await rolls.get(ctx, roll.id))?.roll.roll).toBe('2026-014');
+    });
+
+    test('says when saveRenumbered is given a roll that was never created', async () => {
+      const roll = aRoll();
+
+      expect(await makeRepository().saveRenumbered(ctx, roll, 'any')).toEqual(
+        err({ kind: 'not-found', entity: 'roll', id: roll.id }),
+      );
+    });
+
+    test('never lets two renumberings from different rolls take the same number', async () => {
+      const rolls = makeRepository();
+      const first = aRoll();
+      const second = aRoll({ id: ulidFor(2), roll: '2026-015' });
+      await rolls.create(ctx, first);
+      await rolls.create(ctx, second);
+      const firstRead = await rolls.get(ctx, first.id);
+      const secondRead = await rolls.get(ctx, second.id);
+      const wanted = aRoll({ roll: '2026-020' }).roll;
+
+      const results = await Promise.all([
+        rolls.saveRenumbered(
+          ctx,
+          { ...first, roll: wanted },
+          firstRead?.version ?? '',
+        ),
+        rolls.saveRenumbered(
+          ctx,
+          { ...second, roll: wanted },
+          secondRead?.version ?? '',
+        ),
+      ]);
+
+      expect(results.map((r) => r.ok).sort()).toEqual([false, true]);
+      expect(
+        (await rolls.list(ctx)).rolls.filter((r) => r.roll === wanted),
+      ).toHaveLength(1);
+    });
+
+    test('refuses a plain save that would change a roll’s number: only saveRenumbered does that', async () => {
+      const rolls = makeRepository();
+      const roll = aRoll();
+      await rolls.create(ctx, roll);
+      const read = await rolls.get(ctx, roll.id);
+
+      await expect(
+        rolls.save(
+          ctx,
+          { ...roll, roll: aRoll({ roll: '2026-009' }).roll },
+          read?.version ?? '',
+        ),
+      ).rejects.toThrow('saveRenumbered');
+      expect((await rolls.get(ctx, roll.id))?.roll.roll).toBe('2026-014');
+    });
+
     test('refuses a save when the roll changed since it was read', async () => {
       const rolls = makeRepository();
       const roll = aRoll();

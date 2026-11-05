@@ -206,7 +206,7 @@ describe('renaming a roll’s folder when its number changes', () => {
     to: string,
   ) {
     const read = await rolls.get(ctx, roll.id);
-    return rolls.save(
+    return rolls.saveRenumbered(
       ctx,
       { ...roll, roll: aRoll({ roll: to }).roll },
       read?.version ?? '',
@@ -300,15 +300,19 @@ describe('renaming a roll’s folder when its number changes', () => {
     ]);
   });
 
-  test('lets two rolls swap numbers, their folders never clashing', async () => {
+  test('lets two rolls trade numbers by way of a spare one, their folders never clashing', async () => {
     const rolls = repository();
     const first = aRoll();
     const second = aRoll({ id: ulidFor(2), roll: '2026-015' });
     await rolls.create(ctx, first);
     await rolls.create(ctx, second);
 
-    expect((await renumber(rolls, first, '2026-015')).ok).toBe(true);
+    // A swap in one go is the batch operation's (FF-108); one at a time needs a spare number.
+    expect((await renumber(rolls, first, '2026-099')).ok).toBe(true);
     expect((await renumber(rolls, second, '2026-014')).ok).toBe(true);
+    expect(
+      (await renumber(rolls, aRoll({ roll: '2026-099' }), '2026-015')).ok,
+    ).toBe(true);
 
     expect(await names(path.join(archive.path(), 'rolls', '2026'))).toEqual([
       '2026-014-00000002',
@@ -349,22 +353,22 @@ describe('renaming a roll’s folder when its number changes', () => {
     expect(await names(rollFolder('2026-014'))).toContain('frames');
   });
 
-  test('renames the folder when the number is changed through change() too', async () => {
+  test('refuses to change a number through change(), as it does through save()', async () => {
     const rolls = repository();
     await rolls.create(ctx, aRoll());
 
-    const changed = await rolls.change(ctx, aRoll().id, (roll) =>
-      Promise.resolve(
-        ok({
-          roll: { ...roll, roll: aRoll({ roll: '2026-009' }).roll },
-          value: 1,
-        }),
+    await expect(
+      rolls.change(ctx, aRoll().id, (roll) =>
+        Promise.resolve(
+          ok({
+            roll: { ...roll, roll: aRoll({ roll: '2026-009' }).roll },
+            value: 1,
+          }),
+        ),
       ),
-    );
-
-    expect(changed).toEqual(ok(1));
+    ).rejects.toThrow('saveRenumbered');
     expect(await names(path.join(archive.path(), 'rolls', '2026'))).toEqual([
-      '2026-009-00000001',
+      '2026-014-00000001',
     ]);
   });
 

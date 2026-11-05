@@ -189,6 +189,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   const ifMatches: (string | null)[] = [];
   /** The body of every request to create a roll. */
   const created: unknown[] = [];
+  /** The body of every request to change a roll's details. */
+  const rollUpdates: unknown[] = [];
   /** The file name of every scan uploaded. */
   const uploads: string[] = [];
   /** Every frame deleted, as it was. */
@@ -480,6 +482,22 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       if (!body.ok) {
         return body.response;
       }
+      rollUpdates.push(body.value);
+      // A number another roll has is a problem with the number, as the service says.
+      if (
+        body.value.roll !== undefined &&
+        rolls.some((r) => r.id !== roll.id && r.roll === body.value.roll)
+      ) {
+        return Response.json(
+          {
+            error: 'invalid request',
+            issues: [
+              { path: ['roll'], message: 'is already used by another roll' },
+            ],
+          },
+          { status: 422 },
+        );
+      }
       // A detail left out stays as it is.
       const changes = Object.fromEntries(
         Object.entries(body.value).filter(([, value]) => value !== undefined),
@@ -732,6 +750,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     requests,
     ifMatches,
     created,
+    rollUpdates,
     uploads,
     deleted,
     /** Stops answering, as a stopped service behind a proxy would: every request gets a 502. */

@@ -48,7 +48,9 @@ export interface RollRepository {
 
   /**
    * Replaces a roll, if it hasn't changed since it was read as
-   * `expectedVersion`. Returns the new version.
+   * `expectedVersion`. Returns the new version. It never changes the roll's
+   * number, which is `saveRenumbered`'s alone: a roll saved with another
+   * number than it has is a bug, and throws.
    */
   save(
     ctx: ArchiveContext,
@@ -57,10 +59,23 @@ export interface RollRepository {
   ): Promise<Result<string, NotFound | ConcurrencyConflict>>;
 
   /**
+   * Replaces a roll whose number may have changed, if it hasn't changed
+   * since it was read as `expectedVersion`; the one way a number changes
+   * (D70). Fails, changing nothing, if another roll has the new number; no
+   * two requests can both take a number. A roll's storage moves with its
+   * number (D66). Returns the new version.
+   */
+  saveRenumbered(
+    ctx: ArchiveContext,
+    roll: Roll,
+    expectedVersion: string,
+  ): Promise<Result<string, NotFound | ConcurrencyConflict | AlreadyExists>>;
+
+  /**
    * Reads the roll, applies `apply` and saves what it returns, with no other
    * change to the roll in between. For appends, such as adding a frame, which
    * need no version token from the caller (D11). `apply` may fail, and then
-   * nothing is saved.
+   * nothing is saved. Like `save`, it throws if `apply` changes the number.
    */
   change<T, E>(
     ctx: ArchiveContext,

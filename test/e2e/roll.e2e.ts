@@ -108,13 +108,32 @@ test('catalogue a roll: create it with its details and scans, correct a number, 
   ).toBeVisible();
   await expect(framesShown(page)).toHaveText(['1', '2', '3', '4']);
 
+  // Change its number in Edit details: the heading, a reload and the rolls
+  // page all have the new one, and the roll still opens.
+  await chooseAction(page, 'Edit details');
+  await page.getByLabel('Roll number').fill('2026-908');
+  await page.getByRole('button', { name: 'Save details' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Roll 2026-908' }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole('heading', { name: 'Roll 2026-908' }),
+  ).toBeVisible();
+  await expect(framesShown(page)).toHaveText(['1', '2', '3', '4']);
+  await page.getByRole('link', { name: 'All rolls' }).click();
+  await expect(rollsShown(page).filter({ hasText: '2026-908' })).toHaveCount(1);
+  await expect(rollsShown(page).filter({ hasText: '2026-014' })).toHaveCount(0);
+  await rollsShown(page).filter({ hasText: '2026-908' }).click();
+  await expect(framesShown(page)).toHaveText(['1', '2', '3', '4']);
+
   await chooseAction(page, 'Delete roll…');
   await page
-    .getByRole('alertdialog', { name: 'Delete roll 2026-014' })
+    .getByRole('alertdialog', { name: 'Delete roll 2026-908' })
     .getByRole('button', { name: 'Delete roll' })
     .click();
   await expect(
     page.getByRole('heading', { level: 1, name: 'Rolls' }),
   ).toBeVisible();
-  await expect(rollsShown(page).filter({ hasText: '2026-014' })).toHaveCount(0);
+  await expect(rollsShown(page).filter({ hasText: '2026-908' })).toHaveCount(0);
 });
