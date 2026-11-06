@@ -64,7 +64,7 @@ Archive
   - Marking a roll as filed, once its negatives are in the physical archive, fixes its number for good so its folder is never renamed again (D66, D74). `roll.json` stores `filed: true` only when set; without the field, the roll is unfiled. Roll API responses always include `filed` as a boolean, and `PATCH` can set or clear it (D71).
   - Attempts to change the number of an already-filed roll fail as a validation error (422); 409 remains for a stale version token (D71).
   - The UI shows a padlock after the roll number on its card in the rolls view and in the roll page heading. Individual frame thumbnails and list rows have no padlock. In Edit details the filed number stays visible and has a padlock (D72).
-- **Frame:** identified by the **frame number printed on the film**, as free text of up to 9 characters: `"0"`, `"23"`, `"00"`, `"-1"`, `"12A"`, or `"14-15"` for a panoramic frame spanning two numbers. `null` for a scan that's not yet identified. Frames sort naturally: by leading number (negatives first), then as text. 120 film uses position on the roll. A frame holds metadata and zero or more versions; a frame with no versions is valid (e.g. a frame the lab skipped, catalogued from the negatives). `defaultVersion` optionally names the version to show; when unset, the first version is shown (D46). A frame can have its own date shot, in place of its roll's (D47).
+- **Frame:** identified by the **frame number printed on the film**, as free text of up to 9 characters: `"0"`, `"23"`, `"00"`, `"-1"`, `"12A"`, or `"14-15"` for a panoramic frame spanning two numbers. `null` for a scan that's not yet identified. Frames sort naturally: by leading number (negatives first), then as text. 120 film uses position on the roll. A frame holds metadata and zero or more versions; a frame with no versions is valid (e.g. a frame the lab skipped, catalogued from the negatives). `defaultVersion` optionally names the version to show; when unset, the first version is shown (D46). A frame can have its own date shot (D47) and at most one own event (D50); its event overrides the roll's, and no own event means it inherits the roll's event.
 - **Version:** a file with a ULID, relative `file` path, content hash, pixel dimensions, `kind` (`scan`, `raw-scan` or `final`) and rotation. The first version is shown unless `defaultVersion` names another. Low-res display images are generated previews in the cache, never versions. The current model does not yet store lineage (`parents`), editor recipes or crop data; those are part of the planned editor workflow. Version IDs, not paths, are used for `defaultVersion`.
 - **Event:** currently a flat record with slug, name and optional date; rolls and frames refer to it by slug. Location and parent-event hierarchy are planned (section 7).
 
@@ -155,11 +155,11 @@ The current domain/API version has `id`, `file`, `sha256`, `bytes`, `width`, `he
 
 ## 6. Metadata layering
 
-### Implemented resolution
+### Implemented resolution and FF-101
 
 The current resolver combines archive settings, roll and frame details. Settings contribute `author` and `copyright`; a roll contributes `camera`, `film`, `lens`, its event slug and shot date; a frame can override its own `camera`, `lens`, events and shot date. A frame cannot set its own film stock (D45). [`GetFrameDetails`](../apps/backend/src/application/use-cases/frames/get-frame-details.ts) builds the archive → roll → frame layers and returns the source of each resolved value.
 
-Scalars inherit when omitted, replace when set and clear with `null`. Event lists can replace the inherited list or use `{ add, remove }`; `null` clears them. The current details model contains `author`, `copyright`, `camera`, `film`, `lens`, `events` and `shot` only.
+FF-101 changes a frame's own event from an `events` list to one `event` slug. The resolved-details response also becomes singular: a frame event takes precedence over its roll's; otherwise the roll event is returned with its source. If neither is set, the resolved event is omitted. Scalars inherit when omitted, replace when set and clear with `null`. The other currently resolved details are `author`, `copyright`, `camera`, `film`, `lens` and `shot`.
 
 ### Planned extensions
 
@@ -169,9 +169,9 @@ The broader target adds `location`, `tags`, `licence`, `_folder` defaults, event
 
 ## 7. Events
 
-**Current implementation:** an event is a flat record with a slug, name and optional date. Rolls store one event slug; frames store event slugs. Events do not move files, and pages read event and roll data through repositories because there is no catalogue index yet.
+**Current implementation:** an event is a flat record with a slug, name and optional date. Rolls store one event slug. Before FF-101, frames store `events` lists; FF-101 will replace that with one own event slug as `event`. Events do not move files, and pages read event and roll data through repositories because there is no catalogue index yet.
 
-**Planned event model:** an event can name one parent, forming a tree; validation rejects cycles and checks child dates against parent dates. Membership implies ancestors, and event metadata and date ranges flow to frames. D50 intends a frame to have at most one event of its own, but the current `Frame.events` domain field and API accept a list without enforcing that limit. The implementation and D50 need reconciliation before nested events are built.
+**Planned event model:** an event can name one parent, forming a tree; validation rejects cycles and checks child dates against parent dates. Membership implies ancestors, and event metadata and date ranges flow to frames. FF-101 will align the implementation with D50's at-most-one rule. The legacy `events` array is not migrated: the pre-release field is ignored rather than copied to the new singular `event` (D84). Sub-events and ancestor membership remain FF-130.
 
 Events, tags and albums remain distinct concepts: events describe when and where, tags describe content, and albums are curated selections for showing and publishing.
 
