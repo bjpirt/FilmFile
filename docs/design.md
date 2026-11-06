@@ -1,10 +1,10 @@
 # FilmFile — Design
 
-*Status: design agreed, not yet built. Last updated 6 November 2026.*
+*Status: design baseline; implementation is in progress. See the [roadmap](roadmap.md) for shipped work and [technical architecture](technical-architecture.md) for the current code structure. Last updated 6 November 2026.*
 
 A local-first tool for organising and cataloguing film photographs: physical negatives, the lab's low-res scans, my own hi-res camera scans, and the edits and exports made from them. It backs up and syncs through S3, and publishes selected images to a web gallery and other sites.
 
-The phased roadmap is in section 14, and the detailed plan for the first phases is in `docs/plan-phase-0-1.md`.
+The phased roadmap is in section 14; the task files under `docs/tasks/` record implementation scope and acceptance criteria.
 
 ---
 
@@ -31,15 +31,15 @@ The phased roadmap is in section 14, and the detailed plan for the first phases 
 ## 2. Principles and invariants
 
 1. **The filesystem is the source of truth.** JSON files plus image files are the archive. Every database is a cache that can be rebuilt by scanning the tree.
-2. **The API service is the only writer.** Every write goes through a use case and a repository port: it's validated, saved only if the record hasn't changed since it was read (version token), atomic, and serialised with a stable key order so unchanged data produces byte-identical files.
+2. **The API service is the only writer.** Metadata writes go through use cases and repository ports. Versioned roll saves reject stale data, write atomically, and serialize JSON with stable key order so unchanged data produces byte-identical files. Image bytes are written once through `BlobStore` and are never overwritten.
 3. **Originals are never modified or permanently deleted.** Lab scans, raws and editor exports are only ever added. An edit creates a new version, never an overwrite. Deleting a frame or roll moves its files into the archive's `deleted/` holding area; only I empty it.
 4. **Never write metadata into raws.** NegPy identifies files by content hash, so changing EXIF changes the hash. Catalogue metadata is stamped into exports only (the JPEGs made in `Exports/`, D60).
 5. **Frame identity lives in `roll.json`, not in paths.** Frame folders are named by the frame number and ID; version folders by kind and ID (D69). Renumbering a frame or changing a version's kind moves its folder and updates the version paths in `roll.json`; files keep their original names and contents.
 6. **Stable IDs.** Archives, rolls, frames, versions and events have ULIDs, so renaming a roll or event doesn't break links, sync or published URLs.
-7. **Catalogue and operational state are separate.** `roll.json` holds the catalogue; `.state.json` holds workflow state, which changes far more often.
+7. **Catalogue and operational state are separate.** `roll.json` holds the catalogue. A per-roll `.state.json` for workflow outcomes is planned; workflows and this file are not implemented yet.
 8. **Nothing destructive by default.** Deleting, unpublishing and similar actions are explicit, separate operations. Deletes are recoverable by hand from `deleted/`.
-9. **Caches live outside the archive.** Thumbnails, previews, the SQLite index and lock files sit in an OS cache directory and are never synced.
-10. **External changes are validated.** Files changed outside the service (by sync, or the odd manual fix) are validated when read; invalid files are flagged, not loaded. The archive has no file watcher (D37); only the NegPy folder is watched, for exports to bring in (D53).
+9. **Caches live outside the archive.** Generated previews and other caches stay in an OS cache directory and are never synced. A rebuildable SQLite index is planned but is not implemented yet.
+10. **External changes are validated.** The filesystem repository validates `roll.json` against its schema whenever it reads it, and reports unreadable rolls. Image assets are not automatically re-hashed on read. There is no archive watcher (D37); a NegPy folder watcher is planned with the editor integration (FF-114), not implemented yet.
 
 ---
 
@@ -48,7 +48,7 @@ The phased roadmap is in section 14, and the detailed plan for the first phases 
 ```
 Archive
  ├─ Equipment   cameras, lenses, films (referenced by slug)
- ├─ Event       what happened: name, dates, place; nests via parent
+ ├─ Event       what happened: name and date now; parent hierarchy planned
  └─ Roll        the physical roll: development, when it was shot
      └─ Frame   one photograph: frame number, title, rating, event
          └─ Version   one file: lab scan, raw, master, edit or export, with lineage
@@ -65,8 +65,8 @@ Archive
   - Attempts to change the number of an already-filed roll fail as a validation error (422); 409 remains for a stale version token (D71).
   - The UI shows a padlock after the roll number on its card in the rolls view and in the roll page heading. Individual frame thumbnails and list rows have no padlock. In Edit details the filed number stays visible and has a padlock (D72).
 - **Frame:** identified by the **frame number printed on the film**, as free text of up to 9 characters: `"0"`, `"23"`, `"00"`, `"-1"`, `"12A"`, or `"14-15"` for a panoramic frame spanning two numbers. `null` for a scan that's not yet identified. Frames sort naturally: by leading number (negatives first), then as text. 120 film uses position on the roll. A frame holds metadata and zero or more versions; a frame with no versions is valid (e.g. a frame the lab skipped, catalogued from the negatives). `defaultVersion` optionally names the version to show; when unset, the first version is shown (D46). A frame can have its own date shot, in place of its roll's (D47).
-- **Version:** a file with a ULID, a content hash, its pixel dimensions and parents. Versions have no `kind`: a version is a version, and the frame's `defaultVersion` decides which one is shown. Low-res display images are generated previews in the cache, never versions. `defaultVersion` and `parents` refer to version IDs, never paths. Phase 2 adds raws, masters (editor exports), edits and exports; how the service tells them apart where behaviour differs (e.g. never writing metadata into raws) is an open question (section 15). **`parents` is a list**, since a master may come from several raws (brackets, stitched sections, trichrome).
-- **Event:** a named happening with optional dates, location and parent event. Rolls and frames belong to events (section 7).
+- **Version:** a file with a ULID, relative `file` path, content hash, pixel dimensions, `kind` (`scan`, `raw-scan` or `final`) and rotation. The first version is shown unless `defaultVersion` names another. Low-res display images are generated previews in the cache, never versions. The current model does not yet store lineage (`parents`), editor recipes or crop data; those are part of the planned editor workflow. Version IDs, not paths, are used for `defaultVersion`.
+- **Event:** currently a flat record with slug, name and optional date; rolls and frames refer to it by slug. Location and parent-event hierarchy are planned (section 7).
 
 ---
 
@@ -95,7 +95,7 @@ Library/
   deleted/                         # holding area for deleted frames and rolls; emptied by hand
     2026-11-02T101500Z-frame-01JC8Z9Q2P…/
       frame.json                   # the frame entry and which roll it came from
-      Q2P7RM4K/…                   # the frame's folder, moved as it was
+      23-Q2P7RM4K/…                # the frame's folder, moved as it was
   events/
     iceland-2026.json
     jokulsarlon-day.json           # parent: iceland-2026
@@ -104,7 +104,7 @@ Library/
       _folder.json                 # optional defaults for a group of rolls (later phase)
       2026-014-K0P3XW2D/           # a roll: its number and ID, renamed as it's renumbered until it's filed (D66)
         roll.json                  # roll, frames and versions
-        .state.json                # tool-owned workflow state
+        .state.json                # planned workflow state
         frames/
           1-Q2P7RM4K/              # one folder per frame: its number and the end of its ULID (D69)
             scan-8F3WXB1C/      12340001.jpg               # one folder per version: its kind and ID; original names
@@ -127,17 +127,18 @@ Library/
 All files are JSON, carry `"schema": <n>`, and validate against Zod schemas owned by the filesystem adapter (which also generate JSON Schemas for reference). Readers migrate older schema versions in memory; files are rewritten in the current version the next time they're saved. A file that can't be read (not valid JSON, not matching its schema, or written by a newer version of FilmFile) is reported, not allowed to hide the rest: the roll list names the roll and the problem, and the file is never changed or deleted. These persistence schemas are separate from the domain model and the API contracts (section 13.3).
 
 - **settings.json:** in the FilmFile folder beside `Library/` (D65): `id`, `meta` (archive-wide defaults: author and copyright; a licence later, D42), and later export recipes, event site defaults and workflow settings. It never holds the folder's own path, nor values that differ on each computer (D52). Labs aren't stored (D35).
-- **roll.json:** roll fields, the optional `filed: true` field (absent means unfiled), roll `meta`, and the `frames` array, each frame holding its own fields, `meta`, its `event` and `versions`. A full example is in `docs/plan-phase-0-1.md`.
+- **roll.json:** roll fields, the optional `filed: true` field (absent means unfiled), roll `meta`, and the `frames` array, each frame holding its own fields, `meta`, its `event` and `versions`.
 - **Equipment:** one file per item; the slug is the file name.
 - **Event:** `id`, `name`, optional `parent` (event slug), `dates`, `notes`, and `meta` defaults (e.g. `location`).
 - **.state.json:** per roll, keyed by frame ID and version, holding workflow outcomes (backed up, published URL). It can be deleted; the tool re-checks what's done.
 
-Version entries (from Phase 2) look like:
+The current domain/API version has `id`, `file`, `sha256`, `bytes`, `width`, `height`, `added`, `kind` and `rotate`. In `roll.json`, the default `scan` kind and zero rotation are omitted. A planned Phase 2 version with lineage and recipe metadata could look like:
 
 ```json
 {
   "id": "01JD2K4F8R…",
   "file": "frames/1-Q2P7RM4K/final-V5M2QH8A/DSC_4821.tif",
+  "kind": "final",
   "parents": ["01JD2J9X1B…"],
   "editor": { "name": "NegPy", "version": "0.54" },
   "recipe": "frames/1-Q2P7RM4K/final-V5M2QH8A/3f9a….negpy",
@@ -154,40 +155,25 @@ Version entries (from Phase 2) look like:
 
 ## 6. Metadata layering
 
-**Inheritable fields** live in a `meta` object, which has the same shape at every level: `camera`, `lens`, `film`, `location`, `tags`, `author`, `copyright`, `licence` (more may be added). A frame can't set `film`: a roll is one film (D45).
+### Implemented resolution
 
-**Resolution order, general to specific:**
+The current resolver combines archive settings, roll and frame details. Settings contribute `author` and `copyright`; a roll contributes `camera`, `film`, `lens`, its event slug and shot date; a frame can override its own `camera`, `lens`, events and shot date. A frame cannot set its own film stock (D45). [`GetFrameDetails`](../apps/backend/src/application/use-cases/frames/get-frame-details.ts) builds the archive → roll → frame layers and returns the source of each resolved value.
 
-`archive` → `_folder` (outermost first; later phase) → `roll` → its event (the event's ancestors first, then the event) → `frame` → version
+Scalars inherit when omitted, replace when set and clear with `null`. Event lists can replace the inherited list or use `{ add, remove }`; `null` clears them. The current details model contains `author`, `copyright`, `camera`, `film`, `lens`, `events` and `shot` only.
 
-Equipment slugs resolve to their records, whose fields can be overridden by more specific layers.
+### Planned extensions
 
-**Merge rules**
-
-| Value | Rule |
-|---|---|
-| Scalar | The more specific layer replaces it. |
-| Map | Merged key by key. |
-| Array | Replaces the inherited list. |
-| `{ "add": [...], "remove": [...] }` | Modifies the inherited list. |
-| `null` | Clears the inherited value. |
-
-- **Not inherited:** a record's own descriptive fields, such as a roll's name and notes and a frame's title, rating and notes (D40).
-- **Version-level overrides are narrow:** scan settings, licence, and transforms (crop and rotate).
-- **An event and its ancestors setting the same field:** the most specific event wins.
-- **Provenance:** the resolver records which layer and ID set each value. The UI shows it ("lens: Nikkor 105mm — frame"), and the resolved record is exactly what workflows and exported EXIF/XMP use.
-- **Workflow settings** layer the same way.
+The broader target adds `location`, `tags`, `licence`, `_folder` defaults, event-ancestor and version-level layers, plus map merging. These are not part of the current resolver. In the target design, resolution proceeds from archive → outer `_folder` layers → roll → event ancestors and event → frame → version, with more-specific values taking precedence. Workflow settings use a similar model when workflows are implemented.
 
 ---
 
 ## 7. Events
 
-- An event file can name a `parent`, forming a **tree** (one parent per event). Validation rejects cycles and warns when a child's dates fall outside its parent's. A parent without dates takes its range from its children.
-- **Membership is declared on rolls and frames** via `event`: each is in at most one event of its own (D50). A roll's event is inherited by its frames; a frame can have its own instead.
-- **Membership implies ancestors:** a frame in `jokulsarlon-day` is also in `iceland-2026`. A frame names only its most specific event.
-- **Event metadata flows down:** parent event → child event → frame. An event's date range stands in as the approximate shot date for its frames.
-- Events never move files. They are views across the archive, built by the index.
-- **Events, tags and albums differ:** events say when and where; tags describe content; albums are curated selections for showing and publishing.
+**Current implementation:** an event is a flat record with a slug, name and optional date. Rolls store one event slug; frames store event slugs. Events do not move files, and pages read event and roll data through repositories because there is no catalogue index yet.
+
+**Planned event model:** an event can name one parent, forming a tree; validation rejects cycles and checks child dates against parent dates. Membership implies ancestors, and event metadata and date ranges flow to frames. D50 intends a frame to have at most one event of its own, but the current `Frame.events` domain field and API accept a list without enforcing that limit. The implementation and D50 need reconciliation before nested events are built.
+
+Events, tags and albums remain distinct concepts: events describe when and where, tags describe content, and albums are curated selections for showing and publishing.
 
 ---
 
@@ -204,9 +190,11 @@ Lab scans are low-res JPEGs of every frame named `BBBBNNNN.jpg` (batch, scan ind
 - Upload is idempotent: a file whose hash is already in the roll is refused with a reference to the existing frame and version, so an interrupted import is completed by uploading again. An interruption between creating a frame and uploading its scan leaves a frame with no versions, which is valid and can be uploaded into or deleted.
 - **Renumbering** changes frame numbers in `roll.json` and renames the frame folder; frames keep their IDs, metadata and versions. There's no "numbering confirmed" state: a roll's numbers are what they are, corrected by editing or renumbering (D20, D69).
 
-### 8.2 Own hi-res scans (camera raws), Phase 2
+### 8.2 Own hi-res scans (camera raws)
 
-Every version is a kind (D48): a **Scan**, ready to view at whatever resolution (the lab's low-res scans, or a positive of my own); a **Raw scan**, the negative or slide as scanned, not yet processed; or a **Final**, processed and edited. The kind is chosen as a version is added and can be changed; resolution isn't a kind, since it's measured from the image. Raw scans are Sony ARW raws or TIFFs, never written to; an ARW's thumbnail comes from the preview JPEG it carries. Versions are first added to one chosen frame at a time; exporting raw scans for NegPy or Darktable, adding many frames' raw scans or finals at once, and the scan-list workflow below come later.
+Every version is a kind (D48): a **Scan**, ready to view at whatever resolution (the lab's low-res scans, or a positive of my own); a **Raw scan**, the negative or slide as scanned, not yet processed; or a **Final**, processed and edited. Single-file uploads as these kinds and changing a version's kind are implemented. Raw scans can be Sony ARW raws or TIFFs, are never written to, and an ARW's thumbnail comes from the preview JPEG it carries. Exporting raw scans for NegPy or Darktable, adding many frames' raw scans or finals at once, and the scan-list workflow below remain planned.
+
+The numbered scan-list workflow below is planned, not part of the current upload flow:
 
 1. Frames are marked **to scan** while browsing lab scans (FF-104); the mark goes when a raw scan is added.
 2. The tool produces an ordered **scan list** (e.g. `2026-014: 3, 7, 12A, 23`).
@@ -216,7 +204,7 @@ Every version is a kind (D48): a **Scan**, ready to view at whatever resolution 
 
 ---
 
-## 9. Editor integration (Phase 2)
+## 9. Editor integration (planned)
 
 **Responsibilities:** this tool owns raws, frame assignment, catalogue metadata, ingested exports as versions, and crop and rotate. The editor owns conversion and editing; its recipes are captured as attachments.
 
@@ -238,7 +226,7 @@ Every version is a kind (D48): a **Scan**, ready to view at whatever resolution 
 
 ---
 
-## 10. Storage, sync and backup
+## 10. Storage, sync and backup (planned)
 
 **S3 has three roles:** backup, sync between devices, and hosting the public gallery (in a separate bucket). Backup and sync cover the library (`Library/`) and `settings.json` only (D57, D65).
 
@@ -261,7 +249,7 @@ Every version is a kind (D48): a **Scan**, ready to view at whatever resolution 
 
 ---
 
-## 11. Workflows (format deferred)
+## 11. Workflows (planned; format deferred)
 
 - **Events in the archive trigger workflows:** version added, frame tagged, rating changed, roll completed, and so on. A workflow is a trigger, a filter and a list of steps.
 - **Local compute runs workflows**, initially on one designated device. Central coordination may come later.
@@ -273,7 +261,7 @@ To decide later: the definition format for triggers, filters and steps.
 
 ---
 
-## 12. Web gallery
+## 12. Web gallery (planned)
 
 - **Event sites first (D61):** an event's frames rated at least a chosen number of stars, with frames added or left off by hand, made into a static site in `Sites/<event>/` (HTML, CSS and web-sized images; no GPS, no originals, metadata only author and copyright), then uploaded to an S3 bucket with an AWS profile from `~/.aws`.
 - A publishing workflow renders a static site from selected frames or albums into a **separate public bucket** behind CloudFront.
@@ -297,7 +285,7 @@ The service follows **hexagonal architecture (ports and adapters)** so the same 
 browser │ HTTP (REST+OpenAPI)│──┐                  ┌──▶│ Catalogue repository    │ JSON files │ (S3)
         └───────────────────┘  │  ┌────────────┐  │   │ Blob store              │ disk       │ (S3)
                                └─▶│ Application │──┤   │ Holding area            │ deleted/   │ (S3 prefix)
-                                  │ (use cases) │  ├──▶│ Catalogue index         │ SQLite     │ (SQLite/Postgres)
+                                  │ (use cases) │  ├──▶│ Catalogue index (planned)│ SQLite    │ (SQLite/Postgres)
                                   └─────┬──────┘  │   │ Preview provider        │ sharp+cache│ (sharp+S3)
                                         │         └──▶│ Clock, Ids              │ node       │
                                   ┌─────▼──────┐      └─────────────────────────┘
@@ -311,9 +299,9 @@ The layers are **folders within the service package**, with a lint rule (`eslint
 
 | Layer | Contains | May import |
 |---|---|---|
-| `domain/` | Entities and value objects (Roll, Frame, Version, FrameNumber, Mapping, Meta), the mapping engine, metadata resolution and provenance, invariants and domain errors. Pure: no I/O, no time, no randomness. | Nothing outside `domain/` |
+| `domain/` | Entities and value objects (Roll, Frame, Version, FrameNumber, Meta), frame-number rules, metadata resolution and provenance, invariants and domain errors. Pure: no I/O, no time, no randomness. | Nothing outside `domain/` |
 | `application/` | Use cases, and the **port interfaces** they depend on (`application/ports/`). Orchestrates domain + ports. | `domain/` |
-| `adapters/` | Inbound adapters (HTTP), which call the application, and outbound adapters (filesystem, SQLite, sharp, node clock and IDs, in-memory). | `application/`, `domain/`, libraries |
+| `adapters/` | Inbound adapters (HTTP), which call the application, and outbound adapters (filesystem, sharp, Node clock and IDs, in-memory). A SQLite adapter is planned with the catalogue index. | `application/`, `domain/`, libraries |
 | `composition/` | Composition roots that build the object graph for each runtime. | Everything |
 | `main.ts` | Reads config, calls a composition root, starts the server. | `composition/` |
 
@@ -338,11 +326,11 @@ Outbound ports, defined in `application/ports/` and implemented by outbound adap
 | Port | Responsibility | Local adapter | Cloud adapter (later) |
 |---|---|---|---|
 | `SettingsRepository` | Read and save `settings.json` at the FilmFile folder's top level (id and meta) | JSON file | S3 object |
-| `RollRepository` | Get, list, create, save and rename rolls. Every read returns a **version token**; `save(roll, expectedVersion)` fails with `ConcurrencyConflict` if it changed; `create` and `rename` fail if the roll number is taken | JSON files: archive-wide in-process lock, ETag check, temp file + rename; batch renumber with best-effort rollback (D77–D78) | S3 `If-Match` / `If-None-Match` conditional writes |
+| `RollRepository` | Get, list, create, change and save rolls; explicit single and batch renumber operations. Versioned writes reject a stale snapshot with `ConcurrencyConflict`; roll creation and renumbering enforce unique roll numbers | JSON files: archive-wide in-process lock, version check, temp file + rename; batch renumber with best-effort rollback (D77–D78) | S3 conditional writes (future) |
 | `EquipmentRepository` | Cameras, lenses, films | JSON files | S3 objects |
-| `BlobStore` | Write-once storage of image files: `put` (streams, returns SHA-256 and size), `get`, `stat`. Never overwrites | A folder per version in the archive | S3 with Standard-IA / Deep Archive classes |
+| `BlobStore` | Write-once storage of image files: `put` accepts inspected bytes and returns the relative file path; `get` reads by that path. Never overwrites | Labeled frame and version folders in the archive | S3 (future) |
 | `HoldingArea` | Receives deleted versions and frames (their files plus their JSON) and deleted rolls (the whole folder, frames and all), for me to empty by hand. Never deletes | `deleted/` in the archive | S3 prefix |
-| `CatalogueIndex` | Read model for listing and filtering: upsert a resolved roll, remove, query, rebuild | SQLite in the cache directory | SQLite or Postgres |
+| `CatalogueIndex` (planned) | Read model for listing and filtering: upsert a resolved roll, remove, query, rebuild | Not implemented; current roll listings read through `RollRepository` | SQLite or Postgres (future) |
 | `PreviewProvider` | Thumbnails and previews by content hash, generated lazily | sharp + cache folder | sharp + S3 cache |
 | `ImageInspector` | Reads an uploaded image's pixel dimensions from its header, within the input pixel limit | sharp; a TIFF's or raw's (Sony ARW) size from its TIFF tables, by our own reader | same |
 | `Clock`, `IdGenerator` | Current time; ULIDs | Node | Node |
@@ -361,14 +349,14 @@ The inbound adapter in Phase 1:
 
 - **HTTP API**: Hono with `@hono/zod-openapi`. Parses requests with the contracts schemas, calls a use case, maps the result to a response.
 
-There is **no domain event bus yet**: use cases call `CatalogueIndex` directly. An event-bus port arrives with workflows (Phase 4), when the direct calls become subscribers.
+There is **no catalogue index or domain event bus yet**. Use cases currently read and write through repositories directly. An index and event-bus port can be added with the features that need them, such as workflows.
 
 ### 13.5 Use cases
 
 Each use case is a class with its dependencies injected through the constructor and a single `execute(ctx, input)` method:
 
 - `ctx` is an **archive context** (`{ archiveId }`). There's only one archive today, but threading it through every use case means a future multi-archive or multi-user setup doesn't require rewiring.
-- Use cases return a **`Result<T, E>`** (a small in-house discriminated union, no library) rather than throwing for expected failures. Domain errors (`NotFound`, `ValidationFailed`, `ConcurrencyConflict`, `AlreadyExists`, `MappingInvalid`) are typed, and the HTTP adapter maps them to status codes (404, 422, 409, 409, 422).
+- Use cases return a **`Result<T, E>`** (a small in-house discriminated union, no library) rather than throwing for expected failures. Current use cases return typed errors such as `NotFound`, `ValidationFailed`, `ConcurrencyConflict` and `AlreadyExists`, which the HTTP adapter maps to status codes (404, 422, 409 and 409). `MappingInvalid` remains in the error model for the deferred mapping design; there is no mapping use case today.
 - Unexpected errors (I/O failure, bugs) throw and become a 500 with a logged correlation ID.
 
 ### 13.6 Dependency injection
@@ -376,26 +364,26 @@ Each use case is a class with its dependencies injected through the constructor 
 **Pure DI**: constructor injection everywhere, no container library and no decorators.
 
 - Each runtime has a **composition root**: a plain, typed function that builds adapters, injects them into use cases, and injects the use cases into the HTTP routes.
-  - `composeLocal(config)`: filesystem repositories and blob store, SQLite index, sharp previews.
-  - `composeInMemory(overrides?)`: in-memory adapters for every port, a fixed clock and sequential IDs. Used by tests and a possible demo mode. `overrides` swaps individual adapters.
+  - `composeLocal(config)`: filesystem repositories and blob store, Node clock and ULIDs, sharp image inspection and previews.
+  - `composeInMemory(overrides?)`: in-memory storage adapters, a fixed clock and sequential IDs. Image inspection still uses sharp. Used by tests and a possible demo mode. `overrides` swaps individual adapters.
   - `composeCloud(config)`: later, with S3 and cloud adapters.
 - Because wiring is ordinary TypeScript, a missing or mismatched dependency is a compile error, not a runtime surprise.
-- Ports are interfaces; adapters are classes implementing them. Nothing outside `composition/` constructs an adapter.
+- Ports are interfaces; adapters are classes implementing them. Production object graphs are assembled in `composition/`; adapter tests may instantiate adapters directly.
 
 ### 13.7 Testing strategy
 
-- **Domain:** pure unit tests (table-driven for the mapping engine and the resolver).
+- **Domain:** pure unit tests (table-driven for frame-number rules and the metadata resolver).
 - **Use cases:** tested through `composeInMemory`. This is where most behaviour is tested, and it's fast because nothing touches disk.
-- **Port contract tests:** one shared test suite per port, run against every adapter (in-memory and filesystem now; S3 later via MinIO or LocalStack). This guarantees adapters are interchangeable, including concurrency behaviour such as a stale version being rejected.
+- **Port contract tests:** shared suites cover the implemented in-memory and filesystem adapters where both exist; S3 adapters are future work. They verify adapter behavior, including stale-version conflicts.
 - **HTTP:** Hono `app.request` tests against an in-memory composition, checking status codes, ETags and validation errors.
 - **End to end:** a small Playwright suite against `composeLocal` with a temp archive and generated fixture scans.
 
 ### 13.8 API
 
-- **REST resources** with an **OpenAPI spec generated from the Zod schemas** in `@filmfile/contracts`, served at `/api/openapi.json` with an interactive docs page at `/api/docs` (useful for trying the API before the UI exists). The docs page's assets are served by the service itself, not a CDN, so the CSP needs no exceptions.
+- **REST resources** with an **OpenAPI spec generated from the Zod schemas** in `@filmfile/contracts`, served at `/api/openapi.json` with an interactive docs page at `/api/docs` (useful for exploring and testing the API alongside the UI). The docs page's assets are served by the service itself, not a CDN, so the CSP needs no exceptions.
 - The web UI uses a **typed client generated from the spec** (`openapi-typescript` + `openapi-fetch`), so it depends only on the API contract.
-- The API serves **resolved data**: a roll comes back with every frame's resolved metadata and provenance, plus an `ETag`. Writes require `If-Match` and return 409 on conflict.
-- **Image data and metadata have separate endpoints.** Frames are created and edited as JSON (`/api/rolls/{rollId}/frames`). Images are uploaded as versions of a frame, one file per request, with the raw image as the body (`POST /api/rolls/{rollId}/frames/{frameId}/versions?file=…`), with details such as the file name in the query. Phase 1 uploads lab scans only; Phase 2 adds other files through the same endpoint. A raw image body can't be sent by a cross-site form.
+- A roll response includes its catalogue fields and `ETag`; resolved metadata with provenance is returned by the frame-details endpoint. Versioned writes require `If-Match` and return 409 on conflict.
+- **Image data and metadata have separate endpoints.** Frames are created and edited as JSON (`/api/rolls/{rollId}/frames`). Images are uploaded as versions of a frame, one file per request, with the raw image as the body (`POST /api/rolls/{rollId}/frames/{frameId}/versions?file=…`); the query carries the original file name and kind. Uploads support the implemented Scan, Raw scan and Final kinds. Batch import and scan-list matching remain planned. A raw image body can't be sent by a cross-site form.
 - Original files and thumbnails are read through their version (`…/versions/{versionId}/file` and `…/versions/{versionId}/thumbnail?size=small|large`), never by path or hash. Thumbnails are cached by content hash behind the scenes.
 
 ### 13.9 Repository layout
@@ -411,10 +399,9 @@ apps/
       adapters/
         inbound/http/        Hono routes, OpenAPI, DTO ↔ domain mapping
         outbound/filesystem/ repositories, blob store, persistence schemas
-        outbound/sqlite/     catalogue index
         outbound/sharp/      preview provider
         outbound/node/       clock, ULID generator
-        outbound/memory/     in-memory implementation of every port
+        outbound/memory/     in-memory implementations of storage ports used in tests
       composition/         composeLocal, composeInMemory
       main.ts
     test/
@@ -437,7 +424,7 @@ packages/
 | API client | `openapi-typescript` + `openapi-fetch` |
 | Images | `sharp` (libvips): WebP thumbnails and previews keyed by hash |
 | Metadata (Phase 2) | `exiftool-vendored`; raw previews come from our own reader of TIFF tables (U20) |
-| Index | SQLite via `better-sqlite3`, in the OS cache directory |
+| Index (planned) | SQLite via `better-sqlite3`, in the OS cache directory |
 | IDs | ULID |
 | Web UI | React + Vite + TanStack Query |
 | Tests | Vitest, `fast-check`, Playwright |
@@ -449,7 +436,7 @@ packages/
 - Listens on `127.0.0.1` by default. Network or cloud access requires authentication, to be designed with the cloud adapters.
 - Serves the built web UI at `/`, so the UI and API share one origin and the Origin check needs no exceptions. In development, Vite proxies `/api` to the service, and the service's allowed UI origin is set to the Vite dev server's through configuration.
 - Runs inside the desktop app (D54): Electron's main process starts it in a `utilityProcess` on a free port and stops it on quitting, and only one copy of the app runs, so there's one writer. It can still be started on its own (`pnpm start`, with `FILMFILE_FOLDER` set) for development and a browser.
-- "Open in editor" launches the editor when the UI is on the same machine; otherwise the UI shows the path.
+- Editor integration, including launching an editor and reconciling its exports, is planned; see section 9.
 - The UI only displays generated JPEG/WebP previews, since browsers can't show TIFF or raw.
 - The desktop app's window is locked down (context isolation, sandbox, no Node.js in the page, no preload), sends links elsewhere to the default browser, and refuses permission requests. The FilmFile folder is chosen in the app's own dialogs and kept in its per-computer settings (D52); Settings shows where it is through a read-only `folder` field of `GET /api/settings`, the one absolute path the API returns (D64).
 - There is **no CLI** for now. If one is added, it's an API client, not a second writer.
