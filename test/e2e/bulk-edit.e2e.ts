@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './support/isolated-test.ts';
 import { fixtureSets } from '../../apps/backend/test/support/lab-scans.ts';
 import { chooseAction, createRoll } from './support/journeys.ts';
 

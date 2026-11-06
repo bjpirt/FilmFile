@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './support/isolated-test.ts';
 import { fixtureSets } from '../../apps/backend/test/support/lab-scans.ts';
 import { createRoll } from './support/journeys.ts';
 

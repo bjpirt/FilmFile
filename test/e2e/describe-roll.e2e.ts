@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './support/isolated-test.ts';
 import { addCamera, chooseAction, createRoll } from './support/journeys.ts';
 
 test('describe a roll: add its name, notes, date shot and a new camera later, and find them on the roll and in the rolls list', async ({

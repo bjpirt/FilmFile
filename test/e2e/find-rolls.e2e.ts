@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './support/isolated-test.ts';
 import { createRoll, rollsShown } from './support/journeys.ts';
 
 // Rolls from years, and with a camera, lens and film stock, no other journey

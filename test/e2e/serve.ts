@@ -3,10 +3,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 // Starts the backend, serving the built UI, on a new FilmFile folder and
-// cache that are removed when it stops. Playwright runs this as its web servers:
-// `serve.ts <port> set-up` with FilmFile already set up, for the journeys
-// that start from there, and `serve.ts <port>` with an empty one, for
-// first-run setup.
+// cache that are removed when it stops. The isolated test fixture starts this
+// for each journey with `set-up` except for first-run setup.
 
 const [port = '4311', mode] = process.argv.slice(2);
 const folder = mkdtempSync(path.join(tmpdir(), 'filmfile-e2e-folder-'));

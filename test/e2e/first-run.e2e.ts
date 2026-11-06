@@ -1,11 +1,12 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './support/isolated-test.ts';
 
-// Against the server whose FilmFile folder is never set up beforehand.
-test.use({ baseURL: 'http://127.0.0.1:4312' });
+test.use({ archiveSetup: 'empty' });
 
 test('first run: set FilmFile up before anything else, then change its settings and see where the folder is', async ({
   page,
+  request,
 }) => {
+  expect((await request.get('/api/health')).ok()).toBe(true);
   await page.goto('/events');
 
   const setUp = page.getByRole('form', { name: 'Set up FilmFile' });
