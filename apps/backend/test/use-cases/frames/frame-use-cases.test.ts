@@ -49,15 +49,13 @@ async function setUp() {
   const holding: HoldingArea = new InMemoryHoldingArea();
   const equipment = new InMemoryEquipmentRepository();
   const events = new InMemoryEventRepository();
-  const created = await new CreateRoll(
-    rolls,
-    equipment,
-    events,
-    ids,
-    clock,
-  ).execute(ctx, {
-    roll: '2026-014',
-  });
+  const created = await new CreateRoll(rolls, equipment, events, ids).execute(
+    ctx,
+    {
+      roll: '2026-014',
+      shot: '2026',
+    },
+  );
   if (!created.ok) {
     throw new Error('setup failed');
   }

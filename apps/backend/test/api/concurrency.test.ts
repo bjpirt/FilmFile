@@ -8,7 +8,11 @@ const { request, post } = apiFor(useTempArchive());
 
 async function aRoll(): Promise<string> {
   return String(
-    idOf(await (await post('/api/rolls', { roll: '2026-014' })).json()),
+    idOf(
+      await (
+        await post('/api/rolls', { roll: '2026-014', shot: '2026' })
+      ).json(),
+    ),
   );
 }
 

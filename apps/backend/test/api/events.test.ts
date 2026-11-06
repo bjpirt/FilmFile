@@ -134,7 +134,11 @@ describe('a roll’s event', () => {
   test('is recorded when the roll is created, and cleared with its details', async () => {
     await post('/api/events', { name: 'Iceland 2026' });
     const created: unknown = await (
-      await post('/api/rolls', { roll: '2026-014', event: 'iceland-2026' })
+      await post('/api/rolls', {
+        roll: '2026-014',
+        event: 'iceland-2026',
+        shot: '2026',
+      })
     ).json();
     const url = `/api/rolls/${String(idOf(created))}`;
     const etag = (await request(url)).headers.get('ETag') ?? '';
@@ -153,6 +157,7 @@ describe('a roll’s event', () => {
     const response = await post('/api/rolls', {
       roll: '2026-014',
       event: 'iceland-2026',
+      shot: '2026',
     });
 
     expect(await response.json()).toMatchObject({

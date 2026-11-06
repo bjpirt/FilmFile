@@ -25,7 +25,9 @@ function client() {
 test('the typed client creates and lists rolls', async () => {
   const api = client();
 
-  const created = await api.POST('/api/rolls', { body: { roll: '2026-014' } });
+  const created = await api.POST('/api/rolls', {
+    body: { roll: '2026-014', shot: '2026' },
+  });
   const listed = await api.GET('/api/rolls');
 
   expect(created.response.status).toBe(201);
@@ -45,7 +47,9 @@ test('the typed client returns the error body for a failed request', async () =>
 
 test('the typed client uploads a scan as a file', async () => {
   const api = client();
-  const roll = await api.POST('/api/rolls', { body: { roll: '2026-014' } });
+  const roll = await api.POST('/api/rolls', {
+    body: { roll: '2026-014', shot: '2026' },
+  });
   const rollId = String(roll.data?.id);
   const frame = await api.POST('/api/rolls/{rollId}/frames', {
     params: { path: { rollId } },

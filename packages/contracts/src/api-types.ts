@@ -2043,14 +2043,14 @@ export interface components {
         };
         CreateRollRequest: {
             /**
-             * @description The roll's number. Left out, the roll gets the next free number of the year it was shot, or this year's (D67).
+             * @description The roll's number. Left out, the roll gets the next free number of the year it was shot (D73).
              * @example 2026-014
              */
             roll?: string;
             name?: string;
             notes?: string;
             /** @example 2026-09-14 */
-            shot?: string;
+            shot: string;
             /** @example nikon-fe */
             event?: string;
             /** @example nikon-fe */

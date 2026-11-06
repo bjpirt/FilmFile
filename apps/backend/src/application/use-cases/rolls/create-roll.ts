@@ -11,7 +11,6 @@ import type {
   ValidationFailed,
 } from '../../../domain/shared/domain-error.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
-import type { Clock } from '../../ports/clock.ts';
 import type { EquipmentRepository } from '../../ports/equipment-repository.ts';
 import type { EventRepository } from '../../ports/event-repository.ts';
 import type { IdGenerator } from '../../ports/id-generator.ts';
@@ -34,20 +33,17 @@ export class CreateRoll {
   readonly #equipment: EquipmentRepository;
   readonly #events: EventRepository;
   readonly #ids: IdGenerator;
-  readonly #clock: Clock;
 
   constructor(
     rolls: RollRepository,
     equipment: EquipmentRepository,
     events: EventRepository,
     ids: IdGenerator,
-    clock: Clock,
   ) {
     this.#rolls = rolls;
     this.#equipment = equipment;
     this.#events = events;
     this.#ids = ids;
-    this.#clock = clock;
   }
 
   async execute(
@@ -77,6 +73,12 @@ export class CreateRoll {
       input.shot === undefined ? ok(null) : parseShotDate(input.shot);
     if (!shot.ok) {
       return shot;
+    }
+    if (shot.value === null) {
+      return err({
+        kind: 'validation-failed',
+        issues: [{ path: ['shot'], message: 'must include at least the year' }],
+      });
     }
     const event =
       input.event === undefined
@@ -125,20 +127,18 @@ export class CreateRoll {
       const created = await this.#rolls.create(ctx, roll);
       return created.ok ? ok(roll) : created;
     }
-    return this.#createNumbered(ctx, input.shot, rollWith);
+    return this.#createNumbered(ctx, shot.value.slice(0, 4), rollWith);
   }
 
   /**
-   * Creates a roll with the next free number of the year it was shot, or this
-   * year's. If another roll takes the number in between, picks again.
+   * Creates a roll with the next free number of the year it was shot. If
+   * another roll takes the number in between, picks again.
    */
   async #createNumbered(
     ctx: ArchiveContext,
-    shot: string | undefined,
+    year: string,
     rollWith: (number: RollNumber) => Roll,
   ): Promise<Result<Roll, ValidationFailed | AlreadyExists>> {
-    const year =
-      /^\d{4}/.exec(shot ?? '')?.[0] ?? String(this.#clock.now().getFullYear());
     let taken: Result<Roll, AlreadyExists> | undefined;
     // Rolls created at the same moment each take a turn at winning a number.
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {

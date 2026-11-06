@@ -1,6 +1,7 @@
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
+import { invalidRequestResponse } from '@filmfile/contracts/errors';
 import { aJpeg } from '../support/a-jpeg.ts';
 import { apiFor, idOf } from '../support/api.ts';
 import { folderOfRoll } from '../support/roll-folder.ts';
@@ -10,7 +11,7 @@ const archive = useTempArchive();
 const { request, post } = apiFor(archive);
 
 function createRoll(roll: string): Promise<Response> {
-  return post('/api/rolls', { roll });
+  return post('/api/rolls', { roll, shot: roll.slice(0, 4) });
 }
 
 describe('POST /api/rolls', () => {
@@ -26,7 +27,7 @@ describe('POST /api/rolls', () => {
       filed: false,
       name: null,
       notes: null,
-      shot: null,
+      shot: '2026',
       event: null,
       camera: null,
       film: null,
@@ -49,12 +50,12 @@ describe('POST /api/rolls', () => {
       });
     });
 
-    test('gives this year’s next, by the service’s clock, when there is no date', async () => {
+    test('refuses to create a roll without a shot year', async () => {
       const response = await post('/api/rolls', {});
 
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(422);
       expect(await response.json()).toMatchObject({
-        roll: `${String(new Date().getFullYear())}-001`,
+        issues: [{ path: ['shot'] }],
       });
     });
 
@@ -92,7 +93,10 @@ describe('POST /api/rolls', () => {
     });
 
     test('still keeps a number that is sent', async () => {
-      const response = await post('/api/rolls', { roll: '2026-123' });
+      const response = await post('/api/rolls', {
+        roll: '2026-123',
+        shot: '2026',
+      });
 
       expect(await response.json()).toMatchObject({ roll: '2026-123' });
     });
@@ -119,7 +123,7 @@ describe('POST /api/rolls', () => {
       roll: '2026-014',
       name: null,
       notes: null,
-      shot: null,
+      shot: '2026',
       event: null,
       meta: {},
       frames: [],
@@ -166,9 +170,10 @@ describe('POST /api/rolls', () => {
     const response = await post('/api/rolls', { roll: 2026 });
 
     expect(response.status).toBe(422);
-    expect(await response.json()).toMatchObject({
-      issues: [{ path: ['roll'] }],
-    });
+    const body = invalidRequestResponse.parse(await response.json());
+    expect(body.issues).toEqual(
+      expect.arrayContaining([expect.objectContaining({ path: ['roll'] })]),
+    );
   });
 
   test('rejects a body that is not valid JSON', async () => {
@@ -259,7 +264,11 @@ describe('GET /api/rolls/{id}', () => {
 describe('PATCH /api/rolls/{id}', () => {
   async function aRollWithDetails() {
     const created: unknown = await (
-      await post('/api/rolls', { roll: '2026-014', name: 'Iceland' })
+      await post('/api/rolls', {
+        roll: '2026-014',
+        name: 'Iceland',
+        shot: '2026',
+      })
     ).json();
     const url = `/api/rolls/${String(idOf(created))}`;
     const etag = (await request(url)).headers.get('ETag') ?? '';
@@ -280,7 +289,7 @@ describe('PATCH /api/rolls/{id}', () => {
   test('changes the roll’s number, keeping its ID, renaming its folder and putting it in its new place in the list', async () => {
     const { url, etag } = await aRollWithDetails();
     const other: unknown = await (
-      await post('/api/rolls', { roll: '2026-010' })
+      await post('/api/rolls', { roll: '2026-010', shot: '2026' })
     ).json();
 
     const response = await patch(url, { roll: '2026-005' }, etag);
@@ -304,7 +313,7 @@ describe('PATCH /api/rolls/{id}', () => {
 
   test('refuses a number another roll has, as a problem with the number, changing nothing', async () => {
     const { url, etag } = await aRollWithDetails();
-    await post('/api/rolls', { roll: '2026-015' });
+    await post('/api/rolls', { roll: '2026-015', shot: '2026' });
 
     const response = await patch(url, { roll: '2026-015' }, etag);
 

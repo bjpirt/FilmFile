@@ -358,8 +358,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     const number =
       body.value.roll ??
       nextRollNumber(
-        /^\d{4}/.exec(body.value.shot ?? '')?.[0] ??
-          String(new Date().getFullYear()),
+        body.value.shot.slice(0, 4),
         rolls.map((r) => r.roll),
       );
     if (number === undefined) {
@@ -383,7 +382,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       filed: false,
       name: body.value.name ?? null,
       notes: body.value.notes ?? null,
-      shot: body.value.shot ?? null,
+      shot: body.value.shot,
       event: body.value.event ?? null,
       camera: body.value.camera ?? null,
       film: body.value.film ?? null,

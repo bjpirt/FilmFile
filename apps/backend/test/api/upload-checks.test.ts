@@ -13,7 +13,11 @@ let versionsUrl = '';
 
 beforeEach(async () => {
   const rollId = String(
-    idOf(await (await post('/api/rolls', { roll: '2026-014' })).json()),
+    idOf(
+      await (
+        await post('/api/rolls', { roll: '2026-014', shot: '2026' })
+      ).json(),
+    ),
   );
   const frameId = String(
     idOf(await (await post(`/api/rolls/${rollId}/frames`, {})).json()),

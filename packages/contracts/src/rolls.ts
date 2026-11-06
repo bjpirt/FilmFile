@@ -142,11 +142,11 @@ export const createRollRequest = z
   .object({
     roll: rollNumber.optional().meta({
       description:
-        "The roll's number. Left out, the roll gets the next free number of the year it was shot, or this year's (D67).",
+        "The roll's number. Left out, the roll gets the next free number of the year it was shot (D73).",
     }),
     name: z.string().max(100).optional(),
     notes: z.string().max(5000).optional(),
-    shot: shotDate.optional(),
+    shot: shotDate,
     event: slug.optional(),
     camera: slug.optional(),
     film: slug.optional(),

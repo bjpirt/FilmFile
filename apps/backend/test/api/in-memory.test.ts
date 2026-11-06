@@ -19,7 +19,7 @@ test('the in-memory service runs the whole roll workflow, with predictable IDs a
   const version = `${rolls}/frames/00000000000000000000000002/versions/00000000000000000000000003`;
   const scan = new Uint8Array(await aJpeg());
 
-  await send('/api/rolls', json({ roll: '2026-014' }));
+  await send('/api/rolls', json({ roll: '2026-014', shot: '2026' }));
   await send(`${rolls}/frames`, json({ number: '1' }));
   const added = await send(
     `${rolls}/frames/00000000000000000000000002/versions?file=12340014.jpg`,

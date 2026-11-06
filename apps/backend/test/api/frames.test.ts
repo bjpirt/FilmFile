@@ -11,7 +11,7 @@ const { request, post } = apiFor(archive);
 
 async function aRoll(): Promise<string> {
   const created: unknown = await (
-    await post('/api/rolls', { roll: '2026-014' })
+    await post('/api/rolls', { roll: '2026-014', shot: '2026' })
   ).json();
   return String(idOf(created));
 }
@@ -591,7 +591,11 @@ describe('GET /api/rolls/{id}/frames/{frameId}/details', () => {
     const rollId = String(
       idOf(
         await (
-          await post('/api/rolls', { roll: '2026-014', camera: 'nikon-fe' })
+          await post('/api/rolls', {
+            roll: '2026-014',
+            camera: 'nikon-fe',
+            shot: '2026',
+          })
         ).json(),
       ),
     );
@@ -611,6 +615,7 @@ describe('GET /api/rolls/{id}/frames/{frameId}/details', () => {
         source: { layer: 'archive', id: archiveId },
       },
       camera: { value: 'nikon-fe', source: { layer: 'roll', id: rollId } },
+      shot: { value: '2026', source: { layer: 'roll', id: rollId } },
     });
   });
 
@@ -621,7 +626,11 @@ describe('GET /api/rolls/{id}/frames/{frameId}/details', () => {
     const rollId = String(
       idOf(
         await (
-          await post('/api/rolls', { roll: '2026-014', camera: 'nikon-fe' })
+          await post('/api/rolls', {
+            roll: '2026-014',
+            camera: 'nikon-fe',
+            shot: '2026',
+          })
         ).json(),
       ),
     );
@@ -647,6 +656,7 @@ describe('GET /api/rolls/{id}/frames/{frameId}/details', () => {
     expect(details).toEqual({
       camera: { value: 'leica-m6', source: fromFrame },
       events: { value: ['westfjords'], source: fromFrame },
+      shot: { value: '2026', source: { layer: 'roll', id: rollId } },
     });
   });
 

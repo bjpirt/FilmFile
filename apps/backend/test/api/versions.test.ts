@@ -17,7 +17,11 @@ let frameId = '';
 
 beforeEach(async () => {
   rollId = String(
-    idOf(await (await post('/api/rolls', { roll: '2026-014' })).json()),
+    idOf(
+      await (
+        await post('/api/rolls', { roll: '2026-014', shot: '2026' })
+      ).json(),
+    ),
   );
   frameId = String(
     idOf(await (await post(`/api/rolls/${rollId}/frames`, {})).json()),

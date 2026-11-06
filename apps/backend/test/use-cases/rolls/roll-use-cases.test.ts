@@ -32,6 +32,20 @@ function setUp() {
   const events = new InMemoryEventRepository();
   const ids = new SequentialIdGenerator();
   const holding: HoldingArea = new InMemoryHoldingArea();
+  const createRollWithoutDefaults = new CreateRoll(
+    rolls,
+    equipment,
+    events,
+    ids,
+  );
+  const createRoll = {
+    execute(ctx: ArchiveContext, input: Parameters<CreateRoll['execute']>[1]) {
+      return createRollWithoutDefaults.execute(ctx, {
+        shot: '2026',
+        ...input,
+      });
+    },
+  };
   return {
     holding,
     deleteRoll: new DeleteRoll(
@@ -43,13 +57,8 @@ function setUp() {
     createCamera: new CreateCamera(equipment),
     createFilmStock: new CreateFilmStock(equipment),
     createLens: new CreateLens(equipment),
-    createRoll: new CreateRoll(
-      rolls,
-      equipment,
-      events,
-      ids,
-      new FixedClock('2026-11-02T12:00:00.000Z'),
-    ),
+    createRoll,
+    createRollWithoutDefaults,
     createEvent: new CreateEvent(events),
     listRolls: new ListRolls(rolls),
     getRoll: new GetRoll(rolls),
@@ -69,7 +78,7 @@ describe('CreateRoll', () => {
         filed: false,
         name: null,
         notes: null,
-        shot: null,
+        shot: '2026',
         event: null,
         camera: null,
         film: null,
@@ -228,13 +237,15 @@ describe('CreateRoll', () => {
       });
     });
 
-    test('gives this year’s, by the clock, when there is no date', async () => {
-      const { ctx, createRoll } = setUp();
-      await createRoll.execute(ctx, { roll: '2026-014' });
+    test('refuses to create a roll without a shot year', async () => {
+      const { ctx, createRollWithoutDefaults } = setUp();
 
-      expect(await createRoll.execute(ctx, {})).toMatchObject({
-        ok: true,
-        value: { roll: '2026-015' },
+      expect(await createRollWithoutDefaults.execute(ctx, {})).toMatchObject({
+        ok: false,
+        error: {
+          kind: 'validation-failed',
+          issues: [{ path: ['shot'] }],
+        },
       });
     });
 

@@ -30,7 +30,7 @@ describe('a JSON request body', () => {
   ])('is refused when sent as %s', async (_case, contentType) => {
     const response = await postWithType(
       '/api/rolls',
-      '{"roll":"2026-014"}',
+      '{"roll":"2026-014","shot":"2026"}',
       contentType,
     );
 
@@ -43,7 +43,7 @@ describe('a JSON request body', () => {
   test('is accepted with a charset', async () => {
     const response = await postWithType(
       '/api/rolls',
-      '{"roll":"2026-014"}',
+      '{"roll":"2026-014","shot":"2026"}',
       'application/json; charset=utf-8',
     );
 
@@ -52,7 +52,9 @@ describe('a JSON request body', () => {
 
   test('is refused when creating a frame as text/plain', async () => {
     const roll = idOf(
-      await (await post('/api/rolls', { roll: '2026-014' })).json(),
+      await (
+        await post('/api/rolls', { roll: '2026-014', shot: '2026' })
+      ).json(),
     );
 
     const response = await postWithType(
@@ -71,7 +73,9 @@ describe('an uploaded scan', () => {
     ['no content type', undefined],
   ])('is refused when sent as %s', async (_case, contentType) => {
     const roll = idOf(
-      await (await post('/api/rolls', { roll: '2026-014' })).json(),
+      await (
+        await post('/api/rolls', { roll: '2026-014', shot: '2026' })
+      ).json(),
     );
     const frame = idOf(
       await (await post(`/api/rolls/${String(roll)}/frames`, {})).json(),

@@ -26,7 +26,6 @@ What a frame has is seen at a glance on its thumbnail, a roll's frames are group
 
 Rolls are imported before their order is certain: each gets a number straight away, dates are set, then "Number rolls…" puts the rolls currently shown in date order. The Browse year filter and year groups use shot year. Once a roll is marked as filed, its number never changes; rolls outside the current filters keep their numbers too (D74–D75). Every roll's folder is named by its number and ID, renamed as it's renumbered without clashing (D66, D74–D76).
 
-- [ ] [FF-158 Require a shot year when creating a roll](tasks/FF-158.md): require a shot year through the API, as the New roll page already does.
 - [ ] [FF-108 Number rolls by date](tasks/FF-108.md): preview and renumber only the rolls matching the current Browse filters, in shot-date order.
 
 ### 3. Finding your way around the library
@@ -409,6 +408,7 @@ Rolls are imported before their year or order is certain: each gets a number str
 - [x] [FF-151 Roll folders named by number and ID](tasks/FF-151.md)
 - [x] [FF-106 Change a roll's number](tasks/FF-106.md)
 - [x] [FF-152 New rolls numbered automatically](tasks/FF-152.md)
+- [x] [FF-158 Require a shot year when creating a roll](tasks/FF-158.md)
 - [x] [FF-107 Mark a roll as filed](tasks/FF-107.md)
 
 ### The FilmFile folder

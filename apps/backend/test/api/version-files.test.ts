@@ -15,7 +15,9 @@ async function uploadVersion(
   roll = '2026-014',
 ): Promise<string> {
   const rollId = String(
-    idOf(await (await post('/api/rolls', { roll })).json()),
+    idOf(
+      await (await post('/api/rolls', { roll, shot: roll.slice(0, 4) })).json(),
+    ),
   );
   const frameId = String(
     idOf(await (await post(`/api/rolls/${rollId}/frames`, {})).json()),

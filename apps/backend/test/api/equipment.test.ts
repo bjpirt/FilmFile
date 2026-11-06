@@ -150,7 +150,11 @@ describe('a roll’s film stock', () => {
   test('is recorded when the roll is created, and cleared with its details', async () => {
     await post('/api/equipment/films', { make: 'Kodak', name: 'Portra 400' });
     const created: unknown = await (
-      await post('/api/rolls', { roll: '2026-014', film: 'kodak-portra-400' })
+      await post('/api/rolls', {
+        roll: '2026-014',
+        film: 'kodak-portra-400',
+        shot: '2026',
+      })
     ).json();
     const url = `/api/rolls/${String(idOf(created))}`;
     const etag = (await request(url)).headers.get('ETag') ?? '';
@@ -169,6 +173,7 @@ describe('a roll’s film stock', () => {
     const response = await post('/api/rolls', {
       roll: '2026-014',
       film: 'kodak-portra-400',
+      shot: '2026',
     });
 
     expect(await response.json()).toMatchObject({
@@ -244,6 +249,7 @@ describe('a roll’s lens', () => {
     const created = await post('/api/rolls', {
       roll: '2026-014',
       lens: 'zeiss-planar',
+      shot: '2026',
     });
 
     expect(await created.json()).toMatchObject({ lens: 'zeiss-planar' });
@@ -253,6 +259,7 @@ describe('a roll’s lens', () => {
     const response = await post('/api/rolls', {
       roll: '2026-014',
       lens: 'zeiss-planar',
+      shot: '2026',
     });
 
     expect(await response.json()).toMatchObject({
@@ -266,7 +273,11 @@ describe('a roll’s camera', () => {
     await post('/api/equipment/cameras', { make: 'Nikon', model: 'FE' });
     await post('/api/equipment/cameras', { make: 'Pentax', model: 'K1000' });
     const created: unknown = await (
-      await post('/api/rolls', { roll: '2026-014', camera: 'nikon-fe' })
+      await post('/api/rolls', {
+        roll: '2026-014',
+        camera: 'nikon-fe',
+        shot: '2026',
+      })
     ).json();
     const url = `/api/rolls/${String(idOf(created))}`;
     const etag = (await request(url)).headers.get('ETag') ?? '';
@@ -285,6 +296,7 @@ describe('a roll’s camera', () => {
     const response = await post('/api/rolls', {
       roll: '2026-014',
       camera: 'nikon-fe',
+      shot: '2026',
     });
 
     expect(response.status).toBe(422);

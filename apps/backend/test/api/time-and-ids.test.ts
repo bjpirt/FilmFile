@@ -14,7 +14,7 @@ test('new rolls, frames and versions get their IDs and times from the clock and 
   });
 
   const roll: unknown = await (
-    await post('/api/rolls', { roll: '2026-014' })
+    await post('/api/rolls', { roll: '2026-014', shot: '2026' })
   ).json();
   const frame: unknown = await (
     await post('/api/rolls/00000000000000000000000001/frames', {})
