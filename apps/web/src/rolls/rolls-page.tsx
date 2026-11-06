@@ -1,7 +1,9 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import { useQuery } from '@tanstack/react-query';
 import type { Roll } from '@filmfile/contracts/rolls';
-import { useEffect } from 'react';
+import type { UnreadableRoll } from '@filmfile/contracts/rolls';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
 import { cameraName, useCameras } from '../equipment/use-cameras.ts';
 import { filmStockName, useFilmStocks } from '../equipment/use-film-stocks.ts';
 import { lensName, useLenses } from '../equipment/use-lenses.ts';
@@ -24,6 +26,41 @@ import {
   type RollsView,
 } from './view-preference.ts';
 import { eventsOfRoll } from '../events/frame-events.ts';
+import {
+  numberingPreview,
+  type NumberingSnapshotRoll,
+  type ProposedRollNumber,
+} from './numbering-preview.ts';
+
+interface NumberingPreviewState {
+  readonly snapshot: readonly NumberingSnapshotRoll[];
+  readonly unreadable: readonly UnreadableRoll[];
+  readonly changes: readonly ProposedRollNumber[];
+}
+
+function firstIssueMessage(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null || !('issues' in error)) {
+    return undefined;
+  }
+  if (!isUnknownArray(error.issues)) {
+    return undefined;
+  }
+  for (const issue of error.issues) {
+    if (
+      typeof issue === 'object' &&
+      issue !== null &&
+      'message' in issue &&
+      typeof issue.message === 'string'
+    ) {
+      return issue.message;
+    }
+  }
+  return undefined;
+}
+
+function isUnknownArray(value: unknown): value is readonly unknown[] {
+  return Array.isArray(value);
+}
 
 function rollCount(count: number): string {
   return count === 1 ? '1 roll' : `${String(count)} rolls`;
@@ -111,9 +148,14 @@ function grouped(
     case 'none':
       return [{ title: undefined, rolls: [...rolls] }];
     case 'year':
-      return groupedBy(rolls, (roll) => [roll.roll.slice(0, 4)]).sort((a, b) =>
-        (b.title ?? '').localeCompare(a.title ?? ''),
-      );
+      return groupedBy(rolls, (roll) => [
+        roll.shot?.slice(0, 4) ?? 'No shot year',
+      ]).sort((a, b) => {
+        if (a.title === 'No shot year' || b.title === 'No shot year') {
+          return a.title === 'No shot year' ? 1 : -1;
+        }
+        return (b.title ?? '').localeCompare(a.title ?? '');
+      });
     case 'event':
       return namedGroups(
         rolls,
@@ -182,6 +224,19 @@ export function RollsPage({
 }) {
   const address = readAddress(useSearch());
   const view = address.view ?? rememberedView();
+  const queryClient = useQueryClient();
+  const [numbering, setNumbering] = useState<NumberingPreviewState>();
+  const [numberingBusy, setNumberingBusy] = useState(false);
+  const [numberingError, setNumberingError] = useState<string>();
+  const [numberingMessage, setNumberingMessage] = useState<string>();
+  const filterKey = JSON.stringify([
+    address.year,
+    address.camera,
+    address.film,
+    address.lens,
+  ]);
+  const currentFilterKey = useRef(filterKey);
+  currentFilterKey.current = filterKey;
 
   // Every history entry records its view, so back and forward bring it back
   // rather than whichever view was chosen last.
@@ -190,6 +245,12 @@ export function RollsPage({
       navigate(addressOf({ ...address, view }), { replace: true });
     }
   }, [address, view]);
+
+  useEffect(() => {
+    setNumbering(undefined);
+    setNumberingError(undefined);
+    setNumberingMessage(undefined);
+  }, [address.year, address.camera, address.film, address.lens]);
 
   function go(change: Partial<RollsAddress>) {
     navigate(addressOf({ ...address, view, ...change }));
@@ -224,10 +285,98 @@ export function RollsPage({
     },
   });
 
+  async function startNumberingPreview() {
+    const requestedFilterKey = filterKey;
+    setNumberingBusy(true);
+    setNumberingError(undefined);
+    setNumberingMessage(undefined);
+    try {
+      const { data, response } = await api.GET('/api/rolls/numbering');
+      if (response.status !== 200 || data === undefined) {
+        setNumberingError("Couldn't load the rolls for numbering.");
+        return;
+      }
+      if (currentFilterKey.current !== requestedFilterKey) {
+        return;
+      }
+      queryClient.setQueryData(['rolls'], {
+        rolls: data.rolls.map(({ roll }) => roll),
+        unreadable: data.unreadable,
+      });
+      const proposed = numberingPreview(data.rolls, data.unreadable, {
+        year: address.year,
+        camera: address.camera,
+        film: address.film,
+        lens: address.lens,
+      });
+      if (!proposed.ok) {
+        setNumberingError(
+          'A roll needs a shot year before it can be numbered.',
+        );
+        return;
+      }
+      setNumbering({
+        snapshot: data.rolls,
+        unreadable: data.unreadable,
+        changes: proposed.changes,
+      });
+    } catch {
+      setNumberingError("Couldn't load the rolls for numbering.");
+    } finally {
+      setNumberingBusy(false);
+    }
+  }
+
+  async function applyNumbering() {
+    if (numbering === undefined || numbering.changes.length === 0) {
+      return;
+    }
+    setNumberingBusy(true);
+    setNumberingError(undefined);
+    setNumberingMessage(undefined);
+    try {
+      const { response, error } = await api.POST('/api/rolls/numbering', {
+        body: {
+          snapshot: numbering.snapshot.map(({ roll, version }) => ({
+            id: roll.id,
+            version,
+          })),
+          unreadable: [...numbering.unreadable],
+          changes: [...numbering.changes],
+        },
+      });
+      if (response.status === 204) {
+        setNumbering(undefined);
+        setNumberingMessage('Roll numbers updated.');
+        await queryClient.invalidateQueries({ queryKey: ['rolls'] });
+        return;
+      }
+      if (response.status === 409) {
+        setNumbering(undefined);
+        setNumberingError(
+          'Some rolls changed since you previewed the numbers. Nothing was changed. Cancel and run ‘Number rolls…’ again.',
+        );
+        await queryClient.invalidateQueries({ queryKey: ['rolls'] });
+        return;
+      }
+      setNumberingError(
+        firstIssueMessage(error) ?? "Couldn't number the rolls.",
+      );
+    } catch {
+      setNumberingError("Couldn't number the rolls. Try again.");
+    } finally {
+      setNumberingBusy(false);
+    }
+  }
+
   const all = rolls.data?.rolls ?? [];
+  const proposedNumbers = new Map(
+    numbering?.changes.map(({ id, roll }) => [id, roll]) ?? [],
+  );
   const shown = all.filter(
     (roll) =>
-      (address.year === undefined || roll.roll.startsWith(address.year)) &&
+      (address.year === undefined ||
+        roll.shot?.startsWith(address.year) === true) &&
       (address.camera === undefined || roll.camera === address.camera) &&
       (address.film === undefined || roll.film === address.film) &&
       (address.lens === undefined || roll.lens === address.lens),
@@ -306,10 +455,55 @@ export function RollsPage({
               </button>
             ))}
           </div>
+          <button
+            type="button"
+            disabled={numberingBusy}
+            onClick={() => {
+              void startNumberingPreview();
+            }}
+          >
+            {numberingBusy && numbering === undefined
+              ? 'Preparing preview…'
+              : 'Number rolls…'}
+          </button>
+          {numbering !== undefined && (
+            <>
+              {numbering.changes.length > 0 && (
+                <button
+                  type="button"
+                  disabled={numberingBusy}
+                  onClick={() => {
+                    void applyNumbering();
+                  }}
+                >
+                  Apply
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={numberingBusy}
+                onClick={() => {
+                  setNumbering(undefined);
+                  setNumberingError(undefined);
+                  setNumberingMessage(undefined);
+                }}
+              >
+                Cancel
+              </button>
+            </>
+          )}
           <Link to="/rolls/new" className="button primary">
             New roll
           </Link>
         </div>
+
+        {numberingError !== undefined && <p role="alert">{numberingError}</p>}
+        {numberingMessage !== undefined && (
+          <p role="status">{numberingMessage}</p>
+        )}
+        {numbering?.changes.length === 0 && (
+          <p role="status">The rolls are in order.</p>
+        )}
 
         {rolls.isPending && <p>Loading rolls…</p>}
         {rolls.isError && (
@@ -341,6 +535,7 @@ export function RollsPage({
                         cameras={cameras}
                         films={films}
                         events={events}
+                        proposedNumber={proposedNumbers.get(roll.id)}
                       />
                     ))}
                   </ul>
@@ -350,6 +545,7 @@ export function RollsPage({
                     cameras={cameras}
                     films={films}
                     events={events}
+                    proposedNumbers={proposedNumbers}
                   />
                 ))}
             </section>

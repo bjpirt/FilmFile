@@ -41,6 +41,7 @@ import { CreateRoll } from '../application/use-cases/rolls/create-roll.ts';
 import { DeleteRoll } from '../application/use-cases/rolls/delete-roll.ts';
 import { GetRoll } from '../application/use-cases/rolls/get-roll.ts';
 import { ListRolls } from '../application/use-cases/rolls/list-rolls.ts';
+import { RenumberRolls } from '../application/use-cases/rolls/renumber-rolls.ts';
 import { UpdateRoll } from '../application/use-cases/rolls/update-roll.ts';
 
 /** An adapter for every outbound port. */
@@ -80,6 +81,7 @@ export function useCasesFor({
     createRoll: new CreateRoll(rolls, equipment, events, ids),
     getRoll: new GetRoll(rolls),
     listRolls: new ListRolls(rolls),
+    renumberRolls: new RenumberRolls(rolls),
     updateRoll: new UpdateRoll(rolls, equipment, events),
     deleteRoll: new DeleteRoll(rolls, holding, clock),
     createFrame: new CreateFrame(rolls, ids),

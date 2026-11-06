@@ -21,6 +21,7 @@ import {
 import {
   createFrameRequest,
   createRollRequest,
+  renumberRollsRequest,
   updateFramesRequest,
   updateFrameRequest,
   updateRollRequest,
@@ -208,6 +209,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     return `01JC8Z7K3M${String(nextId).padStart(16, '0')}`;
   };
   const etagOf = (key: string) => `"v${String(versions.get(key) ?? 1)}"`;
+  const versionOf = (key: string) => `v${String(versions.get(key) ?? 1)}`;
   const change = (key: string) => {
     versions.set(key, (versions.get(key) ?? 1) + 1);
   };
@@ -293,7 +295,6 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         return notFound();
     }
   }
-
   async function eventsRoute(
     request: Request,
     slug: string | undefined,
@@ -391,6 +392,102 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     };
     rolls.push(roll);
     return Response.json(roll, { status: 201 });
+  }
+
+  async function renumberRolls(request: Request): Promise<Response> {
+    const body = await bodyOf(request, renumberRollsRequest);
+    if (!body.ok) {
+      return body.response;
+    }
+    const { snapshot, unreadable: expectedUnreadable, changes } = body.value;
+    if (
+      snapshot.length !== rolls.length ||
+      snapshot.some(
+        ({ id, version }) =>
+          !rolls.some((roll) => roll.id === id) || versionOf(id) !== version,
+      ) ||
+      JSON.stringify(expectedUnreadable) !== JSON.stringify(unreadable)
+    ) {
+      return Response.json(
+        { error: 'the roll has changed since it was read' },
+        { status: 409 },
+      );
+    }
+    const changesById = new Map(changes.map((change) => [change.id, change]));
+    if (changesById.size !== changes.length) {
+      return Response.json(
+        {
+          error: 'invalid request',
+          issues: [{ path: ['changes'], message: 'contains a duplicate roll' }],
+        },
+        { status: 422 },
+      );
+    }
+    for (const requestChange of changes) {
+      const roll = rolls.find((candidate) => candidate.id === requestChange.id);
+      if (roll === undefined) {
+        return Response.json(
+          {
+            error: 'invalid request',
+            issues: [
+              { path: ['changes'], message: 'includes an unknown roll' },
+            ],
+          },
+          { status: 422 },
+        );
+      }
+      if (roll.filed && roll.roll !== requestChange.roll) {
+        return Response.json(
+          {
+            error: 'invalid request',
+            issues: [
+              {
+                path: ['roll'],
+                message: "A filed roll's number can't be changed.",
+              },
+            ],
+          },
+          { status: 422 },
+        );
+      }
+    }
+    if (changes.some((change) => Number(change.roll.slice(5)) > 999)) {
+      return Response.json(
+        {
+          error: 'invalid request',
+          issues: [
+            {
+              path: ['changes'],
+              message:
+                'There aren’t enough roll numbers left in the affected year. Nothing was changed.',
+            },
+          ],
+        },
+        { status: 422 },
+      );
+    }
+    const finalNumbers = rolls.map(
+      (roll) => changesById.get(roll.id)?.roll ?? roll.roll,
+    );
+    if (new Set(finalNumbers).size !== finalNumbers.length) {
+      return Response.json(
+        {
+          error: 'invalid request',
+          issues: [
+            { path: ['changes'], message: 'roll numbers must be unique' },
+          ],
+        },
+        { status: 422 },
+      );
+    }
+    for (const requestChange of changes) {
+      const roll = rolls.find((candidate) => candidate.id === requestChange.id);
+      if (roll !== undefined && roll.roll !== requestChange.roll) {
+        roll.roll = requestChange.roll;
+        change(roll.id);
+      }
+    }
+    return new Response(null, { status: 204 });
   }
 
   /** A frame's details, as the service resolves them: the archive's author and copyright, then the roll's equipment and event, then the frame's own. */
@@ -722,7 +819,11 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     if (stopped) {
       return new Response('', { status: 502 });
     }
-    if (savesFail && request.method === 'PATCH') {
+    if (
+      savesFail &&
+      (request.method === 'PATCH' ||
+        (request.method === 'POST' && url.pathname === '/api/rolls/numbering'))
+    ) {
       return new Response('', { status: 500 });
     }
     const [, api, resource, ...rest] = url.pathname.split('/');
@@ -743,6 +844,17 @@ export function fakeArchive(contents: ArchiveContents = {}) {
             : createRoll(request);
         }
         const [rollId, ...below] = rest;
+        if (rollId === 'numbering' && below.length === 0) {
+          return request.method === 'GET'
+            ? Response.json({
+                rolls: rolls.map((roll) => ({
+                  roll,
+                  version: versionOf(roll.id),
+                })),
+                unreadable,
+              })
+            : renumberRolls(request);
+        }
         const roll = rolls.find((r) => r.id === rollId);
         return roll === undefined
           ? notFound()

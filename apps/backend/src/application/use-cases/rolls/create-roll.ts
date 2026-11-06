@@ -26,7 +26,7 @@ const maxAttempts = 50;
 
 /**
  * Creates an empty roll. A roll number given is used; with none, the roll gets
- * the next free one of the year it was shot, or this year's (D67).
+ * the next free one of the year it was shot (D73).
  */
 export class CreateRoll {
   readonly #rolls: RollRepository;

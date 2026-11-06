@@ -2,6 +2,7 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { invalidRequestResponse } from '@filmfile/contracts/errors';
+import { rollList, rollNumberingSnapshot } from '@filmfile/contracts/rolls';
 import { aJpeg } from '../support/a-jpeg.ts';
 import { apiFor, idOf } from '../support/api.ts';
 import { folderOfRoll } from '../support/roll-folder.ts';
@@ -12,6 +13,26 @@ const { request, post } = apiFor(archive);
 
 function createRoll(roll: string): Promise<Response> {
   return post('/api/rolls', { roll, shot: roll.slice(0, 4) });
+}
+
+async function rollSnapshot() {
+  const response = await request('/api/rolls/numbering');
+  const listing = rollNumberingSnapshot.parse(await response.json());
+  return {
+    snapshot: listing.rolls.map(({ roll, version }) => ({
+      id: roll.id,
+      version,
+    })),
+    unreadable: listing.unreadable,
+  };
+}
+
+function renumber(body: unknown): Promise<Response> {
+  return request('/api/rolls/numbering', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 }
 
 describe('POST /api/rolls', () => {
@@ -56,6 +77,9 @@ describe('POST /api/rolls', () => {
       expect(response.status).toBe(422);
       expect(await response.json()).toMatchObject({
         issues: [{ path: ['shot'] }],
+      });
+      expect(await (await request('/api/rolls')).json()).toMatchObject({
+        rolls: [],
       });
     });
 
@@ -205,6 +229,130 @@ describe('GET /api/rolls', () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ rolls: [], unreadable: [] });
+  });
+
+  describe('POST /api/rolls/numbering', () => {
+    test('swaps numbers together', async () => {
+      const first = rollList.shape.rolls.element.parse(
+        await (await createRoll('2026-001')).json(),
+      );
+      const second = rollList.shape.rolls.element.parse(
+        await (await createRoll('2026-002')).json(),
+      );
+      const snapshot = await rollSnapshot();
+
+      const response = await renumber({
+        ...snapshot,
+        changes: [
+          { id: first.id, roll: second.roll },
+          { id: second.id, roll: first.roll },
+        ],
+      });
+
+      expect(response.status).toBe(204);
+      expect(
+        await (await request(`/api/rolls/${first.id}`)).json(),
+      ).toMatchObject({
+        roll: second.roll,
+      });
+      expect(
+        await (await request(`/api/rolls/${second.id}`)).json(),
+      ).toMatchObject({
+        roll: first.roll,
+      });
+    });
+
+    test('rejects the whole batch when a roll changed after preview', async () => {
+      const first = rollList.shape.rolls.element.parse(
+        await (await createRoll('2026-001')).json(),
+      );
+      const second = rollList.shape.rolls.element.parse(
+        await (await createRoll('2026-002')).json(),
+      );
+      const snapshot = await rollSnapshot();
+      const response = await request(`/api/rolls/${second.id}`);
+      const etag = response.headers.get('ETag');
+      await request(`/api/rolls/${second.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'If-Match': etag ?? '',
+        },
+        body: JSON.stringify({ name: 'Changed after preview' }),
+      });
+
+      const applied = await renumber({
+        ...snapshot,
+        changes: [{ id: first.id, roll: '2026-003' }],
+      });
+
+      expect(applied.status).toBe(409);
+      expect(
+        await (await request(`/api/rolls/${first.id}`)).json(),
+      ).toMatchObject({ roll: first.roll });
+      expect(
+        await (await request(`/api/rolls/${second.id}`)).json(),
+      ).toMatchObject({
+        roll: second.roll,
+        name: 'Changed after preview',
+      });
+    });
+
+    test('refuses to renumber a filed roll', async () => {
+      const roll = rollList.shape.rolls.element.parse(
+        await (await createRoll('2026-001')).json(),
+      );
+      const etag = (await request(`/api/rolls/${roll.id}`)).headers.get('ETag');
+      await request(`/api/rolls/${roll.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'If-Match': etag ?? '',
+        },
+        body: JSON.stringify({ filed: true }),
+      });
+      const snapshot = await rollSnapshot();
+
+      const response = await renumber({
+        ...snapshot,
+        changes: [{ id: roll.id, roll: '2026-002' }],
+      });
+
+      expect(response.status).toBe(422);
+      expect(
+        await (await request(`/api/rolls/${roll.id}`)).json(),
+      ).toMatchObject({
+        roll: roll.roll,
+        filed: true,
+      });
+    });
+
+    test('refuses the whole batch when the next number exceeds 999', async () => {
+      const roll = rollList.shape.rolls.element.parse(
+        await (await createRoll('2026-999')).json(),
+      );
+      const snapshot = await rollSnapshot();
+
+      const response = await renumber({
+        ...snapshot,
+        changes: [{ id: roll.id, roll: '2026-1000' }],
+      });
+
+      expect(response.status).toBe(422);
+      expect(await response.json()).toMatchObject({
+        issues: [
+          {
+            message:
+              'There aren’t enough roll numbers left in the affected year. Nothing was changed.',
+          },
+        ],
+      });
+      expect(
+        await (await request(`/api/rolls/${roll.id}`)).json(),
+      ).toMatchObject({
+        roll: roll.roll,
+      });
+    });
   });
 
   test('lists every roll, ordered by roll number', async () => {

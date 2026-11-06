@@ -14,7 +14,9 @@ import {
   ifMatchHeader,
   roll,
   rollList,
+  rollNumberingSnapshot,
   rollParams,
+  renumberRollsRequest,
   thumbnailQuery,
   updateFramesRequest,
   updateFrameRequest,
@@ -41,6 +43,7 @@ import type { CreateRoll } from '../../../../application/use-cases/rolls/create-
 import type { DeleteRoll } from '../../../../application/use-cases/rolls/delete-roll.ts';
 import type { GetRoll } from '../../../../application/use-cases/rolls/get-roll.ts';
 import type { ListRolls } from '../../../../application/use-cases/rolls/list-rolls.ts';
+import type { RenumberRolls } from '../../../../application/use-cases/rolls/renumber-rolls.ts';
 import type { UpdateRoll } from '../../../../application/use-cases/rolls/update-roll.ts';
 import type { ArchiveContext } from '../../../../domain/shared/archive-context.ts';
 import {
@@ -101,6 +104,15 @@ const listRolls = createRoute({
   responses: { 200: json(rollList, 'The rolls.') },
 });
 
+const listRollNumberingSnapshot = createRoute({
+  method: 'get',
+  path: '/numbering',
+  summary: 'Get a consistent snapshot for numbering rolls',
+  responses: {
+    200: json(rollNumberingSnapshot, 'The rolls and their version tokens.'),
+  },
+});
+
 const getRoll = createRoute({
   method: 'get',
   path: '/{rollId}',
@@ -128,6 +140,28 @@ const createRoll = createRoute({
     201: json(roll, 'The new roll.'),
     400: malformed,
     409: json(errorResponse, 'A roll with that roll number already exists.'),
+    415: wrongType,
+    422: invalid,
+  },
+});
+
+const renumberRolls = createRoute({
+  method: 'post',
+  path: '/numbering',
+  summary: 'Renumber rolls together',
+  description:
+    'Applies proposed numbers only if every roll and unreadable entry still matches the preview snapshot.',
+  middleware: [requireJson] as const,
+  request: {
+    body: {
+      required: true,
+      content: { 'application/json': { schema: renumberRollsRequest } },
+    },
+  },
+  responses: {
+    204: { description: 'The roll numbers were updated.' },
+    400: malformed,
+    409: json(errorResponse, 'A roll changed since the preview.'),
     415: wrongType,
     422: invalid,
   },
@@ -420,6 +454,7 @@ export interface RollUseCases {
   readonly createRoll: CreateRoll;
   readonly getRoll: GetRoll;
   readonly listRolls: ListRolls;
+  readonly renumberRolls: RenumberRolls;
   readonly updateRoll: UpdateRoll;
   readonly deleteRoll: DeleteRoll;
   readonly createFrame: CreateFrame;
@@ -460,6 +495,21 @@ export function rollRoutes({
     );
   });
 
+  routes.openapi(listRollNumberingSnapshot, async (c) => {
+    const { rolls, unreadable } =
+      await useCases.listRolls.executeVersioned(ctx);
+    return c.json(
+      {
+        rolls: rolls.map(({ roll, version }) => ({
+          roll: rollDto(roll),
+          version,
+        })),
+        unreadable: [...unreadable],
+      },
+      200,
+    );
+  });
+
   routes.openapi(getRoll, async (c) => {
     const { rollId } = c.req.valid('param');
     if (!isRollId(rollId)) {
@@ -479,6 +529,14 @@ export function rollRoutes({
     return created.ok
       ? c.json(rollDto(created.value), 201)
       : domainErrorResponse(c, created.error);
+  });
+
+  routes.openapi(renumberRolls, async (c) => {
+    const result = await useCases.renumberRolls.execute(
+      ctx,
+      c.req.valid('json'),
+    );
+    return result.ok ? c.body(null, 204) : domainErrorResponse(c, result.error);
   });
 
   routes.openapi(updateRoll, async (c) => {

@@ -1,5 +1,12 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  readdir,
+  readFile,
+  rename,
+  rmdir,
+  writeFile,
+} from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { FilesystemRollRepository } from '../../../src/adapters/outbound/filesystem/filesystem-roll-repository.ts';
@@ -14,8 +21,11 @@ import { useTempArchive } from '../../support/temp-archive.ts';
 
 const archive = useTempArchive();
 
-function repository(): RollRepository {
-  return new FilesystemRollRepository(archive.path());
+function repository(
+  renameFolder?: (source: string, destination: string) => Promise<void>,
+  removeYear?: (folder: string) => Promise<void>,
+): RollRepository {
+  return new FilesystemRollRepository(archive.path(), renameFolder, removeYear);
 }
 
 /** A roll's folder as the service names it: its number and the end of its ID (D66). */
@@ -425,5 +435,114 @@ describe('renaming a roll’s folder when its number changes', () => {
 
     expect(removed).toEqual(ok(undefined));
     expect(await names(path.join(archive.path(), 'rolls'))).toEqual([]);
+  });
+
+  test('restores both rolls and their folders when a swap move fails', async () => {
+    const rolls = repository();
+    const first = aRoll();
+    const second = aRoll({ id: ulidFor(2), roll: '2026-015' });
+    await rolls.create(ctx, first);
+    await rolls.create(ctx, second);
+    const firstContent = await readFile(rollFile(first.roll, first.id), 'utf8');
+    const secondContent = await readFile(
+      rollFile(second.roll, second.id),
+      'utf8',
+    );
+    const snapshot = await rolls.listVersioned(ctx);
+    let folderMoves = 0;
+    const failSecondDestinationMove = async (
+      source: string,
+      destination: string,
+    ) => {
+      folderMoves += 1;
+      if (folderMoves === 4) {
+        throw new Error('injected folder move failure');
+      }
+      await rename(source, destination);
+    };
+    const failingRolls = repository(failSecondDestinationMove);
+
+    await expect(
+      failingRolls.saveRenumberedBatch(
+        ctx,
+        snapshot.rolls.map(({ roll, version }) => ({ id: roll.id, version })),
+        snapshot.unreadable,
+        [
+          { id: first.id, roll: second.roll },
+          { id: second.id, roll: first.roll },
+        ],
+      ),
+    ).rejects.toThrow('injected folder move failure');
+
+    expect(await readFile(rollFile(first.roll, first.id), 'utf8')).toBe(
+      firstContent,
+    );
+    expect(await readFile(rollFile(second.roll, second.id), 'utf8')).toBe(
+      secondContent,
+    );
+    expect((await rolls.get(ctx, first.id))?.roll.roll).toBe(first.roll);
+    expect((await rolls.get(ctx, second.id))?.roll.roll).toBe(second.roll);
+    expect(await names(path.join(archive.path(), 'rolls', '2026'))).toEqual([
+      path.basename(rollFolder(first.roll, first.id)),
+      path.basename(rollFolder(second.roll, second.id)),
+    ]);
+  });
+
+  test('restores removed year folders when rollback follows a failed cleanup', async () => {
+    const rolls = repository();
+    const first = aRoll({ roll: '2025-001' });
+    const second = aRoll({ id: ulidFor(2), roll: '2026-001' });
+    await rolls.create(ctx, first);
+    await rolls.create(ctx, second);
+    const firstContent = await readFile(rollFile(first.roll, first.id), 'utf8');
+    const secondContent = await readFile(
+      rollFile(second.roll, second.id),
+      'utf8',
+    );
+    const snapshot = await rolls.listVersioned(ctx);
+    let cleanups = 0;
+    const failAfterFirstYearIsRemoved = async (folder: string) => {
+      cleanups += 1;
+      if (cleanups === 1) {
+        await rmdir(folder);
+        throw new Error('injected cleanup failure');
+      }
+      try {
+        await rmdir(folder);
+      } catch (error) {
+        if (
+          typeof error !== 'object' ||
+          error === null ||
+          !('code' in error) ||
+          (error.code !== 'ENOENT' && error.code !== 'ENOTEMPTY')
+        ) {
+          throw error;
+        }
+      }
+    };
+    const failingRolls = repository(undefined, failAfterFirstYearIsRemoved);
+
+    await expect(
+      failingRolls.saveRenumberedBatch(
+        ctx,
+        snapshot.rolls.map(({ roll, version }) => ({ id: roll.id, version })),
+        snapshot.unreadable,
+        [
+          { id: first.id, roll: aRoll({ roll: '2027-001' }).roll },
+          { id: second.id, roll: aRoll({ roll: '2027-002' }).roll },
+        ],
+      ),
+    ).rejects.toThrow('injected cleanup failure');
+
+    expect(await names(path.join(archive.path(), 'rolls'))).toEqual([
+      '2025',
+      '2026',
+    ]);
+    expect(await readFile(rollFile(first.roll, first.id), 'utf8')).toBe(
+      firstContent,
+    );
+    expect(await readFile(rollFile(second.roll, second.id), 'utf8')).toBe(
+      secondContent,
+    );
   });
 });

@@ -103,7 +103,9 @@ export function BrowsePanel({
   readonly choose: (filter: RollsFilter) => void;
 }) {
   const years = counted(
-    rolls.map((roll) => roll.roll.slice(0, 4)),
+    rolls.flatMap((roll) =>
+      roll.shot === null ? [] : [roll.shot.slice(0, 4)],
+    ),
     (year) => year,
   ).sort((a, b) => b.key.localeCompare(a.key));
   const rollCameras = counted(

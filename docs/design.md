@@ -1,6 +1,6 @@
 # FilmFile — Design
 
-*Status: design agreed, not yet built. Last updated 5 November 2026.*
+*Status: design agreed, not yet built. Last updated 6 November 2026.*
 
 A local-first tool for organising and cataloguing film photographs: physical negatives, the lab's low-res scans, my own hi-res camera scans, and the edits and exports made from them. It backs up and syncs through S3, and publishes selected images to a web gallery and other sites.
 
@@ -334,7 +334,7 @@ Outbound ports, defined in `application/ports/` and implemented by outbound adap
 | Port | Responsibility | Local adapter | Cloud adapter (later) |
 |---|---|---|---|
 | `SettingsRepository` | Read and save `settings.json` at the FilmFile folder's top level (id and meta) | JSON file | S3 object |
-| `RollRepository` | Get, list, create, save and rename rolls. Every read returns a **version token**; `save(roll, expectedVersion)` fails with `ConcurrencyConflict` if it changed; `create` and `rename` fail if the roll number is taken | JSON files: lock, ETag check, temp file + rename | S3 `If-Match` / `If-None-Match` conditional writes |
+| `RollRepository` | Get, list, create, save and rename rolls. Every read returns a **version token**; `save(roll, expectedVersion)` fails with `ConcurrencyConflict` if it changed; `create` and `rename` fail if the roll number is taken | JSON files: archive-wide in-process lock, ETag check, temp file + rename; batch renumber with best-effort rollback (D77–D78) | S3 `If-Match` / `If-None-Match` conditional writes |
 | `EquipmentRepository` | Cameras, lenses, films | JSON files | S3 objects |
 | `BlobStore` | Write-once storage of image files: `put` (streams, returns SHA-256 and size), `get`, `stat`. Never overwrites | A folder per version in the archive | S3 with Standard-IA / Deep Archive classes |
 | `HoldingArea` | Receives deleted versions and frames (their files plus their JSON) and deleted rolls (the whole folder, frames and all), for me to empty by hand. Never deletes | `deleted/` in the archive | S3 prefix |
@@ -342,6 +342,16 @@ Outbound ports, defined in `application/ports/` and implemented by outbound adap
 | `PreviewProvider` | Thumbnails and previews by content hash, generated lazily | sharp + cache folder | sharp + S3 cache |
 | `ImageInspector` | Reads an uploaded image's pixel dimensions from its header, within the input pixel limit | sharp; a TIFF's or raw's (Sony ARW) size from its TIFF tables, by our own reader | same |
 | `Clock`, `IdGenerator` | Current time; ULIDs | Node | Node |
+
+The filesystem roll repository takes one in-process lock around every roll
+read and mutation. This keeps versioned listings stable while a batch is
+validated and applied, including frame and version metadata changes made
+through the repository. It serializes unrelated roll operations; the local
+single-user service favors a consistent snapshot. It does not coordinate
+direct filesystem edits or another process (D77). A batch attempts to restore
+the original roll files and folders when a filesystem operation fails, but
+cannot recover automatically if the process stops mid-batch; an incomplete
+rollback is surfaced as an error (D78).
 
 The inbound adapter in Phase 1:
 

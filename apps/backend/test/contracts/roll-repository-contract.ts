@@ -100,6 +100,98 @@ export function rollRepositoryContract(
       ]);
     });
 
+    test('swaps roll numbers together with saveRenumberedBatch', async () => {
+      const rolls = makeRepository();
+      const first = aRoll({ id: ulidFor(1), roll: '2026-001' });
+      const second = aRoll({ id: ulidFor(2), roll: '2026-002' });
+      await rolls.create(ctx, first);
+      await rolls.create(ctx, second);
+      const firstRead = await rolls.get(ctx, first.id);
+      const secondRead = await rolls.get(ctx, second.id);
+
+      const saved = await rolls.saveRenumberedBatch(
+        ctx,
+        [
+          { id: first.id, version: firstRead?.version ?? '' },
+          { id: second.id, version: secondRead?.version ?? '' },
+        ],
+        [],
+        [
+          { id: first.id, roll: second.roll },
+          { id: second.id, roll: first.roll },
+        ],
+      );
+
+      expect(saved).toEqual(ok(undefined));
+      expect((await rolls.get(ctx, first.id))?.roll.roll).toBe(second.roll);
+      expect((await rolls.get(ctx, second.id))?.roll.roll).toBe(first.roll);
+    });
+
+    test('changes nothing when a considered roll changed after the snapshot', async () => {
+      const rolls = makeRepository();
+      const first = aRoll({ id: ulidFor(1), roll: '2026-001' });
+      const second = aRoll({ id: ulidFor(2), roll: '2026-002' });
+      await rolls.create(ctx, first);
+      await rolls.create(ctx, second);
+      const firstRead = await rolls.get(ctx, first.id);
+      const secondRead = await rolls.get(ctx, second.id);
+      await rolls.save(
+        ctx,
+        { ...second, name: 'Changed after preview' },
+        secondRead?.version ?? '',
+      );
+
+      const saved = await rolls.saveRenumberedBatch(
+        ctx,
+        [
+          { id: first.id, version: firstRead?.version ?? '' },
+          { id: second.id, version: secondRead?.version ?? '' },
+        ],
+        [],
+        [{ id: first.id, roll: aRoll({ roll: '2026-003' }).roll }],
+      );
+
+      expect(saved).toEqual(
+        err({
+          kind: 'concurrency-conflict',
+          entity: 'roll',
+          id: second.id,
+        }),
+      );
+      expect((await rolls.get(ctx, first.id))?.roll.roll).toBe(first.roll);
+      expect((await rolls.get(ctx, second.id))?.roll).toMatchObject({
+        roll: second.roll,
+        name: 'Changed after preview',
+      });
+    });
+
+    test('refuses to renumber a filed roll in a batch', async () => {
+      const rolls = makeRepository();
+      const filed = { ...aRoll(), filed: true };
+      await rolls.create(ctx, filed);
+      const read = await rolls.get(ctx, filed.id);
+
+      const saved = await rolls.saveRenumberedBatch(
+        ctx,
+        [{ id: filed.id, version: read?.version ?? '' }],
+        [],
+        [{ id: filed.id, roll: aRoll({ roll: '2026-015' }).roll }],
+      );
+
+      expect(saved).toEqual(
+        err({
+          kind: 'validation-failed',
+          issues: [
+            {
+              path: ['roll'],
+              message: "A filed roll's number can't be changed.",
+            },
+          ],
+        }),
+      );
+      expect((await rolls.get(ctx, filed.id))?.roll).toEqual(filed);
+    });
+
     test('refuses to renumber a roll to a number another roll has, changing nothing', async () => {
       const rolls = makeRepository();
       const first = aRoll();

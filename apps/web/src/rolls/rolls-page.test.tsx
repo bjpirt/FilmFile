@@ -136,9 +136,9 @@ describe('grouping, browsing and the address', () => {
   const someRolls = () =>
     fakeArchive({
       rolls: [
-        aRollOf('2025-003', 1),
-        aRollOf('2026-001', 2),
-        aRollOf('2026-014', 3),
+        { ...aRollOf('2025-003', 1), shot: '2025' },
+        { ...aRollOf('2026-001', 2), shot: '2026' },
+        { ...aRollOf('2026-014', 3), shot: '2026' },
       ],
     });
 
@@ -222,6 +222,36 @@ describe('grouping, browsing and the address', () => {
         .getAllByRole('button')
         .map((button) => button.textContent),
     ).toEqual(['All rolls3', '20262', '20251']);
+  });
+
+  test('filters and groups by shot year, not the roll-number year', async () => {
+    renderPage(
+      fakeArchive({
+        rolls: [
+          aRoll('2025-001', { shot: '2026-01' }),
+          aRoll('2026-001', { shot: '2025-01' }),
+        ],
+      }),
+    );
+    const browse = await screen.findByRole('complementary', {
+      name: 'Browse rolls',
+    });
+
+    fireEvent.click(within(browse).getByRole('button', { name: /^2025/ }));
+    expect(rollsShown()).toEqual(['2026-001']);
+
+    fireEvent.click(within(browse).getByRole('button', { name: /^All rolls/ }));
+    fireEvent.change(screen.getByLabelText('Group by'), {
+      target: { value: 'year' },
+    });
+
+    const headings = screen
+      .getAllByRole('heading', { level: 2 })
+      .filter((heading) => heading.closest('aside') === null);
+    expect(headings.map((heading) => heading.textContent)).toEqual([
+      '2026 1 roll',
+      '2025 1 roll',
+    ]);
   });
 
   test('leaves out the browse panel when it is closed', async () => {
@@ -786,6 +816,114 @@ test('sorts by date shot when chosen, undated rolls last, kept in the address', 
       .filter((text) => /^\d{4}-\d{3}$/.test(text)),
   ).toEqual(['2026-003', '2026-001', '2026-002']);
   expect(window.location.search).toBe('?view=grid&sort=shot');
+});
+
+test('previews proposed numbers and applies them', async () => {
+  const archive = fakeArchive({
+    rolls: [aRoll('2026-014', { shot: '2026-01' })],
+  });
+  renderPage(archive);
+  await screen.findByText('2026-014');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Number rolls…' }));
+
+  await screen.findByText('2026-001');
+  expect(document.querySelector('s')?.textContent).toBe('2026-014');
+  expect(screen.getByText('2026-001')).toBeDefined();
+  fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+  expect((await screen.findByRole('status')).textContent).toBe(
+    'Roll numbers updated.',
+  );
+  expect(screen.getByRole('link', { name: '2026-001' })).toBeDefined();
+  expect(archive.rolls[0]?.roll).toBe('2026-001');
+});
+
+test('shows the numbering preview in list view', async () => {
+  renderPage(
+    fakeArchive({
+      rolls: [aRoll('2026-014', { shot: '2026-01' })],
+    }),
+  );
+  await screen.findByText('2026-014');
+  showList();
+  fireEvent.click(screen.getByRole('button', { name: 'Number rolls…' }));
+  await screen.findByText('2026-001');
+
+  const row = screen.getByRole('row', { name: /2026-014/ });
+  expect(row.querySelector('s')?.textContent).toBe('2026-014');
+  expect(row.textContent).toContain('2026-001');
+});
+
+test('says when the rolls are already in order', async () => {
+  renderPage(
+    fakeArchive({
+      rolls: [aRoll('2026-001', { shot: '2026-01' })],
+    }),
+  );
+  await screen.findByText('2026-001');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Number rolls…' }));
+
+  expect((await screen.findByRole('status')).textContent).toBe(
+    'The rolls are in order.',
+  );
+  expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull();
+});
+
+test('cancels a numbering preview when a Browse filter changes', async () => {
+  renderPage(
+    fakeArchive({
+      rolls: [
+        aRoll('2025-014', { shot: '2025-01' }),
+        aRoll('2026-014', { shot: '2026-01' }),
+      ],
+    }),
+  );
+  const browse = await screen.findByRole('complementary', {
+    name: 'Browse rolls',
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Number rolls…' }));
+  await screen.findByText('2025-001');
+
+  fireEvent.click(within(browse).getByRole('button', { name: /^2026/ }));
+
+  expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+  expect(document.querySelector('s')).toBeNull();
+});
+
+test('refreshes rolls and asks for a new preview after a conflict', async () => {
+  const roll = aRoll('2026-014', { shot: '2026-01' });
+  const archive = fakeArchive({ rolls: [roll] });
+  renderPage(archive);
+  await screen.findByText('2026-014');
+  fireEvent.click(screen.getByRole('button', { name: 'Number rolls…' }));
+  await screen.findByText('2026-001');
+  archive.changeRoll(roll.id);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+  expect((await screen.findByRole('alert')).textContent).toBe(
+    'Some rolls changed since you previewed the numbers. Nothing was changed. Cancel and run ‘Number rolls…’ again.',
+  );
+  expect(archive.rolls[0]?.roll).toBe('2026-014');
+});
+
+test('shows the capacity error without changing any roll', async () => {
+  const filed = aRoll('2026-999', { filed: true, shot: '2026' });
+  const selected = aRoll('2026-001', { shot: '2026' });
+  renderPage(fakeArchive({ rolls: [filed, selected] }));
+  await screen.findByText('2026-001');
+  fireEvent.click(screen.getByRole('button', { name: 'Number rolls…' }));
+  await screen.findByText('2026-1000');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+  expect((await screen.findByRole('alert')).textContent).toBe(
+    'There aren’t enough roll numbers left in the affected year. Nothing was changed.',
+  );
+  expect(selected.roll).toBe('2026-001');
 });
 
 test('says when a roll has no frames yet', async () => {

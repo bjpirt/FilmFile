@@ -17,6 +17,12 @@ export interface RollListing {
   readonly unreadable: readonly UnreadableRoll[];
 }
 
+/** A consistent roll listing with the version tokens needed for a preview. */
+export interface VersionedRollListing {
+  readonly rolls: readonly VersionedRoll[];
+  readonly unreadable: readonly UnreadableRoll[];
+}
+
 /**
  * A roll and its version token. The token changes whenever the roll is
  * saved; passing it back to `save` refuses the save if the roll has changed
@@ -33,6 +39,18 @@ export interface RollChange<T> {
   readonly value: T;
 }
 
+/** A roll and its expected version for an all-or-nothing renumbering. */
+export interface ExpectedRollVersion {
+  readonly id: RollId;
+  readonly version: string;
+}
+
+/** A roll's new number in an all-or-nothing renumbering. */
+export interface RollNumberChange {
+  readonly id: RollId;
+  readonly roll: Roll['roll'];
+}
+
 /**
  * Where rolls, with their frames and versions, are kept: roll.json files in
  * the archive, or memory in tests. Every write replaces a roll whole and
@@ -41,6 +59,9 @@ export interface RollChange<T> {
 export interface RollRepository {
   /** Every roll; one that can't be read is reported, not allowed to hide the rest. */
   list(ctx: ArchiveContext): Promise<RollListing>;
+
+  /** The same listing with each roll's current version token. */
+  listVersioned(ctx: ArchiveContext): Promise<VersionedRollListing>;
 
   get(ctx: ArchiveContext, id: RollId): Promise<VersionedRoll | undefined>;
 
@@ -75,6 +96,20 @@ export interface RollRepository {
       string,
       NotFound | ConcurrencyConflict | AlreadyExists | ValidationFailed
     >
+  >;
+
+  /**
+   * Validates the complete roll snapshot, then changes all given numbers
+   * together. Every readable roll and unreadable entry must still match the
+   * snapshot so numbers reserved by other rolls cannot change unnoticed.
+   */
+  saveRenumberedBatch(
+    ctx: ArchiveContext,
+    expected: readonly ExpectedRollVersion[],
+    unreadable: readonly UnreadableRoll[],
+    changes: readonly RollNumberChange[],
+  ): Promise<
+    Result<void, ConcurrencyConflict | ValidationFailed | AlreadyExists>
   >;
 
   /**

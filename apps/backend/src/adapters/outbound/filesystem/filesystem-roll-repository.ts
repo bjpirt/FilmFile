@@ -2,22 +2,25 @@ import { createHash } from 'node:crypto';
 import { glob, mkdir, readFile, rename, rmdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import type {
+  ExpectedRollVersion,
   RollChange,
   RollListing,
+  RollNumberChange,
   RollRepository,
+  VersionedRollListing,
   VersionedRoll,
 } from '../../../application/ports/roll-repository.ts';
-import type { RollNumber } from '../../../domain/rolls/roll-number.ts';
+import { yearOf, type RollNumber } from '../../../domain/rolls/roll-number.ts';
 import type { Roll } from '../../../domain/rolls/roll.ts';
 import type { UnreadableRoll } from '../../../domain/rolls/unreadable-roll.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
+import type { RollId } from '../../../domain/shared/ids.ts';
 import type {
   AlreadyExists,
   ConcurrencyConflict,
   NotFound,
   ValidationFailed,
 } from '../../../domain/shared/domain-error.ts';
-import type { RollId } from '../../../domain/shared/ids.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
 import { KeyedLock } from '../node/keyed-lock.ts';
 import { hasErrorCode } from './error-codes.ts';
@@ -33,6 +36,7 @@ function versionOf(content: string): string {
 
 interface StoredRoll extends VersionedRoll {
   readonly file: string;
+  readonly content: string;
 }
 
 /** `save` and `change` never change a roll's number: that's `saveRenumbered`'s (D70). */
@@ -56,12 +60,27 @@ function namedFor(folder: string, roll: RollNumber): boolean {
  */
 export class FilesystemRollRepository implements RollRepository {
   readonly #archivePath: string;
+  readonly #renameFolder: (
+    source: string,
+    destination: string,
+  ) => Promise<void>;
+  readonly #removeYear: (folder: string) => Promise<void>;
   readonly #lock = new KeyedLock();
+  readonly #archive = new KeyedLock();
   // Year folders are made and removed one at a time, so one isn't removed as a roll is put in it.
   readonly #years = new KeyedLock();
 
-  constructor(archivePath: string) {
+  constructor(
+    archivePath: string,
+    renameFolder: (
+      source: string,
+      destination: string,
+    ) => Promise<void> = rename,
+    removeYear: (folder: string) => Promise<void> = removeIfEmpty,
+  ) {
     this.#archivePath = archivePath;
+    this.#renameFolder = renameFolder;
+    this.#removeYear = removeYear;
   }
 
   async #readAll(): Promise<{
@@ -78,7 +97,12 @@ export class FilesystemRollRepository implements RollRepository {
       const content = await readFile(file, 'utf8');
       const parsed = parseRollFile(content);
       if (parsed.ok) {
-        stored.push({ roll: parsed.value, version: versionOf(content), file });
+        stored.push({
+          roll: parsed.value,
+          version: versionOf(content),
+          file,
+          content,
+        });
       } else {
         unreadable.push({ folder: names.at(-2) ?? '', problem: parsed.error });
       }
@@ -90,22 +114,36 @@ export class FilesystemRollRepository implements RollRepository {
     return (await this.#readAll()).stored.find((s) => s.roll.id === id);
   }
 
-  async list(): Promise<RollListing> {
-    const { stored, unreadable } = await this.#readAll();
+  async list(ctx: ArchiveContext): Promise<RollListing> {
+    const listing = await this.listVersioned(ctx);
     return {
-      rolls: stored
-        .map((s) => s.roll)
-        .sort((a, b) => a.roll.localeCompare(b.roll)),
-      unreadable: unreadable.sort((a, b) => a.folder.localeCompare(b.folder)),
+      rolls: listing.rolls.map(({ roll }) => roll),
+      unreadable: listing.unreadable,
     };
+  }
+
+  // This adapter is already bound to its archive; the port keeps context on every operation.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- see above
+  listVersioned(_ctx: ArchiveContext): Promise<VersionedRollListing> {
+    return this.#archive.run('archive', async () => {
+      const { stored, unreadable } = await this.#readAll();
+      return {
+        rolls: stored
+          .sort((a, b) => a.roll.roll.localeCompare(b.roll.roll))
+          .map(({ roll, version }) => ({ roll, version })),
+        unreadable: unreadable.sort((a, b) => a.folder.localeCompare(b.folder)),
+      };
+    });
   }
 
   async get(
     _ctx: ArchiveContext,
     id: RollId,
   ): Promise<VersionedRoll | undefined> {
-    const found = await this.#find(id);
-    return found && { roll: found.roll, version: found.version };
+    return this.#archive.run('archive', async () => {
+      const found = await this.#find(id);
+      return found && { roll: found.roll, version: found.version };
+    });
   }
 
   /** Whether another roll has this roll's number; a roll that can't be read counts if its folder is named for it. */
@@ -123,20 +161,22 @@ export class FilesystemRollRepository implements RollRepository {
   ): Promise<Result<void, AlreadyExists>> {
     // The number is checked and the folder made together, so two new rolls
     // can't both take it. A roll that can't be read counts: it's never built over.
-    return this.#years.run('years', async () => {
-      if (await this.#numberTaken(roll)) {
-        return err({ kind: 'already-exists', entity: 'roll', id: roll.roll });
-      }
-      const folder = rollFolderFor(this.#archivePath, roll);
-      await mkdir(folder, { recursive: true });
-      const created = await createAtomically(
-        safePath(folder, 'roll.json'),
-        rollFileContent(roll),
-      );
-      return created
-        ? ok(undefined)
-        : err({ kind: 'already-exists', entity: 'roll', id: roll.roll });
-    });
+    return this.#archive.run('archive', () =>
+      this.#years.run('years', async () => {
+        if (await this.#numberTaken(roll)) {
+          return err({ kind: 'already-exists', entity: 'roll', id: roll.roll });
+        }
+        const folder = rollFolderFor(this.#archivePath, roll);
+        await mkdir(folder, { recursive: true });
+        const created = await createAtomically(
+          safePath(folder, 'roll.json'),
+          rollFileContent(roll),
+        );
+        return created
+          ? ok(undefined)
+          : err({ kind: 'already-exists', entity: 'roll', id: roll.roll });
+      }),
+    );
   }
 
   /**
@@ -154,7 +194,7 @@ export class FilesystemRollRepository implements RollRepository {
         throw new Error(`${to} already exists, so ${from} can't be renamed`);
       }
       await mkdir(path.dirname(to), { recursive: true });
-      await rename(from, to);
+      await this.#renameFolder(from, to);
       await removeIfEmpty(path.dirname(from));
     }
     return safePath(to, 'roll.json');
@@ -165,23 +205,25 @@ export class FilesystemRollRepository implements RollRepository {
     roll: Roll,
     expectedVersion: string,
   ): Promise<Result<string, NotFound | ConcurrencyConflict>> {
-    return this.#lock.run(roll.id, async () => {
-      const current = await this.#find(roll.id);
-      if (current === undefined) {
-        return err({ kind: 'not-found', entity: 'roll', id: roll.id });
-      }
-      if (current.version !== expectedVersion) {
-        return err({
-          kind: 'concurrency-conflict',
-          entity: 'roll',
-          id: roll.id,
-        });
-      }
-      sameNumber(current.roll, roll);
-      const content = rollFileContent(roll);
-      await writeAtomically(current.file, content);
-      return ok(versionOf(content));
-    });
+    return this.#archive.run('archive', () =>
+      this.#lock.run(roll.id, async () => {
+        const current = await this.#find(roll.id);
+        if (current === undefined) {
+          return err({ kind: 'not-found', entity: 'roll', id: roll.id });
+        }
+        if (current.version !== expectedVersion) {
+          return err({
+            kind: 'concurrency-conflict',
+            entity: 'roll',
+            id: roll.id,
+          });
+        }
+        sameNumber(current.roll, roll);
+        const content = rollFileContent(roll);
+        await writeAtomically(current.file, content);
+        return ok(versionOf(content));
+      }),
+    );
   }
 
   saveRenumbered(
@@ -194,44 +236,306 @@ export class FilesystemRollRepository implements RollRepository {
       NotFound | ConcurrencyConflict | AlreadyExists | ValidationFailed
     >
   > {
-    return this.#lock.run(roll.id, async () => {
-      const current = await this.#find(roll.id);
-      if (current === undefined) {
-        return err({ kind: 'not-found', entity: 'roll', id: roll.id });
+    return this.#archive.run('archive', () =>
+      this.#lock.run(roll.id, async () => {
+        const current = await this.#find(roll.id);
+        if (current === undefined) {
+          return err({ kind: 'not-found', entity: 'roll', id: roll.id });
+        }
+        if (current.version !== expectedVersion) {
+          return err({
+            kind: 'concurrency-conflict',
+            entity: 'roll',
+            id: roll.id,
+          });
+        }
+        if (current.roll.filed && current.roll.roll !== roll.roll) {
+          return err({
+            kind: 'validation-failed',
+            issues: [
+              {
+                path: ['roll'],
+                message: "A filed roll's number can't be changed.",
+              },
+            ],
+          });
+        }
+        const content = rollFileContent(roll);
+        if (roll.roll === current.roll.roll) {
+          await writeAtomically(current.file, content);
+          return ok(versionOf(content));
+        }
+        // The number is checked, and the folder moved, with no other roll
+        // taking a number or making a year folder in between.
+        return this.#years.run('years', async () => {
+          if (await this.#numberTaken(roll)) {
+            return err({
+              kind: 'already-exists',
+              entity: 'roll',
+              id: roll.roll,
+            });
+          }
+          const file = await this.#move(current, roll);
+          await writeAtomically(file, content);
+          return ok(versionOf(content));
+        });
+      }),
+    );
+  }
+
+  saveRenumberedBatch(
+    _ctx: ArchiveContext,
+    expected: readonly ExpectedRollVersion[],
+    unreadable: readonly UnreadableRoll[],
+    changes: readonly RollNumberChange[],
+  ): Promise<
+    Result<void, AlreadyExists | ConcurrencyConflict | ValidationFailed>
+  > {
+    return this.#archive.run('archive', async () => {
+      const current = await this.#readAll();
+      const expectedById = new Map(expected.map((entry) => [entry.id, entry]));
+      if (expectedById.size !== expected.length) {
+        return err({
+          kind: 'validation-failed',
+          issues: [
+            { path: ['snapshot'], message: 'contains a duplicate roll' },
+          ],
+        });
       }
-      if (current.version !== expectedVersion) {
+
+      const currentById = new Map(
+        current.stored.map((entry) => [entry.roll.id, entry]),
+      );
+      for (const entry of expected) {
+        const found = currentById.get(entry.id);
+        if (found?.version !== entry.version) {
+          return err({
+            kind: 'concurrency-conflict',
+            entity: 'roll',
+            id: entry.id,
+          });
+        }
+      }
+      const added = current.stored.find(
+        (entry) => !expectedById.has(entry.roll.id),
+      );
+      if (added !== undefined || expected.length !== current.stored.length) {
         return err({
           kind: 'concurrency-conflict',
           entity: 'roll',
-          id: roll.id,
+          id: added?.roll.id ?? expected[0]?.id ?? 'listing',
         });
       }
-      if (current.roll.filed && current.roll.roll !== roll.roll) {
+      const sortUnreadable = (entries: readonly UnreadableRoll[]) =>
+        [...entries].sort((a, b) => a.folder.localeCompare(b.folder));
+      if (
+        JSON.stringify(sortUnreadable(current.unreadable)) !==
+        JSON.stringify(sortUnreadable(unreadable))
+      ) {
+        return err({
+          kind: 'concurrency-conflict',
+          entity: 'roll',
+          id: 'unreadable',
+        });
+      }
+
+      const changesById = new Map(changes.map((change) => [change.id, change]));
+      if (changesById.size !== changes.length) {
+        return err({
+          kind: 'validation-failed',
+          issues: [{ path: ['changes'], message: 'contains a duplicate roll' }],
+        });
+      }
+      for (const change of changes) {
+        const found = currentById.get(change.id);
+        if (found === undefined || !expectedById.has(change.id)) {
+          return err({
+            kind: 'validation-failed',
+            issues: [
+              { path: ['changes'], message: 'includes an unknown roll' },
+            ],
+          });
+        }
+        if (found.roll.filed && found.roll.roll !== change.roll) {
+          return err({
+            kind: 'validation-failed',
+            issues: [
+              {
+                path: ['roll'],
+                message: "A filed roll's number can't be changed.",
+              },
+            ],
+          });
+        }
+      }
+
+      const finalRolls = current.stored.map((entry) => {
+        const change = changesById.get(entry.roll.id);
+        return change === undefined
+          ? entry.roll
+          : { ...entry.roll, roll: change.roll };
+      });
+      if (
+        new Set(finalRolls.map((roll) => roll.roll)).size !== finalRolls.length
+      ) {
+        return err({
+          kind: 'validation-failed',
+          issues: [
+            { path: ['changes'], message: 'roll numbers must be unique' },
+          ],
+        });
+      }
+      if (
+        finalRolls.some((roll) =>
+          current.unreadable.some((entry) => namedFor(entry.folder, roll.roll)),
+        )
+      ) {
         return err({
           kind: 'validation-failed',
           issues: [
             {
-              path: ['roll'],
-              message: "A filed roll's number can't be changed.",
+              path: ['changes'],
+              message: 'a roll number is used by an unreadable roll folder',
             },
           ],
         });
       }
-      const content = rollFileContent(roll);
-      if (roll.roll === current.roll.roll) {
-        await writeAtomically(current.file, content);
-        return ok(versionOf(content));
-      }
-      // The number is checked, and the folder moved, with no other roll
-      // taking a number or making a year folder in between.
-      return this.#years.run('years', async () => {
-        if (await this.#numberTaken(roll)) {
-          return err({ kind: 'already-exists', entity: 'roll', id: roll.roll });
+
+      const moving = current.stored.flatMap((entry) => {
+        const change = changesById.get(entry.roll.id);
+        if (change === undefined || change.roll === entry.roll.roll) {
+          return [];
         }
-        const file = await this.#move(current, roll);
-        await writeAtomically(file, content);
-        return ok(versionOf(content));
+        const roll = { ...entry.roll, roll: change.roll };
+        const temporary = safePath(
+          this.#archivePath,
+          'rolls',
+          yearOf(entry.roll.roll),
+          `.renumber-${entry.roll.id}`,
+        );
+        return [
+          {
+            entry,
+            roll,
+            temporary,
+            rollbackTemporary: safePath(
+              this.#archivePath,
+              'rolls',
+              yearOf(entry.roll.roll),
+              `.rollback-${entry.roll.id}`,
+            ),
+            destination: rollFolderFor(this.#archivePath, roll),
+          },
+        ];
       });
+      const movingFolders = new Set(
+        moving.map(({ entry }) => path.dirname(entry.file)),
+      );
+      for (const item of moving) {
+        if (
+          (await exists(item.temporary)) ||
+          (await exists(item.rollbackTemporary))
+        ) {
+          throw new Error('a temporary roll folder already exists');
+        }
+        if (
+          (await exists(item.destination)) &&
+          !movingFolders.has(item.destination)
+        ) {
+          return err({
+            kind: 'validation-failed',
+            issues: [
+              {
+                path: ['changes'],
+                message: 'a destination roll folder is already in use',
+              },
+            ],
+          });
+        }
+      }
+      const locations = new Map<RollId, string>();
+      try {
+        for (const item of moving) {
+          await mkdir(path.dirname(item.destination), { recursive: true });
+          await this.#renameFolder(
+            path.dirname(item.entry.file),
+            item.temporary,
+          );
+          locations.set(item.entry.roll.id, item.temporary);
+        }
+        for (const item of moving) {
+          const file = safePath(item.temporary, 'roll.json');
+          await writeAtomically(file, rollFileContent(item.roll));
+          await this.#renameFolder(item.temporary, item.destination);
+          locations.set(item.entry.roll.id, item.destination);
+        }
+        for (const item of moving) {
+          await this.#removeYear(path.dirname(path.dirname(item.entry.file)));
+        }
+      } catch (error) {
+        const rollbackErrors: unknown[] = [];
+        const rollbackLocations = new Map<RollId, string>();
+        for (const item of [...moving].reverse()) {
+          const location = locations.get(item.entry.roll.id);
+          if (location === undefined) {
+            continue;
+          }
+          try {
+            await mkdir(path.dirname(item.rollbackTemporary), {
+              recursive: true,
+            });
+            await this.#renameFolder(location, item.rollbackTemporary);
+            rollbackLocations.set(item.entry.roll.id, item.rollbackTemporary);
+          } catch (rollbackError) {
+            rollbackErrors.push(rollbackError);
+          }
+        }
+        for (const item of [...moving].reverse()) {
+          const location = rollbackLocations.get(item.entry.roll.id);
+          if (location === undefined) {
+            continue;
+          }
+          try {
+            await writeAtomically(
+              safePath(location, 'roll.json'),
+              item.entry.content,
+            );
+          } catch (rollbackError) {
+            rollbackErrors.push(rollbackError);
+          }
+          const originalFolder = path.dirname(item.entry.file);
+          if (location !== originalFolder) {
+            try {
+              await mkdir(path.dirname(originalFolder), { recursive: true });
+              await this.#renameFolder(location, originalFolder);
+            } catch (rollbackError) {
+              rollbackErrors.push(rollbackError);
+            }
+          }
+        }
+        const originalYears = new Set(
+          moving.map(({ entry }) => path.dirname(path.dirname(entry.file))),
+        );
+        for (const item of moving) {
+          const destinationYear = path.dirname(item.destination);
+          if (!originalYears.has(destinationYear)) {
+            try {
+              await this.#removeYear(destinationYear);
+            } catch (rollbackError) {
+              rollbackErrors.push(rollbackError);
+            }
+          }
+        }
+        if (rollbackErrors.length > 0) {
+          throw new AggregateError(
+            [error, ...rollbackErrors],
+            'Roll renumbering failed and rollback was incomplete.',
+            { cause: error },
+          );
+        }
+        throw error;
+      }
+      return ok(undefined);
     });
   }
 
@@ -240,19 +544,24 @@ export class FilesystemRollRepository implements RollRepository {
     id: RollId,
     apply: (roll: Roll) => Promise<Result<RollChange<T>, E>>,
   ): Promise<Result<T, E | NotFound>> {
-    return this.#lock.run(id, async () => {
-      const current = await this.#find(id);
-      if (current === undefined) {
-        return err({ kind: 'not-found', entity: 'roll', id });
-      }
-      const changed = await apply(current.roll);
-      if (!changed.ok) {
-        return changed;
-      }
-      sameNumber(current.roll, changed.value.roll);
-      await writeAtomically(current.file, rollFileContent(changed.value.roll));
-      return ok(changed.value.value);
-    });
+    return this.#archive.run('archive', () =>
+      this.#lock.run(id, async () => {
+        const current = await this.#find(id);
+        if (current === undefined) {
+          return err({ kind: 'not-found', entity: 'roll', id });
+        }
+        const changed = await apply(current.roll);
+        if (!changed.ok) {
+          return changed;
+        }
+        sameNumber(current.roll, changed.value.roll);
+        await writeAtomically(
+          current.file,
+          rollFileContent(changed.value.roll),
+        );
+        return ok(changed.value.value);
+      }),
+    );
   }
 
   remove(
@@ -261,26 +570,28 @@ export class FilesystemRollRepository implements RollRepository {
     expectedVersion: string,
     handOver: (roll: Roll) => Promise<void>,
   ): Promise<Result<void, NotFound | ConcurrencyConflict>> {
-    return this.#lock.run(id, async () => {
-      const current = await this.#find(id);
-      if (current === undefined) {
-        return err({ kind: 'not-found', entity: 'roll', id });
-      }
-      if (current.version !== expectedVersion) {
-        return err({ kind: 'concurrency-conflict', entity: 'roll', id });
-      }
-      await handOver(current.roll);
-      if (await this.#find(id)) {
-        throw new Error(
-          `roll ${id} was handed over but is still in the archive`,
+    return this.#archive.run('archive', () =>
+      this.#lock.run(id, async () => {
+        const current = await this.#find(id);
+        if (current === undefined) {
+          return err({ kind: 'not-found', entity: 'roll', id });
+        }
+        if (current.version !== expectedVersion) {
+          return err({ kind: 'concurrency-conflict', entity: 'roll', id });
+        }
+        await handOver(current.roll);
+        if (await this.#find(id)) {
+          throw new Error(
+            `roll ${id} was handed over but is still in the archive`,
+          );
+        }
+        // The year's folder is left empty if that was its last roll.
+        await this.#years.run('years', () =>
+          this.#removeYear(path.dirname(path.dirname(current.file))),
         );
-      }
-      // The year's folder is left empty if that was its last roll.
-      await this.#years.run('years', () =>
-        removeIfEmpty(path.dirname(path.dirname(current.file))),
-      );
-      return ok(undefined);
-    });
+        return ok(undefined);
+      }),
+    );
   }
 }
 

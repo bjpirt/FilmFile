@@ -16,11 +16,13 @@ export function RollCard({
   cameras,
   films,
   events,
+  proposedNumber,
 }: {
   readonly roll: Roll;
   readonly cameras: readonly Camera[];
   readonly films: readonly FilmStock[];
   readonly events: readonly Event[];
+  readonly proposedNumber?: string | undefined;
 }) {
   // e.g. "Iceland 2026 · Nikon FE · Kodak Portra 400 · Sep 2026"
   const about = [
@@ -49,8 +51,11 @@ export function RollCard({
       <div className="roll-card-body">
         <div className="roll-card-number">
           <Link to={`/rolls/${roll.id}`} className="roll-number">
-            {roll.roll}
+            {proposedNumber === undefined ? roll.roll : <s>{roll.roll}</s>}
           </Link>
+          {proposedNumber !== undefined && (
+            <span className="proposed-roll-number">{proposedNumber}</span>
+          )}
           {roll.filed && (
             <span
               className="filed-mark"

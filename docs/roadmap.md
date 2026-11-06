@@ -22,20 +22,14 @@ What a frame has is seen at a glance on its thumbnail, a roll's frames are group
 - [ ] [FF-103 Choose the version shown](tasks/FF-103.md): a star on each version in the frame view chooses the one shown everywhere.
 - [ ] [FF-104 Mark frames to scan](tasks/FF-104.md): mark frames to be scanned at higher resolution.
 
-### 2. Roll numbers
-
-Rolls are imported before their order is certain: each gets a number straight away, dates are set, then "Number rolls…" puts the rolls currently shown in date order. The Browse year filter and year groups use shot year. Once a roll is marked as filed, its number never changes; rolls outside the current filters keep their numbers too (D74–D75). Every roll's folder is named by its number and ID, renamed as it's renumbered without clashing (D66, D74–D76).
-
-- [ ] [FF-108 Number rolls by date](tasks/FF-108.md): preview and renumber only the rolls matching the current Browse filters, in shot-date order.
-
-### 3. Finding your way around the library
+### 2. Finding your way around the library
 
 The library is readable in Finder: rolls, frames and versions are named by number or kind with their IDs (D66, D69). (A Browse folder of links is parked, FF-111.)
 
 - [ ] [FF-155 Frame and version folders named by number and kind](tasks/FF-155.md): `frames/12A-K0D9TZ6E/raw-scan-V5M2QH8A/`, renamed when renumbered or a kind changes.
 - [ ] [FF-109 Originals read-only](tasks/FF-109.md): the service makes originals read-only, so nothing reaching them through a link can change them.
 
-### 4. Integrate with NegPy
+### 3. Integrate with NegPy
 
 The round trip of design section 9: a roll's raw scans go where NegPy can find them, and NegPy's exports come back as Finals by themselves. NegPy can't be told to open files from outside (no command line, URL scheme or other way in), so FilmFile keeps a folder of rolls, `Editors/NegPy/` in the FilmFile folder (FF-105), which NegPy imports once with "Import Subfolders as Rolls…" and picks new rolls up from with Refresh (D51).
 
@@ -44,7 +38,7 @@ The round trip of design section 9: a roll's raw scans go where NegPy can find t
 - [ ] [FF-114 Exports brought in by themselves](tasks/FF-114.md): the service watches the NegPy folder and brings exports in as they appear.
 - [ ] [FF-115 NegPy's recipes kept](tasks/FF-115.md): NegPy's `.negpy` edit is kept with each Final it made.
 
-### 5. Exports
+### 4. Exports
 
 Frames marked for export are kept in `Exports/` as JPEGs carrying everything known about them, made from the version shown and kept in step as frames change (D60).
 
@@ -52,7 +46,7 @@ Frames marked for export are kept in `Exports/` as JPEGs carrying everything kno
 - [ ] [FF-117 The export folder](tasks/FF-117.md): `Exports/` holds a JPEG of every frame marked for export, kept in step.
 - [ ] [FF-118 What an export says about itself](tasks/FF-118.md): exports carry the frame's details as EXIF, IPTC and XMP.
 
-### 6. Event sites
+### 5. Event sites
 
 An event's best frames as a small static website, made into `Sites/` and published to S3 when wanted (design section 12, D61).
 
@@ -60,7 +54,7 @@ An event's best frames as a small static website, made into `Sites/` and publish
 - [ ] [FF-120 Make an event's site](tasks/FF-120.md): a static site of an event's chosen frames, made in `Sites/`.
 - [ ] [FF-121 Publish a site to S3](tasks/FF-121.md): upload an event's site to an S3 bucket, and take it down again.
 
-### 7. Index and maintenance
+### 6. Index and maintenance
 
 - [ ] [FF-122 `CatalogueIndex`](tasks/FF-122.md): rolls, frames and equipment indexed in SQLite in the cache.
 - [ ] [FF-123 `RebuildIndex`](tasks/FF-123.md): rebuild the index from the archive.
@@ -89,7 +83,7 @@ Key journeys, each named by the task that adds it:
 | Catalogue a roll (exists) | Create a roll, add its scans, correct a frame number, reload and find it all there |
 | Renumber a roll (exists) | A tail-to-head roll renumbered as "last scan is frame 1, counting down", saved and reloaded |
 | Find rolls (U6, FF-108) | Switch grid and list, group and filter by shot year, close and reopen the browse panel; number only the filtered rolls |
-| Number rolls (FF-108) | Preview the visible unfiled rolls by shot date, keeping filed and filtered-out numbers fixed; apply the changes or cancel |
+| Number rolls (FF-108) | Preview filtered rolls by shot date around filed anchors and fixed numbers; apply the changes or cancel |
 | Describe a roll (U7 onwards) | Create a roll with its name, notes, date, scans, camera, film stock and lens, then find it grouped and filtered by each |
 | Organise by event (U12a–U12c, FF-130) | Create an event, put rolls in it, and browse to them by event; give it a date on the Events page; open it to see its frames from every roll, grouped by roll; later, an event inside another, whose frames show under its parent too |
 | First run (1b.2) | On an archive never set up, any page asks for setup first; give the author and see the copyright made from it, land on the page asked for, then change the copyright, be taken back to the rolls, and find it in Settings after a reload. Runs against a server of its own, since it needs an empty archive |
@@ -218,6 +212,8 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D74 | Filed roll numbers never change. "Number rolls…" changes only unfiled rolls matching the active Browse filters; filtered-out rolls keep their numbers, which remain occupied. The shot date determines each selected roll's destination year; in that year numbering starts at 001 or after the highest filed number in that number-year, leaves gaps below that filed number unused, and skips numbers held by filtered-out rolls. A filed roll anchors the year in its number, not its shot date. | FF-107, FF-108 |
 | D75 | Browse Years, its counts, and "Group by Year" use a roll's shot date. The active Browse filters define which rolls "Number rolls…" may change; changing a filter while previewing cancels the preview. | U6, FF-108 |
 | D76 | Roll number suffixes are one or more digits; the width is a minimum of three for automatically assigned numbers, so `2026-001` can grow to `2026-1000`. Manually entered spelling is preserved, but suffixes with the same numeric value are equivalent for uniqueness and sort numerically. This format change is in FF-153; until then FF-108 is limited to 001–999. Replaces D7. | FF-106, FF-108, FF-152, FF-153 |
+| D77 | The filesystem roll repository uses one in-process lock for every roll read and mutation, so a versioned listing stays consistent while a batch is validated and applied. It serializes unrelated roll operations; direct filesystem edits and other processes are outside the lock. | FF-108 |
+| D78 | A batch renumber attempts to restore original roll files and folders when a filesystem operation fails. It is not crash-atomic and has no startup recovery; if rollback is incomplete, the service surfaces an error. | FF-108 |
 
 ---
 
@@ -403,13 +399,14 @@ What a frame has is seen at a glance on its thumbnail, a roll's frames are group
 
 ### Roll numbers
 
-Rolls are imported before their year or order is certain: each gets a number straight away, dates are set, then "Number rolls…" puts a year's rolls in date order, and the negatives are filed in that order. Once a roll is marked as filed, its number never changes. Every roll's folder is named by its number and ID (`2026-014-Q2P7RM4K`), renamed as it's renumbered without clashing (D66, D74–D76).
+Rolls are imported before their year or order is certain: each gets a number straight away, dates are set, then "Number rolls…" previews and renumbers only the rolls matching the current Browse filters, in shot-date order. Filed and filtered-out rolls keep their numbers. Every roll's folder is named by its number and ID (`2026-014-Q2P7RM4K`), renamed as it's renumbered without clashing (D66, D74–D76).
 
 - [x] [FF-151 Roll folders named by number and ID](tasks/FF-151.md)
 - [x] [FF-106 Change a roll's number](tasks/FF-106.md)
 - [x] [FF-152 New rolls numbered automatically](tasks/FF-152.md)
 - [x] [FF-158 Require a shot year when creating a roll](tasks/FF-158.md)
 - [x] [FF-107 Mark a roll as filed](tasks/FF-107.md)
+- [x] [FF-108 Number rolls by date](tasks/FF-108.md)
 
 ### The FilmFile folder
 

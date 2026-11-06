@@ -132,6 +132,13 @@ export const rollList = z
   .object({ rolls: z.array(roll), unreadable: z.array(unreadableRoll) })
   .meta({ id: 'RollList' });
 
+export const rollNumberingSnapshot = z
+  .object({
+    rolls: z.array(z.object({ roll, version: z.string().min(1) })),
+    unreadable: z.array(unreadableRoll),
+  })
+  .meta({ id: 'RollNumberingSnapshot' });
+
 export const rollParams = z.object({ rollId: ulid });
 
 export const frameParams = rollParams.extend({ frameId: ulid });
@@ -153,6 +160,28 @@ export const createRollRequest = z
     lens: slug.optional(),
   })
   .meta({ id: 'CreateRollRequest' });
+
+export const renumberRollsRequest = z
+  .strictObject({
+    snapshot: z.array(
+      z.strictObject({
+        id: ulid,
+        version: z.string().min(1),
+      }),
+    ),
+    unreadable: z.array(unreadableRoll),
+    changes: z.array(
+      z.strictObject({
+        id: ulid,
+        roll: z.string().regex(/^\d{4}-\d{3,}$/, 'must be a roll number'),
+      }),
+    ),
+  })
+  .meta({
+    id: 'RenumberRollsRequest',
+    description:
+      'The versions of every roll considered, unreadable entries, and the proposed number for each roll to change.',
+  });
 
 export const updateRollRequest = z
   .object({

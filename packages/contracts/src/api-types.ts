@@ -136,6 +136,103 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/rolls/numbering": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a consistent snapshot for numbering rolls */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The rolls and their version tokens. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RollNumberingSnapshot"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Renumber rolls together
+         * @description Applies proposed numbers only if every roll and unreadable entry still matches the preview snapshot.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RenumberRollsRequest"];
+                };
+            };
+            responses: {
+                /** @description The roll numbers were updated. */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description The body is not valid JSON. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description A roll changed since the preview. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The body is not of the expected type. */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The request is invalid. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/rolls/{rollId}": {
         parameters: {
             query?: never;
@@ -2028,6 +2125,13 @@ export interface components {
             /** @description What's wrong with its roll.json, for a person to fix. */
             problem: string;
         };
+        RollNumberingSnapshot: {
+            rolls: {
+                roll: components["schemas"]["Roll"];
+                version: string;
+            }[];
+            unreadable: components["schemas"]["UnreadableRoll"][];
+        };
         /** @description What went wrong, for a person to read. */
         Error: {
             error: string;
@@ -2059,6 +2163,20 @@ export interface components {
             film?: string;
             /** @example nikon-fe */
             lens?: string;
+        };
+        /** @description The versions of every roll considered, unreadable entries, and the proposed number for each roll to change. */
+        RenumberRollsRequest: {
+            snapshot: {
+                /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
+                id: string;
+                version: string;
+            }[];
+            unreadable: components["schemas"]["UnreadableRoll"][];
+            changes: {
+                /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
+                id: string;
+                roll: string;
+            }[];
         };
         /** @description The details to change. A detail left out stays as it is; null clears it. A roll number another roll has is refused with an issue on `roll`. */
         UpdateRollRequest: {

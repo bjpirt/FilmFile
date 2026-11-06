@@ -14,11 +14,13 @@ export function RollTable({
   cameras,
   films,
   events,
+  proposedNumbers,
 }: {
   readonly rolls: readonly Roll[];
   readonly cameras: readonly Camera[];
   readonly films: readonly FilmStock[];
   readonly events: readonly Event[];
+  readonly proposedNumbers?: ReadonlyMap<string, string> | undefined;
 }) {
   return (
     <div className="table-scroll">
@@ -42,8 +44,17 @@ export function RollTable({
             <tr key={roll.id}>
               <td>
                 <Link to={`/rolls/${roll.id}`} className="roll-number">
-                  {roll.roll}
+                  {proposedNumbers?.get(roll.id) === undefined ? (
+                    roll.roll
+                  ) : (
+                    <s>{roll.roll}</s>
+                  )}
                 </Link>
+                {proposedNumbers?.get(roll.id) !== undefined && (
+                  <span className="proposed-roll-number">
+                    {proposedNumbers.get(roll.id)}
+                  </span>
+                )}
               </td>
               <td>
                 <div className="strip" aria-hidden="true">

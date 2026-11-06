@@ -347,6 +347,40 @@
           "problem"
         ]
       },
+      "RollNumberingSnapshot": {
+        "type": "object",
+        "properties": {
+          "rolls": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "roll": {
+                  "$ref": "#/components/schemas/Roll"
+                },
+                "version": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "roll",
+                "version"
+              ]
+            }
+          },
+          "unreadable": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnreadableRoll"
+            }
+          }
+        },
+        "required": [
+          "rolls",
+          "unreadable"
+        ]
+      },
       "Error": {
         "type": "object",
         "properties": {
@@ -453,6 +487,68 @@
         "required": [
           "shot"
         ]
+      },
+      "RenumberRollsRequest": {
+        "type": "object",
+        "properties": {
+          "snapshot": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                  "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+                },
+                "version": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "id",
+                "version"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "unreadable": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnreadableRoll"
+            }
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                  "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+                },
+                "roll": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{3,}$"
+                }
+              },
+              "required": [
+                "id",
+                "roll"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "snapshot",
+          "unreadable",
+          "changes"
+        ],
+        "additionalProperties": false,
+        "description": "The versions of every roll considered, unreadable entries, and the proposed number for each roll to change."
       },
       "UpdateRollRequest": {
         "type": "object",
@@ -1522,6 +1618,82 @@
           },
           "409": {
             "description": "A roll with that roll number already exists.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "The body is not of the expected type.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rolls/numbering": {
+      "get": {
+        "summary": "Get a consistent snapshot for numbering rolls",
+        "responses": {
+          "200": {
+            "description": "The rolls and their version tokens.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RollNumberingSnapshot"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Renumber rolls together",
+        "description": "Applies proposed numbers only if every roll and unreadable entry still matches the preview snapshot.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenumberRollsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "The roll numbers were updated."
+          },
+          "400": {
+            "description": "The body is not valid JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A roll changed since the preview.",
             "content": {
               "application/json": {
                 "schema": {
