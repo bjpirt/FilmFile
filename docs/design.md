@@ -34,7 +34,7 @@ The phased roadmap is in section 14, and the detailed plan for the first phases 
 2. **The API service is the only writer.** Every write goes through a use case and a repository port: it's validated, saved only if the record hasn't changed since it was read (version token), atomic, and serialised with a stable key order so unchanged data produces byte-identical files.
 3. **Originals are never modified or permanently deleted.** Lab scans, raws and editor exports are only ever added. An edit creates a new version, never an overwrite. Deleting a frame or roll moves its files into the archive's `deleted/` holding area; only I empty it.
 4. **Never write metadata into raws.** NegPy identifies files by content hash, so changing EXIF changes the hash. Catalogue metadata is stamped into exports only (the JPEGs made in `Exports/`, D60).
-5. **Frame identity lives in `roll.json`, not in paths.** Each frame has a folder, and each version a folder inside it, named by the end of their ULIDs; files keep their original names. Renumbering frames changes metadata only; files never move.
+5. **Frame identity lives in `roll.json`, not in paths.** Frame folders are named by the frame number and ID; version folders by kind and ID (D69). Renumbering a frame or changing a version's kind moves its folder and updates the version paths in `roll.json`; files keep their original names and contents.
 6. **Stable IDs.** Archives, rolls, frames, versions and events have ULIDs, so renaming a roll or event doesn't break links, sync or published URLs.
 7. **Catalogue and operational state are separate.** `roll.json` holds the catalogue; `.state.json` holds workflow state, which changes far more often.
 8. **Nothing destructive by default.** Deleting, unpublishing and similar actions are explicit, separate operations. Deletes are recoverable by hand from `deleted/`.
@@ -114,8 +114,10 @@ Library/
 
 - A folder per version means files with the same name (such as a re-exported master) never clash, and a file's sidecars sit beside it. Deleting a frame or version moves one folder.
 - Folder names are a label and the last 8 characters of the ULID (its random part): rolls `YYYY-NNN-<ID>`, frames `<frame number>-<ID>` (`unnumbered-<ID>` without one, the number cleaned to letters, digits and hyphens), versions `<kind>-<ID>`. The IDs keep names unique, so renumbering can swap names without clashes (D66, D69).
+- Frame-number labels keep ASCII letters, digits and hyphens; every other character becomes `_`, and a leading hyphen is prefixed with `_` (D79). Frame folders are created with the first version, not for empty frames. Only this labeled frame/version layout is supported; ID-only folders are not migrated or supported (D80).
 - Labels follow renumbering and kind changes; files keep their original names and are never changed. `roll.json` records each version's path, updated in the same save as a rename; a rename cut short is recovered by the ID in the name (later, FF-156). A rename makes backup and sync see the files as new, which matters only for raws renumbered after they're added.
-- NegPy doesn't need the raws in one folder: it can build a virtual roll from frames anywhere, and keys its edits by file content, so files can move.
+- If a source folder is missing or a destination is occupied, the save fails without changing `roll.json` or overwriting data. Ordinary move/save errors trigger a best-effort rollback; crash recovery remains FF-156 (D81).
+- NegPy doesn't need the raws in one folder: it can build a virtual roll from frames anywhere, and keys its edits by file content, so files can move. After a folder path changes, existing links are rebuilt the next time the user explicitly chooses "Open in NegPy" (D82).
 - Every file is listed in `roll.json` with its SHA-256 and size, so corruption, outside edits and stray files are detectable.
 
 ---
@@ -135,10 +137,10 @@ Version entries (from Phase 2) look like:
 ```json
 {
   "id": "01JD2K4F8R…",
-  "file": "frames/Q2P7RM4K/V5M2QH8A/DSC_4821.tif",
+  "file": "frames/1-Q2P7RM4K/final-V5M2QH8A/DSC_4821.tif",
   "parents": ["01JD2J9X1B…"],
   "editor": { "name": "NegPy", "version": "0.54" },
-  "recipe": "frames/Q2P7RM4K/V5M2QH8A/3f9a….negpy",
+  "recipe": "frames/1-Q2P7RM4K/final-V5M2QH8A/3f9a….negpy",
   "transform": { "crop": [0.02, 0.01, 0.98, 0.99], "rotate": 0 },
   "sha256": "a41b…",
   "bytes": 182334021,
@@ -200,7 +202,7 @@ Lab scans are low-res JPEGs of every frame named `BBBBNNNN.jpg` (batch, scan ind
 - **The API has no import workflow.** A roll is created first; then each frame is created (JSON, frame number optional), and its lab scan is uploaded (at most 200 MB) as a version of that frame, stored unchanged in the version's own folder. Frames can be added to a roll that already has frames.
 - **The UI drives the import:** drag the lab's download folder onto the import page, create a frame and upload its scan for each file, then set the numbering.
 - Upload is idempotent: a file whose hash is already in the roll is refused with a reference to the existing frame and version, so an interrupted import is completed by uploading again. An interruption between creating a frame and uploading its scan leaves a frame with no versions, which is valid and can be uploaded into or deleted.
-- **Renumbering** changes frame numbers in `roll.json` only. Frames keep their IDs, metadata and versions. There's no "numbering confirmed" state: a roll's numbers are what they are, corrected by editing or renumbering (D20).
+- **Renumbering** changes frame numbers in `roll.json` and renames the frame folder; frames keep their IDs, metadata and versions. There's no "numbering confirmed" state: a roll's numbers are what they are, corrected by editing or renumbering (D20, D69).
 
 ### 8.2 Own hi-res scans (camera raws), Phase 2
 

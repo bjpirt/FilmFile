@@ -214,6 +214,10 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D76 | Roll number suffixes are one or more digits; the width is a minimum of three for automatically assigned numbers, so `2026-001` can grow to `2026-1000`. Manually entered spelling is preserved, but suffixes with the same numeric value are equivalent for uniqueness and sort numerically. This format change is in FF-153; until then FF-108 is limited to 001–999. Replaces D7. | FF-106, FF-108, FF-152, FF-153 |
 | D77 | The filesystem roll repository uses one in-process lock for every roll read and mutation, so a versioned listing stays consistent while a batch is validated and applied. It serializes unrelated roll operations; direct filesystem edits and other processes are outside the lock. | FF-108 |
 | D78 | A batch renumber attempts to restore original roll files and folders when a filesystem operation fails. It is not crash-atomic and has no startup recovery; if rollback is incomplete, the service surfaces an error. | FF-108 |
+| D79 | Frame folder labels keep ASCII letters, digits and hyphens; each other character becomes `_`, and a leading hyphen is prefixed with `_`. Empty frame folders are created lazily with the first version. | FF-155 |
+| D80 | Before release, only the labeled frame/version folder layout in D69 is supported. ID-only frame/version folders are not migrated or guaranteed to work; no backwards-compatibility path is needed. | FF-155 |
+| D81 | A frame/version folder rename fails without changing `roll.json` if its source is missing or its destination is occupied. Ordinary move/save errors trigger best-effort rollback; a crash or incomplete rollback is recovered by FF-156. | FF-155, FF-156 |
+| D82 | Existing NegPy links are not rewritten during a frame/version folder rename. The next explicit "Open in NegPy" rebuilds links whose source paths changed. | FF-112, FF-155 |
 
 ---
 
