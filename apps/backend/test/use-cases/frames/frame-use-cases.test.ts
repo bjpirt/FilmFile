@@ -2,10 +2,10 @@ import { createHash } from 'node:crypto';
 import { describe, expect, test } from 'vitest';
 import { FixedClock } from '../../../src/adapters/outbound/memory/fixed-clock.ts';
 import { InMemoryBlobStore } from '../../../src/adapters/outbound/memory/in-memory-blob-store.ts';
-import { InMemoryPreviewProvider } from '../../../src/adapters/outbound/memory/in-memory-preview-provider.ts';
 import { InMemoryEquipmentRepository } from '../../../src/adapters/outbound/memory/in-memory-equipment-repository.ts';
-import { InMemoryHoldingArea } from '../../../src/adapters/outbound/memory/in-memory-holding-area.ts';
 import { InMemoryEventRepository } from '../../../src/adapters/outbound/memory/in-memory-event-repository.ts';
+import { InMemoryHoldingArea } from '../../../src/adapters/outbound/memory/in-memory-holding-area.ts';
+import { InMemoryPreviewProvider } from '../../../src/adapters/outbound/memory/in-memory-preview-provider.ts';
 import { InMemoryRollRepository } from '../../../src/adapters/outbound/memory/in-memory-roll-repository.ts';
 import { SequentialIdGenerator } from '../../../src/adapters/outbound/memory/sequential-id-generator.ts';
 import { SharpImageInspector } from '../../../src/adapters/outbound/sharp/sharp-image-inspector.ts';
@@ -17,10 +17,10 @@ import { DeleteFrames } from '../../../src/application/use-cases/frames/delete-f
 import { DeleteVersion } from '../../../src/application/use-cases/frames/delete-version.ts';
 import { GetOriginal } from '../../../src/application/use-cases/frames/get-original.ts';
 import { GetThumbnail } from '../../../src/application/use-cases/frames/get-thumbnail.ts';
+import { UpdateFrameNumbers } from '../../../src/application/use-cases/frames/update-frame-numbers.ts';
 import { UpdateFrame } from '../../../src/application/use-cases/frames/update-frame.ts';
 import { UpdateFrames } from '../../../src/application/use-cases/frames/update-frames.ts';
 import { UpdateVersion } from '../../../src/application/use-cases/frames/update-version.ts';
-import { UpdateFrameNumbers } from '../../../src/application/use-cases/frames/update-frame-numbers.ts';
 import { CreateRoll } from '../../../src/application/use-cases/rolls/create-roll.ts';
 import type { ArchiveContext } from '../../../src/domain/shared/archive-context.ts';
 import {
@@ -1056,7 +1056,7 @@ describe('AddVersion', () => {
 
     const version = {
       id: '00000000000000000000000003',
-      file: '00000000000000000000000002/00000000000000000000000003/12340014.jpg',
+      file: 'frames/unnumbered-00000002/scan-00000003/12340014.jpg',
       sha256: createHash('sha256').update(scan).digest('hex'),
       bytes: scan.length,
       width: 30,

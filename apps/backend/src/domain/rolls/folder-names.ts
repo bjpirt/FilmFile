@@ -1,11 +1,23 @@
-// In the archive, each frame has a folder and each version a folder inside
-// it, named by the end of their ULID: the random part, short enough to read.
-// Names must be unique within their parent folder, so new IDs are chosen to
-// keep them so. Folder names are never used to find a frame or version;
-// roll.json records each version's path.
+import type { VersionKind } from './version-kind.ts';
+
+// Folder IDs use the end of their ULID: the random part, short enough to read.
+// Folder names are never used to find a frame or version; roll.json records
+// each version's path.
 
 export function folderName(id: string): string {
   return id.slice(-8);
+}
+
+export function frameFolderName(number: string | null, id: string): string {
+  if (number === null) {
+    return `unnumbered-${folderName(id)}`;
+  }
+  const label = number.replace(/[^A-Za-z0-9-]/gu, '_');
+  return `${label.startsWith('-') ? `_${label}` : label}-${folderName(id)}`;
+}
+
+export function versionFolderName(kind: VersionKind, id: string): string {
+  return `${kind}-${folderName(id)}`;
 }
 
 /** A new ID whose folder name differs from those of the given IDs. */

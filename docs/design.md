@@ -329,6 +329,8 @@ Each boundary has its own representation, mapped explicitly at the adapter:
 
 In Phase 1 the persistence and domain shapes are deliberately close, so the mapping is thin. Keeping them separate means file formats and the API can evolve without touching the domain.
 
+Version responses expose the original basename as `fileName`, never the file's relative or absolute path (D83).
+
 ### 13.4 Ports (Phase 1)
 
 Outbound ports, defined in `application/ports/` and implemented by outbound adapters:

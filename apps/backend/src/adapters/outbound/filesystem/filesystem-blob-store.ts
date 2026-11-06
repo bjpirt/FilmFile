@@ -4,15 +4,18 @@ import type {
   BlobStore,
   NewBlob,
 } from '../../../application/ports/blob-store.ts';
-import { folderName } from '../../../domain/rolls/folder-names.ts';
+import {
+  frameFolderName,
+  versionFolderName,
+} from '../../../domain/rolls/folder-names.ts';
 import type { RollId } from '../../../domain/shared/ids.ts';
 import { findRollFolder } from './roll-folder.ts';
 import { safePath } from './safe-path.ts';
 
 /**
  * Image files in the archive, one folder per version inside one per frame:
- * `rolls/YYYY/YYYY-NNN-<ID>/frames/<frame>/<version>/<original name>` (D17,
- * D66). A roll's folder is found by its ID, whatever it's called.
+ * `rolls/YYYY/YYYY-NNN-<ID>/frames/<number>-<ID>/<kind>-<ID>/<original
+ * name>` (D66, D69). A roll's folder is found by its ID, whatever it's called.
  */
 export class FilesystemBlobStore implements BlobStore {
   readonly #archivePath: string;
@@ -32,8 +35,8 @@ export class FilesystemBlobStore implements BlobStore {
   async put(_ctx: unknown, blob: NewBlob, bytes: Uint8Array): Promise<string> {
     const names = [
       'frames',
-      folderName(blob.frameId),
-      folderName(blob.versionId),
+      frameFolderName(blob.frameNumber, blob.frameId),
+      versionFolderName(blob.kind, blob.versionId),
       blob.fileName,
     ];
     const target = safePath(await this.#rollFolder(blob.rollId), ...names);

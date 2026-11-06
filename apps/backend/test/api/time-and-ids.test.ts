@@ -34,7 +34,8 @@ test('new rolls, frames and versions get their IDs and times from the clock and 
   expect(frame).toMatchObject({ id: '00000000000000000000000002' });
   expect(version).toMatchObject({
     id: '00000000000000000000000003',
-    file: 'frames/00000002/00000003/12340014.jpg',
+    fileName: '12340014.jpg',
     added: '2026-11-02T12:00:00.000Z',
   });
+  expect(version).not.toHaveProperty('file');
 });

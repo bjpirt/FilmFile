@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { BinIcon } from '../bin-icon.tsx';
 import { MenuButton } from '../menu-button.tsx';
 import { FrameMarks, ratingText } from '../rolls/frame-marks.tsx';
+import { shownVersion } from '../rolls/shown-version.ts';
 import { Thumbnail } from '../rolls/thumbnail.tsx';
 import { Link, navigate } from '../routing.tsx';
 import {
@@ -11,7 +12,6 @@ import {
   rememberedDetailsOpen,
 } from './details-preference.ts';
 import { FrameDetails } from './frame-details.tsx';
-import { shownVersion } from '../rolls/shown-version.ts';
 import {
   useSaveFrame,
   type QuarterTurn,
@@ -62,7 +62,7 @@ function TurnIcon({ clockwise }: { readonly clockwise: boolean }) {
 
 /** A version's file name, as it was added: 12340001.jpg, edit-2.png. */
 function fileNameOf(version: CollectionFrame['frame']['versions'][number]) {
-  return version.file.split('/').at(-1) ?? version.file;
+  return version.fileName;
 }
 
 /** The files the picker offers for a kind: raw scans take ARWs and TIFFs too (U20). */

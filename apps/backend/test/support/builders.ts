@@ -1,16 +1,15 @@
-import type { Settings } from '../../src/domain/settings/settings.ts';
 import { cameraLabel, type Camera } from '../../src/domain/equipment/camera.ts';
-import { slugFor } from '../../src/domain/shared/slug.ts';
-import { isEventDate } from '../../src/domain/events/event-date.ts';
-import type { Event } from '../../src/domain/events/event.ts';
-import { lensLabel, type Lens } from '../../src/domain/equipment/lens.ts';
 import {
   filmStockLabel,
   type FilmStock,
 } from '../../src/domain/equipment/film-stock.ts';
-import type { Frame, Roll, Version } from '../../src/domain/rolls/roll.ts';
+import { lensLabel, type Lens } from '../../src/domain/equipment/lens.ts';
+import { isEventDate } from '../../src/domain/events/event-date.ts';
+import type { Event } from '../../src/domain/events/event.ts';
 import { isFrameNumber } from '../../src/domain/rolls/frame-number.ts';
 import { isRollNumber } from '../../src/domain/rolls/roll-number.ts';
+import type { Frame, Roll, Version } from '../../src/domain/rolls/roll.ts';
+import type { Settings } from '../../src/domain/settings/settings.ts';
 import type { ArchiveContext } from '../../src/domain/shared/archive-context.ts';
 import {
   isArchiveId,
@@ -18,6 +17,7 @@ import {
   isRollId,
   isVersionId,
 } from '../../src/domain/shared/ids.ts';
+import { slugFor } from '../../src/domain/shared/slug.ts';
 import { checked } from './checked.ts';
 
 // Test data with sensible defaults: a test sets only what it's about, e.g.
@@ -41,7 +41,8 @@ export function aVersion(
 ): Version {
   return {
     id: checked(overrides.id ?? ulidFor(3), isVersionId),
-    file: overrides.file ?? 'frames/00000002/00000003/12340014.jpg',
+    file:
+      overrides.file ?? 'frames/unnumbered-00000002/scan-00000003/12340014.jpg',
     sha256: overrides.sha256 ?? 'a'.repeat(64),
     bytes: 1234,
     width: 3,
@@ -180,7 +181,7 @@ export function labScanFrames(count: number): Frame[] {
       versions: [
         aVersion({
           id: versionId,
-          file: `frames/${frameId.slice(-8)}/${versionId.slice(-8)}/${scan}`,
+          file: `frames/${String(i + 1)}-${frameId.slice(-8)}/scan-${versionId.slice(-8)}/${scan}`,
           sha256: String(i + 1).padStart(64, '0'),
         }),
       ],

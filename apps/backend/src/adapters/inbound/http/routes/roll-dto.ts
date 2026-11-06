@@ -10,7 +10,17 @@ import type { Frame, Roll, Version } from '../../../../domain/rolls/roll.ts';
 export function versionDto(
   version: Version,
 ): RollDto['frames'][number]['versions'][number] {
-  return { ...version, added: version.added.toISOString() };
+  return {
+    id: version.id,
+    fileName: version.file.split(/[\\/]/u).at(-1) ?? version.file,
+    sha256: version.sha256,
+    bytes: version.bytes,
+    width: version.width,
+    height: version.height,
+    added: version.added.toISOString(),
+    rotate: version.rotate,
+    kind: version.kind,
+  };
 }
 
 export function frameDto(frame: Frame): RollDto['frames'][number] {

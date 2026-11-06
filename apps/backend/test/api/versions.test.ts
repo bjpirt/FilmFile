@@ -3,8 +3,8 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { beforeEach, describe, expect, test } from 'vitest';
 import { aJpeg } from '../support/a-jpeg.ts';
-import { anImage } from '../support/an-image.ts';
 import { aRaw } from '../support/a-raw.ts';
+import { anImage } from '../support/an-image.ts';
 import { apiFor, idOf } from '../support/api.ts';
 import { folderOfRoll } from '../support/roll-folder.ts';
 import { useTempArchive } from '../support/temp-archive.ts';
@@ -41,6 +41,14 @@ function upload(
 }
 
 describe('POST /api/rolls/{id}/frames/{frameId}/versions', () => {
+  test('does not create a folder for an empty frame', async () => {
+    const folder = await folderOfRoll(archive.path(), '2026-014');
+
+    await expect(readdir(path.join(folder, 'frames'))).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+  });
+
   test.each([
     ['png', 'image/png', 'edit.png'],
     ['webp', 'image/webp', 'edit.webp'],
@@ -97,23 +105,24 @@ describe('POST /api/rolls/{id}/frames/{frameId}/versions', () => {
       path.join(
         await folderOfRoll(archive.path(), '2026-014'),
         'frames',
-        frameId.slice(-8),
-        versionId.slice(-8),
+        `unnumbered-${frameId.slice(-8)}`,
+        `scan-${versionId.slice(-8)}`,
         '12340014.jpg',
       ),
     );
     expect(stored.equals(image)).toBe(true);
   });
 
-  test('returns the version with its ID, hash, size and pixel dimensions', async () => {
+  test('returns the version metadata without its filesystem path', async () => {
     const image = await aJpeg({ width: 30, height: 20 });
 
     const response = await upload(image);
     const version: unknown = await response.json();
 
     expect(response.status).toBe(201);
+    expect(version).not.toHaveProperty('file');
     expect(version).toMatchObject({
-      file: `frames/${frameId.slice(-8)}/${String(idOf(version)).slice(-8)}/12340014.jpg`,
+      fileName: '12340014.jpg',
       sha256: createHash('sha256').update(image).digest('hex'),
       bytes: image.length,
       width: 30,
@@ -127,6 +136,7 @@ describe('POST /api/rolls/{id}/frames/{frameId}/versions', () => {
 
     const roll: unknown = await (await request(`/api/rolls/${rollId}`)).json();
 
+    expect(roll).not.toHaveProperty('frames.0.versions.0.file');
     expect(roll).toMatchObject({
       frames: [{ id: frameId, versions: [version] }],
     });
@@ -162,8 +172,8 @@ describe('POST /api/rolls/{id}/frames/{frameId}/versions', () => {
           path.join(
             folder,
             'frames',
-            frameId.slice(-8),
-            String(idOf(version)).slice(-8),
+            `unnumbered-${frameId.slice(-8)}`,
+            `scan-${String(idOf(version)).slice(-8)}`,
             '12340014.jpg',
           ),
         ),
@@ -236,7 +246,7 @@ describe('DELETE /api/rolls/{id}/frames/{frameId}/versions/{versionId}', () => {
     expect(held).toMatch(new RegExp(`-version-${second}$`));
     expect(
       (await readdir(path.join(archive.path(), 'deleted', held ?? ''))).sort(),
-    ).toEqual([second.slice(-8), 'version.json']);
+    ).toEqual([`scan-${second.slice(-8)}`, 'version.json']);
   });
 
   test.each([
@@ -286,7 +296,73 @@ describe('version kinds', () => {
     );
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ kind: 'final', rotate: 0 });
+    const updated: unknown = await response.json();
+    expect(updated).toMatchObject({ kind: 'final', rotate: 0 });
+    expect(updated).not.toHaveProperty('file');
+  });
+
+  test('moves the stored file when its frame number and kind change', async () => {
+    const image = await aJpeg();
+    const added: unknown = await (await upload(image)).json();
+    const versionId = String(idOf(added));
+    const folder = await folderOfRoll(archive.path(), '2026-014');
+    const oldFile = path.join(
+      folder,
+      'frames',
+      `unnumbered-${frameId.slice(-8)}`,
+      `scan-${versionId.slice(-8)}`,
+      '12340014.jpg',
+    );
+
+    const current = await request(`/api/rolls/${rollId}`);
+    const numbered = await request(`/api/rolls/${rollId}/frames/${frameId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'If-Match': current.headers.get('ETag') ?? '',
+      },
+      body: JSON.stringify({ number: '12/13' }),
+    });
+    expect(numbered.status).toBe(200);
+
+    const kindChanged = await request(
+      `/api/rolls/${rollId}/frames/${frameId}/versions/${versionId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'If-Match': numbered.headers.get('ETag') ?? '',
+        },
+        body: JSON.stringify({ kind: 'final' }),
+      },
+    );
+    expect(kindChanged.status).toBe(200);
+    expect(
+      await readFile(
+        path.join(
+          folder,
+          'frames',
+          `12_13-${frameId.slice(-8)}`,
+          `final-${versionId.slice(-8)}`,
+          '12340014.jpg',
+        ),
+      ),
+    ).toEqual(image);
+    await expect(readFile(oldFile)).rejects.toThrow();
+
+    const rollFile = await readFile(path.join(folder, 'roll.json'), 'utf8');
+    const stored: unknown = JSON.parse(rollFile);
+    expect(stored).toMatchObject({
+      frames: [
+        {
+          versions: [
+            {
+              file: `frames/12_13-${frameId.slice(-8)}/final-${versionId.slice(-8)}/12340014.jpg`,
+            },
+          ],
+        },
+      ],
+    });
   });
 
   test('refuses a kind it doesn’t know', async () => {

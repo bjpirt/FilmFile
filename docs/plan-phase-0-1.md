@@ -102,11 +102,11 @@ archive/
     films/kodak-portra-400.json
   rolls/
     2026/
-      2026-014/
+      2026-014-K0P3XW2D/
         roll.json
         frames/
-          Q2P7RM4K/           # a frame: the last 8 characters of its ULID
-            8F3WXB1C/         # a version, likewise
+          23-Q2P7RM4K/        # frame number and the last 8 characters of its ULID
+            scan-8F3WXB1C/    # version kind and ID
               12340014.jpg    # the lab scan, original name
 ```
 
@@ -155,7 +155,7 @@ archive/
       "versions": [
         {
           "id": "01JC8ZB7TQ…",
-          "file": "frames/Q2P7RM4K/8F3WXB1C/12340014.jpg",
+          "file": "frames/23-Q2P7RM4K/scan-8F3WXB1C/12340014.jpg",
           "sha256": "9f2c…",
           "bytes": 1843021,
           "width": 3089,
@@ -172,7 +172,7 @@ archive/
 
 - **Inheritable `meta` fields** (archive, roll and frame level): `camera`, `lens`, `film`, `location`, `tags`, `author`, `copyright`, `licence`.
 - **Frame-only:** `id`, `number`, `title`, `rating` (0–5), `notes`, `defaultVersion` (optional version ID; when unset the newest version is shown), `versions` (may be empty).
-- **Version:** `id`, `file`, `lab` (for lab scans), `sha256`, `bytes`, `width`, `height`, `added`. No `kind` field. Low-res display images are generated previews in the cache, not versions. Phase 2 may add an optional `source` attribute to tell raws, masters and lab scans apart (D16).
+- **Version:** `id`, `file` (relative path in `roll.json`), `kind`, `sha256`, `bytes`, `width`, `height`, `added`. Frame folders are named by frame number and ID, version folders by kind and ID; these labels follow frame renumbering and kind changes (D48, D69). Low-res display images are generated previews in the cache, not versions. The API exposes the original basename as `fileName`, not this path (D83).
 - **Roll-only:** `id`, `roll`, optional `filed` (only stored as `true`; absent means unfiled, FF-107), `developed`, `shot`, `notes`.
 - `number` is a string, or `null` for a skipped or unidentified scan.
 - `frames` uses the `versions` list from day one, so Phase 2 adds entries without a format change.
@@ -200,7 +200,7 @@ Everything works through the API and its docs page. No UI yet.
 
 #### 1.2 Remaining ports and adapters (M)
 
-- `BlobStore`: write-once `put` (streaming, size-limited, returns SHA-256 and bytes), `get`, `stat`. Filesystem adapter writes into the version's own folder (`frames/<frame>/<version>/`), refusing to overwrite. In-memory adapter for tests. Contract suite for both.
+- `BlobStore`: write-once `put` (streaming, size-limited, returns SHA-256 and bytes), `get`, `stat`. The filesystem adapter writes into `frames/<number>-<frame ID>/<kind>-<version ID>/`, refusing to overwrite; frame and version folder labels follow number and kind changes (D69). In-memory adapter for tests. Contract suite for both.
 - `HoldingArea`: receives a deleted frame (moves its frame folder and writes its JSON, with the roll it came from, into a dated folder under `deleted/`) and a deleted roll (moves the whole folder). Never deletes. In-memory adapter for tests. Contract suite.
 - `CatalogueIndex`: SQLite adapter (`better-sqlite3`, in the cache directory) with tables for rolls, frames, frame tags and equipment; upsert a resolved roll, query, rebuild. In-memory adapter. Contract suite.
 - `ImageInspector`: reads pixel dimensions from an image's header, with sharp's input pixel limit. sharp adapter and a fake for tests. Contract suite.

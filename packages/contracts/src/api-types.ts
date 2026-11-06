@@ -2098,10 +2098,10 @@ export interface components {
             /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
             id: string;
             /**
-             * @description Where the file is, relative to the roll's folder.
-             * @example frames/S9WDVXNP/9PMYF63D/12340014.jpg
+             * @description The original file name, without its folder path.
+             * @example 12340014.jpg
              */
-            file: string;
+            fileName: string;
             sha256: string;
             bytes: number;
             width: number;

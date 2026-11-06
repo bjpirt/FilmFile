@@ -26,7 +26,7 @@ What a frame has is seen at a glance on its thumbnail, a roll's frames are group
 
 The library is readable in Finder: rolls, frames and versions are named by number or kind with their IDs (D66, D69). (A Browse folder of links is parked, FF-111.)
 
-- [ ] [FF-155 Frame and version folders named by number and kind](tasks/FF-155.md): `frames/12A-K0D9TZ6E/raw-scan-V5M2QH8A/`, renamed when renumbered or a kind changes.
+- [x] [FF-155 Frame and version folders named by number and kind](tasks/FF-155.md)
 - [ ] [FF-109 Originals read-only](tasks/FF-109.md): the service makes originals read-only, so nothing reaching them through a link can change them.
 
 ### 3. Integrate with NegPy
@@ -218,6 +218,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D80 | Before release, only the labeled frame/version folder layout in D69 is supported. ID-only frame/version folders are not migrated or guaranteed to work; no backwards-compatibility path is needed. | FF-155 |
 | D81 | A frame/version folder rename fails without changing `roll.json` if its source is missing or its destination is occupied. Ordinary move/save errors trigger best-effort rollback; a crash or incomplete rollback is recovered by FF-156. | FF-155, FF-156 |
 | D82 | Existing NegPy links are not rewritten during a frame/version folder rename. The next explicit "Open in NegPy" rebuilds links whose source paths changed. | FF-112, FF-155 |
+| D83 | Version responses expose the original file basename as `fileName`, never the filesystem path. The UI can label versions without learning the archive's folder layout. | FF-155 |
 
 ---
 
@@ -400,6 +401,12 @@ More than one version of a frame: a low-res scan to preview every frame, a hi-re
 What a frame has is seen at a glance on its thumbnail, a roll's frames are grouped by event, the version shown is chosen with a star, and frames can be marked to scan.
 
 - [x] [FF-148 Stars on thumbnails](tasks/FF-148.md)
+
+### Finding your way around the library
+
+Frame and version folders are named by their number or kind with their IDs, so the archive is readable in Finder (D69).
+
+- [x] [FF-155 Frame and version folders named by number and kind](tasks/FF-155.md)
 
 ### Roll numbers
 

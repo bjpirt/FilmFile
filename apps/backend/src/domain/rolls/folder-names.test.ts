@@ -1,9 +1,36 @@
 import { describe, expect, test } from 'vitest';
-import { folderName, newIdWithUniqueFolder } from './folder-names.ts';
+import {
+  folderName,
+  frameFolderName,
+  newIdWithUniqueFolder,
+  versionFolderName,
+} from './folder-names.ts';
 
 describe('folderName', () => {
   test('is the last eight characters of the ID', () => {
     expect(folderName('01M6E883WPQ8WWY3PV27PMRVD6')).toBe('27PMRVD6');
+  });
+});
+
+describe('frameFolderName', () => {
+  test.each([
+    ['14-15', '14-15'],
+    ['12/13', '12_13'],
+    ['.12', '_12'],
+    ['-12', '_-12'],
+    [null, 'unnumbered'],
+  ] as const)('names %s as %s with its ID', (number, label) => {
+    expect(frameFolderName(number, '01M6E883WPQ8WWY3PV27PMRVD6')).toBe(
+      `${label}-27PMRVD6`,
+    );
+  });
+});
+
+describe('versionFolderName', () => {
+  test('names a version by kind and the end of its ID', () => {
+    expect(versionFolderName('raw-scan', '01M6E883WPQ8WWY3PV27PMRVD6')).toBe(
+      'raw-scan-27PMRVD6',
+    );
   });
 });
 

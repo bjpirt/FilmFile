@@ -2,16 +2,20 @@ import { mkdir, mkdtemp, readFile, rename, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, expect, test } from 'vitest';
-import type { BlobStore } from '../../../src/application/ports/blob-store.ts';
+import { FilesystemBlobStore } from '../../../src/adapters/outbound/filesystem/filesystem-blob-store.ts';
+import { FilesystemRollRepository } from '../../../src/adapters/outbound/filesystem/filesystem-roll-repository.ts';
+import type {
+  BlobStore,
+  NewBlob,
+} from '../../../src/application/ports/blob-store.ts';
+import { isFrameNumber } from '../../../src/domain/rolls/frame-number.ts';
 import {
   isArchiveId,
   isFrameId,
   isVersionId,
 } from '../../../src/domain/shared/ids.ts';
-import { checked } from '../../support/checked.ts';
-import { FilesystemBlobStore } from '../../../src/adapters/outbound/filesystem/filesystem-blob-store.ts';
-import { FilesystemRollRepository } from '../../../src/adapters/outbound/filesystem/filesystem-roll-repository.ts';
 import { aRoll } from '../../support/builders.ts';
+import { checked } from '../../support/checked.ts';
 
 // What only the filesystem adapter does; what every adapter does is in
 // test/contracts/blob-store-contract.ts.
@@ -28,10 +32,12 @@ afterEach(async () => {
 
 const ctx = { archiveId: checked('00000000000000000000000000', isArchiveId) };
 const roll = aRoll();
-const blob = {
+const blob: NewBlob = {
   rollId: roll.id,
   frameId: checked('01JC8Z7K3M00000000S9WDVXNP', isFrameId),
+  frameNumber: checked('14-15', isFrameNumber),
   versionId: checked('01JC8Z7K3M000000009PMYF63D', isVersionId),
+  kind: 'raw-scan',
   fileName: '12340014.jpg',
 };
 
@@ -44,7 +50,7 @@ test('stores a file in its version’s folder, inside its frame’s, inside its 
 
   const file = await store().put(ctx, blob, new Uint8Array([1, 2, 3]));
 
-  expect(file).toBe('frames/S9WDVXNP/9PMYF63D/12340014.jpg');
+  expect(file).toBe('frames/14-15-S9WDVXNP/raw-scan-9PMYF63D/12340014.jpg');
   expect(
     await readFile(
       path.join(archivePath, 'rolls/2026/2026-014-00000001', file),

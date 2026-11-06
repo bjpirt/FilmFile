@@ -17,7 +17,7 @@ beforeEach(async () => {
   await mkdir(folder, { recursive: true });
   const version = {
     id: versionId,
-    file: 'frames/00000002/00000003/12340014.jpg',
+    file: 'frames/1-00000002/scan-00000003/12340014.jpg',
     sha256: 'a'.repeat(64),
     bytes: 6,
     width: 1,

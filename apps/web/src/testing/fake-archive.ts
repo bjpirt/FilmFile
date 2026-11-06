@@ -1,9 +1,3 @@
-import { nextRollNumber } from '../rolls/next-roll-number.ts';
-import {
-  createSettingsRequest,
-  updateSettingsRequest,
-  type Settings,
-} from '@filmfile/contracts/settings';
 import { createApiClient, type ApiClient } from '@filmfile/contracts/client';
 import {
   createCameraRequest,
@@ -22,8 +16,8 @@ import {
   createFrameRequest,
   createRollRequest,
   renumberRollsRequest,
-  updateFramesRequest,
   updateFrameRequest,
+  updateFramesRequest,
   updateRollRequest,
   updateVersionRequest,
   type Frame,
@@ -32,9 +26,15 @@ import {
   type UnreadableRoll,
   type Version,
 } from '@filmfile/contracts/rolls';
+import {
+  createSettingsRequest,
+  updateSettingsRequest,
+  type Settings,
+} from '@filmfile/contracts/settings';
 import { cameraLabel } from '../equipment/use-cameras.ts';
 import { filmStockLabel } from '../equipment/use-film-stocks.ts';
 import { lensLabel } from '../equipment/use-lenses.ts';
+import { nextRollNumber } from '../rolls/next-roll-number.ts';
 
 // A stand-in for the backend in the web app's tests: it answers the API the
 // way the service does, keeping an archive in memory, so a page can be tested
@@ -101,7 +101,7 @@ export function aFrame(number: string | null, file: string): Frame {
     versions: [
       {
         id: `01JC8Z7K3M00000000000V${n}`,
-        file: `frames/x/y/${file}`,
+        fileName: file,
         sha256: file,
         bytes: 3,
         width: 3,
@@ -797,7 +797,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     uploads.push(file);
     const version: Version = {
       id: newId(),
-      file: `frames/x/y/${file}`,
+      fileName: file,
       sha256: hash,
       bytes: 3,
       width: 3,

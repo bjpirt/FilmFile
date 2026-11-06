@@ -37,7 +37,7 @@ export function holdingAreaContract(
       const holding = makeHoldingArea();
       const version = aVersion({
         id: ulidFor(8),
-        file: 'frames/00000002/00000008/edit.png',
+        file: 'frames/unnumbered-00000002/scan-00000008/edit.png',
       });
       const frame = aFrame({ versions: [aVersion(), version] });
       const roll = aRoll({ frames: [frame] });

@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import type { Version } from '@filmfile/contracts/rolls';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   cleanup,
@@ -8,7 +9,6 @@ import {
   within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import type { Version } from '@filmfile/contracts/rolls';
 import { App } from '../app.tsx';
 import {
   aFrame,
@@ -272,7 +272,7 @@ describe('opened from an event', () => {
 describe('the frame’s details and versions', () => {
   const second: Version = {
     id: '01JC8Z7K3M00000000000V0009',
-    file: 'frames/x/z/12340001-again.jpg',
+    fileName: '12340001-again.jpg',
     sha256: 'again',
     bytes: 2_400_000,
     width: 3089,

@@ -82,7 +82,7 @@ function aRollWithScans(roll: string, scans: number): Roll {
         versions: [
           {
             id: `01JC8Z7K3M00000000000002${n}`,
-            file: `frames/x/y/123400${n}.jpg`,
+            fileName: `123400${n}.jpg`,
             sha256: n.padStart(64, '0'),
             bytes: 3,
             width: 3,

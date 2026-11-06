@@ -31,9 +31,9 @@ export const versionKind = z.enum(['scan', 'raw-scan', 'final']).meta({
 export const version = z
   .object({
     id: ulid,
-    file: z.string().meta({
-      description: "Where the file is, relative to the roll's folder.",
-      example: 'frames/S9WDVXNP/9PMYF63D/12340014.jpg',
+    fileName: z.string().meta({
+      description: 'The original file name, without its folder path.',
+      example: '12340014.jpg',
     }),
     sha256: z.string(),
     bytes: z.number().int(),

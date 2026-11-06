@@ -4,6 +4,8 @@ import { expect, test } from 'vitest';
 import { FilesystemBlobStore } from '../../../src/adapters/outbound/filesystem/filesystem-blob-store.ts';
 import { FilesystemRollRepository } from '../../../src/adapters/outbound/filesystem/filesystem-roll-repository.ts';
 import { findRollFolder } from '../../../src/adapters/outbound/filesystem/roll-folder.ts';
+import type { NewBlob } from '../../../src/application/ports/blob-store.ts';
+import { isFrameNumber } from '../../../src/domain/rolls/frame-number.ts';
 import { isFrameId, isVersionId } from '../../../src/domain/shared/ids.ts';
 import { ok } from '../../../src/domain/shared/result.ts';
 import { aRoll, ctx } from '../../support/builders.ts';
@@ -21,10 +23,12 @@ test('a file added while the roll’s number changes ends up in the roll’s ren
   const blobs = new FilesystemBlobStore(archive.path());
   const roll = aRoll();
   await rolls.create(ctx, roll);
-  const blob = {
+  const blob: NewBlob = {
     rollId: roll.id,
     frameId: checked('01JC8Z7K3M00000000S9WDVXNP', isFrameId),
+    frameNumber: checked('14', isFrameNumber),
     versionId: checked('01JC8Z7K3M000000009PMYF63D', isVersionId),
+    kind: 'scan',
     fileName: '12340014.jpg',
   };
   let file = '';

@@ -94,12 +94,15 @@ export class AddVersion {
       frame.versions.map((v) => v.id),
       () => this.#ids.newVersionId(),
     );
+    const kind = input.kind ?? 'scan';
     const file = await this.#blobs.put(
       ctx,
       {
         rollId: roll.id,
         frameId: frame.id,
+        frameNumber: frame.number,
         versionId,
+        kind,
         fileName: input.fileName,
       },
       input.bytes,
@@ -110,7 +113,7 @@ export class AddVersion {
       ...facts,
       added: this.#clock.now(),
       rotate: 0,
-      kind: input.kind ?? 'scan',
+      kind,
     };
     return ok({
       roll: {

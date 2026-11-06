@@ -78,7 +78,7 @@ function aFrameWithScan(number: string | null, file: string): Frame {
     versions: [
       {
         id: `01JC8Z7K3M00000000000001${file.slice(6, 8)}`,
-        file: `frames/x/y/${file}`,
+        fileName: file,
         sha256: file,
         bytes: 3,
         width: 3,

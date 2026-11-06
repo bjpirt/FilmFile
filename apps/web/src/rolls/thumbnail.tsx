@@ -28,7 +28,7 @@ export function Thumbnail({
   return (
     <img
       src={src}
-      alt={decorative ? '' : version.file.split('/').at(-1)}
+      alt={decorative ? '' : version.fileName}
       width={sideways ? version.height : version.width}
       height={sideways ? version.width : version.height}
     />

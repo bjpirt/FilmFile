@@ -10,10 +10,18 @@ import {
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { FilesystemRollRepository } from '../../../src/adapters/outbound/filesystem/filesystem-roll-repository.ts';
-import type { RollRepository } from '../../../src/application/ports/roll-repository.ts';
-import { ok } from '../../../src/domain/shared/result.ts';
 import { findRollFolder } from '../../../src/adapters/outbound/filesystem/roll-folder.ts';
-import { aRoll, ctx, ulidFor } from '../../support/builders.ts';
+import type { RollRepository } from '../../../src/application/ports/roll-repository.ts';
+import { isFrameNumber } from '../../../src/domain/rolls/frame-number.ts';
+import { ok } from '../../../src/domain/shared/result.ts';
+import {
+  aFrame,
+  aRoll,
+  aVersion,
+  ctx,
+  ulidFor,
+} from '../../support/builders.ts';
+import { checked } from '../../support/checked.ts';
 import { useTempArchive } from '../../support/temp-archive.ts';
 
 // What only the filesystem adapter does; what every adapter does is in
@@ -544,5 +552,261 @@ describe('renaming a roll’s folder when its number changes', () => {
     expect(await readFile(rollFile(second.roll, second.id), 'utf8')).toBe(
       secondContent,
     );
+  });
+});
+
+describe('renaming frame and version folders', () => {
+  function filePath(
+    number: string,
+    frameId: string,
+    versionId: string,
+    fileName: string,
+  ): string {
+    return `frames/${number}-${frameId.slice(-8)}/scan-${versionId.slice(-8)}/${fileName}`;
+  }
+
+  async function writeVersionFile(
+    roll: ReturnType<typeof aRoll>,
+    version: ReturnType<typeof aVersion>,
+    contents: string,
+  ): Promise<void> {
+    const file = path.join(
+      rollFolder(roll.roll, roll.id),
+      ...version.file.split('/'),
+    );
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, contents);
+  }
+
+  test('moves every frame folder when numbers swap, without changing file contents', async () => {
+    const rolls = repository();
+    const firstVersion = aVersion({
+      id: ulidFor(3),
+      file: filePath('1', ulidFor(2), ulidFor(3), 'first.jpg'),
+    });
+    const secondVersion = aVersion({
+      id: ulidFor(5),
+      file: filePath('2', ulidFor(4), ulidFor(5), 'second.jpg'),
+    });
+    const firstFrame = aFrame({
+      id: ulidFor(2),
+      number: '1',
+      versions: [firstVersion],
+    });
+    const secondFrame = aFrame({
+      id: ulidFor(4),
+      number: '2',
+      versions: [secondVersion],
+    });
+    const roll = aRoll({ frames: [firstFrame, secondFrame] });
+    await rolls.create(ctx, roll);
+    await writeVersionFile(roll, firstVersion, 'first');
+    await writeVersionFile(roll, secondVersion, 'second');
+    const current = await rolls.get(ctx, roll.id);
+
+    const saved = await rolls.save(
+      ctx,
+      {
+        ...roll,
+        frames: [
+          { ...firstFrame, number: checked('2', isFrameNumber) },
+          { ...secondFrame, number: checked('1', isFrameNumber) },
+        ],
+      },
+      current?.version ?? '',
+    );
+
+    expect(saved.ok).toBe(true);
+    const updated = await rolls.get(ctx, roll.id);
+    expect(
+      updated?.roll.frames.map((frame) => frame.versions[0]?.file),
+    ).toEqual([
+      filePath('2', firstFrame.id, firstVersion.id, 'first.jpg'),
+      filePath('1', secondFrame.id, secondVersion.id, 'second.jpg'),
+    ]);
+    expect(
+      await readFile(
+        path.join(
+          rollFolder(roll.roll, roll.id),
+          ...filePath('2', firstFrame.id, firstVersion.id, 'first.jpg').split(
+            '/',
+          ),
+        ),
+        'utf8',
+      ),
+    ).toBe('first');
+    expect(
+      await readFile(
+        path.join(
+          rollFolder(roll.roll, roll.id),
+          ...filePath(
+            '1',
+            secondFrame.id,
+            secondVersion.id,
+            'second.jpg',
+          ).split('/'),
+        ),
+        'utf8',
+      ),
+    ).toBe('second');
+  });
+
+  test('refuses to rename when a version source folder is missing', async () => {
+    const rolls = repository();
+    const version = aVersion({
+      file: filePath('1', ulidFor(2), ulidFor(3), 'missing.jpg'),
+    });
+    const frame = aFrame({ id: ulidFor(2), number: '1', versions: [version] });
+    const roll = aRoll({ frames: [frame] });
+    await rolls.create(ctx, roll);
+    const current = await rolls.get(ctx, roll.id);
+
+    await expect(
+      rolls.save(
+        ctx,
+        {
+          ...roll,
+          frames: [{ ...frame, number: checked('2', isFrameNumber) }],
+        },
+        current?.version ?? '',
+      ),
+    ).rejects.toThrow('version source folder is missing');
+    expect((await rolls.get(ctx, roll.id))?.roll).toEqual(roll);
+  });
+
+  test('refuses to rename when the version source path is not a folder', async () => {
+    const rolls = repository();
+    const version = aVersion({
+      file: filePath('1', ulidFor(2), ulidFor(3), 'scan.jpg'),
+    });
+    const frame = aFrame({ id: ulidFor(2), number: '1', versions: [version] });
+    const roll = aRoll({ frames: [frame] });
+    await rolls.create(ctx, roll);
+    const sourceFile = path.join(
+      rollFolder(roll.roll, roll.id),
+      ...version.file.split('/'),
+    );
+    const sourceFolder = path.dirname(sourceFile);
+    await mkdir(path.dirname(sourceFolder), { recursive: true });
+    await writeFile(sourceFolder, 'not a folder');
+    const current = await rolls.get(ctx, roll.id);
+
+    await expect(
+      rolls.save(
+        ctx,
+        {
+          ...roll,
+          frames: [{ ...frame, number: checked('2', isFrameNumber) }],
+        },
+        current?.version ?? '',
+      ),
+    ).rejects.toThrow('version source folder is missing');
+    expect(await readFile(sourceFolder, 'utf8')).toBe('not a folder');
+    expect((await rolls.get(ctx, roll.id))?.roll).toEqual(roll);
+  });
+
+  test('refuses to overwrite a destination folder and leaves both folders unchanged', async () => {
+    const rolls = repository();
+    const version = aVersion({
+      file: filePath('1', ulidFor(2), ulidFor(3), 'scan.jpg'),
+    });
+    const frame = aFrame({ id: ulidFor(2), number: '1', versions: [version] });
+    const roll = aRoll({ frames: [frame] });
+    await rolls.create(ctx, roll);
+    await writeVersionFile(roll, version, 'original');
+    const destination = path.join(
+      rollFolder(roll.roll, roll.id),
+      ...filePath('2', frame.id, version.id, 'scan.jpg').split('/'),
+    );
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(path.join(path.dirname(destination), 'other.txt'), 'keep');
+    const current = await rolls.get(ctx, roll.id);
+
+    await expect(
+      rolls.save(
+        ctx,
+        {
+          ...roll,
+          frames: [{ ...frame, number: checked('2', isFrameNumber) }],
+        },
+        current?.version ?? '',
+      ),
+    ).rejects.toThrow('version destination folder already exists');
+    expect((await rolls.get(ctx, roll.id))?.roll).toEqual(roll);
+    expect(
+      await readFile(path.join(path.dirname(destination), 'other.txt'), 'utf8'),
+    ).toBe('keep');
+    expect(
+      await readFile(
+        path.join(rollFolder(roll.roll, roll.id), ...version.file.split('/')),
+        'utf8',
+      ),
+    ).toBe('original');
+  });
+
+  test('rolls back earlier folder moves when a later move fails', async () => {
+    const firstVersion = aVersion({
+      id: ulidFor(3),
+      file: filePath('1', ulidFor(2), ulidFor(3), 'first.jpg'),
+    });
+    const secondVersion = aVersion({
+      id: ulidFor(4),
+      file: filePath('1', ulidFor(2), ulidFor(4), 'second.jpg'),
+    });
+    const frame = aFrame({
+      id: ulidFor(2),
+      number: '1',
+      versions: [firstVersion, secondVersion],
+    });
+    const roll = aRoll({ frames: [frame] });
+    await repository().create(ctx, roll);
+    await writeVersionFile(roll, firstVersion, 'first');
+    await writeVersionFile(roll, secondVersion, 'second');
+    const before = await readFile(rollFile(roll.roll, roll.id), 'utf8');
+    let moves = 0;
+    const failSecondMove = async (source: string, destination: string) => {
+      moves += 1;
+      if (moves === 2) {
+        throw new Error('injected version folder move failure');
+      }
+      await rename(source, destination);
+    };
+    const failingRolls = repository(failSecondMove);
+    const current = await failingRolls.get(ctx, roll.id);
+
+    await expect(
+      failingRolls.save(
+        ctx,
+        {
+          ...roll,
+          frames: [{ ...frame, number: checked('2', isFrameNumber) }],
+        },
+        current?.version ?? '',
+      ),
+    ).rejects.toThrow('injected version folder move failure');
+
+    expect(await readFile(rollFile(roll.roll, roll.id), 'utf8')).toBe(before);
+    expect((await failingRolls.get(ctx, roll.id))?.roll).toEqual(roll);
+    expect(
+      await names(path.join(rollFolder(roll.roll, roll.id), 'frames')),
+    ).toEqual([`1-${frame.id.slice(-8)}`]);
+    expect(
+      await readFile(
+        path.join(
+          rollFolder(roll.roll, roll.id),
+          ...firstVersion.file.split('/'),
+        ),
+        'utf8',
+      ),
+    ).toBe('first');
+    expect(
+      await readFile(
+        path.join(
+          rollFolder(roll.roll, roll.id),
+          ...secondVersion.file.split('/'),
+        ),
+        'utf8',
+      ),
+    ).toBe('second');
   });
 });

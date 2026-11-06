@@ -1,15 +1,18 @@
 import { describe, expect, test } from 'vitest';
 import type { BlobStore } from '../../src/application/ports/blob-store.ts';
+import { isFrameNumber } from '../../src/domain/rolls/frame-number.ts';
 import type { Roll } from '../../src/domain/rolls/roll.ts';
 import { isFrameId, isVersionId } from '../../src/domain/shared/ids.ts';
-import { checked } from '../support/checked.ts';
 import { aRoll, ctx } from '../support/builders.ts';
+import { checked } from '../support/checked.ts';
 
 const roll = aRoll();
 const blob = {
   rollId: roll.id,
   frameId: checked('01JC8Z7K3M00000000S9WDVXNP', isFrameId),
+  frameNumber: checked('14', isFrameNumber),
   versionId: checked('01JC8Z7K3M000000009PMYF63D', isVersionId),
+  kind: 'scan' as const,
   fileName: '12340014.jpg',
 };
 

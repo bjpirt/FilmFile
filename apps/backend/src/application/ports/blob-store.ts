@@ -1,3 +1,5 @@
+import type { FrameNumber } from '../../domain/rolls/frame-number.ts';
+import type { VersionKind } from '../../domain/rolls/version-kind.ts';
 import type { ArchiveContext } from '../../domain/shared/archive-context.ts';
 import type { FrameId, RollId, VersionId } from '../../domain/shared/ids.ts';
 
@@ -5,7 +7,9 @@ import type { FrameId, RollId, VersionId } from '../../domain/shared/ids.ts';
 export interface NewBlob {
   readonly rollId: RollId;
   readonly frameId: FrameId;
+  readonly frameNumber: FrameNumber | null;
   readonly versionId: VersionId;
+  readonly kind: VersionKind;
   readonly fileName: string;
 }
 

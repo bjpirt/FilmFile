@@ -7,17 +7,17 @@ import type {
   HeldVersion,
   HoldingArea,
 } from '../../../application/ports/holding-area.ts';
-import { folderName } from '../../../domain/rolls/folder-names.ts';
+import { frameFolderName } from '../../../domain/rolls/folder-names.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type { RollId } from '../../../domain/shared/ids.ts';
 import { hasErrorCode } from './error-codes.ts';
-import { findRollFolder } from './roll-folder.ts';
 import { heldFrameFileContent, parseHeldFrameFile } from './held-frame-file.ts';
 import { heldRollFileContent, parseHeldRollFile } from './held-roll-file.ts';
 import {
   heldVersionFileContent,
   parseHeldVersionFile,
 } from './held-version-file.ts';
+import { findRollFolder } from './roll-folder.ts';
 import { safePath } from './safe-path.ts';
 import { createAtomically } from './write-atomically.ts';
 
@@ -87,7 +87,7 @@ export class FilesystemHoldingArea implements HoldingArea {
       'frame.json',
       heldFrameFileContent(held),
     );
-    const frameFolder = folderName(held.frame.id);
+    const frameFolder = frameFolderName(held.frame.number, held.frame.id);
     const rollFolder = await this.#rollFolder(held.rollId);
     if (rollFolder === undefined) {
       // A roll with no folder has no files of the frame's to move.
@@ -115,15 +115,16 @@ export class FilesystemHoldingArea implements HoldingArea {
       'version.json',
       heldVersionFileContent(held),
     );
-    const versionFolder = folderName(held.version.id);
     const rollFolder = await this.#rollFolder(held.rollId);
     if (rollFolder === undefined) {
       return;
     }
     try {
+      const versionFile = safePath(rollFolder, ...held.version.file.split('/'));
+      const versionFolder = path.dirname(versionFile);
       await rename(
-        safePath(rollFolder, 'frames', folderName(held.frameId), versionFolder),
-        safePath(folder, versionFolder),
+        versionFolder,
+        safePath(folder, path.basename(versionFolder)),
       );
     } catch (error) {
       // Its files gone already (by hand, say): what it was is still kept.
