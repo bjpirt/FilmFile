@@ -1,11 +1,11 @@
-import type { Slug } from '../shared/slug.ts';
 import type { FrameId, RollId, VersionId } from '../shared/ids.ts';
+import type { Slug } from '../shared/slug.ts';
 import type { FrameNumber } from './frame-number.ts';
 import type { QuarterTurn } from './quarter-turn.ts';
-import type { VersionKind } from './version-kind.ts';
 import type { Rating } from './rating.ts';
 import type { RollNumber } from './roll-number.ts';
 import type { ShotDate } from './shot-date.ts';
+import type { VersionKind } from './version-kind.ts';
 
 /** One image file of a frame: a lab scan for now. */
 export interface Version {
@@ -39,8 +39,8 @@ export interface Frame {
    */
   readonly camera: Slug | null;
   readonly lens: Slug | null;
-  /** The events the frame is in, by slug, in place of its roll's; null uses the roll's. */
-  readonly events: readonly Slug[] | null;
+  /** The frame's own event, by slug; null uses its roll's. */
+  readonly event: Slug | null;
   /** When the frame was shot, in place of its roll's date; null uses the roll's (D47). */
   readonly shot: ShotDate | null;
   /** The version shown for the frame; when null, its first (D15, D46). */

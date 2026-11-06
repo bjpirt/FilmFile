@@ -32,7 +32,7 @@ describe('POST /api/rolls/{id}/frames', () => {
       notes: null,
       camera: null,
       lens: null,
-      events: null,
+      event: null,
       shot: null,
       defaultVersion: null,
       versions: [],
@@ -129,7 +129,7 @@ describe('PATCH /api/rolls/{id}/frames/{frameId}', () => {
       notes: null,
       camera: null,
       lens: null,
-      events: null,
+      event: null,
       shot: null,
       defaultVersion: null,
       versions: [],
@@ -292,7 +292,7 @@ describe('PATCH /api/rolls/{id}/frames', () => {
     });
   }
 
-  test('gives many frames the same details of their own in one save', async () => {
+  test('gives many frames the same event in one save', async () => {
     await post('/api/equipment/cameras', { make: 'Leica', model: 'M6' });
     await post('/api/events', { name: 'Westfjords' });
     const { frameIds, url, etag } = await aRollWithFrames(3);
@@ -302,7 +302,7 @@ describe('PATCH /api/rolls/{id}/frames', () => {
       {
         frameIds: [frameIds[0], frameIds[2]],
         camera: 'leica-m6',
-        events: ['westfjords'],
+        event: 'westfjords',
       },
       etag,
     );
@@ -311,11 +311,21 @@ describe('PATCH /api/rolls/{id}/frames', () => {
     expect(response.headers.get('ETag')).not.toBe(etag);
     expect(await response.json()).toMatchObject({
       frames: [
-        { camera: 'leica-m6', events: ['westfjords'] },
-        { camera: null, events: null },
-        { camera: 'leica-m6', events: ['westfjords'] },
+        { camera: 'leica-m6', event: 'westfjords' },
+        { camera: null, event: null },
+        { camera: 'leica-m6', event: 'westfjords' },
       ],
     });
+  });
+
+  test('refuses an event that is not in the archive and changes no frames', async () => {
+    const { frameIds, rollId, url, etag } = await aRollWithFrames(1);
+
+    expect(
+      (await patchNumbers(url, { frameIds, event: 'nowhere' }, etag)).status,
+    ).toBe(422);
+    const roll: unknown = await (await request(`/api/rolls/${rollId}`)).json();
+    expect(roll).toMatchObject({ frames: [{ event: null }] });
   });
 
   test.each([
@@ -588,12 +598,14 @@ describe('GET /api/rolls/{id}/frames/{frameId}/details', () => {
   test('gives the details the frame inherits, from the archive and its roll', async () => {
     await post('/api/settings', { author: 'Ben Pirt' });
     await post('/api/equipment/cameras', { make: 'Nikon', model: 'FE' });
+    await post('/api/events', { name: 'Iceland 2026' });
     const rollId = String(
       idOf(
         await (
           await post('/api/rolls', {
             roll: '2026-014',
             camera: 'nikon-fe',
+            event: 'iceland-2026',
             shot: '2026',
           })
         ).json(),
@@ -607,21 +619,24 @@ describe('GET /api/rolls/{id}/frames/{frameId}/details', () => {
       `/api/rolls/${rollId}/frames/${frameId}/details`,
     );
 
-    expect(response.status).toBe(200);
+    const body: unknown = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(200);
     const archiveId = idOf(await (await request('/api/settings')).json());
-    expect(await response.json()).toEqual({
+    expect(body).toEqual({
       author: {
         value: 'Ben Pirt',
         source: { layer: 'archive', id: archiveId },
       },
       camera: { value: 'nikon-fe', source: { layer: 'roll', id: rollId } },
+      event: { value: 'iceland-2026', source: { layer: 'roll', id: rollId } },
       shot: { value: '2026', source: { layer: 'roll', id: rollId } },
     });
   });
 
-  test('the frame’s own camera and events win over its roll’s', async () => {
+  test('the frame’s own camera and event win over its roll’s', async () => {
     await post('/api/equipment/cameras', { make: 'Nikon', model: 'FE' });
     await post('/api/equipment/cameras', { make: 'Leica', model: 'M6' });
+    await post('/api/events', { name: 'Iceland 2026' });
     await post('/api/events', { name: 'Westfjords' });
     const rollId = String(
       idOf(
@@ -629,6 +644,7 @@ describe('GET /api/rolls/{id}/frames/{frameId}/details', () => {
           await post('/api/rolls', {
             roll: '2026-014',
             camera: 'nikon-fe',
+            event: 'iceland-2026',
             shot: '2026',
           })
         ).json(),
@@ -641,11 +657,11 @@ describe('GET /api/rolls/{id}/frames/{frameId}/details', () => {
     const patched = await request(`/api/rolls/${rollId}/frames/${frameId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'If-Match': etag ?? '' },
-      body: JSON.stringify({ camera: 'leica-m6', events: ['westfjords'] }),
+      body: JSON.stringify({ camera: 'leica-m6', event: 'westfjords' }),
     });
     expect(await patched.json()).toMatchObject({
       camera: 'leica-m6',
-      events: ['westfjords'],
+      event: 'westfjords',
     });
 
     const details: unknown = await (
@@ -655,8 +671,24 @@ describe('GET /api/rolls/{id}/frames/{frameId}/details', () => {
     const fromFrame = { layer: 'frame', id: frameId };
     expect(details).toEqual({
       camera: { value: 'leica-m6', source: fromFrame },
-      events: { value: ['westfjords'], source: fromFrame },
+      event: { value: 'westfjords', source: fromFrame },
       shot: { value: '2026', source: { layer: 'roll', id: rollId } },
+    });
+
+    const cleared = await request(`/api/rolls/${rollId}/frames/${frameId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'If-Match': patched.headers.get('ETag') ?? '',
+      },
+      body: JSON.stringify({ event: null }),
+    });
+    expect(await cleared.json()).toMatchObject({ event: null });
+    const inherited: unknown = await (
+      await request(`/api/rolls/${rollId}/frames/${frameId}/details`)
+    ).json();
+    expect(inherited).toMatchObject({
+      event: { value: 'iceland-2026', source: { layer: 'roll', id: rollId } },
     });
   });
 

@@ -1,40 +1,38 @@
-import { BinIcon } from '../bin-icon.tsx';
-import { MenuButton } from '../menu-button.tsx';
 import type { ApiClient } from '@filmfile/contracts/client';
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { Link, navigate } from '../routing.tsx';
-import { droppedFiles } from './dropped-files.ts';
+import { BinIcon } from '../bin-icon.tsx';
 import { chooseCamera } from '../equipment/choose-camera.ts';
+import { chooseFilmStock } from '../equipment/choose-film-stock.ts';
+import { chooseLens } from '../equipment/choose-lens.ts';
 import {
   cameraLabel,
   cameraName,
   useCameras,
 } from '../equipment/use-cameras.ts';
-import { chooseFilmStock } from '../equipment/choose-film-stock.ts';
-import { chooseLens } from '../equipment/choose-lens.ts';
+import { filmStockName, useFilmStocks } from '../equipment/use-film-stocks.ts';
 import { lensLabel, lensName, useLenses } from '../equipment/use-lenses.ts';
 import { chooseEvent } from '../events/choose-event.ts';
 import { eventName, useEvents } from '../events/use-events.ts';
-import { filmStockName, useFilmStocks } from '../equipment/use-film-stocks.ts';
+import { MenuButton } from '../menu-button.tsx';
+import { PadlockIcon } from '../padlock-icon.tsx';
+import { Link, navigate } from '../routing.tsx';
+import { AssignToFrames, type FramesChange } from './assign-to-frames.tsx';
+import { describeUpload } from './describe-upload.ts';
+import { droppedFiles } from './dropped-files.ts';
 import { EditDetailsPanel, type RollDetails } from './edit-details-panel.tsx';
 import { formatShot } from './format-shot.ts';
 import { frameCount } from './frame-count.ts';
+import { FrameMarks } from './frame-marks.tsx';
 import { FrameNumberEditor, type SaveOutcome } from './frame-number-editor.tsx';
 import { inFrameOrder } from './frame-order.ts';
-import { renumber } from './renumber.ts';
-import { Thumbnail } from './thumbnail.tsx';
 import {
   RenumberPanel,
   renumberingOf,
   type RenumberSettings,
 } from './renumber-panel.tsx';
-import { describeUpload } from './describe-upload.ts';
-import { uploadScans, type UploadReport } from './upload-scans.ts';
-import { AssignToFrames, type FramesChange } from './assign-to-frames.tsx';
-import { FrameMarks } from './frame-marks.tsx';
-import { PadlockIcon } from '../padlock-icon.tsx';
+import { renumber } from './renumber.ts';
 import {
   noSelection,
   selectAll,
@@ -42,6 +40,8 @@ import {
   toggle,
   type Selection,
 } from './selection.ts';
+import { Thumbnail } from './thumbnail.tsx';
+import { uploadScans, type UploadReport } from './upload-scans.ts';
 
 type Upload =
   | { readonly kind: 'idle' }
@@ -294,15 +294,13 @@ export function RollPage({
     if (roll.data === undefined) {
       return undefined;
     }
-    const { events, ...equipment } = change;
+    const { event, ...equipment } = change;
     const { response } = await api.PATCH('/api/rolls/{rollId}/frames', {
       params: { path: { rollId }, header: { 'if-match': roll.data.etag } },
       body: {
         frameIds: [...chosen.selected],
         ...equipment,
-        ...(events === undefined
-          ? {}
-          : { events: events === null ? null : [...events] }),
+        ...(event === undefined ? {} : { event }),
       },
     });
     if (response.status === 409) {

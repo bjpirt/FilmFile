@@ -322,9 +322,11 @@ export function FrameDetails({
       return data;
     },
   }).data;
-  const frameEvents = (inherited?.events?.value ?? []).map(
-    (slug) => eventName(events, slug) ?? slug,
-  );
+  const resolvedEvent = inherited?.event?.value;
+  const frameEvent =
+    resolvedEvent === undefined
+      ? undefined
+      : (eventName(events, resolvedEvent) ?? resolvedEvent);
 
   const facts: readonly Fact[] = [
     {
@@ -375,10 +377,10 @@ export function FrameDetails({
       from: inherited?.film?.source.layer,
     },
     {
-      label: frameEvents.length > 1 ? 'Events' : 'Event',
-      value: frameEvents.length === 0 ? undefined : frameEvents.join(', '),
-      from: inherited?.events?.source.layer,
-      clear: { events: null },
+      label: 'Event',
+      value: frameEvent,
+      from: inherited?.event?.source.layer,
+      clear: { event: null },
       edit: {
         name: 'event',
         rolls: eventName(events, roll.event) ?? 'none',
@@ -386,10 +388,8 @@ export function FrameDetails({
           value: event.slug,
           label: event.name,
         })),
-        current: frame.events?.[0] ?? '',
-        change: (event: string | null) => ({
-          events: event === null ? null : [event],
-        }),
+        current: frame.event ?? '',
+        change: (event: string | null) => ({ event }),
       },
     },
     {

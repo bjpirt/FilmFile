@@ -2079,8 +2079,11 @@ export interface components {
             camera: string | null;
             /** @example nikon-fe */
             lens: string | null;
-            /** @description The events the frame is in, in place of its roll's, or null to use the roll's. */
-            events: string[] | null;
+            /**
+             * @description The frame's own event, or null to use its roll's event.
+             * @example nikon-fe
+             */
+            event: string | null;
             /**
              * @description When the frame was shot, in place of its roll's date, or null to use the roll's (D47).
              * @example 2026-09-14
@@ -2221,7 +2224,8 @@ export interface components {
             camera?: string | null;
             /** @example nikon-fe */
             lens?: string | null;
-            events?: string[] | null;
+            /** @example nikon-fe */
+            event?: string | null;
         };
         /** @description The details to change; a detail left out stays as it is. */
         UpdateFrameRequest: {
@@ -2241,8 +2245,11 @@ export interface components {
             camera?: string | null;
             /** @example nikon-fe */
             lens?: string | null;
-            /** @description The frame's own events, or null to use its roll's again. */
-            events?: string[] | null;
+            /**
+             * @description The frame's own event, or null to use its roll's again.
+             * @example nikon-fe
+             */
+            event?: string | null;
             /**
              * @description The frame's own date shot, or null to use its roll's again.
              * @example 2026-09-14
@@ -2299,8 +2306,9 @@ export interface components {
                     id: string;
                 };
             };
-            events?: {
-                value: string[];
+            event?: {
+                /** @example nikon-fe */
+                value: string;
                 source: {
                     /** @enum {string} */
                     layer: "archive" | "roll" | "frame";

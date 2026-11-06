@@ -95,7 +95,7 @@ export function aFrame(number: string | null, file: string): Frame {
     notes: null,
     camera: null,
     lens: null,
-    events: null,
+    event: null,
     shot: null,
     defaultVersion: null,
     versions: [
@@ -515,10 +515,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     const film = either(null, roll.film);
     const lens = either(frame.lens, roll.lens);
     const shot = either(frame.shot, roll.shot);
-    const events = either(
-      frame.events,
-      roll.event === null ? null : [roll.event],
-    );
+    const event = either(frame.event, roll.event);
     return {
       ...(settings === null ? {} : { author: fromArchive(settings.author) }),
       ...(settings?.copyright === undefined || settings.copyright === null
@@ -527,7 +524,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       ...(camera === undefined ? {} : { camera }),
       ...(film === undefined ? {} : { film }),
       ...(lens === undefined ? {} : { lens }),
-      ...(events === undefined ? {} : { events }),
+      ...(event === undefined ? {} : { event }),
       ...(shot === undefined ? {} : { shot }),
     };
   }
@@ -653,7 +650,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
           notes: null,
           camera: null,
           lens: null,
-          events: null,
+          event: null,
           shot: null,
           defaultVersion: null,
           versions: [],

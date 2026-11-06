@@ -1,24 +1,23 @@
 import { z } from 'zod';
-import { isSlug, type Slug } from '../../../domain/shared/slug.ts';
 import {
   isFrameNumber,
   type FrameNumber,
 } from '../../../domain/rolls/frame-number.ts';
-import {
-  isRollNumber,
-  type RollNumber,
-} from '../../../domain/rolls/roll-number.ts';
 import {
   isQuarterTurn,
   type QuarterTurn,
 } from '../../../domain/rolls/quarter-turn.ts';
 import { isRating, type Rating } from '../../../domain/rolls/rating.ts';
 import {
+  isRollNumber,
+  type RollNumber,
+} from '../../../domain/rolls/roll-number.ts';
+import type { Frame, Roll, Version } from '../../../domain/rolls/roll.ts';
+import { isShotDate, type ShotDate } from '../../../domain/rolls/shot-date.ts';
+import {
   isVersionKind,
   type VersionKind,
 } from '../../../domain/rolls/version-kind.ts';
-import type { Frame, Roll, Version } from '../../../domain/rolls/roll.ts';
-import { isShotDate, type ShotDate } from '../../../domain/rolls/shot-date.ts';
 import {
   isFrameId,
   isRollId,
@@ -28,6 +27,7 @@ import {
   type VersionId,
 } from '../../../domain/shared/ids.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
+import { isSlug, type Slug } from '../../../domain/shared/slug.ts';
 
 // The persistence model: what roll.json holds, parsed with Zod when read and
 // mapped explicitly to and from the domain types.
@@ -123,10 +123,8 @@ export const storedFrame = z.object({
     .nullable()
     .default(null),
   notes: z.string().nullable().default(null),
-  // Only on a frame that has its own (U15); otherwise its roll's apply.
-  events: z
-    .array(branded<Slug>(isSlug, 'must be a slug like iceland-2026'))
-    .optional(),
+  // Only on a frame that has its own (D50); otherwise its roll's applies.
+  event: branded<Slug>(isSlug, 'must be a slug like iceland-2026').optional(),
   meta: storedMeta.optional(),
   shot: branded<ShotDate>(
     isShotDate,
@@ -250,13 +248,13 @@ export function storedVersionOf(
 
 /** A frame as read from its stored form. */
 export function frameFromStored(stored: z.output<typeof storedFrame>): Frame {
-  const { meta, events, shot, ...rest } = stored;
+  const { meta, event, shot, ...rest } = stored;
   return {
     ...rest,
     // A film stock a frame was given before frames couldn't have one (D45) is left out.
     camera: meta?.camera ?? null,
     lens: meta?.lens ?? null,
-    events: events ?? null,
+    event: event ?? null,
     shot: shot ?? null,
     versions: stored.versions.map(versionFromStored),
   };
@@ -271,7 +269,7 @@ export function storedFrameOf(frame: Frame): z.input<typeof storedFrame> {
     rating: frame.rating,
     notes: frame.notes,
     // Only what the frame sets itself, so a frame that inherits it all says nothing.
-    ...(frame.events === null ? {} : { events: [...frame.events] }),
+    ...(frame.event === null ? {} : { event: frame.event }),
     ...(frame.camera === null && frame.lens === null
       ? {}
       : {

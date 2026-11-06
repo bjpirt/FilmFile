@@ -13,8 +13,8 @@ import type {
   VersionedRoll,
 } from '../../ports/roll-repository.ts';
 import { knownCamera } from '../rolls/known-camera.ts';
+import { knownEvent } from '../rolls/known-event.ts';
 import { knownLens } from '../rolls/known-lens.ts';
-import { knownEvents } from './known-events.ts';
 
 /**
  * Gives many frames the same camera, lens or events of their
@@ -48,8 +48,8 @@ export class UpdateFrames {
       /** Slugs of equipment in the archive. */
       readonly camera?: string | null | undefined;
       readonly lens?: string | null | undefined;
-      /** Slugs of events in the archive. */
-      readonly events?: readonly string[] | null | undefined;
+      /** The event to set on each frame, or null to use each roll's. */
+      readonly event?: string | null | undefined;
     },
   ): Promise<
     Result<VersionedRoll, NotFound | ConcurrencyConflict | ValidationFailed>
@@ -68,12 +68,12 @@ export class UpdateFrames {
     if (!lens.ok) {
       return lens;
     }
-    const events =
-      input.events === undefined || input.events === null
-        ? ok(input.events)
-        : await knownEvents(this.#events, ctx, input.events);
-    if (!events.ok) {
-      return events;
+    const event =
+      input.event === undefined || input.event === null
+        ? ok(input.event)
+        : await knownEvent(this.#events, ctx, input.event);
+    if (!event.ok) {
+      return event;
     }
     const current = await this.#rolls.get(ctx, input.rollId);
     if (current === undefined) {
@@ -95,7 +95,7 @@ export class UpdateFrames {
               ...frame,
               ...(camera.value === undefined ? {} : { camera: camera.value }),
               ...(lens.value === undefined ? {} : { lens: lens.value }),
-              ...(events.value === undefined ? {} : { events: events.value }),
+              ...(event.value === undefined ? {} : { event: event.value }),
             }
           : frame,
       ),

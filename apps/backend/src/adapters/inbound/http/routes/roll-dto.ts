@@ -32,7 +32,7 @@ export function frameDto(frame: Frame): RollDto['frames'][number] {
     notes: frame.notes,
     camera: frame.camera,
     lens: frame.lens,
-    events: frame.events === null ? null : [...frame.events],
+    event: frame.event,
     shot: frame.shot,
     defaultVersion: frame.defaultVersion,
     versions: frame.versions.map(versionDto),
@@ -56,11 +56,5 @@ export function rollDto(roll: Roll): RollDto {
 }
 
 export function frameDetailsDto(details: ResolvedDetails): FrameDetailsDto {
-  const { events, ...scalars } = details;
-  return {
-    ...scalars,
-    ...(events === undefined
-      ? {}
-      : { events: { value: [...events.value], source: events.source } }),
-  };
+  return { ...details };
 }

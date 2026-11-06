@@ -52,40 +52,30 @@ describe('scalars', () => {
 describe('events', () => {
   const iceland = slug('iceland-2026');
   const westfjords = slug('westfjords');
-  const day = slug('jokulsarlon-day');
 
-  test('a list replaces the inherited one', () => {
+  test('a frame event replaces the roll event and says where it came from', () => {
     expect(
       resolveDetails([
-        { source: roll, details: { events: [iceland] } },
-        { source: frame, details: { events: [westfjords] } },
+        { source: roll, details: { event: iceland } },
+        { source: frame, details: { event: westfjords } },
       ]),
-    ).toEqual({ events: { value: [westfjords], source: frame } });
+    ).toEqual({ event: { value: westfjords, source: frame } });
   });
 
-  test('add and remove change the inherited list, keeping its order', () => {
+  test('an omitted frame event inherits its roll event', () => {
     expect(
       resolveDetails([
-        { source: roll, details: { events: [iceland, westfjords] } },
-        {
-          source: frame,
-          details: { events: { add: [day, iceland], remove: [westfjords] } },
-        },
+        { source: roll, details: { event: iceland } },
+        { source: frame, details: {} },
       ]),
-    ).toEqual({ events: { value: [iceland, day], source: frame } });
+    ).toEqual({ event: { value: iceland, source: roll } });
   });
 
-  test('add with nothing inherited starts a list', () => {
-    expect(
-      resolveDetails([{ source: frame, details: { events: { add: [day] } } }]),
-    ).toEqual({ events: { value: [day], source: frame } });
-  });
-
-  test('null clears them', () => {
+  test('null clears the resolved event', () => {
     expect(
       resolveDetails([
-        { source: roll, details: { events: [iceland] } },
-        { source: frame, details: { events: null } },
+        { source: roll, details: { event: iceland } },
+        { source: frame, details: { event: null } },
       ]),
     ).toEqual({});
   });

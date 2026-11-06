@@ -1,11 +1,11 @@
 import { useState, type ReactNode, type SubmitEvent } from 'react';
 import { MenuButton } from '../menu-button.tsx';
 
-/** What selected frames are given: their own camera, lens or events, or null for their roll's. Never a film stock, which is the roll's (D45). */
+/** What selected frames are given: their own camera, lens or event, or null for their roll's. Never a film stock, which is the roll's (D45). */
 export interface FramesChange {
   readonly camera?: string | null;
   readonly lens?: string | null;
-  readonly events?: readonly string[] | null;
+  readonly event?: string | null;
 }
 
 /** One thing to choose from, e.g. a camera by slug and label. */
@@ -29,7 +29,7 @@ function changeOf(detail: Detail, value: string): FramesChange {
   const chosen = value === rollsOwn ? null : value;
   switch (detail) {
     case 'event':
-      return { events: chosen === null ? null : [chosen] };
+      return { event: chosen };
     case 'camera':
       return { camera: chosen };
     case 'lens':

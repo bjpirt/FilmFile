@@ -1,5 +1,5 @@
-import type { Settings } from '../settings/settings.ts';
 import type { Frame, Roll } from '../rolls/roll.ts';
+import type { Settings } from '../settings/settings.ts';
 import type { DetailsLayer } from './details.ts';
 
 // The layers a frame's details are resolved from. A detail a record doesn't
@@ -26,22 +26,22 @@ export function rollLayer(
       ...(roll.camera === null ? {} : { camera: roll.camera }),
       ...(roll.film === null ? {} : { film: roll.film }),
       ...(roll.lens === null ? {} : { lens: roll.lens }),
-      ...(roll.event === null ? {} : { events: [roll.event] }),
+      ...(roll.event === null ? {} : { event: roll.event }),
       ...(roll.shot === null ? {} : { shot: roll.shot }),
     },
   };
 }
 
-/** A frame's own camera, lens, events and date shot, the most specific layer (U15, D47); never a film stock (D45). */
+/** A frame's own camera, lens, event and date shot, the most specific layer (U15, D47); never a film stock (D45). */
 export function frameLayer(
-  frame: Pick<Frame, 'id' | 'camera' | 'lens' | 'events' | 'shot'>,
+  frame: Pick<Frame, 'id' | 'camera' | 'lens' | 'event' | 'shot'>,
 ): DetailsLayer {
   return {
     source: { layer: 'frame', id: frame.id },
     details: {
       ...(frame.camera === null ? {} : { camera: frame.camera }),
       ...(frame.lens === null ? {} : { lens: frame.lens }),
-      ...(frame.events === null ? {} : { events: frame.events }),
+      ...(frame.event === null ? {} : { event: frame.event }),
       ...(frame.shot === null ? {} : { shot: frame.shot }),
     },
   };

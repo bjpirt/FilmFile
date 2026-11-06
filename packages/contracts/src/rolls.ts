@@ -73,9 +73,8 @@ export const frame = z
         "The frame's own camera, in place of its roll's, or null to use the roll's.",
     }),
     lens: slug.nullable(),
-    events: z.array(slug).nullable().meta({
-      description:
-        "The events the frame is in, in place of its roll's, or null to use the roll's.",
+    event: slug.nullable().meta({
+      description: "The frame's own event, or null to use its roll's event.",
     }),
     shot: shotDate.nullable().meta({
       description:
@@ -232,8 +231,8 @@ export const updateFrameRequest = z
       description: "The frame's own camera, or null to use its roll's again.",
     }),
     lens: slug.nullable().optional(),
-    events: z.array(slug).max(50).nullable().optional().meta({
-      description: "The frame's own events, or null to use its roll's again.",
+    event: slug.nullable().optional().meta({
+      description: "The frame's own event, or null to use its roll's again.",
     }),
     shot: shotDate.nullable().optional().meta({
       description:
@@ -267,7 +266,7 @@ export const updateFrameDetailsRequest = z
     frameIds: z.array(ulid).min(1).max(1000),
     camera: slug.nullable().optional(),
     lens: slug.nullable().optional(),
-    events: z.array(slug).max(50).nullable().optional(),
+    event: slug.nullable().optional(),
   })
   .meta({
     id: 'UpdateFrameDetailsRequest',
@@ -351,7 +350,7 @@ export const frameDetails = z
     camera: sourced(slug),
     film: sourced(slug),
     lens: sourced(slug),
-    events: sourced(z.array(slug)),
+    event: sourced(slug),
     shot: sourced(shotDate),
   })
   .meta({

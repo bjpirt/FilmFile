@@ -117,7 +117,7 @@ describe('CreateFrame', () => {
         notes: null,
         camera: null,
         lens: null,
-        events: null,
+        event: null,
         shot: null,
         defaultVersion: null,
         versions: [],
@@ -178,7 +178,7 @@ describe('UpdateFrame', () => {
           notes: null,
           camera: null,
           lens: null,
-          events: null,
+          event: null,
           shot: null,
           defaultVersion: null,
           versions: [],
@@ -336,7 +336,7 @@ describe('UpdateFrame with the frame’s own details', () => {
     return { ...setup, frameId, version: read?.version ?? '' };
   }
 
-  test('gives the frame its own camera, lens and events', async () => {
+  test('gives the frame its own camera, lens and event', async () => {
     const { rolls, roll, frameId, version, updateFrame } = await withAFrame();
 
     const updated = await updateFrame.execute(ctx, {
@@ -346,14 +346,14 @@ describe('UpdateFrame with the frame’s own details', () => {
       camera: 'leica-m6',
       lens: aLens('Leica', 'Summicron', { focalLength: 35, maxAperture: 2 })
         .slug,
-      events: ['westfjords', 'iceland-2026'],
+      event: 'westfjords',
     });
 
     const own = {
       camera: 'leica-m6',
       lens: aLens('Leica', 'Summicron', { focalLength: 35, maxAperture: 2 })
         .slug,
-      events: ['westfjords', 'iceland-2026'],
+      event: 'westfjords',
     };
     expect(updated).toMatchObject({ ok: true, value: { frame: own } });
     expect((await rolls.get(ctx, roll.id))?.roll.frames[0]).toMatchObject(own);
@@ -405,7 +405,7 @@ describe('UpdateFrame with the frame’s own details', () => {
       frameId,
       expectedVersion: version,
       camera: 'leica-m6',
-      events: ['westfjords'],
+      event: 'westfjords',
     });
 
     const cleared = await updateFrame.execute(ctx, {
@@ -413,19 +413,19 @@ describe('UpdateFrame with the frame’s own details', () => {
       frameId,
       expectedVersion: set.ok ? set.value.version : '',
       camera: null,
-      events: null,
+      event: null,
     });
 
     expect(cleared).toMatchObject({
       ok: true,
-      value: { frame: { camera: null, events: null } },
+      value: { frame: { camera: null, event: null } },
     });
   });
 
   test.each([
     ['camera', { camera: 'nikon-f3' }],
     ['lens', { lens: 'zeiss-planar' }],
-    ['events', { events: ['westfjords', 'nowhere'] }],
+    ['event', { event: 'nowhere' }],
   ])(
     'refuses a %s not in the archive, saving nothing',
     async (path, change) => {
@@ -469,7 +469,7 @@ describe('UpdateFrames', () => {
       expectedVersion: version,
       frameIds: [ids[0] ?? '', ids[2] ?? ''],
       camera: 'leica-m6',
-      events: ['westfjords'],
+      event: 'westfjords',
     });
 
     const after = await rolls.get(ctx, roll.id);
@@ -478,11 +478,11 @@ describe('UpdateFrames', () => {
       value: { version: after?.version },
     });
     expect(
-      after?.roll.frames.map((frame) => [frame.camera, frame.events]),
+      after?.roll.frames.map((frame) => [frame.camera, frame.event]),
     ).toEqual([
-      ['leica-m6', ['westfjords']],
+      ['leica-m6', 'westfjords'],
       [null, null],
-      ['leica-m6', ['westfjords']],
+      ['leica-m6', 'westfjords'],
     ]);
   });
 
@@ -493,7 +493,7 @@ describe('UpdateFrames', () => {
       expectedVersion: version,
       frameIds: ids,
       camera: 'leica-m6',
-      events: ['westfjords'],
+      event: 'westfjords',
     });
 
     const cleared = await updateFrames.execute(ctx, {
@@ -505,11 +505,11 @@ describe('UpdateFrames', () => {
 
     expect(
       cleared.ok &&
-        cleared.value.roll.frames.map((frame) => [frame.camera, frame.events]),
+        cleared.value.roll.frames.map((frame) => [frame.camera, frame.event]),
     ).toEqual([
-      [null, ['westfjords']],
-      [null, ['westfjords']],
-      [null, ['westfjords']],
+      [null, 'westfjords'],
+      [null, 'westfjords'],
+      [null, 'westfjords'],
     ]);
   });
 

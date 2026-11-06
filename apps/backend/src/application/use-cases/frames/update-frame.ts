@@ -1,7 +1,7 @@
 import { parseFrameNumber } from '../../../domain/rolls/frame-number.ts';
 import { parseRating } from '../../../domain/rolls/rating.ts';
-import { parseShotDate } from '../../../domain/rolls/shot-date.ts';
 import type { Frame } from '../../../domain/rolls/roll.ts';
+import { parseShotDate } from '../../../domain/rolls/shot-date.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type {
   ConcurrencyConflict,
@@ -14,8 +14,8 @@ import type { EquipmentRepository } from '../../ports/equipment-repository.ts';
 import type { EventRepository } from '../../ports/event-repository.ts';
 import type { RollRepository } from '../../ports/roll-repository.ts';
 import { knownCamera } from '../rolls/known-camera.ts';
+import { knownEvent } from '../rolls/known-event.ts';
 import { knownLens } from '../rolls/known-lens.ts';
-import { knownEvents } from './known-events.ts';
 import { textOrNull } from '../rolls/text-or-null.ts';
 
 /**
@@ -57,8 +57,8 @@ export class UpdateFrame {
       /** Slugs of equipment in the archive. */
       readonly camera?: string | null | undefined;
       readonly lens?: string | null | undefined;
-      /** Slugs of events in the archive. */
-      readonly events?: readonly string[] | null | undefined;
+      /** The frame's own event, or null to use its roll's. */
+      readonly event?: string | null | undefined;
       /** e.g. 2026-09-15T06:30 (D47). */
       readonly shot?: string | null | undefined;
     },
@@ -103,12 +103,12 @@ export class UpdateFrame {
     if (!lens.ok) {
       return lens;
     }
-    const events =
-      input.events === undefined || input.events === null
-        ? ok(input.events)
-        : await knownEvents(this.#events, ctx, input.events);
-    if (!events.ok) {
-      return events;
+    const event =
+      input.event === undefined || input.event === null
+        ? ok(input.event)
+        : await knownEvent(this.#events, ctx, input.event);
+    if (!event.ok) {
+      return event;
     }
     const current = await this.#rolls.get(ctx, input.rollId);
     if (current === undefined) {
@@ -143,7 +143,7 @@ export class UpdateFrame {
       ...(input.notes === undefined ? {} : { notes: textOrNull(input.notes) }),
       ...(camera.value === undefined ? {} : { camera: camera.value }),
       ...(lens.value === undefined ? {} : { lens: lens.value }),
-      ...(events.value === undefined ? {} : { events: events.value }),
+      ...(event.value === undefined ? {} : { event: event.value }),
       ...(shot.value === undefined ? {} : { shot: shot.value }),
     };
     // Saved against the version the caller read, so a change made since is never overwritten.

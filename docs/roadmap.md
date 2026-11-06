@@ -17,7 +17,7 @@ Each task is about one commit: small enough to review in one sitting, with its t
 What a frame has is seen at a glance on its thumbnail, a roll's frames are grouped by event, the version shown is chosen with a star, and frames can be marked to scan. The group's finished tasks are under Done.
 
 - [ ] [FF-149 Rate from a thumbnail](tasks/FF-149.md): point at a thumbnail's stars and click one to rate the frame.
-- [ ] [FF-101 One event per frame](tasks/FF-101.md): a frame's own event is one event, not a list (D50).
+- [x] [FF-101 One event per frame](tasks/FF-101.md)
 - [ ] [FF-102 A roll's frames grouped by event](tasks/FF-102.md): a roll whose frames are in more than one event shows them under a heading for each.
 - [ ] [FF-103 Choose the version shown](tasks/FF-103.md): a star on each version in the frame view chooses the one shown everywhere.
 - [ ] [FF-104 Mark frames to scan](tasks/FF-104.md): mark frames to be scanned at higher resolution.
@@ -402,6 +402,7 @@ More than one version of a frame: a low-res scan to preview every frame, a hi-re
 What a frame has is seen at a glance on its thumbnail, a roll's frames are grouped by event, the version shown is chosen with a star, and frames can be marked to scan.
 
 - [x] [FF-148 Stars on thumbnails](tasks/FF-148.md)
+- [x] [FF-101 One event per frame](tasks/FF-101.md)
 
 ### Finding your way around the library
 

@@ -76,11 +76,11 @@ test('counts the rolls and photos in an event, through their frames too', async 
           event: 'westfjords',
           frames: [
             aFrame('1', '56780001.jpg'),
-            { ...aFrame('2', '56780002.jpg'), events: ['puffins'] },
+            { ...aFrame('2', '56780002.jpg'), event: 'puffins' },
           ],
         }),
         aRoll('2025-004', {
-          frames: [{ ...aFrame('1', '12340001.jpg'), events: ['westfjords'] }],
+          frames: [{ ...aFrame('1', '12340001.jpg'), event: 'westfjords' }],
         }),
         aRoll('2025-005'),
       ],

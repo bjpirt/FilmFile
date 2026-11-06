@@ -32,8 +32,8 @@ export interface Details {
   readonly camera?: Slug | null;
   readonly film?: Slug | null;
   readonly lens?: Slug | null;
-  /** The events it's in, by slug. */
-  readonly events?: ListChange<Slug> | null;
+  /** The event it's in, by slug. */
+  readonly event?: Slug | null;
   /** When it was shot (D47). */
   readonly shot?: ShotDate | null;
 }
@@ -51,6 +51,6 @@ export interface ResolvedDetails {
   readonly camera?: Sourced<Slug>;
   readonly film?: Sourced<Slug>;
   readonly lens?: Sourced<Slug>;
-  readonly events?: Sourced<readonly Slug[]>;
+  readonly event?: Sourced<Slug>;
   readonly shot?: Sourced<ShotDate>;
 }

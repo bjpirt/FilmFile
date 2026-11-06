@@ -72,7 +72,7 @@ export function aFrame(
     notes: null,
     camera: null,
     lens: null,
-    events: null,
+    event: null,
     shot: null,
     defaultVersion:
       overrides.defaultVersion === undefined

@@ -72,7 +72,7 @@ function aFrameWithScan(number: string | null, file: string): Frame {
     notes: null,
     camera: null,
     lens: null,
-    events: null,
+    event: null,
     shot: null,
     defaultVersion: null,
     versions: [
@@ -779,9 +779,9 @@ describe('setting details on selected frames', () => {
     setTo('event', 'Event for 1 frame', 'westfjords');
 
     await screen.findByText('Event set on 1 frame.');
-    expect(framesOf(service).map((frame) => frame.events)).toEqual([
+    expect(framesOf(service).map((frame) => frame.event)).toEqual([
       null,
-      ['westfjords'],
+      'westfjords',
       null,
     ]);
   });
@@ -1427,7 +1427,7 @@ test('shows a placeholder for a frame with no scan', async () => {
         notes: null,
         camera: null,
         lens: null,
-        events: null,
+        event: null,
         shot: null,
         defaultVersion: null,
         versions: [],

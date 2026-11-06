@@ -196,18 +196,15 @@
             "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
             "example": "nikon-fe"
           },
-          "events": {
+          "event": {
             "type": [
-              "array",
+              "string",
               "null"
             ],
-            "items": {
-              "type": "string",
-              "maxLength": 60,
-              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
-              "example": "nikon-fe"
-            },
-            "description": "The events the frame is in, in place of its roll's, or null to use the roll's."
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe",
+            "description": "The frame's own event, or null to use its roll's event."
           },
           "shot": {
             "type": [
@@ -242,7 +239,7 @@
           "notes",
           "camera",
           "lens",
-          "events",
+          "event",
           "shot",
           "defaultVersion",
           "versions"
@@ -701,18 +698,14 @@
             "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
             "example": "nikon-fe"
           },
-          "events": {
+          "event": {
             "type": [
-              "array",
+              "string",
               "null"
             ],
-            "items": {
-              "type": "string",
-              "maxLength": 60,
-              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
-              "example": "nikon-fe"
-            },
-            "maxItems": 50
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe"
           }
         },
         "required": [
@@ -776,19 +769,15 @@
             "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
             "example": "nikon-fe"
           },
-          "events": {
+          "event": {
             "type": [
-              "array",
+              "string",
               "null"
             ],
-            "items": {
-              "type": "string",
-              "maxLength": 60,
-              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
-              "example": "nikon-fe"
-            },
-            "maxItems": 50,
-            "description": "The frame's own events, or null to use its roll's again."
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "example": "nikon-fe",
+            "description": "The frame's own event, or null to use its roll's again."
           },
           "shot": {
             "type": [
@@ -983,17 +972,14 @@
               "source"
             ]
           },
-          "events": {
+          "event": {
             "type": "object",
             "properties": {
               "value": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "maxLength": 60,
-                  "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
-                  "example": "nikon-fe"
-                }
+                "type": "string",
+                "maxLength": 60,
+                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                "example": "nikon-fe"
               },
               "source": {
                 "type": "object",

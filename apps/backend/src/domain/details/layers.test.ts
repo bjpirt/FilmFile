@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
-import { isArchiveId, isFrameId, isRollId } from '../shared/ids.ts';
 import { isShotDate } from '../rolls/shot-date.ts';
+import { isArchiveId, isFrameId, isRollId } from '../shared/ids.ts';
 import { isSlug } from '../shared/slug.ts';
 import { archiveLayer, frameLayer, rollLayer } from './layers.ts';
 
@@ -30,27 +30,27 @@ test('the archive gives its author, and a copyright if it has one', () => {
   });
 });
 
-test('a roll gives the equipment it has, its event as a list of one, and its date shot', () => {
+test('a roll gives the equipment it has, its event and its date shot', () => {
   expect(
     rollLayer({ id: rollId, camera, film: null, lens: null, event, shot }),
   ).toEqual({
     source: { layer: 'roll', id: rollId },
-    details: { camera, events: [event], shot },
+    details: { camera, event, shot },
   });
 });
 
-test('a frame gives only what it sets itself, its events as they are', () => {
+test('a frame gives only what it sets itself', () => {
   expect(
     frameLayer({
       id: frameId,
       camera: null,
       lens: camera,
-      events: [event, camera],
+      event,
       shot,
     }),
   ).toEqual({
     source: { layer: 'frame', id: frameId },
-    details: { lens: camera, events: [event, camera], shot },
+    details: { lens: camera, event, shot },
   });
 });
 
@@ -60,7 +60,7 @@ test('a frame that sets nothing gives nothing, so it inherits everything', () =>
       id: frameId,
       camera: null,
       lens: null,
-      events: null,
+      event: null,
       shot: null,
     }).details,
   ).toEqual({});

@@ -7,13 +7,10 @@ import type { Frame, Roll } from '@filmfile/contracts/rolls';
  * neither (U69, D49).
  */
 export function ownDetails(frame: Frame, roll: Roll): string | undefined {
-  const rollEvents = roll.event === null ? [] : [roll.event];
   const own = [
     frame.camera !== null && frame.camera !== roll.camera ? 'camera' : '',
     frame.lens !== null && frame.lens !== roll.lens ? 'lens' : '',
-    frame.events !== null && frame.events.join(' ') !== rollEvents.join(' ')
-      ? 'events'
-      : '',
+    frame.event !== null && frame.event !== roll.event ? 'event' : '',
     frame.shot !== null && frame.shot !== roll.shot ? 'date' : '',
   ].filter((detail) => detail !== '');
   const notes = (frame.notes ?? '').trim() !== '';

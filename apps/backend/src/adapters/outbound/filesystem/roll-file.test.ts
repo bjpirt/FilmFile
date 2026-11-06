@@ -1,15 +1,15 @@
 import fc from 'fast-check';
 import { describe, expect, test } from 'vitest';
-import { isSlug } from '../../../domain/shared/slug.ts';
 import { isFrameNumber } from '../../../domain/rolls/frame-number.ts';
 import { isRollNumber } from '../../../domain/rolls/roll-number.ts';
-import { isShotDate } from '../../../domain/rolls/shot-date.ts';
 import type { Roll } from '../../../domain/rolls/roll.ts';
+import { isShotDate } from '../../../domain/rolls/shot-date.ts';
 import {
   isFrameId,
   isRollId,
   isVersionId,
 } from '../../../domain/shared/ids.ts';
+import { isSlug } from '../../../domain/shared/slug.ts';
 import { parseRollFile, rollFileContent } from './roll-file.ts';
 
 const ulid = fc.stringMatching(/^[0-9A-HJKMNP-TV-Z]{26}$/);
@@ -47,7 +47,7 @@ const aFrame = fc.record({
   notes: fc.option(fc.string(), { nil: null }),
   camera: fc.option(aSlug, { nil: null }),
   lens: fc.option(aSlug, { nil: null }),
-  events: fc.option(fc.array(aSlug, { maxLength: 3 }), { nil: null }),
+  event: fc.option(aSlug, { nil: null }),
   shot: fc.option(
     fc.constantFrom<string>('2026', '2026-09-15T06:30').filter(isShotDate),
     { nil: null },
@@ -160,7 +160,7 @@ describe('roll.json', () => {
         {
           id: '01M6EAAP694BKWR9HZ4N5Z54XF',
           number: '2',
-          events: ['iceland-2026'],
+          event: 'iceland-2026',
           meta: { lens: 'nikon-nikkor-105mm' },
           versions: [],
         },
@@ -172,11 +172,11 @@ describe('roll.json', () => {
       ok: true,
       value: {
         frames: [
-          { camera: null, lens: null, events: null },
+          { camera: null, lens: null, event: null },
           {
             camera: null,
             lens: 'nikon-nikkor-105mm',
-            events: ['iceland-2026'],
+            event: 'iceland-2026',
           },
         ],
       },
@@ -196,12 +196,37 @@ describe('roll.json', () => {
             versions: [],
           },
           expect.objectContaining({
-            events: ['iceland-2026'],
+            event: 'iceland-2026',
             meta: { lens: 'nikon-nikkor-105mm' },
           }),
         ],
       }),
     );
+  });
+
+  test('ignores a pre-release frame events array without migrating it', () => {
+    const read = parseRollFile(
+      JSON.stringify({
+        schema: 2,
+        id: '01M6EAAP694BKWR9HZ4N5Z54XD',
+        roll: '2026-014',
+        frames: [
+          {
+            id: '01M6EAAP694BKWR9HZ4N5Z54XE',
+            number: '1',
+            events: ['iceland-2026', 'westfjords'],
+            versions: [],
+          },
+        ],
+      }),
+    );
+
+    expect(read.ok).toBe(true);
+    if (!read.ok) {
+      return;
+    }
+    expect(read.value.frames[0]?.event).toBeNull();
+    expect(rollFileContent(read.value)).not.toContain('"events"');
   });
 
   test('reads a version from before kinds as a scan, and writes a kind only when it isn’t one', () => {

@@ -20,7 +20,7 @@ test('says nothing of details a frame sets the same as its roll', () => {
       {
         ...frame,
         camera: 'nikon-fe',
-        events: ['iceland-2026'],
+        event: 'iceland-2026',
         shot: '2026-03-14',
       },
       roll,
@@ -32,10 +32,10 @@ test.each([
   [{ camera: 'leica-m6' }, 'Its own camera'],
   [{ camera: 'leica-m6', lens: 'summicron-35' }, 'Its own camera and lens'],
   [
-    { camera: 'leica-m6', lens: 'summicron-35', events: ['westfjords'] },
-    'Its own camera, lens and events',
+    { camera: 'leica-m6', lens: 'summicron-35', event: 'westfjords' },
+    'Its own camera, lens and event',
   ],
-  [{ events: [] }, 'Its own events'],
+  [{ event: 'westfjords' }, 'Its own event'],
   [{ shot: '2026-03-15' }, 'Its own date'],
   [{ notes: 'Lens cap half on' }, 'Has notes'],
   [

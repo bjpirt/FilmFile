@@ -989,7 +989,7 @@ describe('editing a frame’s details in place', () => {
     });
 
     await vi.waitFor(() => {
-      expect(archive.rolls[0]?.frames[0]?.events).toEqual(['westfjords']);
+      expect(archive.rolls[0]?.frames[0]?.event).toBe('westfjords');
     });
   });
 

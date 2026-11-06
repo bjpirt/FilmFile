@@ -157,14 +157,14 @@ test('shows frames put in the event themselves, and leaves out frames of its rol
           shot: '2026-09-14',
           frames: [
             aFrame('1', '12340001.jpg'),
-            { ...aFrame('2', '12340002.jpg'), events: ['westfjords'] },
+            { ...aFrame('2', '12340002.jpg'), event: 'westfjords' },
           ],
         }),
         aRoll('2026-020', {
           shot: '2026-09-20',
           frames: [
             aFrame('1', '99990001.jpg'),
-            { ...aFrame('2', '99990002.jpg'), events: ['iceland-2026'] },
+            { ...aFrame('2', '99990002.jpg'), event: 'iceland-2026' },
           ],
         }),
       ],

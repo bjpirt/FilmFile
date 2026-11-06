@@ -157,9 +157,9 @@ The current domain/API version has `id`, `file`, `sha256`, `bytes`, `width`, `he
 
 ### Implemented resolution and FF-101
 
-The current resolver combines archive settings, roll and frame details. Settings contribute `author` and `copyright`; a roll contributes `camera`, `film`, `lens`, its event slug and shot date; a frame can override its own `camera`, `lens`, events and shot date. A frame cannot set its own film stock (D45). [`GetFrameDetails`](../apps/backend/src/application/use-cases/frames/get-frame-details.ts) builds the archive → roll → frame layers and returns the source of each resolved value.
+The current resolver combines archive settings, roll and frame details. Settings contribute `author` and `copyright`; a roll contributes `camera`, `film`, `lens`, its event slug and shot date; a frame can override its own `camera`, `lens`, singular `event` and shot date. A frame cannot set its own film stock (D45). [`GetFrameDetails`](../apps/backend/src/application/use-cases/frames/get-frame-details.ts) builds the archive → roll → frame layers and returns the source of each resolved value.
 
-FF-101 changes a frame's own event from an `events` list to one `event` slug. The resolved-details response also becomes singular: a frame event takes precedence over its roll's; otherwise the roll event is returned with its source. If neither is set, the resolved event is omitted. Scalars inherit when omitted, replace when set and clear with `null`. The other currently resolved details are `author`, `copyright`, `camera`, `film`, `lens` and `shot`.
+FF-101 makes a frame's own event a singular `event` slug. The resolved-details response is also singular: a frame event takes precedence over its roll's; otherwise the roll event is returned with its source. If neither is set, the resolved event is omitted. Scalars inherit when omitted, replace when set and clear with `null`. The other currently resolved details are `author`, `copyright`, `camera`, `film`, `lens` and `shot`.
 
 ### Planned extensions
 
@@ -169,9 +169,9 @@ The broader target adds `location`, `tags`, `licence`, `_folder` defaults, event
 
 ## 7. Events
 
-**Current implementation:** an event is a flat record with a slug, name and optional date. Rolls store one event slug. Before FF-101, frames store `events` lists; FF-101 will replace that with one own event slug as `event`. Events do not move files, and pages read event and roll data through repositories because there is no catalogue index yet.
+**Current implementation:** an event is a flat record with a slug, name and optional date. Rolls and frames store one event slug each. A frame's own event overrides its roll's, and absent frame event means it inherits the roll's. Events do not move files, and pages read event and roll data through repositories because there is no catalogue index yet.
 
-**Planned event model:** an event can name one parent, forming a tree; validation rejects cycles and checks child dates against parent dates. Membership implies ancestors, and event metadata and date ranges flow to frames. FF-101 will align the implementation with D50's at-most-one rule. The legacy `events` array is not migrated: the pre-release field is ignored rather than copied to the new singular `event` (D84). Sub-events and ancestor membership remain FF-130.
+**Planned event model:** an event can name one parent, forming a tree; validation rejects cycles and checks child dates against parent dates. Membership implies ancestors, and event metadata and date ranges flow to frames. The legacy pre-release `events` array is ignored rather than copied to the current singular `event` (D84). Sub-events and ancestor membership remain FF-130.
 
 Events, tags and albums remain distinct concepts: events describe when and where, tags describe content, and albums are curated selections for showing and publishing.
 

@@ -36,7 +36,7 @@ function aRollOf(roll: string, frames: number): Roll {
       notes: null,
       camera: null,
       lens: null,
-      events: null,
+      event: null,
       shot: null,
       defaultVersion: null,
       versions: [],
@@ -76,7 +76,7 @@ function aRollWithScans(roll: string, scans: number): Roll {
         notes: null,
         camera: null,
         lens: null,
-        events: null,
+        event: null,
         shot: null,
         defaultVersion: null,
         versions: [
@@ -635,7 +635,7 @@ describe('finding rolls by event', () => {
             event: 'iceland-2026',
             frames: [
               aFrame('1', '12340001.jpg'),
-              { ...aFrame('2', '12340002.jpg'), events: ['westfjords'] },
+              { ...aFrame('2', '12340002.jpg'), event: 'westfjords' },
             ],
           },
           aRoll('2026-001'),
