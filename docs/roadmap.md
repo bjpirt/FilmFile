@@ -220,6 +220,8 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D82 | Existing NegPy links are not rewritten during a frame/version folder rename. The next explicit "Open in NegPy" rebuilds links whose source paths changed. | FF-112, FF-155 |
 | D83 | Version responses expose the original file basename as `fileName`, never the filesystem path. The UI can label versions without learning the archive's folder layout. | FF-155 |
 | D84 | A frame has one optional own event, stored as `event` in `roll.json` and represented singularly in frame and resolved-details API responses and updates. `null` uses the roll's event. Pre-release `events` arrays are ignored rather than migrated; nested event ancestry remains FF-130. | FF-101, FF-102, FF-130 |
+| D85 | `toScan` is a persistent frame selection, stored only when true and returned by the API as a boolean. Raw scans and Finals change its thumbnail status to “Scanned” but do not clear it; deleting the last such version makes it pending again. The FF-131 scan list uses only marked frames without Raw scans or Finals. | FF-104, FF-131 |
+| D86 | A pending mark uses a scanner icon named “To scan at higher resolution”; a marked frame with a Raw scan or Final uses a scanner with a check, named “Scanned”. The roll heading shows pending count as `N frames (M to scan)` only when nonzero. Bulk feedback is “2 frames marked to scan.” or “Scan mark removed from 2 frames.”, with singular grammar for one. | FF-104 |
 
 ---
 
