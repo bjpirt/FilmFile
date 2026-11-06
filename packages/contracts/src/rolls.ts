@@ -76,6 +76,9 @@ export const frame = z
     event: slug.nullable().meta({
       description: "The frame's own event, or null to use its roll's event.",
     }),
+    toScan: z.boolean().meta({
+      description: 'Whether this frame is marked for a higher-resolution scan.',
+    }),
     shot: shotDate.nullable().meta({
       description:
         "When the frame was shot, in place of its roll's date, or null to use the roll's (D47).",
@@ -234,6 +237,9 @@ export const updateFrameRequest = z
     event: slug.nullable().optional().meta({
       description: "The frame's own event, or null to use its roll's again.",
     }),
+    toScan: z.boolean().optional().meta({
+      description: 'Whether this frame is marked for a higher-resolution scan.',
+    }),
     shot: shotDate.nullable().optional().meta({
       description:
         "The frame's own date shot, or null to use its roll's again.",
@@ -267,6 +273,7 @@ export const updateFrameDetailsRequest = z
     camera: slug.nullable().optional(),
     lens: slug.nullable().optional(),
     event: slug.nullable().optional(),
+    toScan: z.boolean().optional(),
   })
   .meta({
     id: 'UpdateFrameDetailsRequest',

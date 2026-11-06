@@ -2084,6 +2084,8 @@ export interface components {
              * @example nikon-fe
              */
             event: string | null;
+            /** @description Whether this frame is marked for a higher-resolution scan. */
+            toScan: boolean;
             /**
              * @description When the frame was shot, in place of its roll's date, or null to use the roll's (D47).
              * @example 2026-09-14
@@ -2226,6 +2228,7 @@ export interface components {
             lens?: string | null;
             /** @example nikon-fe */
             event?: string | null;
+            toScan?: boolean;
         };
         /** @description The details to change; a detail left out stays as it is. */
         UpdateFrameRequest: {
@@ -2250,6 +2253,8 @@ export interface components {
              * @example nikon-fe
              */
             event?: string | null;
+            /** @description Whether this frame is marked for a higher-resolution scan. */
+            toScan?: boolean;
             /**
              * @description The frame's own date shot, or null to use its roll's again.
              * @example 2026-09-14

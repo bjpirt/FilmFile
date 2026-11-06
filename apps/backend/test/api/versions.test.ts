@@ -249,6 +249,45 @@ describe('DELETE /api/rolls/{id}/frames/{frameId}/versions/{versionId}', () => {
     ).toEqual([`scan-${second.slice(-8)}`, 'version.json']);
   });
 
+  test.each(['raw-scan', 'final'] as const)(
+    'keeps the scan mark when the last %s is deleted',
+    async (kind) => {
+      const current = await request(`/api/rolls/${rollId}`);
+      const marked = await request(`/api/rolls/${rollId}/frames/${frameId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'If-Match': current.headers.get('ETag') ?? '',
+        },
+        body: JSON.stringify({ toScan: true }),
+      });
+      expect(marked.status).toBe(200);
+
+      await upload(await aJpeg({ shade: 20 }), 'file=scan.jpg&kind=scan');
+      const actioned = await upload(
+        await aJpeg({ shade: 210 }),
+        `file=${kind}.jpg&kind=${kind}`,
+      );
+      const version: unknown = await actioned.json();
+      const latest = await request(`/api/rolls/${rollId}`);
+      const removed = await request(
+        `/api/rolls/${rollId}/frames/${frameId}/versions/${String(idOf(version))}`,
+        {
+          method: 'DELETE',
+          headers: { 'If-Match': latest.headers.get('ETag') ?? '' },
+        },
+      );
+
+      expect(removed.status).toBe(204);
+      const roll: unknown = await (
+        await request(`/api/rolls/${rollId}`)
+      ).json();
+      expect(roll).toMatchObject({
+        frames: [{ toScan: true, versions: [{ kind: 'scan' }] }],
+      });
+    },
+  );
+
   test.each([
     ['no If-Match', undefined, 428],
     ['a stale If-Match', '"stale"', 409],
@@ -278,6 +317,118 @@ describe('version kinds', () => {
     expect(scan).toMatchObject({ kind: 'scan' });
     expect(raw).toMatchObject({ kind: 'raw-scan' });
   });
+
+  test.each(['raw-scan', 'final'] as const)(
+    'keeps the scan mark when a %s is uploaded',
+    async (kind) => {
+      const current = await request(`/api/rolls/${rollId}`);
+      const marked = await request(`/api/rolls/${rollId}/frames/${frameId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'If-Match': current.headers.get('ETag') ?? '',
+        },
+        body: JSON.stringify({ toScan: true }),
+      });
+      expect(marked.status).toBe(200);
+
+      const added = await upload(
+        await aJpeg({ shade: kind === 'final' ? 190 : 90 }),
+        `file=${kind}.jpg&kind=${kind}`,
+      );
+      expect(added.status).toBe(201);
+      const roll: unknown = await (
+        await request(`/api/rolls/${rollId}`)
+      ).json();
+      expect(roll).toMatchObject({ frames: [{ toScan: true }] });
+    },
+  );
+
+  test.each(['raw-scan', 'final'] as const)(
+    'allows marking a frame that already has a %s',
+    async (kind) => {
+      await upload(await aJpeg(), `file=${kind}.jpg&kind=${kind}`);
+      const current = await request(`/api/rolls/${rollId}`);
+      const marked = await request(`/api/rolls/${rollId}/frames/${frameId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'If-Match': current.headers.get('ETag') ?? '',
+        },
+        body: JSON.stringify({ toScan: true }),
+      });
+
+      expect(marked.status).toBe(200);
+      expect(await marked.json()).toMatchObject({
+        toScan: true,
+        versions: [{ kind }],
+      });
+    },
+  );
+
+  test.each(['raw-scan', 'final'] as const)(
+    'keeps the scan mark after adding a %s',
+    async (kind) => {
+      const current = await request(`/api/rolls/${rollId}`);
+      const marked = await request(`/api/rolls/${rollId}/frames/${frameId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'If-Match': current.headers.get('ETag') ?? '',
+        },
+        body: JSON.stringify({ toScan: true }),
+      });
+      expect(marked.status).toBe(200);
+
+      const added = await upload(
+        await aJpeg({ shade: kind === 'final' ? 170 : 80 }),
+        `file=${kind}.jpg&kind=${kind}`,
+      );
+      expect(added.status).toBe(201);
+      const roll: unknown = await (
+        await request(`/api/rolls/${rollId}`)
+      ).json();
+      expect(roll).toMatchObject({ frames: [{ toScan: true }] });
+    },
+  );
+
+  test.each(['raw-scan', 'final'] as const)(
+    'keeps the mark if the last %s is deleted',
+    async (kind) => {
+      const marked = await request(`/api/rolls/${rollId}/frames/${frameId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'If-Match':
+            (await request(`/api/rolls/${rollId}`)).headers.get('ETag') ?? '',
+        },
+        body: JSON.stringify({ toScan: true }),
+      });
+      expect(marked.status).toBe(200);
+      await upload(await aJpeg({ shade: 30 }), 'file=scan.jpg&kind=scan');
+      const actioned = await upload(
+        await aJpeg({ shade: 220 }),
+        `file=${kind}.jpg&kind=${kind}`,
+      );
+      const actionedVersion: unknown = await actioned.json();
+      const current = await request(`/api/rolls/${rollId}`);
+      const removed = await request(
+        `/api/rolls/${rollId}/frames/${frameId}/versions/${String(idOf(actionedVersion))}`,
+        {
+          method: 'DELETE',
+          headers: { 'If-Match': current.headers.get('ETag') ?? '' },
+        },
+      );
+
+      expect(removed.status).toBe(204);
+      const roll: unknown = await (
+        await request(`/api/rolls/${rollId}`)
+      ).json();
+      expect(roll).toMatchObject({
+        frames: [{ toScan: true, versions: [{ kind: 'scan' }] }],
+      });
+    },
+  );
 
   test('changes a version’s kind with If-Match', async () => {
     const added: unknown = await (await upload(await aJpeg())).json();

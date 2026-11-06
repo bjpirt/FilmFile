@@ -59,6 +59,7 @@ export class UpdateFrame {
       readonly lens?: string | null | undefined;
       /** The frame's own event, or null to use its roll's. */
       readonly event?: string | null | undefined;
+      readonly toScan?: boolean | undefined;
       /** e.g. 2026-09-15T06:30 (D47). */
       readonly shot?: string | null | undefined;
     },
@@ -144,6 +145,7 @@ export class UpdateFrame {
       ...(camera.value === undefined ? {} : { camera: camera.value }),
       ...(lens.value === undefined ? {} : { lens: lens.value }),
       ...(event.value === undefined ? {} : { event: event.value }),
+      ...(input.toScan === undefined ? {} : { toScan: input.toScan }),
       ...(shot.value === undefined ? {} : { shot: shot.value }),
     };
     // Saved against the version the caller read, so a change made since is never overwritten.

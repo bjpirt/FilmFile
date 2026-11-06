@@ -304,9 +304,7 @@ export function RollPage({
       },
     });
     if (response.status === 409) {
-      // Said by the banner, with its Reload.
-      setChangedElsewhere(true);
-      return undefined;
+      return 'This roll changed since you opened it. Reload the page.';
     }
     if (!response.ok) {
       return "Couldn't set it. Is the service running?";
@@ -533,6 +531,13 @@ export function RollPage({
   }
 
   const frames = roll.data.roll.frames;
+  const pendingScanCount = frames.filter(
+    (frame) =>
+      frame.toScan &&
+      !frame.versions.some(
+        (version) => version.kind === 'raw-scan' || version.kind === 'final',
+      ),
+  ).length;
   // While renumbering, frames are shown in scan order, which is the order the numbers count along.
   const shown = renumbering === undefined ? inFrameOrder(frames) : frames;
   /** A frame clicked while selecting; with shift, the run from the last one clicked, in the order shown. */
@@ -581,7 +586,10 @@ export function RollPage({
               </span>
             )}
           </h1>
-          <span className="muted">{frameCount(frames.length)}</span>
+          <span className="muted">
+            {frameCount(frames.length)}
+            {pendingScanCount > 0 && ` (${String(pendingScanCount)} to scan)`}
+          </span>
         </div>
         {confirmingUnfile ? (
           <div

@@ -3,10 +3,11 @@ import type { Frame, Roll } from '@filmfile/contracts/rolls';
 import { useEffect, useRef, useState } from 'react';
 import { BinIcon } from '../bin-icon.tsx';
 import { MenuButton } from '../menu-button.tsx';
-import { FrameMarks, ratingText } from '../rolls/frame-marks.tsx';
+import { FrameMarks, ratingText, scanStatus } from '../rolls/frame-marks.tsx';
 import { shownVersion } from '../rolls/shown-version.ts';
 import { Thumbnail } from '../rolls/thumbnail.tsx';
 import { Link, navigate } from '../routing.tsx';
+import { ScanIcon } from '../scan-icon.tsx';
 import {
   rememberDetailsOpen,
   rememberedDetailsOpen,
@@ -24,6 +25,21 @@ const versionKinds: readonly VersionKind[] = ['scan', 'raw-scan', 'final'];
 export interface CollectionFrame {
   readonly roll: Roll;
   readonly frame: Frame;
+}
+
+function filmstripLabel(
+  item: CollectionFrame,
+  labelOf: (frame: CollectionFrame) => string,
+): string {
+  const labels = [labelOf(item)];
+  if (item.frame.rating !== null) {
+    labels.push(ratingText(item.frame.rating).toLowerCase());
+  }
+  const scan = scanStatus(item.frame);
+  if (scan !== undefined) {
+    labels.push(scan);
+  }
+  return labels.join(', ');
 }
 
 /** Whether a key press was meant for a field rather than for the frame view. */
@@ -328,6 +344,10 @@ export function FrameView({
 
   const manyVersions = shown.frame.versions.length > 1;
   const everywhere = shownVersion(shown.frame);
+  const isScanned = scanStatus(shown.frame) === 'Scanned';
+  const scanToggleLabel = shown.frame.toScan
+    ? 'Marked to scan'
+    : 'Mark to scan';
 
   return (
     <section className="frame-view">
@@ -351,6 +371,22 @@ export function FrameView({
           {current + 1} of {frames.length}
         </span>
         <span className="frame-view-actions">
+          <button
+            type="button"
+            className={
+              shown.frame.toScan
+                ? 'icon-button scan-mark-button marked'
+                : 'icon-button scan-mark-button'
+            }
+            aria-label={scanToggleLabel}
+            title={scanToggleLabel}
+            aria-pressed={shown.frame.toScan}
+            onClick={() => {
+              void save({ toScan: !shown.frame.toScan });
+            }}
+          >
+            <ScanIcon scanned={isScanned} size={20} />
+          </button>
           {/* At the foot of the versions column once there's more than one (U61). */}
           {!manyVersions && (
             <AddVersionMenu add={pickVersion} className="add-version" />
@@ -630,11 +666,7 @@ export function FrameView({
               <Link
                 to={addressOf(item)}
                 replace
-                aria-label={
-                  item.frame.rating === null
-                    ? labelOf(item)
-                    : `${labelOf(item)}, ${ratingText(item.frame.rating).toLowerCase()}`
-                }
+                aria-label={filmstripLabel(item, labelOf)}
                 {...(i === current ? { 'aria-current': 'true' } : {})}
               >
                 <Thumbnail

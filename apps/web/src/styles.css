@@ -319,6 +319,11 @@ select {
   color: var(--accent);
 }
 
+.frame-mark.scanned,
+.scan-mark-button.marked {
+  color: var(--accent);
+}
+
 .frame-details {
   display: flex;
   flex-direction: column;

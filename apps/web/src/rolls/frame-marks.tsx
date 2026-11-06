@@ -1,4 +1,5 @@
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
+import { ScanIcon } from '../scan-icon.tsx';
 import { TextIcon } from '../text-icon.tsx';
 import { VersionsIcon } from '../versions-icon.tsx';
 import { ownDetails } from './own-details.ts';
@@ -6,6 +7,17 @@ import { ownDetails } from './own-details.ts';
 /** The words for a frame's rating, as screen readers and the hover text say it. */
 export function ratingText(rating: number): string {
   return `Rated ${String(rating)} of 5`;
+}
+
+export function scanStatus(frame: Frame): string | undefined {
+  if (!frame.toScan) {
+    return undefined;
+  }
+  return frame.versions.some(
+    (version) => version.kind === 'raw-scan' || version.kind === 'final',
+  )
+    ? 'Scanned'
+    : 'To scan at higher resolution';
 }
 
 /**
@@ -34,6 +46,8 @@ export function FrameMarks({
     frame.versions.length > 1
       ? `${String(frame.versions.length)} versions`
       : undefined;
+  const status = scanStatus(frame);
+  const scanned = status === 'Scanned';
   const rating = stars ? frame.rating : null;
   return (
     <div aria-hidden={readers ? undefined : true}>
@@ -43,7 +57,9 @@ export function FrameMarks({
           <span className="visually-hidden">{ratingText(rating)}</span>
         </span>
       )}
-      {(own !== undefined || versions !== undefined) && (
+      {(own !== undefined ||
+        versions !== undefined ||
+        status !== undefined) && (
         <span className="frame-marks">
           {own !== undefined && (
             <span className="frame-mark" title={own}>
@@ -55,6 +71,15 @@ export function FrameMarks({
             <span className="frame-mark" title={versions}>
               <VersionsIcon size={16} />
               <span className="visually-hidden">{versions}</span>
+            </span>
+          )}
+          {status !== undefined && (
+            <span
+              className={scanned ? 'frame-mark scanned' : 'frame-mark'}
+              title={status}
+            >
+              <ScanIcon scanned={scanned} size={16} />
+              <span className="visually-hidden">{status}</span>
             </span>
           )}
         </span>

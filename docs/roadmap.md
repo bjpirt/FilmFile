@@ -17,16 +17,13 @@ Each task is about one commit: small enough to review in one sitting, with its t
 What a frame has is seen at a glance on its thumbnail, a roll's frames are grouped by event, the version shown is chosen with a star, and frames can be marked to scan. The group's finished tasks are under Done.
 
 - [ ] [FF-149 Rate from a thumbnail](tasks/FF-149.md): point at a thumbnail's stars and click one to rate the frame.
-- [x] [FF-101 One event per frame](tasks/FF-101.md)
 - [ ] [FF-102 A roll's frames grouped by event](tasks/FF-102.md): a roll whose frames are in more than one event shows them under a heading for each.
 - [ ] [FF-103 Choose the version shown](tasks/FF-103.md): a star on each version in the frame view chooses the one shown everywhere.
-- [ ] [FF-104 Mark frames to scan](tasks/FF-104.md): mark frames to be scanned at higher resolution.
 
 ### 2. Finding your way around the library
 
 The library is readable in Finder: rolls, frames and versions are named by number or kind with their IDs (D66, D69). (A Browse folder of links is parked, FF-111.)
 
-- [x] [FF-155 Frame and version folders named by number and kind](tasks/FF-155.md)
 - [ ] [FF-109 Originals read-only](tasks/FF-109.md): the service makes originals read-only, so nothing reaching them through a link can change them.
 
 ### 3. Integrate with NegPy
@@ -221,7 +218,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D83 | Version responses expose the original file basename as `fileName`, never the filesystem path. The UI can label versions without learning the archive's folder layout. | FF-155 |
 | D84 | A frame has one optional own event, stored as `event` in `roll.json` and represented singularly in frame and resolved-details API responses and updates. `null` uses the roll's event. Pre-release `events` arrays are ignored rather than migrated; nested event ancestry remains FF-130. | FF-101, FF-102, FF-130 |
 | D85 | `toScan` is a persistent frame selection, stored only when true and returned by the API as a boolean. Raw scans and Finals change its thumbnail status to “Scanned” but do not clear it; deleting the last such version makes it pending again. The FF-131 scan list uses only marked frames without Raw scans or Finals. | FF-104, FF-131 |
-| D86 | A pending mark uses a scanner icon named “To scan at higher resolution”; a marked frame with a Raw scan or Final uses a scanner with a check, named “Scanned”. The roll heading shows pending count as `N frames (M to scan)` only when nonzero. Bulk feedback is “2 frames marked to scan.” or “Scan mark removed from 2 frames.”, with singular grammar for one. | FF-104 |
+| D86 | A pending mark uses a neutral scanner icon named “To scan at higher resolution”; a marked frame with a Raw scan or Final uses the same scanner with a check in the orange theme color, named “Scanned”. The frame-view toggle is an icon beside the other actions, named “Mark to scan” or “Marked to scan”; it uses the yellow theme accent whenever marked, regardless of scan completion. The roll heading shows pending count as `N frames (M to scan)` only when nonzero. Bulk feedback is “2 frames marked to scan.” or “Scan mark removed from 2 frames.”, with singular grammar for one. | FF-104 |
 
 ---
 
@@ -401,10 +398,11 @@ More than one version of a frame: a low-res scan to preview every frame, a hi-re
 
 ### Multi-version frames, finished off
 
-What a frame has is seen at a glance on its thumbnail, a roll's frames are grouped by event, the version shown is chosen with a star, and frames can be marked to scan.
+Frame ratings and scan selection are visible while browsing. Frames can be marked to scan and show whether the higher-resolution scan is still pending.
 
 - [x] [FF-148 Stars on thumbnails](tasks/FF-148.md)
 - [x] [FF-101 One event per frame](tasks/FF-101.md)
+- [x] [FF-104 Mark frames to scan](tasks/FF-104.md)
 
 ### Finding your way around the library
 

@@ -133,6 +133,61 @@ describe('the filmstrip’s marks', () => {
 });
 
 describe('opened from a roll', () => {
+  test('marks and unmarks an unnumbered frame to scan', async () => {
+    const frame = aFrame(null, '12340001.jpg');
+    const markedRoll = aRoll('2019-001', { frames: [frame] });
+    const archive = fakeArchive({ rolls: [markedRoll] });
+    openAt(`/rolls/${markedRoll.id}/frames/${frame.id}`, archive);
+
+    await screen.findByRole('heading', { name: 'Frame with no number' });
+    fireEvent.click(screen.getByRole('button', { name: 'Mark to scan' }));
+    await vi.waitFor(() => {
+      expect(archive.rolls[0]?.frames[0]?.toScan).toBe(true);
+    });
+    expect(
+      screen
+        .getByRole('button', { name: 'Marked to scan' })
+        .classList.contains('marked'),
+    ).toBe(true);
+    expect(
+      screen.getByRole('link', {
+        name: 'Frame with no number, To scan at higher resolution',
+      }),
+    ).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Marked to scan' }));
+    await vi.waitFor(() => {
+      expect(archive.rolls[0]?.frames[0]?.toScan).toBe(false);
+    });
+    expect(
+      screen
+        .getByRole('button', { name: 'Mark to scan' })
+        .classList.contains('marked'),
+    ).toBe(false);
+  });
+
+  test('shows a completed scan icon in the frame toolbar', async () => {
+    const frame = aFrame('1', '12340001.jpg');
+    const scanned = {
+      ...frame,
+      toScan: true,
+      versions: frame.versions.map((version) => ({
+        ...version,
+        kind: 'raw-scan' as const,
+      })),
+    };
+    const markedRoll = aRoll('2019-002', { frames: [scanned] });
+    openAt(
+      `/rolls/${markedRoll.id}/frames/${frame.id}`,
+      fakeArchive({ rolls: [markedRoll] }),
+    );
+
+    const scanButton = await screen.findByRole('button', {
+      name: 'Marked to scan',
+    });
+    expect(scanButton.classList.contains('marked')).toBe(true);
+  });
+
   test('opens from the roll page by clicking a frame', async () => {
     openAt(`/rolls/${roll.id}`);
 
@@ -641,6 +696,20 @@ describe('describing a frame', () => {
       'This roll changed since you opened it. Reload the page.',
     );
     expect(savedFrame(archive)?.rating).toBeNull();
+  });
+
+  test('leaves the scan mark clear when the roll changed elsewhere', async () => {
+    const archive = openFirst();
+    await screen.findByRole('heading', { name: 'Frame 1' });
+    archive.changeRoll(roll.id);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mark to scan' }));
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'This roll changed since you opened it. Reload the page.',
+    );
+    expect(savedFrame(archive)?.toScan).toBe(false);
+    expect(screen.getByRole('button', { name: 'Mark to scan' })).toBeDefined();
   });
 });
 

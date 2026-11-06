@@ -33,6 +33,7 @@ describe('POST /api/rolls/{id}/frames', () => {
       camera: null,
       lens: null,
       event: null,
+      toScan: false,
       shot: null,
       defaultVersion: null,
       versions: [],
@@ -130,6 +131,7 @@ describe('PATCH /api/rolls/{id}/frames/{frameId}', () => {
       camera: null,
       lens: null,
       event: null,
+      toScan: false,
       shot: null,
       defaultVersion: null,
       versions: [],
@@ -146,6 +148,28 @@ describe('PATCH /api/rolls/{id}/frames/{frameId}', () => {
     const response = await patch(url, { number: null }, etag);
 
     expect(await response.json()).toMatchObject({ number: null });
+  });
+
+  test('marks a frame to scan and can clear the mark', async () => {
+    const { url, etag } = await aRollWithAFrame();
+    const marked = await patch(url, { toScan: true }, etag);
+
+    expect(marked.status).toBe(200);
+    expect(await marked.json()).toMatchObject({ toScan: true });
+
+    const cleared = await patch(
+      url,
+      { toScan: false },
+      marked.headers.get('ETag') ?? '',
+    );
+    expect(cleared.status).toBe(200);
+    expect(await cleared.json()).toMatchObject({ toScan: false });
+  });
+
+  test('refuses a non-boolean scan mark', async () => {
+    const { url, etag } = await aRollWithAFrame();
+
+    expect((await patch(url, { toScan: 'yes' }, etag)).status).toBe(422);
   });
 
   test('describes the frame with a title, rating and notes', async () => {
@@ -303,6 +327,7 @@ describe('PATCH /api/rolls/{id}/frames', () => {
         frameIds: [frameIds[0], frameIds[2]],
         camera: 'leica-m6',
         event: 'westfjords',
+        toScan: true,
       },
       etag,
     );
@@ -311,9 +336,9 @@ describe('PATCH /api/rolls/{id}/frames', () => {
     expect(response.headers.get('ETag')).not.toBe(etag);
     expect(await response.json()).toMatchObject({
       frames: [
-        { camera: 'leica-m6', event: 'westfjords' },
-        { camera: null, event: null },
-        { camera: 'leica-m6', event: 'westfjords' },
+        { camera: 'leica-m6', event: 'westfjords', toScan: true },
+        { camera: null, event: null, toScan: false },
+        { camera: 'leica-m6', event: 'westfjords', toScan: true },
       ],
     });
   });

@@ -48,6 +48,7 @@ const aFrame = fc.record({
   camera: fc.option(aSlug, { nil: null }),
   lens: fc.option(aSlug, { nil: null }),
   event: fc.option(aSlug, { nil: null }),
+  toScan: fc.boolean(),
   shot: fc.option(
     fc.constantFrom<string>('2026', '2026-09-15T06:30').filter(isShotDate),
     { nil: null },
@@ -227,6 +228,46 @@ describe('roll.json', () => {
     }
     expect(read.value.frames[0]?.event).toBeNull();
     expect(rollFileContent(read.value)).not.toContain('"events"');
+  });
+
+  test('reads a frame without toScan as false and omits false when writing', () => {
+    const read = parseRollFile(
+      JSON.stringify({
+        schema: 2,
+        id: '01M6EAAP694BKWR9HZ4N5Z54XD',
+        roll: '2026-014',
+        frames: [
+          {
+            id: '01M6EAAP694BKWR9HZ4N5Z54XE',
+            number: '1',
+            versions: [],
+          },
+        ],
+      }),
+    );
+
+    expect(read.ok && read.value.frames[0]?.toScan).toBe(false);
+    expect(read.ok && rollFileContent(read.value)).not.toContain('"toScan"');
+  });
+
+  test('writes toScan only when true', () => {
+    const read = parseRollFile(
+      JSON.stringify({
+        schema: 2,
+        id: '01M6EAAP694BKWR9HZ4N5Z54XD',
+        roll: '2026-014',
+        frames: [
+          {
+            id: '01M6EAAP694BKWR9HZ4N5Z54XE',
+            number: '1',
+            toScan: true,
+            versions: [],
+          },
+        ],
+      }),
+    );
+
+    expect(read.ok && rollFileContent(read.value)).toContain('"toScan": true');
   });
 
   test('reads a version from before kinds as a scan, and writes a kind only when it isn’t one', () => {

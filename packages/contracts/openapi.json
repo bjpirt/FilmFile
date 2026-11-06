@@ -206,6 +206,10 @@
             "example": "nikon-fe",
             "description": "The frame's own event, or null to use its roll's event."
           },
+          "toScan": {
+            "type": "boolean",
+            "description": "Whether this frame is marked for a higher-resolution scan."
+          },
           "shot": {
             "type": [
               "string",
@@ -240,6 +244,7 @@
           "camera",
           "lens",
           "event",
+          "toScan",
           "shot",
           "defaultVersion",
           "versions"
@@ -706,6 +711,9 @@
             "maxLength": 60,
             "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
             "example": "nikon-fe"
+          },
+          "toScan": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -778,6 +786,10 @@
             "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
             "example": "nikon-fe",
             "description": "The frame's own event, or null to use its roll's again."
+          },
+          "toScan": {
+            "type": "boolean",
+            "description": "Whether this frame is marked for a higher-resolution scan."
           },
           "shot": {
             "type": [

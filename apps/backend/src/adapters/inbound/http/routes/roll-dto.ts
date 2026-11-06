@@ -33,6 +33,7 @@ export function frameDto(frame: Frame): RollDto['frames'][number] {
     camera: frame.camera,
     lens: frame.lens,
     event: frame.event,
+    toScan: frame.toScan,
     shot: frame.shot,
     defaultVersion: frame.defaultVersion,
     versions: frame.versions.map(versionDto),

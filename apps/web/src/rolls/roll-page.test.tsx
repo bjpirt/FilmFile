@@ -73,6 +73,7 @@ function aFrameWithScan(number: string | null, file: string): Frame {
     camera: null,
     lens: null,
     event: null,
+    toScan: false,
     shot: null,
     defaultVersion: null,
     versions: [
@@ -732,7 +733,7 @@ describe('setting details on selected frames', () => {
 
     expect(
       screen.getAllByRole('menuitem').map((item) => item.textContent),
-    ).toEqual(['Event…', 'Camera…', 'Lens…']);
+    ).toEqual(['Event…', 'Camera…', 'Lens…', 'Mark to scan', 'Unmark']);
   });
 
   test('closes a choice on Esc, still selecting', async () => {
@@ -784,6 +785,44 @@ describe('setting details on selected frames', () => {
       'westfjords',
       null,
     ]);
+  });
+
+  test('marks and unmarks selected frames to scan with count feedback', async () => {
+    const service = await selectFramesOf(['1', '3']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Mark to scan' }));
+    expect(await screen.findByText('2 frames marked to scan.')).toBeDefined();
+    expect(framesOf(service).map((frame) => frame.toScan)).toEqual([
+      true,
+      false,
+      true,
+    ]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Unmark' }));
+    expect(
+      await screen.findByText('Scan mark removed from 2 frames.'),
+    ).toBeDefined();
+    expect(framesOf(service).map((frame) => frame.toScan)).toEqual([
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  test('does not announce a scan mark when the roll changed elsewhere', async () => {
+    const service = await selectFramesOf(['1']);
+    service.changeRoll(rollId);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Mark to scan' }));
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'This roll changed since you opened it. Reload the page.',
+    );
+    expect(service.rolls[0]?.frames[0]?.toScan).toBe(false);
+    expect(screen.queryByText('1 frame marked to scan.')).toBeNull();
   });
 
   test('gives them back the roll’s', async () => {
@@ -1339,6 +1378,50 @@ test('marks frames with details of their own, saying which', async () => {
   expect(within(second ?? document.body).queryByText(/^Its own/)).toBeNull();
 });
 
+test('shows pending and scanned marks, and counts only pending frames', async () => {
+  const rawSource = aFrameWithScan('2', '12340002.jpg');
+  const finalSource = aFrameWithScan('3', '12340003.jpg');
+  const rawVersions: Frame['versions'] = rawSource.versions.map((version) => ({
+    ...version,
+    kind: 'raw-scan',
+  }));
+  const finalVersions: Frame['versions'] = finalSource.versions.map(
+    (version) => ({
+      ...version,
+      kind: 'final',
+    }),
+  );
+  renderPage(
+    archiveWith([
+      { ...aFrameWithScan('1', '12340001.jpg'), toScan: true },
+      { ...rawSource, toScan: true, versions: rawVersions },
+      { ...finalSource, toScan: true, versions: finalVersions },
+    ]),
+  );
+
+  expect(await screen.findByText('3 frames (1 to scan)')).toBeDefined();
+  const [pending, scannedRaw, scannedFinal] =
+    await screen.findAllByRole('listitem');
+  expect(
+    pending?.querySelector('[title="To scan at higher resolution"]'),
+  ).not.toBeNull();
+  expect(
+    pending
+      ?.querySelector('[title="To scan at higher resolution"]')
+      ?.classList.contains('scanned'),
+  ).toBe(false);
+  expect(
+    scannedRaw
+      ?.querySelector('[title="Scanned"]')
+      ?.classList.contains('scanned'),
+  ).toBe(true);
+  expect(
+    scannedFinal
+      ?.querySelector('[title="Scanned"]')
+      ?.classList.contains('scanned'),
+  ).toBe(true);
+});
+
 test('marks a frame with notes, as it marks details of its own', async () => {
   renderPage(
     archiveWith([
@@ -1428,6 +1511,7 @@ test('shows a placeholder for a frame with no scan', async () => {
         camera: null,
         lens: null,
         event: null,
+        toScan: false,
         shot: null,
         defaultVersion: null,
         versions: [],

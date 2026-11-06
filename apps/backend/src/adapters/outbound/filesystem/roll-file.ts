@@ -125,6 +125,7 @@ export const storedFrame = z.object({
   notes: z.string().nullable().default(null),
   // Only on a frame that has its own (D50); otherwise its roll's applies.
   event: branded<Slug>(isSlug, 'must be a slug like iceland-2026').optional(),
+  toScan: z.boolean().default(false),
   meta: storedMeta.optional(),
   shot: branded<ShotDate>(
     isShotDate,
@@ -270,6 +271,7 @@ export function storedFrameOf(frame: Frame): z.input<typeof storedFrame> {
     notes: frame.notes,
     // Only what the frame sets itself, so a frame that inherits it all says nothing.
     ...(frame.event === null ? {} : { event: frame.event }),
+    ...(frame.toScan ? { toScan: true } : {}),
     ...(frame.camera === null && frame.lens === null
       ? {}
       : {

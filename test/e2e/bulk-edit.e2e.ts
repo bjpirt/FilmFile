@@ -1,5 +1,5 @@
-import { expect, test } from './support/isolated-test.ts';
 import { fixtureSets } from '../../apps/backend/test/support/lab-scans.ts';
+import { expect, test } from './support/isolated-test.ts';
 import { chooseAction, createRoll } from './support/journeys.ts';
 
 test('bulk edit: select some of a roll’s frames, give them another camera and put them in an event, leaving the rest with the roll’s', async ({
@@ -41,6 +41,23 @@ test('bulk edit: select some of a roll’s frames, give them another camera and 
   await expect(
     page.getByRole('status').filter({ hasText: 'Event set on 3 frames.' }),
   ).toBeVisible();
+
+  await page.getByRole('button', { name: 'Set', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Mark to scan' }).click();
+  await expect(
+    page.getByRole('status').filter({ hasText: '3 frames marked to scan.' }),
+  ).toBeVisible();
+  await expect(page.getByText('6 frames (3 to scan)')).toBeVisible();
+  await expect(page.getByText('To scan at higher resolution')).toHaveCount(3);
+
+  await page.getByRole('button', { name: 'Set', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Unmark' }).click();
+  await expect(
+    page.getByRole('status').filter({
+      hasText: 'Scan mark removed from 3 frames.',
+    }),
+  ).toBeVisible();
+  await expect(page.getByText('6 frames (3 to scan)')).toHaveCount(0);
 
   await page.reload();
 

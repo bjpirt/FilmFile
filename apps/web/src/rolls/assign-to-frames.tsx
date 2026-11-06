@@ -6,6 +6,7 @@ export interface FramesChange {
   readonly camera?: string | null;
   readonly lens?: string | null;
   readonly event?: string | null;
+  readonly toScan?: boolean;
 }
 
 /** One thing to choose from, e.g. a camera by slug and label. */
@@ -83,24 +84,57 @@ export function AssignToFrames({
     }
   }
 
+  async function setScanMark(toScan: boolean): Promise<void> {
+    setDone(undefined);
+    setProblem(undefined);
+    setSaving(true);
+    const notSaved = await apply({ toScan });
+    setSaving(false);
+    setProblem(notSaved);
+    if (notSaved === undefined) {
+      const selected = frames(count);
+      setDone(
+        toScan
+          ? `${selected} marked to scan.`
+          : `Scan mark removed from ${selected}.`,
+      );
+    }
+  }
+
   if (chosen === undefined) {
     return (
       <>
         <MenuButton
           label="Set"
-          disabled={count === 0}
-          items={details.map((detail) => ({
-            label: `${detail.name}…`,
-            select: () => {
-              setOpen(detail.key);
-              setValue(choices[detail.key][0]?.value ?? rollsOwn);
-              setDone(undefined);
-              setProblem(undefined);
+          disabled={count === 0 || saving}
+          items={[
+            ...details.map((detail) => ({
+              label: `${detail.name}…`,
+              select: () => {
+                setOpen(detail.key);
+                setValue(choices[detail.key][0]?.value ?? rollsOwn);
+                setDone(undefined);
+                setProblem(undefined);
+              },
+            })),
+            {
+              label: 'Mark to scan',
+              setApart: true,
+              select: () => {
+                void setScanMark(true);
+              },
             },
-          }))}
+            {
+              label: 'Unmark',
+              select: () => {
+                void setScanMark(false);
+              },
+            },
+          ]}
         />
         {children}
         {done !== undefined && <p role="status">{done}</p>}
+        {problem !== undefined && <p role="alert">{problem}</p>}
       </>
     );
   }

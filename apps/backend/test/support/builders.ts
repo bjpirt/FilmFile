@@ -57,6 +57,7 @@ export function aFrame(
   overrides: {
     readonly id?: string;
     readonly number?: string | null;
+    readonly toScan?: boolean;
     readonly defaultVersion?: string;
     readonly versions?: readonly Version[];
   } = {},
@@ -73,6 +74,7 @@ export function aFrame(
     camera: null,
     lens: null,
     event: null,
+    toScan: overrides.toScan ?? false,
     shot: null,
     defaultVersion:
       overrides.defaultVersion === undefined

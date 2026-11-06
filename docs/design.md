@@ -192,11 +192,11 @@ Lab scans are low-res JPEGs of every frame named `BBBBNNNN.jpg` (batch, scan ind
 
 ### 8.2 Own hi-res scans (camera raws)
 
-Every version is a kind (D48): a **Scan**, ready to view at whatever resolution (the lab's low-res scans, or a positive of my own); a **Raw scan**, the negative or slide as scanned, not yet processed; or a **Final**, processed and edited. Single-file uploads as these kinds and changing a version's kind are implemented. Raw scans can be Sony ARW raws or TIFFs, are never written to, and an ARW's thumbnail comes from the preview JPEG it carries. FF-104's persistent scan mark stays set after a Raw scan or Final is added; those frames show “Scanned” but no longer count as pending. The scan list in FF-131 uses only marked frames without a Raw scan or Final. Exporting raw scans for NegPy or Darktable, adding many frames' raw scans or finals at once, and the scan-list workflow below remain planned.
+Every version is a kind (D48): a **Scan**, ready to view at whatever resolution (the lab's low-res scans, or a positive of my own); a **Raw scan**, the negative or slide as scanned, not yet processed; or a **Final**, processed and edited. Single-file uploads as these kinds and changing a version's kind are implemented. Raw scans can be Sony ARW raws or TIFFs, are never written to, and an ARW's thumbnail comes from the preview JPEG it carries. FF-104's persistent scan mark stays set after a Raw scan or Final is added; those frames show “Scanned” with the scanner icon checked and colored with the orange accent, but no longer count as pending. Exporting raw scans for NegPy or Darktable, adding many frames' raw scans or finals at once, and the scan-list workflow below remain planned.
 
-The numbered scan-list workflow below is planned, not part of the current upload flow:
+FF-104's scan mark is implemented. The numbered scan-list and matching workflow below (FF-131) is still planned, not part of the current upload flow:
 
-1. Frames are marked **to scan** while browsing lab scans (FF-104). The mark is persistent: adding a Raw scan or Final changes the thumbnail to “Scanned” but does not remove the selection. Only marked frames without a Raw scan or Final are pending for this list.
+1. Make an ordered list from frames marked **to scan** that still lack a Raw scan or Final. The mark is persistent; adding a Raw scan or Final changes the thumbnail to “Scanned” but does not remove the selection.
 2. The tool produces an ordered **scan list** (e.g. `2026-014: 3, 7, 12A, 23`).
 3. Raws are shot in that order and imported as versions of their frames, matched to frames by capture time against the list, using the same anchors-and-exceptions approach.
 4. Including the film border is encouraged, so the frame number is visible.
