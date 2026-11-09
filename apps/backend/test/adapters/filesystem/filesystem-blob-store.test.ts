@@ -1,4 +1,13 @@
-import { mkdir, mkdtemp, readFile, rename, rm } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rename,
+  rm,
+  stat,
+  utimes,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, expect, test } from 'vitest';
@@ -87,5 +96,65 @@ test('stores a file in a roll’s folder named by number alone, as made before D
   expect(await readFile(path.join(folder, file))).toEqual(Buffer.from([7]));
   expect(new Uint8Array(await store().get(ctx, roll.id, file))).toEqual(
     new Uint8Array([7]),
+  );
+});
+
+test('makes a file it stores read-only, keeping its other permissions (D96)', async () => {
+  await new FilesystemRollRepository(archivePath).create(ctx, roll);
+
+  const file = await store().put(ctx, blob, new Uint8Array([1, 2, 3]));
+
+  const { mode } = await stat(
+    path.join(archivePath, 'rolls/2026/2026-014-00000001', file),
+  );
+  expect(mode & 0o222).toBe(0);
+  expect(mode & 0o444).toBe(0o444);
+});
+
+test('refuses to store over a file even though it is read-only', async () => {
+  await new FilesystemRollRepository(archivePath).create(ctx, roll);
+  await store().put(ctx, blob, new Uint8Array([1]));
+
+  await expect(store().put(ctx, blob, new Uint8Array([2]))).rejects.toThrow();
+});
+
+test('makes a writable file read-only after the fact, clearing only the write bits, and leaves its contents and times alone', async () => {
+  await new FilesystemRollRepository(archivePath).create(ctx, roll);
+  const file = await store().put(ctx, blob, new Uint8Array([1, 2, 3]));
+  const stored = path.join(archivePath, 'rolls/2026/2026-014-00000001', file);
+  await chmod(stored, 0o755);
+  const when = new Date('2020-01-02T03:04:05Z');
+  await utimes(stored, when, when);
+
+  expect(await store().makeReadOnly(ctx, roll.id, file)).toBe('changed');
+  expect(await store().makeReadOnly(ctx, roll.id, file)).toBe('already');
+
+  const after = await stat(stored);
+  expect(after.mode & 0o777).toBe(0o555);
+  expect(after.mtime).toEqual(when);
+  expect(await readFile(stored)).toEqual(Buffer.from([1, 2, 3]));
+});
+
+test('keeps a stricter mode as it was, only taking away the write bits', async () => {
+  await new FilesystemRollRepository(archivePath).create(ctx, roll);
+  const file = await store().put(ctx, blob, new Uint8Array([1]));
+  const stored = path.join(archivePath, 'rolls/2026/2026-014-00000001', file);
+  await chmod(stored, 0o600);
+
+  await store().makeReadOnly(ctx, roll.id, file);
+
+  expect((await stat(stored)).mode & 0o777).toBe(0o400);
+});
+
+test('says there is no file for one that is missing, or for a roll that has no folder', async () => {
+  expect(await store().makeReadOnly(ctx, roll.id, 'frames/a/b/c.jpg')).toBe(
+    'missing',
+  );
+  await new FilesystemRollRepository(archivePath).create(ctx, roll);
+  expect(await store().makeReadOnly(ctx, roll.id, 'frames/a/b/c.jpg')).toBe(
+    'missing',
+  );
+  expect(await store().makeReadOnly(ctx, roll.id, '../../../secret.txt')).toBe(
+    'missing',
   );
 });

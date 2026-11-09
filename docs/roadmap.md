@@ -6,7 +6,7 @@ Each task is about one commit: small enough to review in one sitting, with its t
 
 `[x]` done, `[ ]` to do (`[later]` marks one set aside or not yet planned), `[-]` dropped or replaced (with where it went).
 
-**Next up:** 8. Library on disk.
+**Next up:** 11. Integrate with NegPy.
 
 ---
 
@@ -159,7 +159,7 @@ Rolls are numbered freely or from a pattern (D87, D88). Rolls are imported befor
 
 The library stays readable in Finder: rolls, frames and versions are named by number or kind with their IDs (D66, D69).
 
-- [ ] [FF-109 Originals read-only](tasks/FF-109.md): the service makes originals read-only, so nothing reaching them through a link can change them.
+- [x] [FF-109 Originals read-only](tasks/FF-109.md)
 - [x] [FF-155 Frame and version folders named by number and kind](tasks/FF-155.md)
 
 ### 9. Settings and the FilmFile folder
@@ -368,6 +368,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D93 | A selection of frames is a list of rules, all of which a frame must match, each with the control that suits it (a multi-select of events, rolls, cameras, lenses or film stocks; rated at least N; shot on or after and on or before a date, compared at the limit's precision; has a Final or a Raw scan), and frames always included or never included by hand, which override the rules. The rules are a list so sections and OR groups could come later. It is always live, never frozen. Sites and exports each hold their own copy of a selection and share the rules, the rule editor and the grid, found first on a Find frames page. | FF-164, FF-116, FF-119 |
 | D94 | An export is a saved definition in `Library/exports/<slug>.json`: a selection (D93) and one recipe (size, format and quality, layout, file names, metadata: everything known about the frame, or only author and copyright), built on demand into `Exports/<slug>/` from the version shown, with a manifest of what each file was made from, so it says whether it's up to date and makes again only what changed; it can optionally keep itself up to date. Several sizes are several exports. Replaces D60 and the mark on frames for export, and folds in FF-144's recipes. | FF-116, FF-117, FF-118 |
 | D95 | A frame, or the frames selected on a roll's or an event's page, can be exported once, without a saved export: a dialog with the export recipe's choices (starting from an export's or the last used), making the files through the same rendering and downloading them the normal browser way, one frame as a JPEG and several as a store-only zip streamed as it's made; nothing is written to disk by the service. The desktop app asks where to save a download with its own save dialog, so the service never writes outside the FilmFile folder because a page asked it to. Saved exports (D94) are always made in `Exports/<slug>/`. | FF-165, FF-118, FF-166, FF-167, FF-168 |
+| D96 | Originals are made read-only so nothing reaching them (NegPy through links, a file manager) can overwrite them in place: each version's image file, as it's stored and, once when the service starts, every one already in the library, by clearing its write bits; never JSON, sidecars, recipes or folders. It guards against overwriting, not against deleting or moving, which a program with write access to the folder can still do; a failure to change permissions is skipped and logged, never an upload failure. Refines D51's guard. | FF-109, FF-112 |
 
 **Still open:** see `docs/design.md`, section 15.
 

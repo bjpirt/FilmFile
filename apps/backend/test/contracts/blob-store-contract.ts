@@ -47,6 +47,21 @@ export function blobStoreContract(
       );
     });
 
+    test('has a stored file read-only already, and says there is none for one it never stored', async () => {
+      const blobs = makeStore();
+      await createRoll(roll);
+      const file = await blobs.put(ctx, blob, new Uint8Array([1, 2, 3]));
+
+      expect(await blobs.makeReadOnly(ctx, roll.id, file)).toBe('already');
+      expect(
+        await blobs.makeReadOnly(
+          ctx,
+          roll.id,
+          'frames/AAAAAAAA/BBBBBBBB/x.jpg',
+        ),
+      ).toBe('missing');
+    });
+
     test('fails to get a file it never stored', async () => {
       await createRoll(roll);
 

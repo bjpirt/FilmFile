@@ -14,11 +14,40 @@ import { SharpPreviewProvider } from '../adapters/outbound/sharp/sharp-preview-p
 import type { Clock } from '../application/ports/clock.ts';
 import type { IdGenerator } from '../application/ports/id-generator.ts';
 import { localArchive } from './local-archive.ts';
+import { ProtectOriginals } from '../application/use-cases/originals/protect-originals.ts';
 import { useCasesFor } from './use-cases-for.ts';
 
 // Images are decoded only up to this size, so a small file claiming huge
 // dimensions (a decompression bomb) can't exhaust memory.
 export const maxPixels = 100_000_000;
+
+/**
+ * What the service does once as it starts, in the background (FF-109): makes
+ * the images already in the library read-only. It says what it did through
+ * `log`, once, and nothing when there was nothing to do. It never throws: a
+ * library it can't read is for the requests that need it to report.
+ */
+export async function localStartup(
+  config: { readonly archivePath: string },
+  log: (message: string) => void,
+): Promise<void> {
+  try {
+    const { changed, couldNotChange } = await new ProtectOriginals(
+      new FilesystemRollRepository(config.archivePath),
+      new FilesystemBlobStore(config.archivePath),
+    ).execute(localArchive());
+    if (changed > 0 || couldNotChange > 0) {
+      const made = `Made ${String(changed)} ${changed === 1 ? 'original' : 'originals'} read-only`;
+      log(
+        couldNotChange === 0
+          ? `${made}.`
+          : `${made}; ${String(couldNotChange)} couldn't be changed.`,
+      );
+    }
+  } catch {
+    // Nothing to protect, or nothing readable: requests say what's wrong.
+  }
+}
 
 /** Wires the service for running on this machine: the FilmFile folder on disk (its settings at the top, the archive in its Library), sharp, the system clock. */
 export function composeLocal(config: {

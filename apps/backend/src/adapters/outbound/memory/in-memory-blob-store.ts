@@ -1,6 +1,7 @@
 import type {
   BlobStore,
   NewBlob,
+  ReadOnlyResult,
 } from '../../../application/ports/blob-store.ts';
 import {
   frameFolderName,
@@ -20,6 +21,17 @@ export class InMemoryBlobStore implements BlobStore {
     }
     this.#files.set(key, bytes);
     return Promise.resolve(file);
+  }
+
+  /** Files here can never be written again, so they're all read-only already. */
+  makeReadOnly(
+    _ctx: unknown,
+    rollId: RollId,
+    file: string,
+  ): Promise<ReadOnlyResult> {
+    return Promise.resolve(
+      this.#files.has(`${rollId}/${file}`) ? 'already' : 'missing',
+    );
   }
 
   get(_ctx: unknown, rollId: RollId, file: string): Promise<Uint8Array> {

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readdir, readFile } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { beforeEach, describe, expect, test } from 'vitest';
 import { aJpeg } from '../support/a-jpeg.ts';
@@ -111,6 +111,22 @@ describe('POST /api/rolls/{id}/frames/{frameId}/versions', () => {
       ),
     );
     expect(stored.equals(image)).toBe(true);
+  });
+
+  test('stores the scan read-only, so nothing can overwrite it in place (D96)', async () => {
+    const versionId = String(idOf(await (await upload(await aJpeg())).json()));
+
+    const { mode } = await stat(
+      path.join(
+        await folderOfRoll(archive.path(), '2026-014'),
+        'frames',
+        `unnumbered-${frameId.slice(-8)}`,
+        `scan-${versionId.slice(-8)}`,
+        '12340014.jpg',
+      ),
+    );
+
+    expect(mode & 0o222).toBe(0);
   });
 
   test('returns the version metadata without its filesystem path', async () => {

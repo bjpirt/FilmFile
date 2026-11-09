@@ -1,5 +1,5 @@
 import { serve } from '@hono/node-server';
-import { composeLocal } from './composition/compose-local.ts';
+import { composeLocal, localStartup } from './composition/compose-local.ts';
 import { prepareFolder } from './composition/prepare-folder.ts';
 import { readLocalConfig } from './composition/read-local-config.ts';
 
@@ -28,6 +28,8 @@ const server = serve(
     console.log(
       `FilmFile service listening on http://127.0.0.1:${String(info.port)}`,
     );
+    // Once, in the background: the service answers requests meanwhile (FF-109).
+    void localStartup(config, console.log);
   },
 );
 

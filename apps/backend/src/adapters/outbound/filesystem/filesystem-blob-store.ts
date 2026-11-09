@@ -1,14 +1,16 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type {
   BlobStore,
   NewBlob,
+  ReadOnlyResult,
 } from '../../../application/ports/blob-store.ts';
 import {
   frameFolderName,
   versionFolderName,
 } from '../../../domain/rolls/folder-names.ts';
 import type { RollId } from '../../../domain/shared/ids.ts';
+import { hasErrorCode } from './error-codes.ts';
 import { findRollFolder } from './roll-folder.ts';
 import { safePath } from './safe-path.ts';
 
@@ -43,6 +45,9 @@ export class FilesystemBlobStore implements BlobStore {
     await mkdir(path.dirname(target), { recursive: true });
     // 'wx' fails if the file exists: originals are never overwritten.
     await writeFile(target, bytes, { flag: 'wx' });
+    // A guard against overwriting in place (D96): storing never fails over it,
+    // and the pass on starting (FF-109) tries again.
+    await readOnly(target);
     return names.join('/');
   }
 
@@ -51,5 +56,36 @@ export class FilesystemBlobStore implements BlobStore {
     return readFile(
       safePath(await this.#rollFolder(rollId), ...file.split('/')),
     );
+  }
+
+  async makeReadOnly(
+    _ctx: unknown,
+    rollId: RollId,
+    file: string,
+  ): Promise<ReadOnlyResult> {
+    let target: string;
+    try {
+      target = safePath(await this.#rollFolder(rollId), ...file.split('/'));
+    } catch {
+      return 'missing';
+    }
+    return await readOnly(target);
+  }
+}
+
+/** The write bits for the owner, group and others. */
+const writeBits = 0o222;
+
+/** Clears a file's write permission, keeping the rest of its mode. */
+async function readOnly(target: string): Promise<ReadOnlyResult> {
+  try {
+    const { mode } = await stat(target);
+    if ((mode & writeBits) === 0) {
+      return 'already';
+    }
+    await chmod(target, mode & ~writeBits);
+    return 'changed';
+  } catch (error) {
+    return hasErrorCode(error, 'ENOENT') ? 'missing' : 'failed';
   }
 }
