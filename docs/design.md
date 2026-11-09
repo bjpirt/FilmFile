@@ -55,12 +55,12 @@ Archive
                └─ Attachments   editor recipe sidecars (e.g. .negpy)
 ```
 
-- **Roll:** identified by my roll number, currently `YYYY-NNN`, e.g. `2026-014`. `YYYY` is the year the roll was shot; `NNN` is the next free number in that year when the roll is catalogued, so a roll catalogued late gets a later number than rolls shot after it. Rolls aren't numbered when the film is loaded. Its folder is `rolls/YYYY/<roll number>-<ID>/`, renamed as the number changes until it's filed (D66). Rolls are found by their `roll.json`, never by the folder's name. The lab batch is in the scans' file names; labs aren't recorded (D35).
-  - Roll numbers are unique: the roll repository refuses one that another roll has (D70).
-  - A new roll must have a shot date with at least a year. Its number is automatically assigned from that year and can be changed until it's filed (D73).
+- **Roll:** identified by a freeform roll-number label, often `YYYY-NNN` (e.g. `2026-014`). Any non-empty text up to 100 characters is accepted after trimming surrounding whitespace; the exact remaining text is stored. Numbers are unique case-insensitively, with numeric-suffix equivalence as in D76, and lists sort naturally without case (D70, D76, D87). New-roll suggestions and “Number rolls…” use the archive-wide pattern in Settings, defaulting to `{year}-{n:3}` (D88).
+  - Patterns have fixed text, one minimum-width sequence token, and optional `{year}`, `{month}`, `{day}` tokens from the shot date. Counters reset for the values of date tokens present, or are global without date tokens. New-roll suggestions advance after the highest matching value, never reuse gaps, and skip occupied labels. “Number rolls…” keeps D74's filed/filtered-out anchors and shot-date order, grouping by the date tokens in the pattern. Changing the pattern doesn't renumber rolls until “Number rolls…” is run. The API's omitted-number create fallback is unchanged (D88).
+  - A new roll must have a shot date with at least a year (D73). If the pattern uses month or day, every existing roll needs that precision before the pattern can be saved, and new or edited rolls need to keep it (D88).
+  - A new roll's folder is `rolls/<shot year>/<safe roll label>-<ID>/`, where the label is sanitized using D79. Existing folders keep their current parent permanently; a number change renames only the leaf folder (D66, D87). Rolls are found by their `roll.json`, never by the folder's name. The lab batch is in the scans' file names; labs aren't recorded (D35).
   - Lists sort by roll number by default, or by shot date when chosen. Browse Years and "Group by Year" use the shot year (D75). Within a roll, frame-number order is shot order.
   - Until it's **filed**, a roll's number can be changed by hand, or with "Number rolls…" for the rolls matching the active Browse filters. It numbers those rolls in shot-date order, after that number-year's filed rolls, while filtered-out rolls keep their numbers (D74–D75). Each changed roll's folder is renamed to match (D66). The roll's ULID doesn't change, so links survive.
-  - Number suffixes are currently three digits; FF-153 changes the suffix to one or more digits with a minimum generated width of three. Manually entered spelling is preserved, while uniqueness and sorting use the numeric suffix (D76).
   - Marking a roll as filed, once its negatives are in the physical archive, fixes its number for good so its folder is never renamed again (D66, D74). `roll.json` stores `filed: true` only when set; without the field, the roll is unfiled. Roll API responses always include `filed` as a boolean, and `PATCH` can set or clear it (D71).
   - Attempts to change the number of an already-filed roll fail as a validation error (422); 409 remains for a stale version token (D71).
   - The UI shows a padlock after the roll number on its card in the rolls view and in the roll page heading. Individual frame thumbnails and list rows have no padlock. In Edit details the filed number stays visible and has a padlock (D72).
@@ -113,7 +113,7 @@ Library/
 ```
 
 - A folder per version means files with the same name (such as a re-exported master) never clash, and a file's sidecars sit beside it. Deleting a frame or version moves one folder.
-- Folder names are a label and the last 8 characters of the ULID (its random part): rolls `YYYY-NNN-<ID>`, frames `<frame number>-<ID>` (`unnumbered-<ID>` without one, the number cleaned to letters, digits and hyphens), versions `<kind>-<ID>`. The IDs keep names unique, so renumbering can swap names without clashes (D66, D69).
+- Folder names are a label and the last 8 characters of the ULID (its random part): rolls `<safe roll label>-<ID>` under the shot-year parent for new rolls, frames `<frame number>-<ID>` (`unnumbered-<ID>` without one, the number cleaned to letters, digits and hyphens), versions `<kind>-<ID>`. Roll labels are sanitized using the frame-label rule; the IDs keep names unique, so renumbering can swap names without clashes (D66, D69, D79, D87).
 - Frame-number labels keep ASCII letters, digits and hyphens; every other character becomes `_`, and a leading hyphen is prefixed with `_` (D79). Frame folders are created with the first version, not for empty frames. Only this labeled frame/version layout is supported; ID-only folders are not migrated or supported (D80).
 - Labels follow renumbering and kind changes; files keep their original names and are never changed. `roll.json` records each version's path, updated in the same save as a rename; a rename cut short is recovered by the ID in the name (later, FF-156). A rename makes backup and sync see the files as new, which matters only for raws renumbered after they're added.
 - If a source folder is missing or a destination is occupied, the save fails without changing `roll.json` or overwriting data. Ordinary move/save errors trigger a best-effort rollback; crash recovery remains FF-156 (D81).
@@ -471,7 +471,7 @@ packages/
 
 ## 16. Glossary
 
-- **Roll number:** the roll's label, `YYYY-NNN` (e.g. `2026-014`): the year shot and the next free number that year. It can be changed by a rename; the roll's ULID (`RollId` in code) never changes.
+- **Roll number:** the roll's unique, freeform label, often `YYYY-NNN` (e.g. `2026-014`). New-roll suggestions and “Number rolls…” use the archive-wide pattern in Settings. It can be changed by a rename; the roll's ULID (`RollId` in code) never changes.
 - **Frame number:** the number printed on the film rebate beside each frame (e.g. `23`, `12A`); a frame's identity.
 - **Lab batch:** the lab's order number, the `BBBB` in `BBBBNNNN.jpg`.
 - **Scan index:** the lab's or camera's sequence number for a scan; not the frame number.
