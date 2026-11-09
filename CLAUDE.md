@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **FilmFile** is a local-first tool for cataloguing film photographs: rolls, frames and multiple versions of each image, organised by roll and by nested events, with metadata as JSON on the filesystem, S3 backup and sync, and workflows that run when things change.
 
 - **Design:** `docs/design.md`; section 13 defines the architecture. Read it before design decisions, and raise any conflict rather than silently diverging. When a design decision is made or changed, update it and remove it from the open questions.
-- **Roadmap:** `docs/roadmap.md`, an index of the work still to do grouped by feature in order, then what's for later, the decisions, and what's done; each task's detail and acceptance criteria are in `docs/tasks/<ID>.md`. Work through it in order, build to the acceptance criteria, and keep both true (the `write-task` skill). `docs/plan-phase-0-1.md` was the first plan, with formats, fields and routes in detail.
+- **Roadmap:** `docs/roadmap.md`, an index of the work grouped by feature in a fixed order (unfinished tasks first, then finished ones, newest first), then the decisions; each task's detail and acceptance criteria are in `docs/tasks/<ID>.md`. Work through it in order, build to the acceptance criteria, and keep both true (the `write-task` skill). `docs/plan-phase-0-1.md` was the first plan, with formats, fields and routes in detail.
 
 ## Skills
 

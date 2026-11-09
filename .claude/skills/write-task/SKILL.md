@@ -5,11 +5,12 @@ description: How to add, split, reorder, tick off and rewrite tasks and decision
 
 # Write a task
 
-The roadmap, `docs/roadmap.md`, is an index: **To do**, as numbered feature
-groups in the order they'll be done; then the key journeys, **Later** (tasks
-set aside, or not yet given a place), the **Decisions** table, and **Done**
-(what's been built, by stage, with what was replaced or dropped). "Next up"
-at the top names the current group. Each task is one line there, linking to
+The roadmap, `docs/roadmap.md`, is an index: **Features**, as numbered feature
+groups in a fixed order; then the key journeys, the **Decisions** table, and
+**Replaced or dropped**. Within a group, the tasks still to do come first,
+those tagged `[later]` (set aside, or not yet planned) after them, then the
+finished ones, the most recently finished first. "Next up" at the top names
+the current group. Each task is one line there, linking to
 its own file in `docs/tasks/`, which holds the detail. Tasks are delivered
 one at a time, driven from what the user sees, and "make it work, then make
 it pretty" (CLAUDE.md).
@@ -59,7 +60,7 @@ What it is, where it lives in the UI, in a short paragraph. *(Split from FF-131.
 - **Status**: `to do` (in a group), `later`, `done` or `dropped`; **Was:**
   names an older code the task was first planned under, if it had one. Later
   tasks have only Why (optional) and What, and "Written when the task is
-  planned into a group." under Acceptance criteria. Done tasks have "What
+  planned to be done." under Acceptance criteria. Done tasks have "What
   was built" (see Finishing a task).
 - **Acceptance criteria** are written when a task goes into a group, before
   it's built, and the user reviews them then. Each is something a person can
@@ -72,11 +73,13 @@ What it is, where it lives in the UI, in a short paragraph. *(Split from FF-131.
   each with its own file, saying in each "*(Split from FF-104.)*", and
   move the one split to Replaced or dropped. Never reuse an ID. The file
   name is the ID (`FF-104.md`).
-- **Groups**: a task sits in the feature group it'll be done in. Reordering
-  work means moving groups or index lines; update "Next up" and each moved
+- **Groups**: a task sits in the feature group it'll be done in, and stays
+  there when done. Reordering work means moving groups or index lines; update "Next up" and each moved
   task file's Group line to match.
-- **Later**: a task set aside moves, ID unchanged, to Later; when picked up
-  it moves into a group and gets its acceptance criteria.
+- **Later**: a task set aside stays in its feature group, ID unchanged,
+  tagged `[later]` in its index line (`- [ ] [later] [FF-130 …](…)`) and
+  placed after the tasks to do. When it's picked up, drop the tag, move it
+  above the `[later]` tasks and write its acceptance criteria.
 - **Commit-sized**: one review's worth. Split when it spans backend and UI
   for a new kind of record and also adds browsing, or when a choice would
   block half of it.
@@ -113,10 +116,11 @@ lists fields or routes.
   turned out differently is reworded to what was built, with a note why.
 - Set **Status:** to `done` with **Built in:** the group's name, and add
   "## What was built": the routes, file names and what's shown, as built.
-- Tick its index line (`- [x]`), drop its summary, and move it into Done,
-  under the group's heading there (add one, with the group's intro, if it's
-  the group's first). When its group is finished, remove the group from To
-  do, renumber the rest, and point "Next up" at the next.
+- Tick its index line (`- [x]`), drop its summary, and move it down within
+  its group to just below the tasks still to do, above the ones finished
+  earlier. It stays in its group; groups don't move when they're finished.
+  If "Next up" named this group and it has nothing left to do, point it at
+  the next group that has.
 - Record any decision made along the way.
 - Run the check skill (Prettier covers the roadmap's index; Markdown
   tables aren't reformatted).

@@ -1,6 +1,6 @@
 # H.12 Full CI and dependency updates
 
-**Status:** done · **Built in:** H: Hardening the slice
+**Status:** done · **Built in:** 1. Foundations and the API slice
 
 ## What was built
 

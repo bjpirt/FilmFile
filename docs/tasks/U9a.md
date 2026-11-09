@@ -1,6 +1,6 @@
 # U9a Record a roll's camera
 
-**Status:** done · **Built in:** U: The Option A interface
+**Status:** done · **Built in:** 4. Metadata
 
 ## What was built
 

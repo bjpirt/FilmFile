@@ -1,32 +1,199 @@
 # FilmFile roadmap
 
-The work still to do, grouped by feature in the order it'll be done, then what's for later, the decisions made along the way, and what's been built. This is an index: each task has its own file in `docs/tasks/`, with why it's wanted, what it is, its acceptance criteria, what's not in it, and notes. `docs/design.md` says what FilmFile is and how it's built; `docs/plan-phase-0-1.md` was the first plan and holds the formats, fields and routes in detail.
+The work, grouped by feature in a fixed order, then the key journeys, the decisions made along the way, and what was replaced or dropped. In each group the tasks still to do come first, then the finished ones, the most recently finished first; a task finished moves down to just below the unfinished ones, and stays in its group. This is an index: each task has its own file in `docs/tasks/`, with why it's wanted, what it is, its acceptance criteria, what's not in it, and notes. `docs/design.md` says what FilmFile is and how it's built; `docs/plan-phase-0-1.md` was the first plan and holds the formats, fields and routes in detail.
 
-Each task is about one commit: small enough to review in one sitting, with its tests in the same commit, starting from the outside (an API test for an endpoint, a page test or journey for something in the browser). `pnpm verify` passes at the end of every task, and every acceptance criterion is ticked in its file. Tasks in a group have their acceptance criteria written before they're built, and reviewed then; tasks in Later have theirs written when they're planned into a group. Every task to do has an FF-number, three digits from 100 (`FF-100`), the next free one when it's planned, whatever part of FilmFile it's in. Done tasks keep the codes they were built under (U82, N3, S1.5, 1.3.2), which commit messages cite; open tasks planned under one of those say so in their file ("Was: U22a").
+Each task is about one commit: small enough to review in one sitting, with its tests in the same commit, starting from the outside (an API test for an endpoint, a page test or journey for something in the browser). `pnpm verify` passes at the end of every task, and every acceptance criterion is ticked in its file. Tasks in a group have their acceptance criteria written before they're built, and reviewed then; tasks tagged `[later]` have theirs written when they're planned to be done. Every task to do has an FF-number, three digits from 100 (`FF-100`), the next free one when it's planned, whatever part of FilmFile it's in. Done tasks keep the codes they were built under (U82, N3, S1.5, 1.3.2), which commit messages cite; open tasks planned under one of those say so in their file ("Was: U22a").
 
-`[x]` done, `[ ]` to do, `[-]` dropped or replaced (with where it went).
+`[x]` done, `[ ]` to do (`[later]` marks one set aside or not yet planned), `[-]` dropped or replaced (with where it went).
 
-**Next up:** 1. Multi-version frames, finished off.
+**Next up:** 6. Versions and scans.
 
 ---
 
-## To do
+## Features
 
-### 1. Multi-version frames, finished off
+### 1. Foundations and the API slice
 
-What a frame has is seen at a glance on its thumbnail, a roll's frames are grouped by event, the version shown is chosen with a star, and frames can be marked to scan. The group's finished tasks are under Done.
+The repository and tooling, the API for rolls and scans (every task starting with API tests in `apps/backend/test/api/`, run against a temp archive), the contracts and a basic UI over it, and the hardening that brought them up to the standards in `CLAUDE.md`, security first. Done when the security API tests pass (wrong `Host`, foreign `Origin`, missing content type, traversal, oversized and disguised uploads), the slice runs through use cases and ports with contract suites for every port, and the full CI pipeline is green.
 
-- [ ] [FF-103 Choose the version shown](tasks/FF-103.md): a star on each version in the frame view chooses the one shown everywhere.
+- [x] [H.13 One fake service for the web tests](tasks/H.13.md)
+- [x] [H.12 Full CI and dependency updates](tasks/H.12.md)
+- [x] [H.11 Test data and fixtures](tasks/H.11.md)
+- [x] [H.10 In-memory adapters and contract suites](tasks/H.10.md)
+- [x] [H.9 Atomic writes and version tokens](tasks/H.9.md)
+- [x] [H.8 Persistence schemas and stable serialisation](tasks/H.8.md)
+- [x] [H.7 Frame and version use cases](tasks/H.7.md)
+- [x] [H.6 Roll use cases and repository](tasks/H.6.md)
+- [x] [H.5 IDs, clock and ID generator](tasks/H.5.md)
+- [x] [H.4 Safe paths and upload checks](tasks/H.4.md)
+- [x] [H.3 Error handler](tasks/H.3.md)
+- [x] [H.2 Content type and security headers](tasks/H.2.md)
+- [x] [H.1 Host and Origin checks](tasks/H.1.md)
+- [x] [S2.6 Checkpoint](tasks/S2.6.md)
+- [x] [S2.5 Roll page](tasks/S2.5.md)
+- [x] [S2.4 Rolls page](tasks/S2.4.md)
+- [x] [S2.3 Web app shell](tasks/S2.3.md)
+- [x] [S2.2 Typed client](tasks/S2.2.md)
+- [x] [S2.1 Contracts and OpenAPI](tasks/S2.1.md)
+- [x] [S1.7 Checkpoint](tasks/S1.7.md)
+- [x] [S1.6 Thumbnails and originals](tasks/S1.6.md)
+- [x] [S1.5 Upload a lab scan](tasks/S1.5.md)
+- [x] [S1.4 Create a frame](tasks/S1.4.md)
+- [x] [S1.3a Basic Zod parsing](tasks/S1.3a.md)
+- [x] [S1.3 List and get rolls](tasks/S1.3.md)
+- [x] [S1.2 Create a roll](tasks/S1.2.md)
+- [x] [S1.1 Server runs](tasks/S1.1.md)
+- [x] [0.2.2 Domain errors](tasks/0.2.2.md)
+- [x] [0.2.1 `Result`](tasks/0.2.1.md)
+- [x] [0.1.1–0.1.6 Repository and tooling](tasks/0.1.1-0.1.6.md)
 
-### 2. Library management
+### 2. Frame numbering
 
-Roll numbers can be entered freely or generated from a pattern, while the library stays readable in Finder (D66, D69). (A Browse folder of links is parked, FF-111.)
+Driven from the UI (D19): each task is a change you can see in the browser. Done when a real roll scanned tail to head can be renumbered and a frame's number corrected, all in the browser.
 
-- [ ] [FF-109 Originals read-only](tasks/FF-109.md): the service makes originals read-only, so nothing reaching them through a link can change them.
+- [x] [N6 Save a renumber](tasks/N6.md)
+- [x] [N5 Renumber preview](tasks/N5.md)
+- [x] [N4 Changed elsewhere](tasks/N4.md)
+- [x] [N3 Edit one number](tasks/N3.md)
+- [x] [N2 Number labels](tasks/N2.md)
+- [x] [N1 Frame order](tasks/N1.md)
+- [x] [N7 Confirm numbering** and **N8 Changing confirmed numbering](tasks/N7.md)
+
+### 3. Rolls and the roll page
+
+The "light table" design chosen from the options canvas (https://claude.ai/artifact/BfhJttJe5NC679GGg97Ay1, row A): dark and photo first, a rolls page with a Grid | List switch, Group by, and a browse panel that can be closed, and a roll page with its details above the contact sheet; creating and editing a roll; deleting frames and rolls into the archive's `deleted/` folder; and tidying the roll page, whose actions go into one Actions menu beside the roll number, with selecting frames taking that menu's place.
+
+- [ ] [later] [FF-141 The kind of scans a roll starts with](tasks/FF-141.md): choosing what kind the scans a roll starts with are.
+- [ ] [later] [FF-142 Roll creation in full](tasks/FF-142.md): a taken roll number shown before submitting.
+- [x] [U56 One Set menu while selecting](tasks/U56.md)
+- [x] [U55 One Actions menu](tasks/U55.md)
+- [x] [U54 No frame order switch](tasks/U54.md)
+- [x] [U53 Breadcrumbs at title size](tasks/U53.md)
+- [x] [U52 Film stock is the roll's](tasks/U52.md)
+- [x] [U24 Delete a roll](tasks/U24.md)
+- [x] [U23 Delete a frame](tasks/U23.md)
+- [x] [U8 Edit details](tasks/U8.md)
+- [x] [U7 New roll page](tasks/U7.md)
+- [x] [U6 Group by, browse panel and filters, with years](tasks/U6.md)
+- [x] [U5 Roll page layout](tasks/U5.md)
+- [x] [U4 Rolls list and the switch](tasks/U4.md)
+- [x] [U3 Rolls grid](tasks/U3.md)
+- [x] [U2 Light table look](tasks/U2.md)
+- [x] [U1 Journeys first](tasks/U1.md)
+
+### 4. Metadata
+
+What a roll is catalogued with, one layer of data at a time: camera, film stock, lens and event, each arriving through every level it needs and showing up wherever the design puts it (the roll page's details row, cards, list columns, the browse panel, Group by and filters). Film stock stays the roll's alone. Tags and places are for later.
+
+- [ ] [later] [FF-129 Equipment page](tasks/FF-129.md): cameras, lenses and film stocks, with how many rolls use each.
+- [ ] [later] [FF-130 Sub-events](tasks/FF-130.md): an event inside another.
+- [ ] [later] [FF-132 Tag frames](tasks/FF-132.md): tags on frames.
+- [ ] [later] [FF-133 Locations](tasks/FF-133.md): places on events, rolls and frames.
+- [x] [U63 Events laid out like rolls](tasks/U63.md)
+- [x] [U12c An event's frames](tasks/U12c.md)
+- [x] [U12b Events page: create and edit](tasks/U12b.md)
+- [x] [U12a Events](tasks/U12a.md)
+- [x] [U11b Lens](tasks/U11b.md)
+- [x] [U11a Camera dropdown, make and model](tasks/U11a.md)
+- [x] [U10b Find rolls by film stock](tasks/U10b.md)
+- [x] [U10a Record a roll's film stock](tasks/U10a.md)
+- [x] [U9b Find rolls by camera](tasks/U9b.md)
+- [x] [U9a Record a roll's camera](tasks/U9a.md)
+
+### 5. Describing frames
+
+A frame's details: what a frame has is seen at a glance on its thumbnail. Frames inherit an event, camera, film stock and lens from their roll and can have their own, as the design's metadata layering describes (section 6, D25); selecting frames lets them be given one at once.
+
 - [ ] [FF-149 Rate from a thumbnail](tasks/FF-149.md): point at a thumbnail's stars and click one to rate the frame.
 - [ ] [FF-102 A roll's frames grouped by event](tasks/FF-102.md): a roll whose frames are in more than one event shows them under a heading for each.
+- [x] [FF-101 One event per frame](tasks/FF-101.md)
+- [x] [FF-148 Stars on thumbnails](tasks/FF-148.md)
+- [x] [U59 A frame's own date shot](tasks/U59.md)
+- [x] [U58 Details edited in place](tasks/U58.md)
+- [x] [U57 Inherited details shown plainly](tasks/U57.md)
+- [x] [U39 Frame editing](tasks/U39.md)
+- [x] [U38 Delete selected frames](tasks/U38.md)
+- [x] [U17 Events across rolls](tasks/U17.md)
+- [x] [U16 Assign to selected frames](tasks/U16.md)
+- [x] [U37 Many frames in one save](tasks/U37.md)
+- [x] [U15 Frames' own details](tasks/U15.md)
+- [x] [U36 A frame's resolved details](tasks/U36.md)
+- [x] [U35 Meta resolver](tasks/U35.md)
+- [x] [U14 Select frames](tasks/U14.md)
+- [x] [U33 Rotate a frame](tasks/U33.md)
+- [x] [U28a Delete a frame from the frame view](tasks/U28a.md)
+- [x] [U32 A roll's notes](tasks/U32.md)
+- [x] [U29 Describe a frame](tasks/U29.md)
+- [x] [U27 A frame's details and versions](tasks/U27.md)
+- [x] [U26 Open a frame](tasks/U26.md)
 
-### 3. Integrate with NegPy
+### 6. Versions and scans
+
+A frame has more than one version: a low-res scan to preview it, a hi-res raw scan of the negative or slide, and a processed final (design section 8.2), each a kind chosen as it's added (D48). The version shown is chosen with a star, and frames can be marked to scan. Versions are added one frame at a time for now; adding many frames' raw scans or finals together is for later (FF-134).
+
+- [ ] [FF-103 Choose the version shown](tasks/FF-103.md): a star on each version in the frame view chooses the one shown everywhere.
+- [ ] [later] [FF-131 Raws in batches](tasks/FF-131.md): a scan list from the frames marked to scan, and raws matched to it.
+- [ ] [later] [FF-134 Add raw scans or finals to a roll's frames together](tasks/FF-134.md): raw scans or finals for many frames at once, matched by name.
+- [ ] [later] [FF-135 The newest Final shown](tasks/FF-135.md): a frame's newest Final shown in place of its first version.
+- [ ] [later] [FF-143 Robust upload](tasks/FF-143.md): uploads that skip bad files, retry and resume.
+- [x] [FF-104 Mark frames to scan](tasks/FF-104.md)
+- [x] [U70 Many versions as an icon](tasks/U70.md)
+- [x] [U69 Own details or notes as an icon](tasks/U69.md)
+- [x] [U20 Raw scans as versions](tasks/U20.md)
+- [x] [U64 Version kinds](tasks/U64.md)
+- [x] [U28b Delete a version](tasks/U28b.md)
+- [x] [U61 Versions in a column](tasks/U61.md)
+- [x] [U34 Add a version](tasks/U34.md)
+- [x] [U60 The first version is shown](tasks/U60.md)
+
+### 7. Roll numbering and filing
+
+Rolls are numbered freely or from a pattern (D87, D88). Rolls are imported before their year or order is certain: each gets a number straight away, dates are set, then "Number rolls…" previews and renumbers only the rolls matching the current Browse filters, in shot-date order. Filed and filtered-out rolls keep their numbers (D74–D76).
+
+- [ ] [later] [FF-154 Import many rolls at once](tasks/FF-154.md): a folder of folders of scans, one roll each, numbered automatically.
+- [ ] [later] [FF-157 Filter rolls by filing status](tasks/FF-157.md): show only rolls that aren't filed.
+- [x] [FF-159 Custom roll number pattern](tasks/FF-159.md)
+- [x] [FF-153 Freeform roll numbers](tasks/FF-153.md)
+- [x] [FF-108 Number rolls by date](tasks/FF-108.md)
+- [x] [FF-107 Mark a roll as filed](tasks/FF-107.md)
+- [x] [FF-158 Require a shot year when creating a roll](tasks/FF-158.md)
+- [x] [FF-152 New rolls numbered automatically](tasks/FF-152.md)
+- [x] [FF-106 Change a roll's number](tasks/FF-106.md)
+- [x] [FF-151 Roll folders named by number and ID](tasks/FF-151.md)
+
+### 8. Library on disk
+
+The library stays readable in Finder: rolls, frames and versions are named by number or kind with their IDs (D66, D69). (A Browse folder of links is parked, FF-111.)
+
+- [ ] [FF-109 Originals read-only](tasks/FF-109.md): the service makes originals read-only, so nothing reaching them through a link can change them.
+- [ ] [later] [FF-111 The browse folder](tasks/FF-111.md): `Browse/` in the FilmFile folder: links to every roll's files, named by frame number.
+- [ ] [later] [FF-156 Recover folders by their ID](tasks/FF-156.md): finish a rename that was cut short, finding folders by the ID in their names.
+- [x] [FF-155 Frame and version folders named by number and kind](tasks/FF-155.md)
+
+### 9. Settings and the FilmFile folder
+
+The author and copyright, set on first run and changed later (no name, D44; no labs, D35; no licence yet, D42), and everything FilmFile keeps in one folder chosen once: the library (the archive) and, beside it, its settings and what's made from it (D57, D65).
+
+- [x] [FF-150 Settings for the whole FilmFile folder](tasks/FF-150.md)
+- [x] [FF-105 The FilmFile folder](tasks/FF-105.md)
+- [x] [1b.2 First-run setup](tasks/1b.2.md)
+- [x] [1.4.2 Archive routes](tasks/1.4.2.md)
+- [x] [1.3.1 Archive](tasks/1.3.1.md)
+- [x] [ArchiveRepository](tasks/ArchiveRepository.md)
+
+### 10. Desktop app
+
+FilmFile as a Mac app, opened from the Dock rather than by starting a service and opening a browser (D54). Electron runs the service as it is, in a separate process (`utilityProcess`) on a free port of `127.0.0.1`, and opens a window on it; the web UI and API don't change, and still work from a browser while the app is open. Electron 45's own Node.js (24) runs the service's TypeScript directly, as Node 26 does, so nothing is bundled to run it from source; the packaged app bundles it, and leaves sharp's native files outside its app archive, which they can't be loaded from. Signing, updates and other platforms are for later.
+
+- [ ] [later] [FF-137 A signed and notarised Mac app](tasks/FF-137.md): signed with a Developer ID and notarised.
+- [ ] [later] [FF-138 Updates](tasks/FF-138.md): the app updates itself.
+- [ ] [later] [FF-139 Windows and Linux](tasks/FF-139.md): the app for Windows and Linux.
+- [ ] [later] [FF-140 No open port](tasks/FF-140.md): a private protocol instead of a port on 127.0.0.1.
+- [x] [U84 A packaged Mac app](tasks/U84.md)
+- [x] [U83 Choose the archive](tasks/U83.md)
+- [x] [U82 FilmFile opens in its own window](tasks/U82.md)
+
+### 11. Integrate with NegPy
 
 The round trip of design section 9: a roll's raw scans go where NegPy can find them, and NegPy's exports come back as Finals by themselves. NegPy can't be told to open files from outside (no command line, URL scheme or other way in), so FilmFile keeps a folder of rolls, `Editors/NegPy/` in the FilmFile folder (FF-105), which NegPy imports once with "Import Subfolders as Rolls…" and picks new rolls up from with Refresh (D51).
 
@@ -34,16 +201,18 @@ The round trip of design section 9: a roll's raw scans go where NegPy can find t
 - [ ] [FF-113 Bring in NegPy's exports](tasks/FF-113.md): NegPy's exports in a roll's folder become Finals of their frames.
 - [ ] [FF-114 Exports brought in by themselves](tasks/FF-114.md): the service watches the NegPy folder and brings exports in as they appear.
 - [ ] [FF-115 NegPy's recipes kept](tasks/FF-115.md): NegPy's `.negpy` edit is kept with each Final it made.
+- [ ] [later] [FF-136 Exports that didn't match](tasks/FF-136.md): choosing frames for NegPy exports that didn't match one.
 
-### 4. Exports
+### 12. Exports
 
 Frames marked for export are kept in `Exports/` as JPEGs carrying everything known about them, made from the version shown and kept in step as frames change (D60).
 
 - [ ] [FF-116 Mark frames for export](tasks/FF-116.md): mark the frames to keep as exports, one at a time or in bulk.
 - [ ] [FF-117 The export folder](tasks/FF-117.md): `Exports/` holds a JPEG of every frame marked for export, kept in step.
 - [ ] [FF-118 What an export says about itself](tasks/FF-118.md): exports carry the frame's details as EXIF, IPTC and XMP.
+- [ ] [later] [FF-144 Export recipes](tasks/FF-144.md): export sizes, formats and what's left out.
 
-### 5. Event sites
+### 13. Event sites
 
 An event's best frames as a small static website, made into `Sites/` and published to S3 when wanted (design section 12, D61).
 
@@ -51,7 +220,7 @@ An event's best frames as a small static website, made into `Sites/` and publish
 - [ ] [FF-120 Make an event's site](tasks/FF-120.md): a static site of an event's chosen frames, made in `Sites/`.
 - [ ] [FF-121 Publish a site to S3](tasks/FF-121.md): upload an event's site to an S3 bucket, and take it down again.
 
-### 6. Index and maintenance
+### 14. Index and maintenance
 
 - [ ] [FF-122 `CatalogueIndex`](tasks/FF-122.md): rolls, frames and equipment indexed in SQLite in the cache.
 - [ ] [FF-123 `RebuildIndex`](tasks/FF-123.md): rebuild the index from the archive.
@@ -60,6 +229,14 @@ An event's best frames as a small static website, made into `Sites/` and publish
 - [ ] [FF-126 Maintenance routes](tasks/FF-126.md): API routes for the integrity check and index rebuild.
 - [ ] [FF-127 Maintenance page](tasks/FF-127.md): run the integrity check and rebuild the index from the browser.
 - [ ] [FF-128 Conflict handling](tasks/FF-128.md): on a 409, re-apply a change that doesn't clash.
+
+### 15. Integrate with darktable
+
+After "Integrate with NegPy", whose folder of links (in `Editors/`, FF-105), file names and way back it reuses. darktable can be started on a folder (`darktable <folder>` opens it in the lighttable), but not while it's already running (its library is locked); it keeps edits in XMP sidecars beside each image (`DSC04412.ARW.xmp`), reads one already there when it imports a file, and exports by default to `darktable_exported/` beside the source, under the source's name. To check first: whether it writes sidecars beside a link or beside the file the link points to (if the latter, copies instead of links), and whether it writes exports in one go or a bit at a time.
+
+- [ ] [later] [FF-145 Open a roll in darktable](tasks/FF-145.md): start darktable on a roll's folder.
+- [ ] [later] [FF-146 Catalogue details for darktable](tasks/FF-146.md): catalogue details written as XMP before darktable sees a raw.
+- [ ] [later] [FF-147 darktable's exports and recipes](tasks/FF-147.md): darktable's exports and sidecars brought in.
 
 ---
 
@@ -86,41 +263,6 @@ Key journeys, each named by the task that adds it:
 | First run (1b.2) | On an archive never set up, any page asks for setup first; give the author and see the copyright made from it, land on the page asked for, then change the copyright, be taken back to the rolls, and find it in Settings after a reload. Runs against a server of its own, since it needs an empty archive |
 | Bulk edit (U16, U17) | Select a run of a roll's frames, give them another camera and put them in an event, then find them marked as having their own, with the camera in their details, the roll's other frames left as they were, and just those frames on the event's page |
 | Desktop app (U82–U84, FF-105) | The app opens FilmFile in its own window on the Rolls page, its page can't use Node.js or open windows, quitting stops the service, and a second copy doesn't start; on first launch it explains and asks for the FilmFile folder, refuses folders of other files and archive folders, makes a Library in an empty one and remembers the choice; Open FilmFile Folder… switches; Show FilmFile Folder in Finder opens it; a folder gone missing or no longer a FilmFile folder is asked for again. Launches the app itself, on folders of its own, answering its dialogs; and, once built, the packaged app serves the UI and makes thumbnails |
-
----
-
-## Later
-
-Tasks for later, in no particular order: some set aside on purpose, some not yet given a place. They keep their IDs, so references to them still hold; when one is picked up, it moves into the feature group it'll be done in.
-
-- [ ] [FF-129 Equipment page](tasks/FF-129.md): cameras, lenses and film stocks, with how many rolls use each.
-- [ ] [FF-130 Sub-events](tasks/FF-130.md): an event inside another.
-- [ ] [FF-131 Raws in batches](tasks/FF-131.md): a scan list from the frames marked to scan, and raws matched to it.
-- [ ] [FF-132 Tag frames](tasks/FF-132.md): tags on frames.
-- [ ] [FF-133 Locations](tasks/FF-133.md): places on events, rolls and frames.
-- [ ] [FF-134 Add raw scans or finals to a roll's frames together](tasks/FF-134.md): raw scans or finals for many frames at once, matched by name.
-- [ ] [FF-135 The newest Final shown](tasks/FF-135.md): a frame's newest Final shown in place of its first version.
-- [ ] [FF-136 Exports that didn't match](tasks/FF-136.md): choosing frames for NegPy exports that didn't match one.
-- [ ] [FF-137 A signed and notarised Mac app](tasks/FF-137.md): signed with a Developer ID and notarised.
-- [ ] [FF-138 Updates](tasks/FF-138.md): the app updates itself.
-- [ ] [FF-139 Windows and Linux](tasks/FF-139.md): the app for Windows and Linux.
-- [ ] [FF-140 No open port](tasks/FF-140.md): a private protocol instead of a port on 127.0.0.1.
-- [ ] [FF-141 The kind of scans a roll starts with](tasks/FF-141.md): choosing what kind the scans a roll starts with are.
-- [ ] [FF-142 Roll creation in full](tasks/FF-142.md): a taken roll number shown before submitting.
-- [ ] [FF-143 Robust upload](tasks/FF-143.md): uploads that skip bad files, retry and resume.
-- [ ] [FF-154 Import many rolls at once](tasks/FF-154.md): a folder of folders of scans, one roll each, numbered automatically.
-- [ ] [FF-156 Recover folders by their ID](tasks/FF-156.md): finish a rename that was cut short, finding folders by the ID in their names.
-- [ ] [FF-157 Filter rolls by filing status](tasks/FF-157.md): show only rolls that aren't filed.
-- [ ] [FF-111 The browse folder](tasks/FF-111.md): `Browse/` in the FilmFile folder: links to every roll's files, named by frame number.
-- [ ] [FF-144 Export recipes](tasks/FF-144.md): export sizes, formats and what's left out.
-
-### Integrate with darktable
-
-For later, after "Integrate with NegPy", whose folder of links (in `Editors/`, FF-105), file names and way back it reuses. darktable can be started on a folder (`darktable <folder>` opens it in the lighttable), but not while it's already running (its library is locked); it keeps edits in XMP sidecars beside each image (`DSC04412.ARW.xmp`), reads one already there when it imports a file, and exports by default to `darktable_exported/` beside the source, under the source's name. To check first: whether it writes sidecars beside a link or beside the file the link points to (if the latter, copies instead of links), and whether it writes exports in one go or a bit at a time.
-
-- [ ] [FF-145 Open a roll in darktable](tasks/FF-145.md): start darktable on a roll's folder.
-- [ ] [FF-146 Catalogue details for darktable](tasks/FF-146.md): catalogue details written as XMP before darktable sees a raw.
-- [ ] [FF-147 darktable's exports and recipes](tasks/FF-147.md): darktable's exports and sidecars brought in.
 
 ---
 
@@ -186,8 +328,6 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D54 | FilmFile becomes a desktop app with Electron, whose main process runs the service, unchanged, in a `utilityProcess` on a free port of `127.0.0.1` and opens a window on it. The service keeps its Host and Origin checks, a browser can still use it, and a crash or a long sharp job in the service doesn't freeze the window. The service runs while the app is open, not in the background (design 13.11). A private protocol with no port is for later (FF-140). | U82, U83, U84, FF-140 |
 | D55 | ~~The app is packaged with Electron Forge, Electron's own tool, which puts its first-party packages (packager, rebuild, fuses, signing, notarising) together, rather than electron-builder.~~ Replaced by D56. | U84, FF-137 |
 | D56 | The app is packaged by a script of our own with `@electron/packager` and `@electron/fuses`, the first-party packages Forge is made of, rather than Forge itself: Forge needs pnpm's flat, hoisted `node_modules`, and its disk image maker brings native install scripts. The service is bundled with rolldown (already installed with Vite) because Node won't strip types from TypeScript inside `node_modules`, where the contracts package would be; the disk image is made with macOS's own `hdiutil`. Replaces D55. | U84, FF-137 |
-
-**Still open:** see `docs/design.md`, section 15.
 | D57 | Everything FilmFile keeps is in one FilmFile folder, chosen once per computer: `Library/` (the archive; with `settings.json`, D65, the only parts backed up and synced), `Exports/`, `Sites/`, `Editors/` and `Browse/`, which are made from the library and can be made again. Caches stay in the OS cache folder. Replaces U73's separate NegPy folder setting. | FF-105, FF-111, FF-117, FF-120, FF-112 |
 | D58 | ~~Folder names in the library stay IDs (D17), so renumbering never moves an original: renames would make backup and sync upload raws again (and pay Glacier's 180-day minimum twice) and break links. The library is made easy to find your way around instead, with a `contents.txt` in each roll's folder and a `Browse/` folder of links named by frame number.~~ Replaced by D69. | FF-110, FF-111 |
 | D59 | ~~A roll's number can be locked once its sleeve is labelled, and is then never changed. Before that, a year's unlocked rolls can be renumbered to follow their shot dates, after the year's locked rolls, with a preview first.~~ Replaced by D68. | FF-106, FF-107, FF-108 |
@@ -221,230 +361,11 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D87 | A roll number is any non-empty text up to 100 characters after trimming surrounding whitespace. The exact remaining text is stored; only its folder label is sanitized using D79's safe-label rule. Numbers are unique case-insensitively, with D76's numeric-suffix equivalence, and lists sort naturally without case. New roll folders use shot year as their parent; existing folders keep their current parent permanently. | FF-153 |
 | D88 | The archive-wide roll-number pattern is stored in Settings, defaulting to `{year}-{n:3}` for older settings. It has fixed text, one minimum-width sequence token, and optional `{year}`, `{month}`, `{day}` tokens from the shot date and `{event}` (the event's slug). It suggests numbers on New roll and in “Number rolls…” only; an API create without a supplied number keeps its existing default. Counters reset for the distinct values of date tokens present, or are global without date tokens; New roll suggestions advance after the highest matching value, never reuse gaps, and skip occupied labels. “Number rolls…” preserves D74's filed and filtered-out anchors and shot-date order, using the pattern's date-token values as groups. Month/day/event tokens require that precision or an event on every existing roll before saving the pattern and on later create/edit. Saving a pattern does not renumber rolls; “Number rolls…” applies it explicitly. | FF-159 |
 
+**Still open:** see `docs/design.md`, section 15.
+
 ---
 
-## Done
-
-What's been built, by the stage it was built in, oldest first.
-
-### Foundations
-
-- [x] [0.1.1–0.1.6 Repository and tooling](tasks/0.1.1-0.1.6.md)
-- [x] [0.2.1 `Result`](tasks/0.2.1.md)
-- [x] [0.2.2 Domain errors](tasks/0.2.2.md)
-
-### S1: API slice — rolls and scans
-
-Every task starts with API tests in `apps/backend/test/api/`, run against a temp archive.
-
-- [x] [S1.1 Server runs](tasks/S1.1.md)
-- [x] [S1.2 Create a roll](tasks/S1.2.md)
-- [x] [S1.3 List and get rolls](tasks/S1.3.md)
-- [x] [S1.3a Basic Zod parsing](tasks/S1.3a.md)
-- [x] [S1.4 Create a frame](tasks/S1.4.md)
-- [x] [S1.5 Upload a lab scan](tasks/S1.5.md)
-- [x] [S1.6 Thumbnails and originals](tasks/S1.6.md)
-- [x] [S1.7 Checkpoint](tasks/S1.7.md)
-
-**Done when:** API tests pass for every endpoint, and S1.7 works with real scans.
-
-### S2: Contracts and a basic UI
-
-- [x] [S2.1 Contracts and OpenAPI](tasks/S2.1.md)
-- [x] [S2.2 Typed client](tasks/S2.2.md)
-- [x] [S2.3 Web app shell](tasks/S2.3.md)
-- [x] [S2.4 Rolls page](tasks/S2.4.md)
-- [x] [S2.5 Roll page](tasks/S2.5.md)
-- [x] [S2.6 Checkpoint](tasks/S2.6.md)
-
-**Done when:** S2.6 works with a real roll.
-
-### H: Hardening the slice
-
-Brings S1 and S2 up to the standards in `CLAUDE.md`. Security comes first.
-
-- [x] [H.1 Host and Origin checks](tasks/H.1.md)
-- [x] [H.2 Content type and security headers](tasks/H.2.md)
-- [x] [H.3 Error handler](tasks/H.3.md)
-- [x] [H.4 Safe paths and upload checks](tasks/H.4.md)
-- [x] [H.5 IDs, clock and ID generator](tasks/H.5.md)
-- [x] [H.6 Roll use cases and repository](tasks/H.6.md)
-- [x] [H.7 Frame and version use cases](tasks/H.7.md)
-- [x] [H.8 Persistence schemas and stable serialisation](tasks/H.8.md)
-- [x] [H.9 Atomic writes and version tokens](tasks/H.9.md)
-- [x] [H.10 In-memory adapters and contract suites](tasks/H.10.md)
-- [x] [H.11 Test data and fixtures](tasks/H.11.md)
-- [x] [H.12 Full CI and dependency updates](tasks/H.12.md)
-- [x] [H.13 One fake service for the web tests](tasks/H.13.md)
-
-**Done when:** the security API tests pass (wrong `Host`, foreign `Origin`, missing content type, traversal, oversized and disguised uploads), the slice runs through use cases and ports with contract suites for every port, and the full CI pipeline is green.
-
-### N: Frame numbering
-
-Driven from the UI (D19). Each task is a change you can see in the browser, with its tests at every level it touches.
-
-- [x] [N1 Frame order](tasks/N1.md)
-- [x] [N2 Number labels](tasks/N2.md)
-- [x] [N3 Edit one number](tasks/N3.md)
-- [x] [N4 Changed elsewhere](tasks/N4.md)
-- [x] [N5 Renumber preview](tasks/N5.md)
-- [x] [N6 Save a renumber](tasks/N6.md)
-- [-] [N7 Confirm numbering** and **N8 Changing confirmed numbering](tasks/N7.md)
-
-**Done when:** a real roll scanned tail to head can be renumbered and a frame's number corrected, all in the browser.
-
-### U: The Option A interface
-
-The "light table" design chosen from the options canvas (https://claude.ai/artifact/BfhJttJe5NC679GGg97Ay1, row A): dark and photo first, a rolls page with a Grid | List switch, Group by, and a browse panel that can be closed, and a roll page with its details above the contact sheet. Built in two stages: first the design with the data that exists today, then one layer of data at a time (shot date, camera, film stock, lens, events), each layer arriving through every level it needs and showing up wherever the design puts it.
-
-#### The design, with today's data
-
-- [x] [U1 Journeys first](tasks/U1.md)
-- [x] [U2 Light table look](tasks/U2.md)
-- [x] [U3 Rolls grid](tasks/U3.md)
-- [x] [U4 Rolls list and the switch](tasks/U4.md)
-- [x] [U5 Roll page layout](tasks/U5.md)
-- [x] [U6 Group by, browse panel and filters, with years](tasks/U6.md)
-
-**Checkpoint:** the app looks like the chosen design and every existing journey passes unchanged.
-
-#### Layers of data
-
-Each layer is one vertical slice: the field in the domain, `roll.json` (an optional field with a default, so older files still read), the API and contracts, the new roll page and "Edit details", and wherever the design shows it: the roll page's details row, cards, list columns, the browse panel, Group by and filters. Each extends the "Describe a roll" journey.
-
-- [x] [U7 New roll page](tasks/U7.md)
-- [x] [U8 Edit details](tasks/U8.md)
-- [x] [U9a Record a roll's camera](tasks/U9a.md)
-- [x] [U9b Find rolls by camera](tasks/U9b.md)
-- [x] [U10a Record a roll's film stock](tasks/U10a.md)
-- [x] [U10b Find rolls by film stock](tasks/U10b.md)
-- [x] [U11a Camera dropdown, make and model](tasks/U11a.md)
-- [x] [U11b Lens](tasks/U11b.md)
-- [x] [U12a Events](tasks/U12a.md)
-- [x] [U12b Events page: create and edit](tasks/U12b.md)
-- [x] [U12c An event's frames](tasks/U12c.md)
-
-**Checkpoint:** a real roll can be catalogued in the browser with its name, description, date shot, camera, film stock, lens and event, found again by grouping and filtering on each.
-
-### Deleting
-
-Deleting a frame or a roll into the archive's `deleted/` folder. Changing a roll's number (FF-106) is for later.
-
-- [x] [U23 Delete a frame](tasks/U23.md)
-- [x] [U24 Delete a roll](tasks/U24.md)
-
-### Frame view and describing frames
-
-- [x] [U26 Open a frame](tasks/U26.md)
-- [x] [U27 A frame's details and versions](tasks/U27.md)
-- [x] [U29 Describe a frame](tasks/U29.md)
-- [x] [U32 A roll's notes](tasks/U32.md)
-- [x] [U28a Delete a frame from the frame view](tasks/U28a.md)
-- [x] [U33 Rotate a frame](tasks/U33.md)
-
-### Archive settings
-
-The archive's author and copyright, set on first run and changed later; no name (D44), no labs (D35), and no licence yet (D42).
-
-- [x] [ArchiveRepository](tasks/ArchiveRepository.md)
-- [x] [1.3.1 Archive](tasks/1.3.1.md)
-- [x] [1.4.2 Archive routes](tasks/1.4.2.md)
-- [x] [1b.2 First-run setup](tasks/1b.2.md)
-
-### Frames' own details and bulk editing
-
-Selecting frames on a roll and giving them all an event, camera, film stock or lens at once. Frames inherit these from their roll and can have their own, as the design's metadata layering describes (section 6): a frame shot on a second camera, or the few frames of a roll that belong to a particular event (D25).
-
-- [x] [U14 Select frames](tasks/U14.md)
-- [x] [U35 Meta resolver](tasks/U35.md)
-- [x] [U36 A frame's resolved details](tasks/U36.md)
-- [x] [U15 Frames' own details](tasks/U15.md)
-- [x] [U37 Many frames in one save](tasks/U37.md)
-- [x] [U16 Assign to selected frames](tasks/U16.md)
-- [x] [U17 Events across rolls](tasks/U17.md)
-- [x] [U38 Delete selected frames](tasks/U38.md)
-- [x] [U39 Frame editing](tasks/U39.md)
-
-### Tidying the roll and events pages
-
-The roll page had grown a row of buttons in its heading and another above its frames, with nine more while selecting. Its actions go into one Actions menu beside the roll number, and selecting frames takes that menu's place (option 1 of the roll page wireframes). Film stock stays the roll's alone.
-
-- [x] [U52 Film stock is the roll's](tasks/U52.md)
-- [x] [U53 Breadcrumbs at title size](tasks/U53.md)
-- [x] [U54 No frame order switch](tasks/U54.md)
-- [x] [U55 One Actions menu](tasks/U55.md)
-- [x] [U56 One Set menu while selecting](tasks/U56.md)
-- [x] [U63 Events laid out like rolls](tasks/U63.md)
-
-### Reworking the frame view
-
-The details panel shows what a frame inherits without fuss, marks only what the frame has of its own, and edits details in place (option 1 of the frame view wireframes).
-
-- [x] [U57 Inherited details shown plainly](tasks/U57.md)
-- [x] [U58 Details edited in place](tasks/U58.md)
-- [x] [U59 A frame's own date shot](tasks/U59.md)
-
-### Multi-version frames
-
-More than one version of a frame: a low-res scan to preview every frame, a hi-res raw scan of the negative or slide, and a processed final (design section 8.2). Each version is a kind, chosen as it's added (D48). Versions are added to one frame at a time for now; adding many frames' raw scans or finals together is for later (FF-134).
-
-- [x] [U60 The first version is shown](tasks/U60.md)
-- [x] [U34 Add a version](tasks/U34.md)
-- [x] [U61 Versions in a column](tasks/U61.md)
-- [x] [U28b Delete a version](tasks/U28b.md)
-- [x] [U64 Version kinds](tasks/U64.md)
-- [x] [U20 Raw scans as versions](tasks/U20.md)
-- [x] [U69 Own details or notes as an icon](tasks/U69.md)
-- [x] [U70 Many versions as an icon](tasks/U70.md)
-
-### Multi-version frames, finished off
-
-Frame ratings and scan selection are visible while browsing. Frames can be marked to scan and show whether the higher-resolution scan is still pending.
-
-- [x] [FF-148 Stars on thumbnails](tasks/FF-148.md)
-- [x] [FF-101 One event per frame](tasks/FF-101.md)
-- [x] [FF-104 Mark frames to scan](tasks/FF-104.md)
-
-### Library management
-
-Roll numbers are stored as entered while their folder labels stay safe and readable, and new ones are suggested from a pattern (D87, D88).
-
-- [x] [FF-153 Freeform roll numbers](tasks/FF-153.md)
-- [x] [FF-159 Custom roll number pattern](tasks/FF-159.md)
-
-### Finding your way around the library
-
-Frame and version folders are named by their number or kind with their IDs, so the archive is readable in Finder (D69).
-
-- [x] [FF-155 Frame and version folders named by number and kind](tasks/FF-155.md)
-
-### Roll numbers
-
-Rolls are imported before their year or order is certain: each gets a number straight away, dates are set, then "Number rolls…" previews and renumbers only the rolls matching the current Browse filters, in shot-date order. Filed and filtered-out rolls keep their numbers. Every roll's folder is named by its number and ID (`2026-014-Q2P7RM4K`), renamed as it's renumbered without clashing (D66, D74–D76).
-
-- [x] [FF-151 Roll folders named by number and ID](tasks/FF-151.md)
-- [x] [FF-106 Change a roll's number](tasks/FF-106.md)
-- [x] [FF-152 New rolls numbered automatically](tasks/FF-152.md)
-- [x] [FF-158 Require a shot year when creating a roll](tasks/FF-158.md)
-- [x] [FF-107 Mark a roll as filed](tasks/FF-107.md)
-- [x] [FF-108 Number rolls by date](tasks/FF-108.md)
-
-### The FilmFile folder
-
-Everything FilmFile keeps in one folder chosen once: the library (the archive) and, beside it, its settings and what's made from it (D57, D65).
-
-- [x] [FF-105 The FilmFile folder](tasks/FF-105.md)
-- [x] [FF-150 Settings for the whole FilmFile folder](tasks/FF-150.md)
-
-### Desktop app
-
-FilmFile as a Mac app, opened from the Dock rather than by starting a service and opening a browser (D54). Electron runs the service as it is, in a separate process (`utilityProcess`) on a free port of `127.0.0.1`, and opens a window on it; the web UI and API don't change, and still work from a browser while the app is open. Electron 45's own Node.js (24) runs the service's TypeScript directly, as Node 26 does, so nothing is bundled to run it from source; the packaged app bundles it, and leaves sharp's native files outside its app archive, which they can't be loaded from. Signing, updates and other platforms are for later.
-
-- [x] [U82 FilmFile opens in its own window](tasks/U82.md)
-- [x] [U83 Choose the archive](tasks/U83.md)
-- [x] [U84 A packaged Mac app](tasks/U84.md)
-
-### Replaced or dropped
+## Replaced or dropped
 
 Tasks from the first plan that turned out differently:
 

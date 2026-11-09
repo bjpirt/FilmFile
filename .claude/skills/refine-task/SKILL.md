@@ -79,7 +79,7 @@ Rewrite `docs/tasks/<ID>.md` with the answers, in the `write-task` shape:
   see or do (in the UI's exact words) or something the API or files do,
   checkable by a test. Cover the edges and failures answered.
 - **Not in this task**: everything decided to leave out, with the task it's
-  in, or a new line in Later if it has none (ask first).
+  in, or a new `[later]` line in the group it belongs to if it has none (ask first).
 - **Notes**: data and API shapes, decisions by number, what it needs first,
   the journey it adds or extends.
 
