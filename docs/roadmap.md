@@ -6,7 +6,7 @@ Each task is about one commit: small enough to review in one sitting, with its t
 
 `[x]` done, `[ ]` to do (`[later]` marks one set aside or not yet planned), `[-]` dropped or replaced (with where it went).
 
-**Next up:** 5. Describing frames.
+**Next up:** 8. Library on disk.
 
 ---
 
@@ -104,7 +104,7 @@ What a roll is catalogued with, one layer of data at a time: camera, film stock,
 
 A frame's details: what a frame has is seen at a glance on its thumbnail. Frames inherit an event, camera, film stock and lens from their roll and can have their own, as the design's metadata layering describes (section 6, D25); selecting frames lets them be given one at once.
 
-- [ ] [FF-102 A roll's frames grouped by event](tasks/FF-102.md): a roll whose frames are in more than one event shows them under a heading for each.
+- [x] [FF-102 A roll's frames grouped by event](tasks/FF-102.md)
 - [x] [FF-149 Rate from a thumbnail](tasks/FF-149.md)
 - [x] [FF-101 One event per frame](tasks/FF-101.md)
 - [x] [FF-148 Stars on thumbnails](tasks/FF-148.md)
@@ -262,7 +262,7 @@ Key journeys, each named by the task that adds it:
 | Describe a roll (U7 onwards) | Create a roll with its name, notes, date, scans, camera, film stock and lens, then find it grouped and filtered by each |
 | Organise by event (U12a–U12c, FF-130) | Create an event, put rolls in it, and browse to them by event; give it a date on the Events page; open it to see its frames from every roll, grouped by roll; later, an event inside another, whose frames show under its parent too |
 | First run (1b.2) | On an archive never set up, any page asks for setup first; give the author and see the copyright made from it, land on the page asked for, then change the copyright, be taken back to the rolls, and find it in Settings after a reload. Runs against a server of its own, since it needs an empty archive |
-| Bulk edit (U16, U17) | Select a run of a roll's frames, give them another camera and put them in an event, then find them marked as having their own, with the camera in their details, the roll's other frames left as they were, and just those frames on the event's page |
+| Bulk edit (U16, U17, FF-102) | Select a run of a roll's frames, give them another camera and put them in an event, then find them marked as having their own, with the camera in their details, the roll's other frames left as they were, and just those frames on the event's page; the roll's page then shows a label for each event with its frames under it |
 | Desktop app (U82–U84, FF-105) | The app opens FilmFile in its own window on the Rolls page, its page can't use Node.js or open windows, quitting stops the service, and a second copy doesn't start; on first launch it explains and asks for the FilmFile folder, refuses folders of other files and archive folders, makes a Library in an empty one and remembers the choice; Open FilmFile Folder… switches; Show FilmFile Folder in Finder opens it; a folder gone missing or no longer a FilmFile folder is asked for again. Launches the app itself, on folders of its own, answering its dialogs; and, once built, the packaged app serves the UI and makes thumbnails |
 
 ---
@@ -322,7 +322,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D47 | A frame can have its own date and time shot, in place of its roll's, like its camera, lens and events: a roll can be shot over several days. It's resolved and shown with the other details. | U59 |
 | D48 | A version is a kind: Scan (ready to view, at any resolution), Raw scan (the negative or slide as scanned, before processing) or Final (processed), chosen as it's added and changeable later. Resolution isn't a kind: it's measured from the image and shown. Replaces D34's `source` and settles D16's open question. | U64, U20, FF-141, FF-112, FF-134, FF-135 |
 | D49 | A thumbnail has one icon for whatever a frame has of its own, details or notes, rather than one for each, to keep small thumbnails uncluttered; its name says which. | U69, FF-148 |
-| D50 | A frame is in at most one event of its own, as a roll is, replacing D25's several: the browser only ever gave one, and a day inside a trip is a sub-event (FF-130), whose frames are in its parent too. Each frame then sits under one heading when a roll is grouped by event. | FF-101, FF-102, FF-130 |
+| D50 | A frame is in at most one event of its own, as a roll is, replacing D25's several: the browser only ever gave one, and a day inside a trip is a sub-event (FF-130), whose frames are in its parent too. Each frame then sits under one label when a roll is grouped by event (FF-102). | FF-101, FF-102, FF-130 |
 | D51 | A roll is opened in NegPy through a folder of symbolic links outside the archive, one subfolder per roll, imported once in NegPy as a parent of rolls and refreshed there. NegPy has no command line or other way in; it reads through links, writes exports and `.negpy` files beside the link (keeping the path it was given), and refuses to export over a source it reaches through a link. Outside the archive, because NegPy writes beside its files and can move them to the Trash; originals are made read-only as a guard. Links over clones because the archive may be on another drive. Settles FF-112's zip-or-folder question. | FF-112, U73, FF-109, FF-113 |
 | D52 | Settings that belong to a computer, not the archive, such as the FilmFile folder (D57, D63), are kept in a settings file in the OS config directory: a path on one computer means nothing on another, and the archive is synced. | U73 |
 | D53 | The NegPy folder is watched, as bringing exports in by themselves needs it; D37 stands for the archive, whose files are still validated when read. | FF-114 |

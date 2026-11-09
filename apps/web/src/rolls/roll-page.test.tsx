@@ -696,6 +696,171 @@ describe('selecting frames', () => {
   });
 });
 
+describe('frames grouped by event (FF-102)', () => {
+  const events = [
+    { slug: 'iceland-2026', name: 'Iceland 2026', date: null },
+    { slug: 'norway-2025', name: 'Norway 2025', date: null },
+  ];
+
+  function inEvent(number: string, event: string | null): Frame {
+    return {
+      ...aFrameWithScan(number, `1234000${number}.jpg`),
+      event,
+    };
+  }
+
+  /** The labels over the groups, as the sheet shows them. */
+  function labels(): string[] {
+    return Array.from(document.querySelectorAll('.event-group-title')).map(
+      (label) => label.textContent,
+    );
+  }
+
+  function framesIn(group: string): (string | null)[] {
+    return within(screen.getByRole('list', { name: `Frames in ${group}` }))
+      .getAllByRole('link')
+      .map((link) => link.getAttribute('aria-label'));
+  }
+
+  const mixed = () =>
+    archiveWith(
+      [
+        inEvent('1', 'iceland-2026'),
+        inEvent('2', 'norway-2025'),
+        inEvent('3', 'iceland-2026'),
+        inEvent('4', null),
+      ],
+      {},
+      { events },
+    );
+
+  test('shows a label for each event, with its frames in frame order, in the order of their first frames, and No event last', async () => {
+    renderPage(mixed());
+
+    await screen.findByRole('list', { name: 'Frames in Iceland 2026' });
+
+    expect(labels()).toEqual([
+      'Iceland 2026 · 2',
+      'Norway 2025 · 1',
+      'No event · 1',
+    ]);
+    expect(framesIn('Iceland 2026')).toEqual(['Open frame 1', 'Open frame 3']);
+    expect(framesIn('Norway 2025')).toEqual(['Open frame 2']);
+    expect(framesIn('No event')).toEqual(['Open frame 4']);
+    expect(screen.queryByRole('list', { name: 'Contact sheet' })).toBeNull();
+  });
+
+  test('links each event’s label to its page, but not No event', async () => {
+    renderPage(mixed());
+    await screen.findByRole('list', { name: 'Frames in Iceland 2026' });
+
+    expect(
+      screen.getByRole('link', { name: 'Iceland 2026' }).getAttribute('href'),
+    ).toBe('/events/iceland-2026');
+    expect(
+      screen.getByRole('link', { name: 'Norway 2025' }).getAttribute('href'),
+    ).toBe('/events/norway-2025');
+    expect(screen.queryByRole('link', { name: 'No event' })).toBeNull();
+  });
+
+  test('has no labels when every frame is in one event, or none', async () => {
+    renderPage(
+      archiveWith(
+        [inEvent('1', null), inEvent('2', 'iceland-2026')],
+        { event: 'iceland-2026' },
+        { events },
+      ),
+    );
+    await screen.findByRole('list', { name: 'Contact sheet' });
+    expect(labels()).toEqual([]);
+
+    cleanup();
+    renderPage(archiveWith([inEvent('1', null), inEvent('2', null)]));
+    await screen.findByRole('list', { name: 'Contact sheet' });
+    expect(labels()).toEqual([]);
+  });
+
+  test('groups by an event a frame has of its own over the roll’s', async () => {
+    renderPage(
+      archiveWith(
+        [inEvent('1', null), inEvent('2', 'norway-2025')],
+        { event: 'iceland-2026' },
+        { events },
+      ),
+    );
+
+    await screen.findByRole('list', { name: 'Frames in Iceland 2026' });
+
+    expect(labels()).toEqual(['Iceland 2026 · 1', 'Norway 2025 · 1']);
+  });
+
+  test('groups the sheet when a bulk edit puts frames in another event, and takes the groups away again', async () => {
+    renderPage(
+      archiveWith(
+        [inEvent('1', null), inEvent('2', null), inEvent('3', null)],
+        {},
+        { events },
+      ),
+    );
+    await screen.findByRole('list', { name: 'Contact sheet' });
+    await chooseAction('Bulk edit');
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select frame 2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Event…' }));
+    const form = screen.getByRole('form', { name: 'Set event' });
+    fireEvent.change(within(form).getByLabelText('Event for 1 frame'), {
+      target: { value: 'norway-2025' },
+    });
+    fireEvent.click(within(form).getByRole('button', { name: 'Set' }));
+
+    await screen.findByText('Event set on 1 frame.');
+    await waitFor(() => {
+      expect(labels()).toEqual(['Norway 2025 · 1', 'No event · 2']);
+    });
+    // The checkboxes stay across the groups.
+    expect(screen.getAllByRole('checkbox')).toHaveLength(3);
+  });
+
+  test('shows every frame in scan order, without groups, while renumbering', async () => {
+    renderPage(mixed());
+    await screen.findByRole('list', { name: 'Frames in Iceland 2026' });
+
+    await chooseAction('Renumber…');
+
+    expect(labels()).toEqual([]);
+    expect(
+      within(screen.getByRole('list', { name: 'Contact sheet' })).getAllByRole(
+        'listitem',
+      ),
+    ).toHaveLength(4);
+  });
+
+  test('selects every frame across the groups, and a shift-click run in the order on screen', async () => {
+    renderPage(mixed());
+    await screen.findByRole('list', { name: 'Frames in Iceland 2026' });
+    await chooseAction('Bulk edit');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select all' }));
+    expect(screen.getByRole('status', { name: 'Selection' }).textContent).toBe(
+      '4 frames selected',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+
+    // On screen: 1, 3, 2, 4 (Iceland, Norway, No event): a run from 1 to 2 has 3 in it.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select frame 1' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select frame 2' }), {
+      shiftKey: true,
+    });
+    const ticked = ['1', '2', '3', '4'].filter((number) => {
+      const box = screen.getByRole('checkbox', {
+        name: `Select frame ${number}`,
+      });
+      return box instanceof HTMLInputElement && box.checked;
+    });
+    expect(ticked).toEqual(['1', '2', '3']);
+  });
+});
+
 describe('setting details on selected frames', () => {
   const leica: Camera = { slug: 'leica-m6', make: 'Leica', model: 'M6' };
 

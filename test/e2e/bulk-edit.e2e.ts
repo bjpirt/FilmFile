@@ -61,6 +61,19 @@ test('bulk edit: select some of a roll’s frames, give them another camera and 
 
   await page.reload();
 
+  // The roll's page groups its frames by event: the three at the walk, then the rest.
+  await expect(
+    page.getByRole('heading', { level: 2, name: 'Harbour walk · 3' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 2, name: 'No event · 3' }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole('list', { name: 'Frames in Harbour walk' })
+      .getByRole('listitem'),
+  ).toHaveCount(3);
+
   // Frames 2 to 4 are marked as having their own camera; 1, 5 and 6 aren't.
   await expect(page.getByText('Its own camera')).toHaveCount(3);
   await page.getByRole('link', { name: 'Open frame 3' }).click();

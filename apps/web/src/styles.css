@@ -279,6 +279,22 @@ input[type='file']::file-selector-button {
   gap: var(--space-2);
 }
 
+/* A roll's frames grouped by event (FF-102): a lighter label above each group, so the roll's own title stays the prominent one. */
+.event-group {
+  margin-bottom: var(--space-5);
+}
+
+.event-group-title {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin: 0 0 var(--space-3);
+}
+
+.event-group-title a {
+  color: var(--text);
+}
+
 /* Every frame the same 3:2 tile, so a turned one fits inside it rather than standing taller. */
 .contact-sheet img {
   aspect-ratio: 3 / 2;

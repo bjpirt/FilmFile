@@ -28,6 +28,7 @@ import { FrameMarks } from './frame-marks.tsx';
 import { useRateFrame } from './use-rate-frame.ts';
 import { FrameNumberEditor, type SaveOutcome } from './frame-number-editor.tsx';
 import { inFrameOrder } from './frame-order.ts';
+import { groupFramesByEvent } from './group-by-event.ts';
 import {
   RenumberPanel,
   renumberingOf,
@@ -541,7 +542,18 @@ export function RollPage({
       ),
   ).length;
   // While renumbering, frames are shown in scan order, which is the order the numbers count along.
-  const shown = renumbering === undefined ? inFrameOrder(frames) : frames;
+  const inOrder = inFrameOrder(frames);
+  // Frames in more than one event are grouped by it, in one list each; while renumbering, they're all in scan order.
+  const groups =
+    renumbering === undefined
+      ? groupFramesByEvent(inOrder, roll.data.roll)
+      : [];
+  const shown =
+    renumbering !== undefined
+      ? frames
+      : groups.length > 1
+        ? groups.flatMap((group) => group.frames)
+        : inOrder;
   /** A frame clicked while selecting; with shift, the run from the last one clicked, in the order shown. */
   function pick(id: string, shift: boolean) {
     setSelection(
@@ -563,6 +575,111 @@ export function RollPage({
   ).length;
   // An empty roll is waiting for its scans, so the drop zone is open from the start.
   const dropZoneOpen = addingScans || frames.length === 0;
+
+  /** One frame on the sheet, at `i` in the order shown. */
+  const frameItem = (frame: Frame, i: number) => (
+    <li key={frame.id}>
+      <div className="frame-picture">
+        {selection === undefined ? (
+          <Link
+            to={`/rolls/${rollId}/frames/${frame.id}`}
+            aria-label={`Open ${frameName(frame)}`}
+          >
+            <Thumbnail rollId={rollId} frame={frame} />
+          </Link>
+        ) : (
+          <>
+            {/* The picture toggles too, for the mouse; the checkbox is what the keyboard and screen readers use. */}
+            <div
+              className="selectable"
+              onClick={(event) => {
+                pick(frame.id, event.shiftKey);
+              }}
+            >
+              <Thumbnail rollId={rollId} frame={frame} />
+            </div>
+            <input
+              type="checkbox"
+              className="frame-select"
+              aria-label={`Select ${frameName(frame)}`}
+              checked={selection.selected.has(frame.id)}
+              onChange={(event) => {
+                pick(
+                  frame.id,
+                  'shiftKey' in event.nativeEvent &&
+                    event.nativeEvent.shiftKey === true,
+                );
+              }}
+            />
+          </>
+        )}
+        {confirmingDelete === frame.id && (
+          // Over the thumbnail, the same size, so nothing else moves.
+          <div
+            role="alertdialog"
+            aria-label={`Delete ${frameName(frame)}`}
+            className="confirm-delete"
+          >
+            <p className="confirm-question">Delete this frame?</p>
+            <div className="confirm-actions">
+              <button
+                type="button"
+                className="danger"
+                onClick={() => void deleteFrame(frame.id)}
+              >
+                Delete
+              </button>
+              <button
+                type="button"
+                autoFocus
+                onClick={() => {
+                  setConfirmingDelete(undefined);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+        {renumbering === undefined &&
+          selection === undefined &&
+          confirmingDelete !== frame.id && (
+            <button
+              type="button"
+              className="frame-delete"
+              aria-label={`Delete ${frameName(frame)}`}
+              title={`Delete ${frameName(frame)}`}
+              onClick={() => {
+                setConfirmingDelete(frame.id);
+              }}
+            >
+              {/* A bin, so the button adds no text to the frame's caption. */}
+              <BinIcon size={16} />
+            </button>
+          )}
+        <FrameMarks
+          frame={frame}
+          roll={roll.data.roll}
+          stars={selection === undefined}
+          {...(renumbering === undefined && selection === undefined
+            ? {
+                rate: (rating: number | null) => {
+                  ratings.rate(rollId, frame.id, rating, frame.rating);
+                },
+              }
+            : {})}
+        />
+      </div>
+      {renumbering === undefined ? (
+        <FrameNumberEditor
+          number={frame.number}
+          save={(number) => saveNumber(frame.id, number)}
+        />
+      ) : (
+        <ProposedNumber current={frame.number} proposed={proposed?.[i]} />
+      )}
+    </li>
+  );
 
   return (
     <section>
@@ -925,119 +1042,38 @@ export function RollPage({
               }}
             />
           )}
-          <ol className="contact-sheet" aria-label="Contact sheet">
-            {shown.map((frame, i) => (
-              <li key={frame.id}>
-                <div className="frame-picture">
-                  {selection === undefined ? (
-                    <Link
-                      to={`/rolls/${rollId}/frames/${frame.id}`}
-                      aria-label={`Open ${frameName(frame)}`}
-                    >
-                      <Thumbnail rollId={rollId} frame={frame} />
-                    </Link>
-                  ) : (
-                    <>
-                      {/* The picture toggles too, for the mouse; the checkbox is what the keyboard and screen readers use. */}
-                      <div
-                        className="selectable"
-                        onClick={(event) => {
-                          pick(frame.id, event.shiftKey);
-                        }}
-                      >
-                        <Thumbnail rollId={rollId} frame={frame} />
-                      </div>
-                      <input
-                        type="checkbox"
-                        className="frame-select"
-                        aria-label={`Select ${frameName(frame)}`}
-                        checked={selection.selected.has(frame.id)}
-                        onChange={(event) => {
-                          pick(
-                            frame.id,
-                            'shiftKey' in event.nativeEvent &&
-                              event.nativeEvent.shiftKey === true,
-                          );
-                        }}
-                      />
-                    </>
-                  )}
-                  {confirmingDelete === frame.id && (
-                    // Over the thumbnail, the same size, so nothing else moves.
-                    <div
-                      role="alertdialog"
-                      aria-label={`Delete ${frameName(frame)}`}
-                      className="confirm-delete"
-                    >
-                      <p className="confirm-question">Delete this frame?</p>
-                      <div className="confirm-actions">
-                        <button
-                          type="button"
-                          className="danger"
-                          onClick={() => void deleteFrame(frame.id)}
-                        >
-                          Delete
-                        </button>
-                        <button
-                          type="button"
-                          autoFocus
-                          onClick={() => {
-                            setConfirmingDelete(undefined);
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {renumbering === undefined &&
-                    selection === undefined &&
-                    confirmingDelete !== frame.id && (
-                      <button
-                        type="button"
-                        className="frame-delete"
-                        aria-label={`Delete ${frameName(frame)}`}
-                        title={`Delete ${frameName(frame)}`}
-                        onClick={() => {
-                          setConfirmingDelete(frame.id);
-                        }}
-                      >
-                        {/* A bin, so the button adds no text to the frame's caption. */}
-                        <BinIcon size={16} />
-                      </button>
+          {groups.length > 1 ? (
+            groups.map((group) => {
+              const name =
+                group.event === null
+                  ? 'No event'
+                  : (eventName(events, group.event) ?? group.event);
+              return (
+                <section key={group.event ?? 'none'} className="event-group">
+                  <h2 className="event-group-title">
+                    {group.event === null ? (
+                      name
+                    ) : (
+                      <Link to={`/events/${group.event}`}>{name}</Link>
                     )}
-                  <FrameMarks
-                    frame={frame}
-                    roll={roll.data.roll}
-                    stars={selection === undefined}
-                    {...(renumbering === undefined && selection === undefined
-                      ? {
-                          rate: (rating: number | null) => {
-                            ratings.rate(
-                              rollId,
-                              frame.id,
-                              rating,
-                              frame.rating,
-                            );
-                          },
-                        }
-                      : {})}
-                  />
-                </div>
-                {renumbering === undefined ? (
-                  <FrameNumberEditor
-                    number={frame.number}
-                    save={(number) => saveNumber(frame.id, number)}
-                  />
-                ) : (
-                  <ProposedNumber
-                    current={frame.number}
-                    proposed={proposed?.[i]}
-                  />
-                )}
-              </li>
-            ))}
-          </ol>
+                    <span className="muted"> · {group.frames.length}</span>
+                  </h2>
+                  <ol
+                    className="contact-sheet"
+                    aria-label={`Frames in ${name}`}
+                  >
+                    {group.frames.map((frame) =>
+                      frameItem(frame, shown.indexOf(frame)),
+                    )}
+                  </ol>
+                </section>
+              );
+            })
+          ) : (
+            <ol className="contact-sheet" aria-label="Contact sheet">
+              {shown.map((frame, i) => frameItem(frame, i))}
+            </ol>
+          )}
         </>
       )}
     </section>

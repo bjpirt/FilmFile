@@ -136,6 +136,28 @@ describe('the filmstrip’s marks', () => {
 });
 
 describe('opened from a roll', () => {
+  test('steps through the roll’s frames in frame order, whatever events they are in (FF-102)', async () => {
+    const eventful = aRoll('2026-030', {
+      frames: [
+        { ...aFrame('1', '12340001.jpg'), event: 'iceland-2026' },
+        { ...aFrame('2', '12340002.jpg'), event: 'norway-2025' },
+        { ...aFrame('3', '12340003.jpg'), event: 'iceland-2026' },
+      ],
+    });
+    openAt(
+      `/rolls/${eventful.id}/frames/${eventful.frames[0]?.id ?? ''}`,
+      fakeArchive({ rolls: [eventful] }),
+    );
+    await screen.findByRole('heading', { name: 'Frame 1' });
+
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+
+    expect(
+      await screen.findByRole('heading', { name: 'Frame 2' }),
+    ).toBeDefined();
+    expect(filmstrip()).toEqual(['Frame 1', 'Frame 2 (shown)', 'Frame 3']);
+  });
+
   test('marks and unmarks an unnumbered frame to scan', async () => {
     const frame = aFrame(null, '12340001.jpg');
     const markedRoll = aRoll('2019-001', { frames: [frame] });
