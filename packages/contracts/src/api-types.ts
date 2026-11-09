@@ -2180,6 +2180,10 @@ export interface components {
             changes: {
                 /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
                 id: string;
+                /**
+                 * @description A roll number label, up to 100 characters.
+                 * @example 2026-014
+                 */
                 roll: string;
             }[];
         };
@@ -2465,6 +2469,11 @@ export interface components {
              */
             copyright: string | null;
             /**
+             * @description How roll numbers are suggested: fixed text, one sequence token {n:3} (digits are a minimum width) and optionally {year}, {month}, {day} and {event}.
+             * @example {year}-{n:3}
+             */
+            rollNumberPattern: string;
+            /**
              * @description The FilmFile folder's absolute path: read-only, chosen when FilmFile starts (by the desktop app, or FILMFILE_FOLDER) and never set through the API. The one absolute path any response carries (D64).
              * @example /Users/ben/Pictures/FilmFile
              */
@@ -2475,10 +2484,11 @@ export interface components {
             author: string;
             copyright?: string;
         };
-        /** @description The details to change. A detail left out stays as it is; null clears the copyright. The author can’t be cleared, and the FilmFile folder can’t be set here. */
+        /** @description The details to change. A detail left out stays as it is; null clears the copyright. A roll number pattern is refused if it isn’t valid, or if it needs a shot month, day or event that some roll doesn’t have. The author can’t be cleared, and the FilmFile folder can’t be set here. */
         UpdateSettingsRequest: {
             author?: string;
             copyright?: string | null;
+            rollNumberPattern?: string;
         };
     };
     responses: never;

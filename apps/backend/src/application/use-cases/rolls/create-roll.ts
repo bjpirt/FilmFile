@@ -15,10 +15,15 @@ import type { EquipmentRepository } from '../../ports/equipment-repository.ts';
 import type { EventRepository } from '../../ports/event-repository.ts';
 import type { IdGenerator } from '../../ports/id-generator.ts';
 import type { RollRepository } from '../../ports/roll-repository.ts';
+import type { SettingsRepository } from '../../ports/settings-repository.ts';
 import { knownCamera } from './known-camera.ts';
 import { knownEvent } from './known-event.ts';
 import { knownFilmStock } from './known-film-stock.ts';
 import { knownLens } from './known-lens.ts';
+import {
+  rollMeetsPattern,
+  savedPatternNeeds,
+} from './roll-number-pattern-needs.ts';
 import { textOrNull } from './text-or-null.ts';
 
 /** How many times a roll created with no number picks again when others take its number first. */
@@ -33,13 +38,16 @@ export class CreateRoll {
   readonly #equipment: EquipmentRepository;
   readonly #events: EventRepository;
   readonly #ids: IdGenerator;
+  readonly #settings: SettingsRepository;
 
   constructor(
     rolls: RollRepository,
     equipment: EquipmentRepository,
     events: EventRepository,
     ids: IdGenerator,
+    settings: SettingsRepository,
   ) {
+    this.#settings = settings;
     this.#rolls = rolls;
     this.#equipment = equipment;
     this.#events = events;
@@ -79,6 +87,13 @@ export class CreateRoll {
         kind: 'validation-failed',
         issues: [{ path: ['shot'], message: 'must include at least the year' }],
       });
+    }
+    const meets = rollMeetsPattern(
+      await savedPatternNeeds(this.#settings, ctx),
+      { shot: shot.value, event: input.event ?? null },
+    );
+    if (!meets.ok) {
+      return meets;
     }
     const event =
       input.event === undefined

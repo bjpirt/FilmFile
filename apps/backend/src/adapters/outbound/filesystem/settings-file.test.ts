@@ -13,6 +13,7 @@ describe('settings.json', () => {
       id,
       author: 'Ben Pirt',
       copyright: null,
+      rollNumberPattern: '{year}-{n:3}',
     });
 
     expect(JSON.parse(text)).toEqual({
@@ -32,7 +33,28 @@ describe('settings.json', () => {
           meta: { author: 'Ben Pirt', copyright: '© Ben Pirt' },
         }),
       ),
-    ).toEqual({ id, author: 'Ben Pirt', copyright: '© Ben Pirt' });
+    ).toEqual({
+      id,
+      author: 'Ben Pirt',
+      copyright: '© Ben Pirt',
+      rollNumberPattern: '{year}-{n:3}',
+    });
+  });
+
+  test('keeps a chosen roll number pattern, and the default when a file has none (D88)', () => {
+    const settings = {
+      id,
+      author: 'Ben Pirt',
+      copyright: null,
+      rollNumberPattern: 'BP-{year}-{n:2}',
+    };
+
+    const text = settingsFileContent(settings);
+
+    expect(JSON.parse(text)).toMatchObject({
+      rollNumberPattern: 'BP-{year}-{n:2}',
+    });
+    expect(parseSettingsFile(text)).toEqual(settings);
   });
 
   test('refuses a file without an author', () => {

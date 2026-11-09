@@ -7,11 +7,8 @@ import type {
 } from '../../../domain/shared/domain-error.ts';
 import { parseRollNumber } from '../../../domain/rolls/roll-number.ts';
 import { parseRollId } from '../../../domain/shared/ids.ts';
-import { err, type Result } from '../../../domain/shared/result.ts';
+import type { Result } from '../../../domain/shared/result.ts';
 import type { UnreadableRoll } from '../../../domain/rolls/unreadable-roll.ts';
-
-const capacityMessage =
-  'There aren’t enough roll numbers left in the affected year. Nothing was changed.';
 
 /** Applies a set of roll-number changes against the complete preview snapshot. */
 export class RenumberRolls {
@@ -47,24 +44,10 @@ export class RenumberRolls {
     }
 
     const changes = [];
-    for (const [index, change] of input.changes.entries()) {
+    for (const change of input.changes) {
       const id = parseRollId(change.id);
       if (!id.ok) {
         return Promise.resolve(id);
-      }
-      const suffix = /^(\d{4})-(\d+)$/.exec(change.roll)?.[2];
-      if (suffix !== undefined && Number(suffix) > 999) {
-        return Promise.resolve(
-          err({
-            kind: 'validation-failed',
-            issues: [
-              {
-                path: ['changes', index, 'roll'],
-                message: capacityMessage,
-              },
-            ],
-          }),
-        );
       }
       const roll = parseRollNumber(change.roll);
       if (!roll.ok) {

@@ -1,6 +1,16 @@
 import { describe, expect, test } from 'vitest';
 import { aRoll } from '../testing/fake-archive.ts';
 import { numberingPreview } from './numbering-preview.ts';
+import { patternOf } from './roll-number-pattern.ts';
+
+function preview(
+  snapshot: Parameters<typeof numberingPreview>[0],
+  unreadable: Parameters<typeof numberingPreview>[1],
+  filters: Parameters<typeof numberingPreview>[2],
+  pattern = '{year}-{n:3}',
+) {
+  return numberingPreview(snapshot, unreadable, filters, patternOf(pattern));
+}
 
 function versioned(roll: ReturnType<typeof aRoll>, version = 'v1') {
   return { roll, version };
@@ -16,7 +26,7 @@ describe('numberingPreview', () => {
     );
 
     expect(
-      numberingPreview([filed, selected], [], {
+      preview([filed, selected], [], {
         year: '2025',
         camera: 'canon',
         film: undefined,
@@ -38,7 +48,7 @@ describe('numberingPreview', () => {
     );
 
     expect(
-      numberingPreview([filed, reserved, selected], [], {
+      preview([filed, reserved, selected], [], {
         year: '2025',
         camera: 'canon',
         film: undefined,
@@ -59,7 +69,7 @@ describe('numberingPreview', () => {
     );
 
     expect(
-      numberingPreview([reserved, selected], [], {
+      preview([reserved, selected], [], {
         year: '2026',
         camera: 'canon',
         film: undefined,
@@ -76,7 +86,7 @@ describe('numberingPreview', () => {
     const two = versioned(aRoll('Roll 2', { shot: '2026-03' }));
 
     expect(
-      numberingPreview([ten, two], [], {
+      preview([ten, two], [], {
         year: undefined,
         camera: undefined,
         film: undefined,
@@ -97,7 +107,7 @@ describe('numberingPreview', () => {
     const tieEarlier = versioned(aRoll('2026-002', { shot: '2026-03' }));
 
     expect(
-      numberingPreview([later, tieLater, tieEarlier], [], {
+      preview([later, tieLater, tieEarlier], [], {
         year: undefined,
         camera: undefined,
         film: undefined,
@@ -117,7 +127,7 @@ describe('numberingPreview', () => {
     const selected = versioned(aRoll('2026-001', { shot: '2026' }));
 
     expect(
-      numberingPreview(
+      preview(
         [selected],
         [{ folder: '2026-001-ABCD1234', problem: 'broken' }],
         {
@@ -135,7 +145,7 @@ describe('numberingPreview', () => {
 
   test('reports rolls that have no shot year', () => {
     expect(
-      numberingPreview([versioned(aRoll('2026-001'))], [], {
+      preview([versioned(aRoll('2026-001'))], [], {
         year: undefined,
         camera: undefined,
         film: undefined,
@@ -149,7 +159,7 @@ describe('numberingPreview', () => {
     const selected = versioned(aRoll('2026-001', { shot: '2026' }));
 
     expect(
-      numberingPreview([filed, selected], [], {
+      preview([filed, selected], [], {
         year: undefined,
         camera: undefined,
         film: undefined,
@@ -168,12 +178,115 @@ describe('numberingPreview', () => {
     ];
 
     expect(
-      numberingPreview(rolls, [], {
+      preview(rolls, [], {
         year: undefined,
         camera: undefined,
         film: undefined,
         lens: undefined,
       }),
     ).toEqual({ ok: true, changes: [] });
+  });
+
+  describe('with a custom pattern (D88)', () => {
+    const everything = {
+      year: undefined,
+      camera: undefined,
+      film: undefined,
+      lens: undefined,
+    };
+
+    test('counts each month on its own, in shot-date order', () => {
+      const october = versioned(aRoll('x1', { shot: '2026-10-03' }));
+      const september2 = versioned(aRoll('x2', { shot: '2026-09-20' }));
+      const september1 = versioned(aRoll('x3', { shot: '2026-09-02' }));
+
+      expect(
+        preview(
+          [october, september2, september1],
+          [],
+          everything,
+          '{year}{month}-{n:2}',
+        ),
+      ).toEqual({
+        ok: true,
+        changes: [
+          { id: september1.roll.id, roll: '202609-01' },
+          { id: september2.roll.id, roll: '202609-02' },
+          { id: october.roll.id, roll: '202610-01' },
+        ],
+      });
+    });
+
+    test('uses one counter across years without date tokens, after the filed ones', () => {
+      const filed = versioned(aRoll('BP07', { filed: true, shot: '2020' }));
+      const first = versioned(aRoll('x1', { shot: '2025' }));
+      const second = versioned(aRoll('x2', { shot: '2026' }));
+
+      expect(
+        preview([filed, second, first], [], everything, 'BP{n:2}'),
+      ).toEqual({
+        ok: true,
+        changes: [
+          { id: first.roll.id, roll: 'BP08' },
+          { id: second.roll.id, roll: 'BP09' },
+        ],
+      });
+    });
+
+    test('counts each event on its own, skipping numbers of rolls that stay', () => {
+      const staying = versioned(
+        aRoll('iceland-01', {
+          shot: '2026',
+          event: 'iceland',
+          camera: 'nikon',
+        }),
+      );
+      const first = versioned(
+        aRoll('x1', { shot: '2026', event: 'iceland', camera: 'canon' }),
+      );
+      const japan = versioned(
+        aRoll('x2', { shot: '2026', event: 'japan', camera: 'canon' }),
+      );
+
+      expect(
+        preview(
+          [staying, first, japan],
+          [],
+          { ...everything, camera: 'canon' },
+          '{event}-{n:2}',
+        ),
+      ).toEqual({
+        ok: true,
+        changes: [
+          { id: first.roll.id, roll: 'iceland-02' },
+          { id: japan.roll.id, roll: 'japan-01' },
+        ],
+      });
+    });
+
+    test('ignores filed numbers in another form, though they stay occupied', () => {
+      const filed = versioned(aRoll('2026-050', { filed: true, shot: '2026' }));
+      const selected = versioned(aRoll('x1', { shot: '2026' }));
+
+      expect(preview([filed, selected], [], everything, '{n:3}')).toEqual({
+        ok: true,
+        changes: [{ id: selected.roll.id, roll: '001' }],
+      });
+    });
+
+    test('reports a roll that lacks a month or event the pattern uses', () => {
+      const year = versioned(aRoll('x1', { shot: '2026' }));
+
+      expect(preview([year], [], everything, '{year}{month}-{n:2}')).toEqual({
+        ok: false,
+        kind: 'missing-pattern-details',
+        missing: 'a shot month',
+      });
+      expect(preview([year], [], everything, '{event}-{n:2}')).toEqual({
+        ok: false,
+        kind: 'missing-pattern-details',
+        missing: 'an event',
+      });
+    });
   });
 });

@@ -17,7 +17,8 @@ import {
   isRollId,
   isVersionId,
 } from '../../src/domain/shared/ids.ts';
-import { slugFor } from '../../src/domain/shared/slug.ts';
+import { isShotDate } from '../../src/domain/rolls/shot-date.ts';
+import { isSlug, slugFor } from '../../src/domain/shared/slug.ts';
 import { checked } from './checked.ts';
 
 // Test data with sensible defaults: a test sets only what it's about, e.g.
@@ -88,6 +89,8 @@ export function aRoll(
   overrides: {
     readonly id?: string;
     readonly roll?: string;
+    readonly shot?: string;
+    readonly event?: string;
     readonly frames?: readonly Frame[];
   } = {},
 ): Roll {
@@ -97,8 +100,10 @@ export function aRoll(
     filed: false,
     name: null,
     notes: null,
-    shot: null,
-    event: null,
+    shot:
+      overrides.shot === undefined ? null : checked(overrides.shot, isShotDate),
+    event:
+      overrides.event === undefined ? null : checked(overrides.event, isSlug),
     camera: null,
     film: null,
     lens: null,
@@ -194,11 +199,15 @@ export function labScanFrames(count: number): Frame[] {
 /** Settings by the given author, by default with no copyright. */
 export function aSettings(
   author = 'Ben Pirt',
-  details: { readonly copyright?: string } = {},
+  details: {
+    readonly copyright?: string;
+    readonly rollNumberPattern?: string;
+  } = {},
 ): Settings {
   return {
     id: checked(ulidFor(9), isArchiveId),
     author,
     copyright: details.copyright ?? null,
+    rollNumberPattern: details.rollNumberPattern ?? '{year}-{n:3}',
   };
 }

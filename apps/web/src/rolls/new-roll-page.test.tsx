@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
   aRoll,
   fakeArchive,
+  setUpSettings,
   type FakeArchive,
 } from '../testing/fake-archive.ts';
 import { NewRollPage } from './new-roll-page.tsx';
@@ -684,6 +685,129 @@ describe('the roll number', () => {
     fill('Roll number', '2024-007');
 
     expect(field('Year').value).toBe('2024');
+  });
+});
+
+describe('the roll number with a custom pattern (D88)', () => {
+  beforeEach(() => {
+    today('2026-07-01T12:00:00Z');
+  });
+
+  function withPattern(
+    rollNumberPattern: string,
+    contents: Parameters<typeof fakeArchive>[0] = {},
+  ) {
+    return fakeArchive({
+      ...contents,
+      settings: { ...setUpSettings, rollNumberPattern },
+    });
+  }
+
+  /** Waits for the page to have read the pattern, which it asks for as it opens. */
+  async function patternRead(service: FakeArchive) {
+    await waitFor(() => {
+      expect(service.requests).toContain('GET /api/settings');
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+
+  test('opens as the next free number of the pattern', async () => {
+    renderPage(
+      withPattern('BP-{year}-{n:2}', {
+        rolls: [aRoll('BP-2026-07'), aRoll('BP-2025-30')],
+      }),
+    );
+
+    await waitFor(() => {
+      expect(field('Roll number').value).toBe('BP-2026-08');
+    });
+  });
+
+  test('follows the month, counting each month on its own, until the number is typed over', async () => {
+    renderPage(
+      withPattern('{year}{month}-{n:2}', {
+        rolls: [aRoll('202609-04', { shot: '2026-09' })],
+      }),
+    );
+    // Without a month there is nothing to suggest yet.
+    await waitFor(() => {
+      expect(field('Roll number').value).toBe('');
+    });
+
+    fill('Month', '09');
+    await waitFor(() => {
+      expect(field('Roll number').value).toBe('202609-05');
+    });
+    fill('Month', '10');
+    await waitFor(() => {
+      expect(field('Roll number').value).toBe('202610-01');
+    });
+
+    fill('Roll number', 'mine');
+    fill('Month', '11');
+    expect(field('Roll number').value).toBe('mine');
+  });
+
+  test('asks for the month the pattern uses, creating nothing without it', async () => {
+    const service = withPattern('{year}{month}-{n:2}');
+    renderPage(service);
+    await patternRead(service);
+    fill('Roll number', 'mine');
+
+    create();
+
+    expect(
+      await screen.findByText(
+        'Add a shot month: your roll number pattern uses it.',
+      ),
+    ).toBeDefined();
+    expect(service.created).toEqual([]);
+  });
+
+  test('numbers by the chosen event, and asks for one', async () => {
+    const service = withPattern('{event}-{n:2}', {
+      events: [{ slug: 'iceland-2026', name: 'Iceland 2026', date: null }],
+      rolls: [aRoll('iceland-2026-03')],
+    });
+    renderPage(service);
+    await screen.findByRole('option', { name: 'Iceland 2026' });
+
+    create();
+    expect(
+      await screen.findByText(
+        'Add an event: your roll number pattern uses it.',
+      ),
+    ).toBeDefined();
+
+    choose('Event', 'Iceland 2026');
+    await waitFor(() => {
+      expect(field('Roll number').value).toBe('iceland-2026-04');
+    });
+    create();
+
+    await waitToOpen(rollId);
+    expect(service.created).toEqual([
+      { roll: 'iceland-2026-04', shot: '2026', event: 'iceland-2026' },
+    ]);
+  });
+
+  test('numbers a new event once it is created, from its slug', async () => {
+    const service = withPattern('{event}-{n:2}');
+    renderPage(service);
+    await patternRead(service);
+
+    choose('Event', 'Add new…');
+    const newEvent = screen.getByRole('group', { name: 'New event' });
+    fireEvent.change(
+      within(newEvent).getByLabelText('Name', { exact: false }),
+      { target: { value: 'Westfjords' } },
+    );
+    create();
+
+    await waitToOpen(rollId);
+    expect(service.created).toEqual([
+      { roll: 'westfjords-01', shot: '2026', event: 'westfjords' },
+    ]);
   });
 });
 

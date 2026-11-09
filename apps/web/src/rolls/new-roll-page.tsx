@@ -22,7 +22,13 @@ import { Link, navigate } from '../routing.tsx';
 import { DateShotFields } from './date-shot-fields.tsx';
 import { describeUpload } from './describe-upload.ts';
 import { droppedFiles } from './dropped-files.ts';
-import { nextRollNumber } from './next-roll-number.ts';
+import {
+  occupiedLabels,
+  suggestRollNumber,
+  whatIsMissing,
+  type RollFacts,
+} from './roll-number-pattern.ts';
+import { useRollNumberPattern } from './use-roll-number-pattern.ts';
 import { shotFrom, type ShotFields } from './shot-fields.ts';
 import { uploadScans, type UploadReport } from './upload-scans.ts';
 
@@ -51,6 +57,7 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
   const films = useFilmStocks(api);
   const lenses = useLenses(api);
   const events = useEvents(api);
+  const pattern = useRollNumberPattern(api);
   // The rolls there are, to number this one after (D67).
   const rolls = useQuery({
     queryKey: ['rolls'],
@@ -85,9 +92,31 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
   const [progress, setProgress] = useState<Progress>({ kind: 'editing' });
   const [problem, setProblem] = useState<string | undefined>(undefined);
 
-  // The next free number of this year, or of the year once it's changed by
-  // hand to a whole year (a half-typed one changes nothing), until the number
-  // is typed over. While the year hasn't been changed it follows the number (D27).
+  // The event the roll is at, when it's one the archive has: a new one has no
+  // slug until it's created.
+  const eventSlug = eventChoice.kind === 'existing' ? eventChoice.slug : null;
+
+  /** The roll's shot date and event as far as they're entered, for the pattern. */
+  function factsFor(fields: ShotFields, event: string | null): RollFacts {
+    const entered = shotFrom(fields);
+    return {
+      shot: entered.valid ? (entered.shot ?? null) : null,
+      event,
+    };
+  }
+
+  function occupiedNumbers(): string[] {
+    return occupiedLabels(
+      (rolls.data?.rolls ?? []).map((r) => r.roll),
+      (rolls.data?.unreadable ?? []).map((u) => u.folder),
+    );
+  }
+
+  // The next free number from the pattern, for the year shot (this year, or
+  // the year once it's changed by hand to a whole year: a half-typed one
+  // changes nothing) and the rest of the date and event as entered, until
+  // the number is typed over. While the year hasn't been changed it follows
+  // the number (D27). Blank while the roll lacks what the pattern uses.
   useEffect(() => {
     if (numberTyped.current || rolls.data === undefined) {
       return;
@@ -100,18 +129,17 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
     if (year === undefined) {
       return;
     }
-    const next = nextRollNumber(year, [
-      ...rolls.data.rolls.map((r) => r.roll),
-      ...rolls.data.unreadable.map((u) => u.folder),
-    ]);
-    if (next === undefined) {
-      return;
-    }
-    setRollNumber(next);
+    setRollNumber(
+      suggestRollNumber(
+        pattern,
+        factsFor({ ...shot, year }, eventSlug),
+        occupiedNumbers(),
+      ) ?? '',
+    );
     if (!yearChanged && shot.year !== year) {
       setShot((now) => ({ ...now, year }));
     }
-  }, [rolls.data, yearChanged, shot.year]);
+  }, [rolls.data, yearChanged, shot, eventSlug, pattern]);
 
   function changeRollNumber(value: string) {
     numberTyped.current = true;
@@ -131,15 +159,6 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
 
   async function create(event: SubmitEvent) {
     event.preventDefault();
-    const roll = rollNumber.trim();
-    if (roll === '') {
-      setProblem('Enter a roll number.');
-      return;
-    }
-    if (roll.length > 100) {
-      setProblem('Roll number must be 100 characters or fewer.');
-      return;
-    }
     const entered = shotFrom(shot);
     // A roll needs at least the year it was shot.
     if (!entered.valid || entered.shot === undefined) {
@@ -147,6 +166,28 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
       return;
     }
     const shotDate = entered.shot;
+    // And the rest of what the roll number pattern uses (D88). A new event
+    // has no slug yet, so it stands in until it's created.
+    const missing = whatIsMissing(pattern, {
+      shot: shotDate,
+      event: eventChoice.kind === 'none' ? null : 'chosen',
+    });
+    if (missing !== undefined) {
+      setProblem(`Add ${missing}: your roll number pattern uses it.`);
+      return;
+    }
+    // A number made from a new event waits for its slug, made when it's created.
+    const waitsForEvent =
+      !numberTyped.current && pattern.event && eventChoice.kind === 'new';
+    let roll = rollNumber.trim();
+    if (!waitsForEvent && roll === '') {
+      setProblem('Enter a roll number.');
+      return;
+    }
+    if (roll.length > 100) {
+      setProblem('Roll number must be 100 characters or fewer.');
+      return;
+    }
     setProblem(undefined);
     setProgress({ kind: 'creating' });
     const chosen = await chooseCamera(api, camera);
@@ -177,6 +218,19 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
       return;
     }
     await queryClient.invalidateQueries({ queryKey: ['events'] });
+    if (waitsForEvent) {
+      const suggested = suggestRollNumber(
+        pattern,
+        { shot: shotDate, event: chosenEvent.slug },
+        occupiedNumbers(),
+      );
+      if (suggested === undefined) {
+        setProgress({ kind: 'editing' });
+        setProblem('Enter a roll number.');
+        return;
+      }
+      roll = suggested;
+    }
     const { data, response, error } = await api.POST('/api/rolls', {
       body: {
         roll,

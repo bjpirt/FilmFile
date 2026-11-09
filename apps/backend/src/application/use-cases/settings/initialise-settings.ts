@@ -1,3 +1,4 @@
+import { defaultRollNumberPattern } from '../../../domain/settings/roll-number-pattern.ts';
 import type { Settings } from '../../../domain/settings/settings.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type {
@@ -38,6 +39,7 @@ export class InitialiseSettings {
       id: this.#ids.newArchiveId(),
       author: author.value,
       copyright: textOrNull(input.copyright),
+      rollNumberPattern: defaultRollNumberPattern,
     };
     const created = await this.#settings.create(ctx, settings);
     return created.ok ? ok(settings) : created;

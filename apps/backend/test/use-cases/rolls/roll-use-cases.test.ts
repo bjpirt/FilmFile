@@ -3,6 +3,7 @@ import { FixedClock } from '../../../src/adapters/outbound/memory/fixed-clock.ts
 import { InMemoryEquipmentRepository } from '../../../src/adapters/outbound/memory/in-memory-equipment-repository.ts';
 import { InMemoryEventRepository } from '../../../src/adapters/outbound/memory/in-memory-event-repository.ts';
 import { InMemoryHoldingArea } from '../../../src/adapters/outbound/memory/in-memory-holding-area.ts';
+import { InMemorySettingsRepository } from '../../../src/adapters/outbound/memory/in-memory-settings-repository.ts';
 import { InMemoryRollRepository } from '../../../src/adapters/outbound/memory/in-memory-roll-repository.ts';
 import { SequentialIdGenerator } from '../../../src/adapters/outbound/memory/sequential-id-generator.ts';
 import type { HoldingArea } from '../../../src/application/ports/holding-area.ts';
@@ -15,6 +16,7 @@ import { DeleteRoll } from '../../../src/application/use-cases/rolls/delete-roll
 import { GetRoll } from '../../../src/application/use-cases/rolls/get-roll.ts';
 import { ListRolls } from '../../../src/application/use-cases/rolls/list-rolls.ts';
 import { UpdateRoll } from '../../../src/application/use-cases/rolls/update-roll.ts';
+import { aSettings as aSettingsBy } from '../../support/builders.ts';
 import type { ArchiveContext } from '../../../src/domain/shared/archive-context.ts';
 import { isArchiveId, isRollId } from '../../../src/domain/shared/ids.ts';
 
@@ -31,12 +33,14 @@ function setUp() {
   const equipment = new InMemoryEquipmentRepository();
   const events = new InMemoryEventRepository();
   const ids = new SequentialIdGenerator();
+  const settings = new InMemorySettingsRepository();
   const holding: HoldingArea = new InMemoryHoldingArea();
   const createRollWithoutDefaults = new CreateRoll(
     rolls,
     equipment,
     events,
     ids,
+    settings,
   );
   const createRoll = {
     execute(ctx: ArchiveContext, input: Parameters<CreateRoll['execute']>[1]) {
@@ -48,6 +52,7 @@ function setUp() {
   };
   return {
     holding,
+    settings,
     deleteRoll: new DeleteRoll(
       rolls,
       holding,
@@ -62,11 +67,59 @@ function setUp() {
     createEvent: new CreateEvent(events),
     listRolls: new ListRolls(rolls),
     getRoll: new GetRoll(rolls),
-    updateRoll: new UpdateRoll(rolls, equipment, events),
+    updateRoll: new UpdateRoll(rolls, equipment, events, settings),
   };
 }
 
+async function usingPattern(
+  settings: InMemorySettingsRepository,
+  ctx: ArchiveContext,
+  rollNumberPattern: string,
+) {
+  await settings.create(ctx, aSettingsBy('Ben', { rollNumberPattern }));
+}
+
 describe('CreateRoll', () => {
+  describe('with a roll number pattern that needs more of the roll (D88)', () => {
+    test('refuses a shot date without the month, and a roll without an event', async () => {
+      const { ctx, settings, createRollWithoutDefaults } = setUp();
+      await usingPattern(settings, ctx, '{event}-{year}{month}-{n:3}');
+
+      expect(
+        await createRollWithoutDefaults.execute(ctx, {
+          roll: 'A',
+          shot: '2026',
+        }),
+      ).toMatchObject({
+        ok: false,
+        error: { issues: [{ path: ['shot'] }] },
+      });
+      expect(
+        await createRollWithoutDefaults.execute(ctx, {
+          roll: 'A',
+          shot: '2026-09',
+        }),
+      ).toMatchObject({
+        ok: false,
+        error: { issues: [{ path: ['event'] }] },
+      });
+    });
+
+    test('creates a roll that has what it needs', async () => {
+      const { ctx, settings, createEvent, createRollWithoutDefaults } = setUp();
+      await usingPattern(settings, ctx, '{event}-{year}{month}-{n:3}');
+      await createEvent.execute(ctx, { name: 'Iceland' });
+
+      expect(
+        await createRollWithoutDefaults.execute(ctx, {
+          roll: 'A',
+          shot: '2026-09',
+          event: 'iceland',
+        }),
+      ).toMatchObject({ ok: true });
+    });
+  });
+
   test('creates an empty roll with a new ID', async () => {
     const { ctx, createRoll } = setUp();
 
@@ -380,6 +433,62 @@ describe('GetRoll', () => {
       ok: false,
       error: { kind: 'not-found', entity: 'roll', id },
     });
+  });
+});
+
+describe('UpdateRoll with a roll number pattern that needs more of the roll (D88)', () => {
+  async function aRollUnder(pattern: string) {
+    const setup = setUp();
+    await usingPattern(setup.settings, setup.ctx, pattern);
+    await setup.createEvent.execute(setup.ctx, { name: 'Iceland' });
+    const created = await setup.createRollWithoutDefaults.execute(setup.ctx, {
+      roll: 'A',
+      shot: '2026-09',
+      event: 'iceland',
+    });
+    const read = created.ok
+      ? await setup.getRoll.execute(setup.ctx, { id: created.value.id })
+      : undefined;
+    if (!created.ok || !read?.ok) {
+      throw new Error('setup failed');
+    }
+    return { ...setup, id: created.value.id, version: read.value.version };
+  }
+
+  test('refuses a shot date that loses the month, or clearing the event', async () => {
+    const { ctx, id, version, updateRoll } = await aRollUnder(
+      '{event}-{year}{month}-{n:3}',
+    );
+
+    expect(
+      await updateRoll.execute(ctx, {
+        id,
+        expectedVersion: version,
+        shot: '2026',
+      }),
+    ).toMatchObject({ ok: false, error: { issues: [{ path: ['shot'] }] } });
+    expect(
+      await updateRoll.execute(ctx, {
+        id,
+        expectedVersion: version,
+        event: null,
+      }),
+    ).toMatchObject({ ok: false, error: { issues: [{ path: ['event'] }] } });
+  });
+
+  test('allows other edits, and a shot date that keeps the month', async () => {
+    const { ctx, id, version, updateRoll } = await aRollUnder(
+      '{event}-{year}{month}-{n:3}',
+    );
+
+    expect(
+      await updateRoll.execute(ctx, {
+        id,
+        expectedVersion: version,
+        name: 'Day one',
+        shot: '2026-10-02',
+      }),
+    ).toMatchObject({ ok: true });
   });
 });
 

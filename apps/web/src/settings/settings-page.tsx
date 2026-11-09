@@ -1,6 +1,8 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { firstIssueMessage } from '../forms/first-issue-message.ts';
 import { navigate } from '../routing.tsx';
+import { RollNumberPatternForm } from './roll-number-pattern-form.tsx';
 import { SettingsForm } from './settings-form.tsx';
 import type { ReadSettings } from './use-settings.ts';
 
@@ -41,6 +43,30 @@ export function SettingsPage({
             etag: response.headers.get('ETag') ?? read.etag,
           });
           navigate('/');
+          return undefined;
+        }}
+      />
+      <RollNumberPatternForm
+        key={read.settings.rollNumberPattern}
+        saved={read.settings.rollNumberPattern}
+        save={async (rollNumberPattern) => {
+          const { data, response, error } = await api.PATCH('/api/settings', {
+            params: { header: { 'if-match': read.etag } },
+            body: { rollNumberPattern },
+          });
+          if (response.status === 409) {
+            return 'The settings changed since you opened them. Reload the page.';
+          }
+          if (response.status === 422) {
+            return `The pattern ${firstIssueMessage(error) ?? 'is not valid'}.`;
+          }
+          if (data === undefined) {
+            return "Couldn't save it. Is the service running?";
+          }
+          queryClient.setQueryData<ReadSettings>(['settings'], {
+            settings: data,
+            etag: response.headers.get('ETag') ?? read.etag,
+          });
           return undefined;
         }}
       />

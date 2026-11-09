@@ -356,7 +356,7 @@ describe('GET /api/rolls', () => {
       });
     });
 
-    test('refuses the whole batch when the next number exceeds 999', async () => {
+    test('accepts a number past 999, and any label the pattern makes (D88)', async () => {
       const roll = rollList.shape.rolls.element.parse(
         await (await createRoll('2026-999')).json(),
       );
@@ -367,20 +367,10 @@ describe('GET /api/rolls', () => {
         changes: [{ id: roll.id, roll: '2026-1000' }],
       });
 
-      expect(response.status).toBe(422);
-      expect(await response.json()).toMatchObject({
-        issues: [
-          {
-            message:
-              'There aren’t enough roll numbers left in the affected year. Nothing was changed.',
-          },
-        ],
-      });
+      expect(response.status).toBe(204);
       expect(
         await (await request(`/api/rolls/${roll.id}`)).json(),
-      ).toMatchObject({
-        roll: roll.roll,
-      });
+      ).toMatchObject({ roll: '2026-1000' });
     });
   });
 

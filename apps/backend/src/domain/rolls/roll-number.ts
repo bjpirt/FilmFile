@@ -9,10 +9,17 @@ declare const brand: unique symbol;
  */
 export type RollNumber = string & { readonly [brand]: 'RollNumber' };
 
-const invalidMessage = 'must be 1 to 100 characters';
+/** The most characters a roll number can have. */
+export const rollNumberMaxLength = 100;
+
+const invalidMessage = `must be 1 to ${String(rollNumberMaxLength)} characters`;
 
 export function isRollNumber(value: string): value is RollNumber {
-  return value.length > 0 && value.length <= 100 && value === value.trim();
+  return (
+    value.length > 0 &&
+    value.length <= rollNumberMaxLength &&
+    value === value.trim()
+  );
 }
 
 export function sameRollNumber(left: string, right: string): boolean {

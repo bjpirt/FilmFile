@@ -6,6 +6,7 @@ import { InMemoryEquipmentRepository } from '../../../src/adapters/outbound/memo
 import { InMemoryEventRepository } from '../../../src/adapters/outbound/memory/in-memory-event-repository.ts';
 import { InMemoryHoldingArea } from '../../../src/adapters/outbound/memory/in-memory-holding-area.ts';
 import { InMemoryPreviewProvider } from '../../../src/adapters/outbound/memory/in-memory-preview-provider.ts';
+import { InMemorySettingsRepository } from '../../../src/adapters/outbound/memory/in-memory-settings-repository.ts';
 import { InMemoryRollRepository } from '../../../src/adapters/outbound/memory/in-memory-roll-repository.ts';
 import { SequentialIdGenerator } from '../../../src/adapters/outbound/memory/sequential-id-generator.ts';
 import { SharpImageInspector } from '../../../src/adapters/outbound/sharp/sharp-image-inspector.ts';
@@ -49,13 +50,16 @@ async function setUp() {
   const holding: HoldingArea = new InMemoryHoldingArea();
   const equipment = new InMemoryEquipmentRepository();
   const events = new InMemoryEventRepository();
-  const created = await new CreateRoll(rolls, equipment, events, ids).execute(
-    ctx,
-    {
-      roll: '2026-014',
-      shot: '2026',
-    },
-  );
+  const created = await new CreateRoll(
+    rolls,
+    equipment,
+    events,
+    ids,
+    new InMemorySettingsRepository(),
+  ).execute(ctx, {
+    roll: '2026-014',
+    shot: '2026',
+  });
   if (!created.ok) {
     throw new Error('setup failed');
   }

@@ -115,6 +115,70 @@ describe('POST /api/settings', () => {
   });
 });
 
+describe('roll number pattern (D88)', () => {
+  async function setUp(): Promise<string> {
+    await post('/api/settings', { author: 'Ben' });
+    return (await request('/api/settings')).headers.get('ETag') ?? '';
+  }
+
+  test('is the default until one is saved, and the file says nothing of it', async () => {
+    await setUp();
+
+    expect(await (await request('/api/settings')).json()).toMatchObject({
+      rollNumberPattern: '{year}-{n:3}',
+    });
+    expect(
+      await readFile(path.join(archive.folder(), 'settings.json'), 'utf8'),
+    ).not.toContain('rollNumberPattern');
+  });
+
+  test('is saved in settings.json with the settings version, and read back', async () => {
+    const etag = await setUp();
+
+    const response = await patch(
+      { rollNumberPattern: 'BP-{year}-{n:2}' },
+      etag,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      rollNumberPattern: 'BP-{year}-{n:2}',
+    });
+    expect(
+      await readFile(path.join(archive.folder(), 'settings.json'), 'utf8'),
+    ).toContain('"rollNumberPattern": "BP-{year}-{n:2}"');
+    expect(await (await request('/api/settings')).json()).toMatchObject({
+      rollNumberPattern: 'BP-{year}-{n:2}',
+    });
+  });
+
+  test('refuses a pattern that is not valid, changing nothing', async () => {
+    const etag = await setUp();
+
+    const response = await patch({ rollNumberPattern: '{year}' }, etag);
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({
+      issues: [
+        {
+          path: ['rollNumberPattern'],
+          message: 'needs a sequence number like {n:3}',
+        },
+      ],
+    });
+    expect((await request('/api/settings')).headers.get('ETag')).toBe(etag);
+  });
+
+  test('is refused with a stale version', async () => {
+    const etag = await setUp();
+    await patch({ author: 'B. Pirt' }, etag);
+
+    expect((await patch({ rollNumberPattern: '{n:4}' }, etag)).status).toBe(
+      409,
+    );
+  });
+});
+
 describe('PATCH /api/settings', () => {
   async function setUp(): Promise<string> {
     await post('/api/settings', { author: 'Ben', copyright: '© Ben' });

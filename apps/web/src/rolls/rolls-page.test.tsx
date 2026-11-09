@@ -8,6 +8,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
@@ -15,6 +16,7 @@ import {
   aFrame,
   aRoll,
   fakeArchive,
+  setUpSettings,
   type FakeArchive,
 } from '../testing/fake-archive.ts';
 import { RollsPage } from './rolls-page.tsx';
@@ -841,6 +843,54 @@ test('previews proposed numbers and applies them', async () => {
   expect(archive.rolls[0]?.roll).toBe('2026-001');
 });
 
+test('numbers by the roll number pattern in settings, and applies the numbers', async () => {
+  const archive = fakeArchive({
+    settings: { ...setUpSettings, rollNumberPattern: 'BP-{year}{month}-{n:2}' },
+    rolls: [
+      aRoll('2026-021', { shot: '2026-10-03' }),
+      aRoll('2026-020', { shot: '2026-09-02' }),
+    ],
+  });
+  renderPage(archive);
+  await screen.findByText('2026-020');
+  await waitFor(() => {
+    expect(archive.requests).toContain('GET /api/settings');
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: 'Number rolls…' }));
+
+  await screen.findByText('BP-202609-01');
+  expect(screen.getByText('BP-202610-01')).toBeDefined();
+  fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+
+  expect((await screen.findByRole('status')).textContent).toBe(
+    'Roll numbers updated.',
+  );
+  expect(archive.rolls.map((roll) => roll.roll).sort()).toEqual([
+    'BP-202609-01',
+    'BP-202610-01',
+  ]);
+});
+
+test('says when a roll lacks the month the pattern uses', async () => {
+  const archive = fakeArchive({
+    settings: { ...setUpSettings, rollNumberPattern: '{year}{month}-{n:2}' },
+    rolls: [aRoll('2026-014', { shot: '2026' })],
+  });
+  renderPage(archive);
+  await screen.findByText('2026-014');
+  await waitFor(() => {
+    expect(archive.requests).toContain('GET /api/settings');
+  });
+
+  fireEvent.click(screen.getByRole('button', { name: 'Number rolls…' }));
+
+  expect((await screen.findByRole('alert')).textContent).toBe(
+    'A roll needs a shot month before it can be numbered with your roll number pattern.',
+  );
+  expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull();
+});
+
 test('shows the numbering preview in list view', async () => {
   renderPage(
     fakeArchive({
@@ -912,20 +962,22 @@ test('refreshes rolls and asks for a new preview after a conflict', async () => 
   expect(archive.rolls[0]?.roll).toBe('2026-014');
 });
 
-test('shows the capacity error without changing any roll', async () => {
+test('numbers past 999 when a year has that many', async () => {
   const filed = aRoll('2026-999', { filed: true, shot: '2026' });
-  const selected = aRoll('2026-001', { shot: '2026' });
-  renderPage(fakeArchive({ rolls: [filed, selected] }));
+  const archive = fakeArchive({
+    rolls: [filed, aRoll('2026-001', { shot: '2026' })],
+  });
+  renderPage(archive);
   await screen.findByText('2026-001');
   fireEvent.click(screen.getByRole('button', { name: 'Number rolls…' }));
   await screen.findByText('2026-1000');
 
   fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
-  expect((await screen.findByRole('alert')).textContent).toBe(
-    'There aren’t enough roll numbers left in the affected year. Nothing was changed.',
+  expect((await screen.findByRole('status')).textContent).toBe(
+    'Roll numbers updated.',
   );
-  expect(selected.roll).toBe('2026-001');
+  expect(archive.rolls.map((roll) => roll.roll)).toContain('2026-1000');
 });
 
 test('says when a roll has no frames yet', async () => {

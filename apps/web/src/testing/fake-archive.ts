@@ -34,12 +34,18 @@ import {
 import { cameraLabel } from '../equipment/use-cameras.ts';
 import { filmStockLabel } from '../equipment/use-film-stocks.ts';
 import { lensLabel } from '../equipment/use-lenses.ts';
-import { nextRollNumber } from '../rolls/next-roll-number.ts';
 import {
   compareRollNumbers,
   rollNumbersAreUnique,
   sameRollNumber,
 } from '../rolls/roll-number.ts';
+import {
+  defaultRollNumberPattern,
+  parseRollNumberPattern,
+  patternOf,
+  suggestRollNumber,
+  whatIsMissing,
+} from '../rolls/roll-number-pattern.ts';
 
 // A stand-in for the backend in the web app's tests: it answers the API the
 // way the service does, keeping an archive in memory, so a page can be tested
@@ -63,6 +69,7 @@ export const setUpSettings: Settings = {
   id: '01JC8Y0000000000000000000A',
   author: 'Test author',
   copyright: null,
+  rollNumberPattern: '{year}-{n:3}',
   folder: '/Users/test/Pictures/FilmFile',
 };
 
@@ -364,8 +371,9 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     // A roll sent with no number gets the next free one, as the service gives.
     const number =
       body.value.roll ??
-      nextRollNumber(
-        body.value.shot.slice(0, 4),
+      suggestRollNumber(
+        patternOf(defaultRollNumberPattern),
+        { shot: body.value.shot, event: null },
         rolls.map((r) => r.roll),
       );
     if (number === undefined) {
@@ -456,26 +464,6 @@ export function fakeArchive(contents: ArchiveContents = {}) {
           { status: 422 },
         );
       }
-    }
-    if (
-      changes.some((change) => {
-        const suffix = /^\d{4}-(\d+)$/.exec(change.roll)?.[1];
-        return suffix !== undefined && Number(suffix) > 999;
-      })
-    ) {
-      return Response.json(
-        {
-          error: 'invalid request',
-          issues: [
-            {
-              path: ['changes'],
-              message:
-                'There aren’t enough roll numbers left in the affected year. Nothing was changed.',
-            },
-          ],
-        },
-        { status: 422 },
-      );
     }
     const finalNumbers = rolls.map(
       (roll) => changesById.get(roll.id)?.roll ?? roll.roll,
@@ -571,6 +559,25 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     const body = await bodyOf(request, updateSettingsRequest);
     if (!body.ok) {
       return body.response;
+    }
+    // As the service does: a pattern that isn't valid, or that some roll can't be numbered by, is refused.
+    if (body.value.rollNumberPattern !== undefined) {
+      const parsed = parseRollNumberPattern(body.value.rollNumberPattern);
+      const message = !parsed.ok
+        ? parsed.message
+        : rolls
+            .map((roll) => whatIsMissing(parsed.pattern, roll))
+            .filter((missing) => missing !== undefined)
+            .map((missing) => `needs ${missing} on every roll`)[0];
+      if (message !== undefined) {
+        return Response.json(
+          {
+            error: 'invalid request',
+            issues: [{ path: ['rollNumberPattern'], message }],
+          },
+          { status: 422 },
+        );
+      }
     }
     // A detail left out stays as it is.
     settings = {

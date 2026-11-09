@@ -14,6 +14,11 @@ export const settings = z
       description: 'The copyright notice; frames inherit it.',
       example: '© Ben Pirt. All rights reserved.',
     }),
+    rollNumberPattern: z.string().meta({
+      description:
+        'How roll numbers are suggested: fixed text, one sequence token {n:3} (digits are a minimum width) and optionally {year}, {month}, {day} and {event}.',
+      example: '{year}-{n:3}',
+    }),
     folder: z.string().meta({
       description:
         "The FilmFile folder's absolute path: read-only, chosen when FilmFile starts (by the desktop app, or FILMFILE_FOLDER) and never set through the API. The one absolute path any response carries (D64).",
@@ -37,11 +42,12 @@ export const updateSettingsRequest = z
   .object({
     author: z.string().min(1).max(100).optional(),
     copyright: z.string().max(200).nullable().optional(),
+    rollNumberPattern: z.string().max(200).optional(),
   })
   .meta({
     id: 'UpdateSettingsRequest',
     description:
-      'The details to change. A detail left out stays as it is; null clears the copyright. The author can’t be cleared, and the FilmFile folder can’t be set here.',
+      'The details to change. A detail left out stays as it is; null clears the copyright. A roll number pattern is refused if it isn’t valid, or if it needs a shot month, day or event that some roll doesn’t have. The author can’t be cleared, and the FilmFile folder can’t be set here.',
   });
 
 /** The settings' version, from the ETag they were read with, so a change made since isn't overwritten. */

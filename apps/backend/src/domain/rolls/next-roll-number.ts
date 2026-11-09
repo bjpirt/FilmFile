@@ -6,7 +6,7 @@ import { isRollNumber, type RollNumber } from './roll-number.ts';
  * holds the numbers of the rolls and the names of folders that can't be read,
  * a number counting whether it's alone or has an ID after it
  * (`2026-020-Q2P7RM4K`). A year has 999 numbers: undefined when none is left.
- * The web app has its own copy of this rule, which must agree.
+ * The web app's suggestion with the default pattern agrees.
  */
 export function nextRollNumber(
   year: string,

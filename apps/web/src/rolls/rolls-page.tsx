@@ -8,8 +8,10 @@ import { cameraName, useCameras } from '../equipment/use-cameras.ts';
 import { filmStockName, useFilmStocks } from '../equipment/use-film-stocks.ts';
 import { lensName, useLenses } from '../equipment/use-lenses.ts';
 import { eventName, useEvents } from '../events/use-events.ts';
+import { firstIssueMessage } from '../forms/first-issue-message.ts';
 import { Link, navigate, useSearch } from '../routing.tsx';
 import { BrowsePanel } from './browse-panel.tsx';
+import { useRollNumberPattern } from './use-roll-number-pattern.ts';
 import { RollCard } from './roll-card.tsx';
 import { RollTable } from './roll-table.tsx';
 import {
@@ -36,30 +38,6 @@ interface NumberingPreviewState {
   readonly snapshot: readonly NumberingSnapshotRoll[];
   readonly unreadable: readonly UnreadableRoll[];
   readonly changes: readonly ProposedRollNumber[];
-}
-
-function firstIssueMessage(error: unknown): string | undefined {
-  if (typeof error !== 'object' || error === null || !('issues' in error)) {
-    return undefined;
-  }
-  if (!isUnknownArray(error.issues)) {
-    return undefined;
-  }
-  for (const issue of error.issues) {
-    if (
-      typeof issue === 'object' &&
-      issue !== null &&
-      'message' in issue &&
-      typeof issue.message === 'string'
-    ) {
-      return issue.message;
-    }
-  }
-  return undefined;
-}
-
-function isUnknownArray(value: unknown): value is readonly unknown[] {
-  return Array.isArray(value);
 }
 
 function rollCount(count: number): string {
@@ -225,6 +203,7 @@ export function RollsPage({
   const address = readAddress(useSearch());
   const view = address.view ?? rememberedView();
   const queryClient = useQueryClient();
+  const pattern = useRollNumberPattern(api);
   const [numbering, setNumbering] = useState<NumberingPreviewState>();
   const [numberingBusy, setNumberingBusy] = useState(false);
   const [numberingError, setNumberingError] = useState<string>();
@@ -303,15 +282,22 @@ export function RollsPage({
         rolls: data.rolls.map(({ roll }) => roll),
         unreadable: data.unreadable,
       });
-      const proposed = numberingPreview(data.rolls, data.unreadable, {
-        year: address.year,
-        camera: address.camera,
-        film: address.film,
-        lens: address.lens,
-      });
+      const proposed = numberingPreview(
+        data.rolls,
+        data.unreadable,
+        {
+          year: address.year,
+          camera: address.camera,
+          film: address.film,
+          lens: address.lens,
+        },
+        pattern,
+      );
       if (!proposed.ok) {
         setNumberingError(
-          'A roll needs a shot year before it can be numbered.',
+          proposed.kind === 'missing-shot-year'
+            ? 'A roll needs a shot year before it can be numbered.'
+            : `A roll needs ${proposed.missing} before it can be numbered with your roll number pattern.`,
         );
         return;
       }

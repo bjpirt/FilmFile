@@ -22,7 +22,6 @@ What a frame has is seen at a glance on its thumbnail, a roll's frames are group
 
 Roll numbers can be entered freely or generated from a pattern, while the library stays readable in Finder (D66, D69). (A Browse folder of links is parked, FF-111.)
 
-- [ ] [FF-159 Custom roll number pattern](tasks/FF-159.md): use a pattern to suggest numbers for new rolls and “Number rolls…”.
 - [ ] [FF-109 Originals read-only](tasks/FF-109.md): the service makes originals read-only, so nothing reaching them through a link can change them.
 - [ ] [FF-149 Rate from a thumbnail](tasks/FF-149.md): point at a thumbnail's stars and click one to rate the frame.
 - [ ] [FF-102 A roll's frames grouped by event](tasks/FF-102.md): a roll whose frames are in more than one event shows them under a heading for each.
@@ -208,7 +207,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D73 | Every newly created roll must have a valid shot date with at least a year. `POST /api/rolls` refuses a missing `shot` rather than assigning the current year; automatically assigned numbers use the shot year. Replaces D67's no-date fallback. | FF-152, FF-158, FF-108 |
 | D74 | Filed roll numbers never change. "Number rolls…" changes only unfiled rolls matching the active Browse filters; filtered-out rolls keep their numbers, which remain occupied. The shot date determines each selected roll's destination year; in that year numbering starts at 001 or after the highest filed number in that number-year, leaves gaps below that filed number unused, and skips numbers held by filtered-out rolls. A filed roll anchors the year in its number, not its shot date. | FF-107, FF-108 |
 | D75 | Browse Years, its counts, and "Group by Year" use a roll's shot date. The active Browse filters define which rolls "Number rolls…" may change; changing a filter while previewing cancels the preview. | U6, FF-108 |
-| D76 | Roll number suffixes are one or more digits; the width is a minimum of three for automatically assigned numbers, so `2026-001` can grow to `2026-1000`. Manually entered spelling is preserved, but suffixes with the same numeric value are equivalent for uniqueness and sort numerically. This format change is in FF-159; until then FF-108 is limited to 001–999. Replaces D7. | FF-106, FF-108, FF-152, FF-153, FF-159 |
+| D76 | Roll number suffixes are one or more digits; the width is a minimum of three for automatically assigned numbers, so `2026-001` can grow to `2026-1000`. Manually entered spelling is preserved, but suffixes with the same numeric value are equivalent for uniqueness and sort numerically. FF-159 lifted FF-108's 001–999 limit for “Number rolls…”; the service's own number for a create with none given still stops at 999. Replaces D7. | FF-106, FF-108, FF-152, FF-153, FF-159 |
 | D77 | The filesystem roll repository uses one in-process lock for every roll read and mutation, so a versioned listing stays consistent while a batch is validated and applied. It serializes unrelated roll operations; direct filesystem edits and other processes are outside the lock. | FF-108 |
 | D78 | A batch renumber attempts to restore original roll files and folders when a filesystem operation fails. It is not crash-atomic and has no startup recovery; if rollback is incomplete, the service surfaces an error. | FF-108 |
 | D79 | Frame folder labels keep ASCII letters, digits and hyphens; each other character becomes `_`, and a leading hyphen is prefixed with `_`. Empty frame folders are created lazily with the first version. | FF-155 |
@@ -220,7 +219,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D85 | `toScan` is a persistent frame selection, stored only when true and returned by the API as a boolean. Raw scans and Finals change its thumbnail status to “Scanned” but do not clear it; deleting the last such version makes it pending again. The FF-131 scan list uses only marked frames without Raw scans or Finals. | FF-104, FF-131 |
 | D86 | A pending mark uses a neutral scanner icon named “To scan at higher resolution”; a marked frame with a Raw scan or Final uses the same scanner with a check in the orange theme color, named “Scanned”. The frame-view toggle is an icon beside the other actions, named “Mark to scan” or “Marked to scan”; it uses the yellow theme accent whenever marked, regardless of scan completion. The roll heading shows pending count as `N frames (M to scan)` only when nonzero. Bulk feedback is “2 frames marked to scan.” or “Scan mark removed from 2 frames.”, with singular grammar for one. | FF-104 |
 | D87 | A roll number is any non-empty text up to 100 characters after trimming surrounding whitespace. The exact remaining text is stored; only its folder label is sanitized using D79's safe-label rule. Numbers are unique case-insensitively, with D76's numeric-suffix equivalence, and lists sort naturally without case. New roll folders use shot year as their parent; existing folders keep their current parent permanently. | FF-153 |
-| D88 | The archive-wide roll-number pattern is stored in Settings, defaulting to `{year}-{n:3}` for older settings. It has fixed text, one minimum-width sequence token, and optional `{year}`, `{month}`, `{day}` tokens from the shot date. It suggests numbers on New roll and in “Number rolls…” only; an API create without a supplied number keeps its existing default. Counters reset for the distinct values of date tokens present, or are global without date tokens; New roll suggestions advance after the highest matching value, never reuse gaps, and skip occupied labels. “Number rolls…” preserves D74's filed and filtered-out anchors and shot-date order, using the pattern's date-token values as groups. Month/day tokens require that precision on every existing roll before saving the pattern and on later create/edit. Saving a pattern does not renumber rolls; “Number rolls…” applies it explicitly. | FF-159 |
+| D88 | The archive-wide roll-number pattern is stored in Settings, defaulting to `{year}-{n:3}` for older settings. It has fixed text, one minimum-width sequence token, and optional `{year}`, `{month}`, `{day}` tokens from the shot date and `{event}` (the event's slug). It suggests numbers on New roll and in “Number rolls…” only; an API create without a supplied number keeps its existing default. Counters reset for the distinct values of date tokens present, or are global without date tokens; New roll suggestions advance after the highest matching value, never reuse gaps, and skip occupied labels. “Number rolls…” preserves D74's filed and filtered-out anchors and shot-date order, using the pattern's date-token values as groups. Month/day/event tokens require that precision or an event on every existing roll before saving the pattern and on later create/edit. Saving a pattern does not renumber rolls; “Number rolls…” applies it explicitly. | FF-159 |
 
 ---
 
@@ -408,9 +407,10 @@ Frame ratings and scan selection are visible while browsing. Frames can be marke
 
 ### Library management
 
-Roll numbers are stored as entered while their folder labels stay safe and readable (D87).
+Roll numbers are stored as entered while their folder labels stay safe and readable, and new ones are suggested from a pattern (D87, D88).
 
 - [x] [FF-153 Freeform roll numbers](tasks/FF-153.md)
+- [x] [FF-159 Custom roll number pattern](tasks/FF-159.md)
 
 ### Finding your way around the library
 

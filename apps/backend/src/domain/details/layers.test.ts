@@ -23,7 +23,12 @@ if (
 
 test('the archive gives its author, and a copyright if it has one', () => {
   expect(
-    archiveLayer({ id: archiveId, author: 'Ben Pirt', copyright: null }),
+    archiveLayer({
+      id: archiveId,
+      author: 'Ben Pirt',
+      copyright: null,
+      rollNumberPattern: '{year}-{n:3}',
+    }),
   ).toEqual({
     source: { layer: 'archive', id: archiveId },
     details: { author: 'Ben Pirt' },

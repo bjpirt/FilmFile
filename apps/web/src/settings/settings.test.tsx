@@ -239,3 +239,99 @@ describe('the settings page', () => {
     expect(archive.settings()?.author).toBe('Ben');
   });
 });
+
+describe('the roll number pattern (D88)', () => {
+  const settings = { ...setUpSettings, author: 'Ben' };
+
+  async function patternForm() {
+    return await screen.findByRole('form', { name: 'Roll number pattern' });
+  }
+
+  test('shows the pattern with an example of it', async () => {
+    openAt('/settings', { settings });
+    const form = await patternForm();
+
+    expect(within(form).getByLabelText('Pattern')).toHaveProperty(
+      'value',
+      '{year}-{n:3}',
+    );
+    expect(within(form).getByRole('status').textContent).toBe(
+      'Example: 2026-014',
+    );
+  });
+
+  test('previews a pattern as it is typed, and says why one is not valid', async () => {
+    openAt('/settings', { settings });
+    const form = await patternForm();
+
+    fill(form, 'Pattern', 'BP-{year}{month}-{n:2}');
+    expect(within(form).getByRole('status').textContent).toBe(
+      'Example: BP-202609-14',
+    );
+
+    fill(form, 'Pattern', '{year}');
+    expect(within(form).getByRole('status').textContent).toBe(
+      'The pattern needs a sequence number like {n:3}.',
+    );
+  });
+
+  test('saves on its own, staying on the page and leaving the author alone', async () => {
+    const archive = openAt('/settings', { settings });
+    const form = await patternForm();
+
+    fill(form, 'Pattern', 'BP-{year}-{n:2}');
+    fireEvent.click(within(form).getByRole('button', { name: 'Save pattern' }));
+
+    expect(
+      await within(form).findByText('Saved the roll number pattern.'),
+    ).toBeDefined();
+    expect(window.location.pathname).toBe('/settings');
+    expect(archive.settings()).toMatchObject({
+      author: 'Ben',
+      rollNumberPattern: 'BP-{year}-{n:2}',
+    });
+    expect(archive.ifMatches).toEqual(['"v1"']);
+  });
+
+  test('refuses a pattern that is not valid without saving', async () => {
+    const archive = openAt('/settings', { settings });
+    const form = await patternForm();
+
+    fill(form, 'Pattern', '{n:3}{n:3}');
+    fireEvent.click(within(form).getByRole('button', { name: 'Save pattern' }));
+
+    expect((await within(form).findByRole('alert')).textContent).toBe(
+      'The pattern can have only one sequence number like {n:3}.',
+    );
+    expect(archive.ifMatches).toEqual([]);
+  });
+
+  test('says when a roll lacks what the pattern needs, changing nothing', async () => {
+    const archive = openAt('/settings', {
+      settings,
+      rolls: [aRoll('2026-014', { shot: '2026' })],
+    });
+    const form = await patternForm();
+
+    fill(form, 'Pattern', '{year}{month}-{n:3}');
+    fireEvent.click(within(form).getByRole('button', { name: 'Save pattern' }));
+
+    expect((await within(form).findByRole('alert')).textContent).toBe(
+      'The pattern needs a shot month on every roll.',
+    );
+    expect(archive.settings()?.rollNumberPattern).toBe('{year}-{n:3}');
+  });
+
+  test('says when the settings changed elsewhere', async () => {
+    const archive = openAt('/settings', { settings });
+    const form = await patternForm();
+    archive.changeSettings();
+
+    fill(form, 'Pattern', '{n:4}');
+    fireEvent.click(within(form).getByRole('button', { name: 'Save pattern' }));
+
+    expect((await within(form).findByRole('alert')).textContent).toBe(
+      'The settings changed since you opened them. Reload the page.',
+    );
+  });
+});

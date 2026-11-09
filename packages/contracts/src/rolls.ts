@@ -172,7 +172,7 @@ export const renumberRollsRequest = z
     changes: z.array(
       z.strictObject({
         id: ulid,
-        roll: z.string().regex(/^\d{4}-\d{3,}$/, 'must be a roll number'),
+        roll: rollNumber,
       }),
     ),
   })

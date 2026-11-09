@@ -11,4 +11,6 @@ export interface Settings {
   readonly author: string;
   /** e.g. "© Ben Pirt. All rights reserved.", or null. Frames inherit it. */
   readonly copyright: string | null;
+  /** How roll numbers are suggested, e.g. `{year}-{n:3}` (D88). Always a valid pattern. */
+  readonly rollNumberPattern: string;
 }
