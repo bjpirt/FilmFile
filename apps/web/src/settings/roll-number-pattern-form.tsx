@@ -59,9 +59,9 @@ export function RollNumberPatternForm({
         />
       </label>
       <p className="muted">
-        Suggests the number of a new roll, and numbers rolls in “Number rolls…”.
-        Use <code>{'{n:3}'}</code> once for the number (at least 3 digits), and
-        any of <code>{'{year}'}</code>, <code>{'{month}'}</code>,{' '}
+        Suggests the number of a new roll, and numbers rolls in “Re-number
+        rolls…”. Use <code>{'{n:3}'}</code> once for the number (at least 3
+        digits), and any of <code>{'{year}'}</code>, <code>{'{month}'}</code>,{' '}
         <code>{'{day}'}</code> and <code>{'{event}'}</code> from the roll. The
         number starts again for each different date or event used. Changing it
         doesn’t renumber existing rolls.

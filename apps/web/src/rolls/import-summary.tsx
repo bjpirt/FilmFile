@@ -41,7 +41,7 @@ function statusOf(result: ImportResult): {
         notes.push(`${frameCount(report.notTried)} not added (cancelled)`);
       }
       if (result.placeholder) {
-        notes.push('Set its date or event, then choose Number rolls…');
+        notes.push('Set its date or event, then choose Re-number rolls…');
       }
       return notes.length === 0
         ? { mark: '✓', className: 'import-ok', text: 'Added' }

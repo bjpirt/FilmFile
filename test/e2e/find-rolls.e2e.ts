@@ -16,6 +16,7 @@ test('find rolls: group by year, filter by year, camera, lens or film stock, swi
   await createRoll(page, '2024-303', { filmStock: 'Agfa Vista 200' });
   await page.goto('/');
 
+  await page.getByRole('button', { name: 'View options' }).click();
   await page.getByLabel('Group by').selectOption('year');
   await expect(
     page.getByRole('heading', { level: 2, name: '2024 2 rolls' }),

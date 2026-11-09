@@ -106,7 +106,7 @@ export function ImportRollsPage({ api }: { readonly api: ApiClient }) {
       <span className="breadcrumb-separator" aria-hidden="true">
         /
       </span>
-      <h1>Import rolls</h1>
+      <h1>Bulk import rolls</h1>
     </div>
   );
 
@@ -220,7 +220,7 @@ export function ImportRollsPage({ api }: { readonly api: ApiClient }) {
           {placeholders && (
             <p>
               Numbers with MM, DD or event need those details: set them on each
-              roll, then choose Number rolls…
+              roll, then choose Re-number rolls…
             </p>
           )}
           {stage.kind === 'importing' && (

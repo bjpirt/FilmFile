@@ -20,7 +20,8 @@ test('number filtered rolls by shot date around filed and filtered-out numbers',
   ).toBeVisible();
   await expect(rollsShown(page)).toHaveText(['2038-011', '2038-012']);
 
-  await page.getByRole('button', { name: 'Number rolls…' }).click();
+  await page.getByRole('button', { name: 'More roll actions' }).click();
+  await page.getByRole('menuitem', { name: 'Re-number rolls…' }).click();
   await expect(page.getByText('2037-003', { exact: true })).toBeVisible();
   await expect(page.getByText('2037-004', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Apply' }).click();

@@ -11,7 +11,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
   aFrame,
   aRoll,
@@ -59,6 +59,24 @@ function renderPage(
       <RollsPage api={archive.api} browseOpen={browseOpen} />
     </QueryClientProvider>,
   );
+}
+
+/** A control in the View options panel, opening it first if need be. */
+function viewOption(label: string): HTMLSelectElement {
+  if (screen.queryByLabelText(label) === null) {
+    fireEvent.click(screen.getByRole('button', { name: 'View options' }));
+  }
+  return screen.getByLabelText<HTMLSelectElement>(label);
+}
+
+/** Opens the menu beside New roll, and chooses one of its items. */
+function chooseNewRollMenu(name: string) {
+  fireEvent.click(screen.getByRole('button', { name: 'More roll actions' }));
+  fireEvent.click(screen.getByRole('menuitem', { name }));
+}
+
+function chooseNumberRolls() {
+  chooseNewRollMenu('Re-number rolls…');
 }
 
 function showList() {
@@ -158,7 +176,7 @@ describe('grouping, browsing and the address', () => {
     renderPage(someRolls());
     await screen.findByText('2026-014');
 
-    fireEvent.change(screen.getByLabelText('Group by'), {
+    fireEvent.change(viewOption('Group by'), {
       target: { value: 'year' },
     });
 
@@ -210,9 +228,7 @@ describe('grouping, browsing and the address', () => {
 
     expect(await screen.findByRole('table')).toBeDefined();
     expect(rollsShown()).toEqual(['2026-001', '2026-014']);
-    expect(screen.getByLabelText<HTMLSelectElement>('Group by').value).toBe(
-      'year',
-    );
+    expect(viewOption('Group by').value).toBe('year');
   });
 
   test('counts the rolls in each year in the browse panel', async () => {
@@ -245,7 +261,7 @@ describe('grouping, browsing and the address', () => {
     expect(rollsShown()).toEqual(['2026-001']);
 
     fireEvent.click(within(browse).getByRole('button', { name: /^All rolls/ }));
-    fireEvent.change(screen.getByLabelText('Group by'), {
+    fireEvent.change(viewOption('Group by'), {
       target: { value: 'year' },
     });
 
@@ -294,7 +310,7 @@ describe('finding rolls by camera', () => {
     renderPage(someRolls());
     await screen.findByRole('region', { name: 'Cameras' });
 
-    fireEvent.change(screen.getByLabelText('Group by'), {
+    fireEvent.change(viewOption('Group by'), {
       target: { value: 'camera' },
     });
 
@@ -401,7 +417,7 @@ describe('finding rolls by film stock', () => {
     renderPage(someRolls());
     await screen.findByRole('region', { name: 'Film stocks' });
 
-    fireEvent.change(screen.getByLabelText('Group by'), {
+    fireEvent.change(viewOption('Group by'), {
       target: { value: 'film' },
     });
 
@@ -535,7 +551,7 @@ describe('finding rolls by lens', () => {
     renderPage(someRolls());
     await screen.findByRole('region', { name: 'Lenses' });
 
-    fireEvent.change(screen.getByLabelText('Group by'), {
+    fireEvent.change(viewOption('Group by'), {
       target: { value: 'lens' },
     });
 
@@ -615,7 +631,7 @@ describe('finding rolls by event', () => {
     renderPage(someRolls());
     await screen.findByRole('region', { name: 'Events' });
 
-    fireEvent.change(screen.getByLabelText('Group by'), {
+    fireEvent.change(viewOption('Group by'), {
       target: { value: 'event' },
     });
 
@@ -654,7 +670,7 @@ describe('finding rolls by event', () => {
         .getAllByRole('link')
         .map((link) => link.textContent),
     ).toEqual(['Iceland 20261', 'Westfjords1']);
-    fireEvent.change(screen.getByLabelText('Group by'), {
+    fireEvent.change(viewOption('Group by'), {
       target: { value: 'event' },
     });
     expect(
@@ -809,7 +825,7 @@ test('sorts by date shot when chosen, undated rolls last, kept in the address', 
   );
   await screen.findByText('2026-001');
 
-  fireEvent.change(screen.getByLabelText('Sort by'), {
+  fireEvent.change(viewOption('Sort by'), {
     target: { value: 'shot' },
   });
 
@@ -829,7 +845,7 @@ test('previews proposed numbers and applies them', async () => {
   renderPage(archive);
   await screen.findByText('2026-014');
 
-  fireEvent.click(screen.getByRole('button', { name: 'Number rolls…' }));
+  chooseNumberRolls();
 
   await screen.findByText('2026-001');
   expect(document.querySelector('s')?.textContent).toBe('2026-014');
@@ -857,7 +873,7 @@ test('numbers by the roll number pattern in settings, and applies the numbers', 
     expect(archive.requests).toContain('GET /api/settings');
   });
 
-  fireEvent.click(screen.getByRole('button', { name: 'Number rolls…' }));
+  chooseNumberRolls();
 
   await screen.findByText('BP-202609-01');
   expect(screen.getByText('BP-202610-01')).toBeDefined();
@@ -883,7 +899,7 @@ test('says when a roll lacks the month the pattern uses', async () => {
     expect(archive.requests).toContain('GET /api/settings');
   });
 
-  fireEvent.click(screen.getByRole('button', { name: 'Number rolls…' }));
+  chooseNumberRolls();
 
   expect((await screen.findByRole('alert')).textContent).toBe(
     'A roll needs a shot month before it can be numbered with your roll number pattern.',
@@ -899,7 +915,7 @@ test('shows the numbering preview in list view', async () => {
   );
   await screen.findByText('2026-014');
   showList();
-  fireEvent.click(screen.getByRole('button', { name: 'Number rolls…' }));
+  chooseNumberRolls();
   await screen.findByText('2026-001');
 
   const row = screen.getByRole('row', { name: /2026-014/ });
@@ -915,7 +931,7 @@ test('says when the rolls are already in order', async () => {
   );
   await screen.findByText('2026-001');
 
-  fireEvent.click(screen.getByRole('button', { name: 'Number rolls…' }));
+  chooseNumberRolls();
 
   expect((await screen.findByRole('status')).textContent).toBe(
     'The rolls are in order.',
@@ -935,7 +951,7 @@ test('cancels a numbering preview when a Browse filter changes', async () => {
   const browse = await screen.findByRole('complementary', {
     name: 'Browse rolls',
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Number rolls…' }));
+  chooseNumberRolls();
   await screen.findByText('2025-001');
 
   fireEvent.click(within(browse).getByRole('button', { name: /^2026/ }));
@@ -950,14 +966,14 @@ test('refreshes rolls and asks for a new preview after a conflict', async () => 
   const archive = fakeArchive({ rolls: [roll] });
   renderPage(archive);
   await screen.findByText('2026-014');
-  fireEvent.click(screen.getByRole('button', { name: 'Number rolls…' }));
+  chooseNumberRolls();
   await screen.findByText('2026-001');
   archive.changeRoll(roll.id);
 
   fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
   expect((await screen.findByRole('alert')).textContent).toBe(
-    'Some rolls changed since you previewed the numbers. Nothing was changed. Cancel and run ‘Number rolls…’ again.',
+    'Some rolls changed since you previewed the numbers. Nothing was changed. Cancel and run ‘Re-number rolls…’ again.',
   );
   expect(archive.rolls[0]?.roll).toBe('2026-014');
 });
@@ -969,7 +985,7 @@ test('numbers past 999 when a year has that many', async () => {
   });
   renderPage(archive);
   await screen.findByText('2026-001');
-  fireEvent.click(screen.getByRole('button', { name: 'Number rolls…' }));
+  chooseNumberRolls();
   await screen.findByText('2026-1000');
 
   fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
@@ -1038,10 +1054,94 @@ test('opens the new roll page from New roll', async () => {
   ).toBe('/rolls/new');
 });
 
-test('opens the import page from Import rolls…, beside New roll', async () => {
+test('opens the import page from Bulk import rolls… in the menu beside New roll', async () => {
   renderPage(fakeArchive());
+  await screen.findByRole('link', { name: 'New roll' });
+  // The page under test stays mounted, so look at where it went rather than where the address ends up.
+  const pushed = vi.spyOn(window.history, 'pushState');
 
-  const link = await screen.findByRole('link', { name: 'Import rolls…' });
+  chooseNewRollMenu('Bulk import rolls…');
 
-  expect(link.getAttribute('href')).toBe('/rolls/import');
+  expect(pushed).toHaveBeenCalledWith(null, '', '/rolls/import');
+  pushed.mockRestore();
+});
+
+describe('the controls above the rolls (FF-160)', () => {
+  test('keeps Group by and Sort by in View options, closed until it is opened, and closes it on Esc', async () => {
+    renderPage(fakeArchive({ rolls: [aRoll('2026-014')] }));
+    await screen.findByText('2026-014');
+    expect(screen.queryByLabelText('Group by')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'View options' }));
+
+    expect(screen.getByLabelText<HTMLSelectElement>('Group by').value).toBe(
+      'none',
+    );
+    expect(screen.getByLabelText<HTMLSelectElement>('Sort by').value).toBe(
+      'number',
+    );
+    expect(
+      screen
+        .getByRole('button', { name: 'View options' })
+        .getAttribute('aria-expanded'),
+    ).toBe('true');
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Group by')).toBeNull();
+    });
+  });
+
+  test('keeps the options open while they are changed', async () => {
+    renderPage(fakeArchive({ rolls: [aRoll('2026-014', { shot: '2026' })] }));
+    await screen.findByText('2026-014');
+
+    fireEvent.change(viewOption('Group by'), { target: { value: 'year' } });
+    fireEvent.change(screen.getByLabelText('Sort by'), {
+      target: { value: 'shot' },
+    });
+
+    expect(window.location.search).toContain('group=year');
+    expect(window.location.search).toContain('sort=shot');
+    expect(screen.getByLabelText('Group by')).toBeDefined();
+  });
+
+  test('shows the layout as two icons, named Grid and List, with the one in use pressed', async () => {
+    renderPage(fakeArchive({ rolls: [aRoll('2026-014')] }));
+    await screen.findByText('2026-014');
+
+    const grid = screen.getByRole('button', { name: 'Grid' });
+    const list = screen.getByRole('button', { name: 'List' });
+
+    expect(grid.getAttribute('aria-pressed')).toBe('true');
+    expect(list.getAttribute('title')).toBe('List');
+    expect(grid.textContent).toBe('');
+  });
+
+  test('puts Bulk import rolls… and Re-number rolls… in a menu beside New roll', async () => {
+    renderPage(fakeArchive({ rolls: [aRoll('2026-014')] }));
+    await screen.findByText('2026-014');
+
+    fireEvent.click(screen.getByRole('button', { name: 'More roll actions' }));
+
+    expect(
+      screen.getAllByRole('menuitem').map((item) => item.textContent),
+    ).toEqual(['Bulk import rolls…', 'Re-number rolls…']);
+    expect(screen.getByRole('link', { name: 'New roll' })).toBeDefined();
+  });
+
+  test('says in a bar above the rolls how many numbers will change, with Apply and Cancel', async () => {
+    renderPage(
+      fakeArchive({ rolls: [aRoll('2026-014', { shot: '2026-01' })] }),
+    );
+    await screen.findByText('2026-014');
+
+    chooseNumberRolls();
+
+    const bar = await screen.findByRole('group', { name: 'Re-number rolls' });
+    expect(within(bar).getByText('1 number will change')).toBeDefined();
+    expect(within(bar).getByRole('button', { name: 'Apply' })).toBeDefined();
+    fireEvent.click(within(bar).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('group', { name: 'Re-number rolls' })).toBeNull();
+  });
 });

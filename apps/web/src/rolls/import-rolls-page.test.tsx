@@ -203,7 +203,7 @@ describe('choosing the folder', () => {
     expect(rowOf('roll B').textContent).toContain('event-2026MM-02');
     expect(
       screen.getByText(
-        'Numbers with MM, DD or event need those details: set them on each roll, then choose Number rolls…',
+        'Numbers with MM, DD or event need those details: set them on each roll, then choose Re-number rolls…',
       ),
     ).toBeDefined();
   });
@@ -334,9 +334,12 @@ describe('importing', () => {
       '2026MM-02',
     ]);
     expect(
-      screen.getAllByText('Set its date or event, then choose Number rolls…', {
-        exact: false,
-      }),
+      screen.getAllByText(
+        'Set its date or event, then choose Re-number rolls…',
+        {
+          exact: false,
+        },
+      ),
     ).toHaveLength(2);
   });
 });

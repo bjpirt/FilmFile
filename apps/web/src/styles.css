@@ -1708,3 +1708,94 @@ textarea {
 .import-bad {
   color: var(--danger, #e5645c);
 }
+
+/* The rolls page's controls (FF-160): the layout as icons, View options, and New roll with its menu, on one row. */
+.rolls-controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+
+.segmented button {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  padding: 0 var(--space-3);
+}
+
+.view-options {
+  position: relative;
+}
+
+.view-options > button {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+}
+
+.view-options-panel {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
+  display: grid;
+  gap: var(--space-3);
+  min-width: 16rem;
+  padding: var(--space-4);
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: var(--space-2);
+  z-index: 5;
+}
+
+.view-options-panel label {
+  align-items: center;
+  color: var(--text-muted);
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+/* New roll with a small arrow joined to its right, opening Bulk import rolls… and Re-number rolls…. */
+.split-button {
+  display: flex;
+}
+
+.split-button > a.button {
+  border-bottom-right-radius: 0;
+  border-top-right-radius: 0;
+}
+
+/* The arrow's box fills the row, so it is as tall as New roll. */
+.split-button .split-button-more {
+  display: flex;
+}
+
+.split-button .split-button-more > button {
+  background: var(--accent);
+  border-color: var(--accent);
+  border-bottom-left-radius: 0;
+  border-left: 1px solid var(--accent-ink);
+  border-top-left-radius: 0;
+  color: var(--accent-ink);
+  padding: 0 var(--space-3);
+}
+
+/* While previewing numbers: what will change, and the choice to make, above the rolls. */
+.numbering-bar {
+  align-items: center;
+  background: var(--accent-surface);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius-large);
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+}
+
+.numbering-bar span {
+  margin-right: auto;
+}

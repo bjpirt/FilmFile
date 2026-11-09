@@ -12,11 +12,13 @@ import { firstIssueMessage } from '../forms/first-issue-message.ts';
 import { Link, navigate, useSearch } from '../routing.tsx';
 import { BrowsePanel } from './browse-panel.tsx';
 import { useRollNumberPattern } from './use-roll-number-pattern.ts';
+import { MenuButton } from '../menu-button.tsx';
+import { ViewOptions } from './view-options.tsx';
+import { ViewSwitch } from './view-switch.tsx';
 import { RollCard } from './roll-card.tsx';
 import { RollTable } from './roll-table.tsx';
 import {
   addressOf,
-  isGrouping,
   readAddress,
   type Grouping,
   type RollsAddress,
@@ -38,6 +40,10 @@ interface NumberingPreviewState {
   readonly snapshot: readonly NumberingSnapshotRoll[];
   readonly unreadable: readonly UnreadableRoll[];
   readonly changes: readonly ProposedRollNumber[];
+}
+
+function rollNumberCount(count: number): string {
+  return count === 1 ? '1 number' : `${String(count)} numbers`;
 }
 
 function rollCount(count: number): string {
@@ -340,7 +346,7 @@ export function RollsPage({
       if (response.status === 409) {
         setNumbering(undefined);
         setNumberingError(
-          'Some rolls changed since you previewed the numbers. Nothing was changed. Cancel and run ‘Number rolls…’ again.',
+          'Some rolls changed since you previewed the numbers. Nothing was changed. Cancel and run ‘Re-number rolls…’ again.',
         );
         await queryClient.invalidateQueries({ queryKey: ['rolls'] });
         return;
@@ -398,73 +404,79 @@ export function RollsPage({
               <span className="muted">{rollCount(shown.length)}</span>
             )}
           </div>
-          <label className="group-by">
-            Group by
-            <select
-              value={address.group}
-              onChange={(event) => {
-                const group = event.target.value;
-                go({ group: isGrouping(group) ? group : 'none' });
-              }}
-            >
-              <option value="none">Nothing</option>
-              <option value="year">Year</option>
-              <option value="event">Event</option>
-              <option value="camera">Camera</option>
-              <option value="lens">Lens</option>
-              <option value="film">Film stock</option>
-            </select>
-          </label>
-          <label className="group-by">
-            Sort by
-            <select
-              value={address.sort}
-              onChange={(event) => {
-                go({ sort: event.target.value === 'shot' ? 'shot' : 'number' });
-              }}
-            >
-              <option value="number">Roll number</option>
-              <option value="shot">Date shot</option>
-            </select>
-          </label>
-          <div role="group" aria-label="View" className="segmented">
-            {(['grid', 'list'] as const).map((option) => (
+          <div className="rolls-controls">
+            <ViewSwitch view={view} show={show} />
+            <ViewOptions
+              choices={{ group: address.group, sort: address.sort }}
+              change={go}
+            />
+            <div className="split-button">
+              <Link to="/rolls/new" className="button primary">
+                New roll
+              </Link>
+              <MenuButton
+                label="More roll actions"
+                className="split-button-more"
+                icon={
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                }
+                items={[
+                  {
+                    label: 'Bulk import rolls…',
+                    select: () => {
+                      navigate('/rolls/import');
+                    },
+                  },
+                  {
+                    label: 'Re-number rolls…',
+                    select: () => {
+                      void startNumberingPreview();
+                    },
+                  },
+                ]}
+              />
+            </div>
+          </div>
+        </div>
+
+        {(numbering !== undefined || numberingBusy) && (
+          <div
+            role="group"
+            aria-label="Re-number rolls"
+            className="numbering-bar"
+          >
+            <span role={numbering?.changes.length === 0 ? 'status' : undefined}>
+              {numbering === undefined
+                ? 'Preparing preview…'
+                : numbering.changes.length === 0
+                  ? 'The rolls are in order.'
+                  : `${rollNumberCount(numbering.changes.length)} will change`}
+            </span>
+            {numbering !== undefined && numbering.changes.length > 0 && (
               <button
-                key={option}
                 type="button"
-                aria-pressed={view === option}
+                className="primary"
+                disabled={numberingBusy}
                 onClick={() => {
-                  show(option);
+                  void applyNumbering();
                 }}
               >
-                {option === 'grid' ? 'Grid' : 'List'}
+                Apply
               </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            disabled={numberingBusy}
-            onClick={() => {
-              void startNumberingPreview();
-            }}
-          >
-            {numberingBusy && numbering === undefined
-              ? 'Preparing preview…'
-              : 'Number rolls…'}
-          </button>
-          {numbering !== undefined && (
-            <>
-              {numbering.changes.length > 0 && (
-                <button
-                  type="button"
-                  disabled={numberingBusy}
-                  onClick={() => {
-                    void applyNumbering();
-                  }}
-                >
-                  Apply
-                </button>
-              )}
+            )}
+            {numbering !== undefined && (
               <button
                 type="button"
                 disabled={numberingBusy}
@@ -476,22 +488,13 @@ export function RollsPage({
               >
                 Cancel
               </button>
-            </>
-          )}
-          <Link to="/rolls/import" className="button">
-            Import rolls…
-          </Link>
-          <Link to="/rolls/new" className="button primary">
-            New roll
-          </Link>
-        </div>
+            )}
+          </div>
+        )}
 
         {numberingError !== undefined && <p role="alert">{numberingError}</p>}
         {numberingMessage !== undefined && (
           <p role="status">{numberingMessage}</p>
-        )}
-        {numbering?.changes.length === 0 && (
-          <p role="status">The rolls are in order.</p>
         )}
 
         {rolls.isPending && <p>Loading rolls…</p>}

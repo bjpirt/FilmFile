@@ -36,7 +36,8 @@ test('import a folder of roll folders: see each roll previewed with its date and
   });
 
   await page.goto('/');
-  await page.getByRole('link', { name: 'Import rolls…' }).click();
+  await page.getByRole('button', { name: 'More roll actions' }).click();
+  await page.getByRole('menuitem', { name: 'Bulk import rolls…' }).click();
   await page.getByLabel('Choose folder').setInputFiles(lab);
 
   const rows = page.getByRole('table', { name: 'Rolls to import' });
