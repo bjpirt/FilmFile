@@ -5,6 +5,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from '@testing-library/react';
 import { afterEach, beforeEach, expect, test } from 'vitest';
@@ -250,4 +251,44 @@ test('says when there is no such event', async () => {
   renderPage(fakeArchive(), 'nowhere');
 
   expect(await screen.findByText('There is no such event.')).toBeDefined();
+});
+
+test('rates a frame from its thumbnail, against its own roll, and shows it at once (FF-149)', async () => {
+  const archive = aSettings();
+  renderPage(archive);
+  const item = await screen.findByRole('listitem', {
+    name: 'Frame 36 of roll 2026-012',
+  });
+
+  fireEvent.click(within(item).getByRole('button', { name: 'Rate 4 stars' }));
+
+  expect(await within(item).findByText('Rated 4 of 5')).toBeDefined();
+  await waitFor(() => {
+    expect(
+      archive.rolls.find((roll) => roll.roll === '2026-012')?.frames[0]?.rating,
+    ).toBe(4);
+  });
+  // The other roll wasn't touched, and the page stayed where it was.
+  expect(
+    archive.rolls
+      .find((roll) => roll.roll === '2026-014')
+      ?.frames.every((frame) => frame.rating === null),
+  ).toBe(true);
+  expect(window.location.pathname).toBe('/events/iceland-2026');
+});
+
+test('says so when a rating can’t be saved, and keeps the frame as it was (FF-149)', async () => {
+  const archive = aSettings();
+  renderPage(archive);
+  const item = await screen.findByRole('listitem', {
+    name: 'Frame 36 of roll 2026-012',
+  });
+  archive.failSaves();
+
+  fireEvent.click(within(item).getByRole('button', { name: 'Rate 4 stars' }));
+
+  expect((await screen.findByRole('alert')).textContent).toBe(
+    "Couldn't save the rating. Is the service running?",
+  );
+  expect(within(item).queryByText('Rated 4 of 5')).toBeNull();
 });

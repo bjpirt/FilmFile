@@ -31,7 +31,7 @@ done
 spec=test/e2e/zz-screenshot.e2e.ts
 trap 'rm -f "$spec"' EXIT
 {
-  echo "import { expect, test } from '@playwright/test';"
+  echo "import { expect, test } from './support/isolated-test.ts';"
   echo "import { fixtureSets } from '../../apps/backend/test/support/lab-scans.ts';"
   echo "import * as journeys from './support/journeys.ts';"
   echo "test('screenshot', async ({ page }) => {"

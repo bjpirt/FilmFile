@@ -110,6 +110,9 @@ describe('the filmstrip’s marks', () => {
     ).not.toBeNull();
     expect(strip.getByRole('link', { name: 'Frame 2' })).toBeDefined();
     expect(second?.querySelector('.frame-stars')).toBeNull();
+    // The frame being viewed is rated by its own stars and keys, not from the strip (FF-149).
+    expect(strip.queryByRole('button', { name: /^Rate \d/ })).toBeNull();
+    expect(strip.queryByRole('group', { name: /rated/i })).toBeNull();
   });
 
   test('updates a frame’s stars in the filmstrip as it is rated', async () => {

@@ -25,6 +25,7 @@ import { EditDetailsPanel, type RollDetails } from './edit-details-panel.tsx';
 import { formatShot } from './format-shot.ts';
 import { frameCount } from './frame-count.ts';
 import { FrameMarks } from './frame-marks.tsx';
+import { useRateFrame } from './use-rate-frame.ts';
 import { FrameNumberEditor, type SaveOutcome } from './frame-number-editor.tsx';
 import { inFrameOrder } from './frame-order.ts';
 import {
@@ -158,6 +159,7 @@ export function RollPage({
   const [confirmingDelete, setConfirmingDelete] = useState<string | undefined>(
     undefined,
   );
+  const ratings = useRateFrame(api);
   const [deleteFailed, setDeleteFailed] = useState(false);
   const [confirmingRollDelete, setConfirmingRollDelete] = useState(false);
   const [confirmingUnfile, setConfirmingUnfile] = useState(false);
@@ -747,6 +749,8 @@ export function RollPage({
         <p role="alert">Couldn't delete that. Is the service running?</p>
       )}
 
+      {ratings.problem !== undefined && <p role="alert">{ratings.problem}</p>}
+
       {changedElsewhere && (
         <p role="alert" className="changed-elsewhere">
           This roll changed since you opened it.{' '}
@@ -1006,6 +1010,18 @@ export function RollPage({
                     frame={frame}
                     roll={roll.data.roll}
                     stars={selection === undefined}
+                    {...(renumbering === undefined && selection === undefined
+                      ? {
+                          rate: (rating: number | null) => {
+                            ratings.rate(
+                              rollId,
+                              frame.id,
+                              rating,
+                              frame.rating,
+                            );
+                          },
+                        }
+                      : {})}
                   />
                 </div>
                 {renumbering === undefined ? (

@@ -1,4 +1,5 @@
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
+import { useState } from 'react';
 import { ScanIcon } from '../scan-icon.tsx';
 import { TextIcon } from '../text-icon.tsx';
 import { VersionsIcon } from '../versions-icon.tsx';
@@ -21,6 +22,66 @@ export function scanStatus(frame: Frame): string | undefined {
 }
 
 /**
+ * The five stars a frame can be rated with, shown when the pointer is over
+ * its thumbnail (FF-149, D62): those up to its rating filled, the rest
+ * outlined, and pointing at one previews the rating a click would give. A
+ * click on the frame's current rating clears it (D39). Mouse only: the stars
+ * are buttons a screen reader can press but Tab skips, and on touch screens
+ * they're never shown.
+ */
+function RatingStrip({
+  rating,
+  rate,
+}: {
+  readonly rating: number | null;
+  readonly rate: (rating: number | null) => void;
+}) {
+  // The star pointed at, whose rating a click would give.
+  const [pointed, setPointed] = useState<number | undefined>(undefined);
+  const shown = pointed ?? rating ?? 0;
+  return (
+    <span
+      className="frame-rating"
+      role="group"
+      aria-label={rating === null ? 'Not rated' : ratingText(rating)}
+      onMouseLeave={() => {
+        setPointed(undefined);
+      }}
+    >
+      {[1, 2, 3, 4, 5].map((star) => {
+        const label =
+          star === rating
+            ? 'Clear rating'
+            : `Rate ${String(star)} ${star === 1 ? 'star' : 'stars'}`;
+        return (
+          <button
+            key={star}
+            type="button"
+            tabIndex={-1}
+            // The star is drawn by CSS, so it adds no text to the frame's caption.
+            className={[
+              'rate-star',
+              star <= shown ? 'filled' : '',
+              pointed === undefined ? '' : 'previewing',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            aria-label={label}
+            title={label}
+            onMouseEnter={() => {
+              setPointed(star);
+            }}
+            onClick={() => {
+              rate(star === rating ? null : star);
+            }}
+          />
+        );
+      })}
+    </span>
+  );
+}
+
+/**
  * What a frame says about itself, drawn over its thumbnail, so every place
  * a frame is shown says the same (FF-148, D62): its rating as filled stars at
  * the top left, and small icons at the bottom left for details of its own or
@@ -34,12 +95,15 @@ export function FrameMarks({
   roll,
   stars = true,
   readers = true,
+  rate,
 }: {
   readonly frame: Frame;
   readonly roll: Roll;
   /** Whether to show the rating, which gives way to a checkbox while selecting. */
   readonly stars?: boolean;
   readonly readers?: boolean;
+  /** Rates the frame from its thumbnail; left out where thumbnails can't rate (the filmstrip, while renumbering or selecting). */
+  readonly rate?: (rating: number | null) => void;
 }) {
   const own = ownDetails(frame, roll);
   const versions =
@@ -51,6 +115,9 @@ export function FrameMarks({
   const rating = stars ? frame.rating : null;
   return (
     <div aria-hidden={readers ? undefined : true}>
+      {rate !== undefined && stars && (
+        <RatingStrip rating={frame.rating} rate={rate} />
+      )}
       {rating !== null && (
         <span className="frame-stars" title={ratingText(rating)}>
           <span aria-hidden="true">{'★'.repeat(rating)}</span>

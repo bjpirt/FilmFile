@@ -1,6 +1,7 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import { formatShot } from '../rolls/format-shot.ts';
 import { FrameMarks } from '../rolls/frame-marks.tsx';
+import { useRateFrame } from '../rolls/use-rate-frame.ts';
 import { Thumbnail } from '../rolls/thumbnail.tsx';
 import { Link, navigate, useSearch } from '../routing.tsx';
 import { groupingOf, groupings, useEventFrames } from './event-frames.ts';
@@ -23,6 +24,7 @@ export function EventPage({
 }) {
   const group = groupingOf(new URLSearchParams(useSearch()).get('group'));
   const shown = useEventFrames(api, slug, group);
+  const ratings = useRateFrame(api);
 
   switch (shown.status) {
     case 'loading':
@@ -82,6 +84,8 @@ export function EventPage({
         </label>
       </div>
 
+      {ratings.problem !== undefined && <p role="alert">{ratings.problem}</p>}
+
       {frames.length === 0 ? (
         <p>No frames yet. Put rolls in this event from their details.</p>
       ) : (
@@ -112,7 +116,13 @@ export function EventPage({
                     >
                       <Thumbnail rollId={roll.id} frame={frame} />
                     </Link>
-                    <FrameMarks frame={frame} roll={roll} />
+                    <FrameMarks
+                      frame={frame}
+                      roll={roll}
+                      rate={(rating) => {
+                        ratings.rate(roll.id, frame.id, rating, frame.rating);
+                      }}
+                    />
                   </div>
                   <span className="frame-caption">
                     <span className="frame-number">{frame.number ?? '—'}</span>

@@ -1511,6 +1511,186 @@ test('shows the stars while renumbering', async () => {
   expect(screen.getByText('Rated 2 of 5')).toBeDefined();
 });
 
+describe('rating from a thumbnail (FF-149)', () => {
+  function twoFrames(): FakeArchive {
+    return archiveWith([
+      { ...aFrameWithScan('1', '12340001.jpg'), rating: 2 },
+      aFrameWithScan('2', '12340002.jpg'),
+    ]);
+  }
+
+  async function firstItem(): Promise<HTMLElement> {
+    const [first] = await screen.findAllByRole('listitem');
+    return first ?? document.body;
+  }
+
+  test('offers five stars to rate with, named for what a click does, and not in the Tab order', async () => {
+    renderPage(twoFrames());
+    const [first, second] = await screen.findAllByRole('listitem');
+
+    const rated = within(
+      within(first ?? document.body).getByRole('group', {
+        name: 'Rated 2 of 5',
+      }),
+    ).getAllByRole('button');
+    expect(rated.map((star) => star.getAttribute('aria-label'))).toEqual([
+      'Rate 1 star',
+      'Clear rating',
+      'Rate 3 stars',
+      'Rate 4 stars',
+      'Rate 5 stars',
+    ]);
+    expect(rated.map((star) => star.classList.contains('filled'))).toEqual([
+      true,
+      true,
+      false,
+      false,
+      false,
+    ]);
+    expect(rated.every((star) => star.tabIndex === -1)).toBe(true);
+    expect(
+      within(
+        within(second ?? document.body).getByRole('group', {
+          name: 'Not rated',
+        }),
+      )
+        .getAllByRole('button')
+        .some((star) => star.classList.contains('filled')),
+    ).toBe(false);
+  });
+
+  test('previews the rating a click would give while pointing at a star', async () => {
+    renderPage(twoFrames());
+    const first = await firstItem();
+    const group = within(first).getByRole('group', { name: 'Rated 2 of 5' });
+
+    fireEvent.mouseEnter(
+      within(group).getByRole('button', { name: 'Rate 4 stars' }),
+    );
+
+    const stars = within(group).getAllByRole('button');
+    expect(stars.map((star) => star.classList.contains('filled'))).toEqual([
+      true,
+      true,
+      true,
+      true,
+      false,
+    ]);
+    expect(stars.every((star) => star.classList.contains('previewing'))).toBe(
+      true,
+    );
+    fireEvent.mouseLeave(group);
+    expect(
+      within(group)
+        .getAllByRole('button')
+        .map((star) => star.classList.contains('filled')),
+    ).toEqual([true, true, false, false, false]);
+  });
+
+  test('rates the frame with a click, without opening it, saved against the roll’s version', async () => {
+    const archive = twoFrames();
+    renderPage(archive);
+    const [, second] = await screen.findAllByRole('listitem');
+
+    fireEvent.click(
+      within(second ?? document.body).getByRole('button', {
+        name: 'Rate 3 stars',
+      }),
+    );
+
+    expect(await screen.findByText('Rated 3 of 5')).toBeDefined();
+    await waitFor(() => {
+      expect(framesOf(archive)[1]?.rating).toBe(3);
+    });
+    expect(archive.ifMatches).toEqual(['"v1"']);
+    expect(window.location.pathname).toBe(`/rolls/${rollId}`);
+  });
+
+  test('clears the rating when the frame’s own rating is clicked', async () => {
+    const archive = twoFrames();
+    renderPage(archive);
+    const first = await firstItem();
+
+    fireEvent.click(
+      within(first).getByRole('button', { name: 'Clear rating' }),
+    );
+
+    await waitFor(() => {
+      expect(framesOf(archive)[0]?.rating).toBeNull();
+    });
+    expect(screen.queryByText('Rated 2 of 5')).toBeNull();
+  });
+
+  test('saves quick clicks on several frames one after another, against the version the last left', async () => {
+    const archive = twoFrames();
+    renderPage(archive);
+    const [first, second] = await screen.findAllByRole('listitem');
+
+    fireEvent.click(
+      within(first ?? document.body).getByRole('button', {
+        name: 'Rate 5 stars',
+      }),
+    );
+    fireEvent.click(
+      within(second ?? document.body).getByRole('button', {
+        name: 'Rate 4 stars',
+      }),
+    );
+
+    await waitFor(() => {
+      expect(framesOf(archive).map((frame) => frame.rating)).toEqual([5, 4]);
+    });
+    expect(archive.ifMatches).toEqual(['"v1"', '"v2"']);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  test('puts the stars back and says so when the roll changed elsewhere', async () => {
+    const archive = twoFrames();
+    renderPage(archive);
+    const first = await firstItem();
+    archive.changeRoll(archive.rolls[0]?.id ?? '');
+
+    fireEvent.click(
+      within(first).getByRole('button', { name: 'Rate 5 stars' }),
+    );
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      "This roll changed since you opened it. The rating wasn't saved. Reload the page.",
+    );
+    expect(framesOf(archive)[0]?.rating).toBe(2);
+    expect(await screen.findByText('Rated 2 of 5')).toBeDefined();
+  });
+
+  test('puts the stars back and says so when the save fails', async () => {
+    const archive = twoFrames();
+    renderPage(archive);
+    const first = await firstItem();
+    archive.failSaves();
+
+    fireEvent.click(
+      within(first).getByRole('button', { name: 'Rate 5 stars' }),
+    );
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      "Couldn't save the rating. Is the service running?",
+    );
+    expect(await screen.findByText('Rated 2 of 5')).toBeDefined();
+  });
+
+  test('can’t rate while renumbering or selecting frames', async () => {
+    renderPage(twoFrames());
+    await screen.findAllByRole('listitem');
+
+    await chooseAction('Renumber…');
+    expect(screen.queryByRole('button', { name: /^Rate \d/ })).toBeNull();
+    expect(screen.getByText('Rated 2 of 5')).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await chooseAction('Bulk edit');
+    expect(screen.queryByRole('button', { name: /^Rate \d/ })).toBeNull();
+  });
+});
+
 test('shows a placeholder for a frame with no scan', async () => {
   renderPage(
     archiveWith([
