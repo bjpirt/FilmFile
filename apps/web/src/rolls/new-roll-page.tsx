@@ -4,20 +4,20 @@ import { useEffect, useRef, useState, type SubmitEvent } from 'react';
 import type { CameraChoice } from '../equipment/camera-choice.ts';
 import { CameraField } from '../equipment/camera-field.tsx';
 import { chooseCamera } from '../equipment/choose-camera.ts';
-import { useCameras } from '../equipment/use-cameras.ts';
 import { chooseFilmStock } from '../equipment/choose-film-stock.ts';
+import { chooseLens } from '../equipment/choose-lens.ts';
+import type { FilmChoice } from '../equipment/film-choice.ts';
+import { FilmStockField } from '../equipment/film-stock-field.tsx';
+import type { LensChoice } from '../equipment/lens-choice.ts';
+import { LensField } from '../equipment/lens-field.tsx';
+import { useCameras } from '../equipment/use-cameras.ts';
+import { useFilmStocks } from '../equipment/use-film-stocks.ts';
+import { useLenses } from '../equipment/use-lenses.ts';
 import { chooseEvent } from '../events/choose-event.ts';
 import type { EventChoice } from '../events/event-choice.ts';
 import { EventField } from '../events/event-field.tsx';
 import { useEvents } from '../events/use-events.ts';
 import { nothingPicked } from '../forms/pick-or-add.ts';
-import type { FilmChoice } from '../equipment/film-choice.ts';
-import { FilmStockField } from '../equipment/film-stock-field.tsx';
-import { useFilmStocks } from '../equipment/use-film-stocks.ts';
-import { chooseLens } from '../equipment/choose-lens.ts';
-import type { LensChoice } from '../equipment/lens-choice.ts';
-import { LensField } from '../equipment/lens-field.tsx';
-import { useLenses } from '../equipment/use-lenses.ts';
 import { Link, navigate } from '../routing.tsx';
 import { DateShotFields } from './date-shot-fields.tsx';
 import { describeUpload } from './describe-upload.ts';
@@ -133,7 +133,11 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
     event.preventDefault();
     const roll = rollNumber.trim();
     if (roll === '') {
-      setProblem('Enter a roll number like 2026-014.');
+      setProblem('Enter a roll number.');
+      return;
+    }
+    if (roll.length > 100) {
+      setProblem('Roll number must be 100 characters or fewer.');
       return;
     }
     const entered = shotFrom(shot);
@@ -196,7 +200,7 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
             ? "Couldn't create the roll. Is the service running?"
             : aboutDate
               ? "That date doesn't exist. Check the day and month."
-              : 'Enter a roll number like 2026-014: the year it was shot, then three digits.',
+              : 'Roll number must be 100 characters or fewer.',
       );
       return;
     }
@@ -258,6 +262,7 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
             className="numbers"
             value={rollNumber}
             placeholder="2026-014"
+            maxLength={100}
             required
             autoFocus
             onChange={(event) => {

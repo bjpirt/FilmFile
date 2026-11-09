@@ -1,5 +1,10 @@
 import { expect, test } from 'vitest';
 import { nextRollNumber } from './next-roll-number.ts';
+import {
+  compareRollNumbers,
+  rollNumbersAreUnique,
+  sameRollNumber,
+} from './roll-number.ts';
 
 // The same cases as the service's copy of this rule (apps/backend/src/domain/rolls/next-roll-number.test.ts).
 
@@ -26,8 +31,12 @@ test('counts the number a folder is named for, with or without an ID after it', 
   );
 });
 
+test('counts a one-digit suffix as its numeric value', () => {
+  expect(nextRollNumber('2026', ['2026-7'])).toBe('2026-008');
+});
+
 test('ignores names that aren’t a roll number', () => {
-  expect(nextRollNumber('2026', ['notes', '2026-xyz', '2026-7', ''])).toBe(
+  expect(nextRollNumber('2026', ['notes', '2026-xyz', '2026-7a', ''])).toBe(
     '2026-001',
   );
 });
@@ -35,4 +44,15 @@ test('ignores names that aren’t a roll number', () => {
 test('has 999 numbers a year: the last is given, then none is left', () => {
   expect(nextRollNumber('2026', ['2026-998'])).toBe('2026-999');
   expect(nextRollNumber('2026', ['2026-999'])).toBeUndefined();
+});
+
+test('compares roll labels without case and with numeric suffix equivalence', () => {
+  expect(sameRollNumber('BP-1', 'bp-001')).toBe(true);
+  expect(rollNumbersAreUnique(['BP/Scan 1', 'bp/scan 1'])).toBe(false);
+});
+
+test('sorts roll labels naturally without regard to case', () => {
+  expect(
+    ['Roll 10', 'bp b', 'Roll 2', 'BP a'].sort(compareRollNumbers),
+  ).toEqual(['BP a', 'bp b', 'Roll 2', 'Roll 10']);
 });

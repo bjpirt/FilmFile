@@ -12,8 +12,16 @@ export function frameFolderName(number: string | null, id: string): string {
   if (number === null) {
     return `unnumbered-${folderName(id)}`;
   }
-  const label = number.replace(/[^A-Za-z0-9-]/gu, '_');
-  return `${label.startsWith('-') ? `_${label}` : label}-${folderName(id)}`;
+  return `${rollFolderLabel(number)}-${folderName(id)}`;
+}
+
+export function rollFolderName(number: string, id: string): string {
+  return `${rollFolderLabel(number)}-${folderName(id)}`;
+}
+
+export function rollFolderLabel(label: string): string {
+  const safe = label.replace(/[^A-Za-z0-9-]/gu, '_');
+  return safe.startsWith('-') ? `_${safe}` : safe;
 }
 
 export function versionFolderName(kind: VersionKind, id: string): string {

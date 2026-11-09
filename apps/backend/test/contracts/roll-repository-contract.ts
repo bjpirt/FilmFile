@@ -3,8 +3,8 @@ import type { RollRepository } from '../../src/application/ports/roll-repository
 import type { Roll } from '../../src/domain/rolls/roll.ts';
 import { isRollId } from '../../src/domain/shared/ids.ts';
 import { err, ok } from '../../src/domain/shared/result.ts';
-import { checked } from '../support/checked.ts';
 import { aFrame, aRoll, aVersion, ctx, ulidFor } from '../support/builders.ts';
+import { checked } from '../support/checked.ts';
 
 /** What every RollRepository must do, run against each adapter. */
 export function rollRepositoryContract(
@@ -31,6 +31,18 @@ export function rollRepositoryContract(
       );
     });
 
+    test.each([
+      ['different case', 'BP/Scan 1', 'bp/scan 1'],
+      ['equivalent numeric suffix', 'BP-1', 'bp-001'],
+    ])('treats %s as the same roll number', async (_case, first, second) => {
+      const rolls = makeRepository();
+      await rolls.create(ctx, aRoll({ roll: first }));
+
+      expect(
+        await rolls.create(ctx, aRoll({ id: ulidFor(2), roll: second })),
+      ).toEqual(err({ kind: 'already-exists', entity: 'roll', id: second }));
+    });
+
     test('lists rolls in roll number order', async () => {
       const rolls = makeRepository();
       await rolls.create(ctx, aRoll());
@@ -39,6 +51,25 @@ export function rollRepositoryContract(
       expect((await rolls.list(ctx)).rolls.map((r) => r.roll)).toEqual([
         '2025-003',
         '2026-014',
+      ]);
+    });
+
+    test('lists freeform roll numbers in natural case-insensitive order', async () => {
+      const rolls = makeRepository();
+      for (const [index, roll] of [
+        'Roll 10',
+        'bp b',
+        'Roll 2',
+        'BP a',
+      ].entries()) {
+        await rolls.create(ctx, aRoll({ id: ulidFor(index + 1), roll }));
+      }
+
+      expect((await rolls.list(ctx)).rolls.map((roll) => roll.roll)).toEqual([
+        'BP a',
+        'bp b',
+        'Roll 2',
+        'Roll 10',
       ]);
     });
 
@@ -208,6 +239,57 @@ export function rollRepositoryContract(
 
       expect(saved).toEqual(
         err({ kind: 'already-exists', entity: 'roll', id: '2026-015' }),
+      );
+      expect(await rolls.get(ctx, first.id)).toEqual(read);
+    });
+
+    test('refuses a batch that introduces an equivalent numeric suffix', async () => {
+      const rolls = makeRepository();
+      const first = aRoll({ roll: 'BP-1' });
+      const second = aRoll({ id: ulidFor(2), roll: 'BP-2' });
+      await rolls.create(ctx, first);
+      await rolls.create(ctx, second);
+      const firstRead = await rolls.get(ctx, first.id);
+      const secondRead = await rolls.get(ctx, second.id);
+
+      const saved = await rolls.saveRenumberedBatch(
+        ctx,
+        [
+          { id: first.id, version: firstRead?.version ?? '' },
+          { id: second.id, version: secondRead?.version ?? '' },
+        ],
+        [],
+        [{ id: first.id, roll: aRoll({ roll: 'bp-002' }).roll }],
+      );
+
+      expect(saved).toEqual(
+        err({
+          kind: 'validation-failed',
+          issues: [
+            { path: ['changes'], message: 'roll numbers must be unique' },
+          ],
+        }),
+      );
+      expect((await rolls.get(ctx, first.id))?.roll.roll).toBe(first.roll);
+      expect((await rolls.get(ctx, second.id))?.roll.roll).toBe(second.roll);
+    });
+
+    test('refuses to renumber to a case-insensitive equivalent numeric suffix', async () => {
+      const rolls = makeRepository();
+      const first = aRoll({ roll: 'BP-1' });
+      const second = aRoll({ id: ulidFor(2), roll: 'BP-2' });
+      await rolls.create(ctx, first);
+      await rolls.create(ctx, second);
+      const read = await rolls.get(ctx, first.id);
+
+      const saved = await rolls.saveRenumbered(
+        ctx,
+        { ...first, roll: aRoll({ roll: 'bp-002' }).roll },
+        read?.version ?? '',
+      );
+
+      expect(saved).toEqual(
+        err({ kind: 'already-exists', entity: 'roll', id: 'bp-002' }),
       );
       expect(await rolls.get(ctx, first.id)).toEqual(read);
     });

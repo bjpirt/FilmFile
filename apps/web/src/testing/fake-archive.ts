@@ -35,6 +35,11 @@ import { cameraLabel } from '../equipment/use-cameras.ts';
 import { filmStockLabel } from '../equipment/use-film-stocks.ts';
 import { lensLabel } from '../equipment/use-lenses.ts';
 import { nextRollNumber } from '../rolls/next-roll-number.ts';
+import {
+  compareRollNumbers,
+  rollNumbersAreUnique,
+  sameRollNumber,
+} from '../rolls/roll-number.ts';
 
 // A stand-in for the backend in the web app's tests: it answers the API the
 // way the service does, keeping an archive in memory, so a page can be tested
@@ -372,7 +377,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         { status: 422 },
       );
     }
-    if (rolls.some((roll) => roll.roll === number)) {
+    if (rolls.some((roll) => sameRollNumber(roll.roll, number))) {
       return Response.json(
         { error: `roll ${number} already exists` },
         { status: 409 },
@@ -452,7 +457,12 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         );
       }
     }
-    if (changes.some((change) => Number(change.roll.slice(5)) > 999)) {
+    if (
+      changes.some((change) => {
+        const suffix = /^\d{4}-(\d+)$/.exec(change.roll)?.[1];
+        return suffix !== undefined && Number(suffix) > 999;
+      })
+    ) {
       return Response.json(
         {
           error: 'invalid request',
@@ -470,7 +480,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     const finalNumbers = rolls.map(
       (roll) => changesById.get(roll.id)?.roll ?? roll.roll,
     );
-    if (new Set(finalNumbers).size !== finalNumbers.length) {
+    if (!rollNumbersAreUnique(finalNumbers)) {
       return Response.json(
         {
           error: 'invalid request',
@@ -600,7 +610,10 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       // A number another roll has is a problem with the number, as the service says.
       if (
         body.value.roll !== undefined &&
-        rolls.some((r) => r.id !== roll.id && r.roll === body.value.roll)
+        rolls.some(
+          (r) =>
+            r.id !== roll.id && sameRollNumber(r.roll, body.value.roll ?? ''),
+        )
       ) {
         return Response.json(
           {
@@ -839,17 +852,24 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       case 'rolls': {
         if (rest.length === 0) {
           return request.method === 'GET'
-            ? Response.json({ rolls, unreadable })
+            ? Response.json({
+                rolls: [...rolls].sort((a, b) =>
+                  compareRollNumbers(a.roll, b.roll),
+                ),
+                unreadable,
+              })
             : createRoll(request);
         }
         const [rollId, ...below] = rest;
         if (rollId === 'numbering' && below.length === 0) {
           return request.method === 'GET'
             ? Response.json({
-                rolls: rolls.map((roll) => ({
-                  roll,
-                  version: versionOf(roll.id),
-                })),
+                rolls: [...rolls]
+                  .sort((a, b) => compareRollNumbers(a.roll, b.roll))
+                  .map((roll) => ({
+                    roll,
+                    version: versionOf(roll.id),
+                  })),
                 unreadable,
               })
             : renumberRolls(request);

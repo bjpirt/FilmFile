@@ -24,7 +24,7 @@ const storedHeldFrame = z.object({
     ),
     roll: z.custom<RollNumber>(
       (value) => typeof value === 'string' && isRollNumber(value),
-      'must be a roll number like 2026-014',
+      'must be 1 to 100 characters',
     ),
   }),
   frame: storedFrame,

@@ -26,8 +26,12 @@ test('counts the number a folder is named for, with or without an ID after it', 
   );
 });
 
+test('counts a one-digit suffix as its numeric value', () => {
+  expect(nextRollNumber('2026', ['2026-7'])).toBe('2026-008');
+});
+
 test('ignores names that aren’t a roll number', () => {
-  expect(nextRollNumber('2026', ['notes', '2026-xyz', '2026-7', ''])).toBe(
+  expect(nextRollNumber('2026', ['notes', '2026-xyz', '2026-7a', ''])).toBe(
     '2026-001',
   );
 });

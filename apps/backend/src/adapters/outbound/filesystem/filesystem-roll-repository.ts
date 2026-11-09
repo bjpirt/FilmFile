@@ -12,9 +12,15 @@ import type {
 } from '../../../application/ports/roll-repository.ts';
 import {
   frameFolderName,
+  rollFolderLabel,
   versionFolderName,
 } from '../../../domain/rolls/folder-names.ts';
-import { yearOf, type RollNumber } from '../../../domain/rolls/roll-number.ts';
+import {
+  compareRollNumbers,
+  rollNumbersAreUnique,
+  sameRollNumber,
+  type RollNumber,
+} from '../../../domain/rolls/roll-number.ts';
 import type { Frame, Roll, Version } from '../../../domain/rolls/roll.ts';
 import type { UnreadableRoll } from '../../../domain/rolls/unreadable-roll.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
@@ -29,7 +35,7 @@ import { err, ok, type Result } from '../../../domain/shared/result.ts';
 import { KeyedLock } from '../node/keyed-lock.ts';
 import { hasErrorCode } from './error-codes.ts';
 import { parseRollFile, rollFileContent } from './roll-file.ts';
-import { rollFolderFor } from './roll-folder.ts';
+import { rollFolderFor, rollFolderForNumberChange } from './roll-folder.ts';
 import { safePath } from './safe-path.ts';
 import { createAtomically, writeAtomically } from './write-atomically.ts';
 
@@ -52,9 +58,14 @@ function sameNumber(before: Roll, after: Roll): void {
   }
 }
 
-/** Whether an unreadable roll's folder is named for this roll number: `2026-014` or `2026-014-Q2P7RM4K`. */
+/** Whether an unreadable roll folder may hold this number or its safe label. */
 function namedFor(folder: string, roll: RollNumber): boolean {
-  return folder === roll || folder.startsWith(`${roll}-`);
+  const label = /^(.+)-[0-9A-HJKMNP-TV-Z]{8}$/iu.exec(folder)?.[1] ?? folder;
+  return (
+    sameRollNumber(folder, roll) ||
+    sameRollNumber(label, roll) ||
+    sameRollNumber(rollFolderLabel(label), rollFolderLabel(roll))
+  );
 }
 
 interface VersionFolderMove {
@@ -293,7 +304,7 @@ export class FilesystemRollRepository implements RollRepository {
       const { stored, unreadable } = await this.#readAll();
       return {
         rolls: stored
-          .sort((a, b) => a.roll.roll.localeCompare(b.roll.roll))
+          .sort((a, b) => compareRollNumbers(a.roll.roll, b.roll.roll))
           .map(({ roll, version }) => ({ roll, version })),
         unreadable: unreadable.sort((a, b) => a.folder.localeCompare(b.folder)),
       };
@@ -310,12 +321,13 @@ export class FilesystemRollRepository implements RollRepository {
     });
   }
 
-  /** Whether another roll has this roll's number; a roll that can't be read counts if its folder is named for it. */
+  /** Whether another roll has an equivalent number; unreadable safe labels are reserved too. */
   async #numberTaken(roll: Roll): Promise<boolean> {
     const { stored, unreadable } = await this.#readAll();
     return (
-      stored.some((s) => s.roll.id !== roll.id && s.roll.roll === roll.roll) ||
-      unreadable.some((u) => namedFor(u.folder, roll.roll))
+      stored.some(
+        (s) => s.roll.id !== roll.id && sameRollNumber(s.roll.roll, roll.roll),
+      ) || unreadable.some((u) => namedFor(u.folder, roll.roll))
     );
   }
 
@@ -344,22 +356,20 @@ export class FilesystemRollRepository implements RollRepository {
   }
 
   /**
-   * Moves a roll's folder for its new number, to another year's folder if
-   * need be (D66); returns the roll.json in it. The folder is moved first,
+   * Renames only the roll folder's leaf for its new number (D87); returns the roll.json in it. The folder is moved first,
    * then roll.json written in it, so a move cut short leaves a roll that's
    * still found, in a folder named for its new number. Called with the
    * years' turn taken.
    */
   async #move(current: StoredRoll, roll: Roll): Promise<string> {
     const from = path.dirname(current.file);
-    const to = rollFolderFor(this.#archivePath, roll);
+    const to = rollFolderForNumberChange(from, roll);
     if (from !== to) {
       if (await exists(to)) {
         throw new Error(`${to} already exists, so ${from} can't be renamed`);
       }
       await mkdir(path.dirname(to), { recursive: true });
       await this.#renameFolder(from, to);
-      await removeIfEmpty(path.dirname(from));
     }
     return safePath(to, 'roll.json');
   }
@@ -538,9 +548,7 @@ export class FilesystemRollRepository implements RollRepository {
           ? entry.roll
           : { ...entry.roll, roll: change.roll };
       });
-      if (
-        new Set(finalRolls.map((roll) => roll.roll)).size !== finalRolls.length
-      ) {
+      if (!rollNumbersAreUnique(finalRolls.map((roll) => roll.roll))) {
         return err({
           kind: 'validation-failed',
           issues: [
@@ -570,24 +578,19 @@ export class FilesystemRollRepository implements RollRepository {
           return [];
         }
         const roll = { ...entry.roll, roll: change.roll };
-        const temporary = safePath(
-          this.#archivePath,
-          'rolls',
-          yearOf(entry.roll.roll),
-          `.renumber-${entry.roll.id}`,
-        );
+        const currentFolder = path.dirname(entry.file);
+        const parentFolder = path.dirname(currentFolder);
+        const temporary = safePath(parentFolder, `.renumber-${entry.roll.id}`);
         return [
           {
             entry,
             roll,
             temporary,
             rollbackTemporary: safePath(
-              this.#archivePath,
-              'rolls',
-              yearOf(entry.roll.roll),
+              parentFolder,
               `.rollback-${entry.roll.id}`,
             ),
-            destination: rollFolderFor(this.#archivePath, roll),
+            destination: rollFolderForNumberChange(currentFolder, roll),
           },
         ];
       });
@@ -631,9 +634,6 @@ export class FilesystemRollRepository implements RollRepository {
           await writeAtomically(file, rollFileContent(item.roll));
           await this.#renameFolder(item.temporary, item.destination);
           locations.set(item.entry.roll.id, item.destination);
-        }
-        for (const item of moving) {
-          await this.#removeYear(path.dirname(path.dirname(item.entry.file)));
         }
       } catch (error) {
         const rollbackErrors: unknown[] = [];

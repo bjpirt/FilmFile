@@ -1,17 +1,17 @@
 import { describe, expect, test } from 'vitest';
+import { FixedClock } from '../../../src/adapters/outbound/memory/fixed-clock.ts';
 import { InMemoryEquipmentRepository } from '../../../src/adapters/outbound/memory/in-memory-equipment-repository.ts';
 import { InMemoryEventRepository } from '../../../src/adapters/outbound/memory/in-memory-event-repository.ts';
-import { FixedClock } from '../../../src/adapters/outbound/memory/fixed-clock.ts';
 import { InMemoryHoldingArea } from '../../../src/adapters/outbound/memory/in-memory-holding-area.ts';
 import { InMemoryRollRepository } from '../../../src/adapters/outbound/memory/in-memory-roll-repository.ts';
 import { SequentialIdGenerator } from '../../../src/adapters/outbound/memory/sequential-id-generator.ts';
+import type { HoldingArea } from '../../../src/application/ports/holding-area.ts';
 import { CreateCamera } from '../../../src/application/use-cases/equipment/create-camera.ts';
 import { CreateFilmStock } from '../../../src/application/use-cases/equipment/create-film-stock.ts';
 import { CreateLens } from '../../../src/application/use-cases/equipment/create-lens.ts';
 import { CreateEvent } from '../../../src/application/use-cases/events/create-event.ts';
-import type { HoldingArea } from '../../../src/application/ports/holding-area.ts';
-import { DeleteRoll } from '../../../src/application/use-cases/rolls/delete-roll.ts';
 import { CreateRoll } from '../../../src/application/use-cases/rolls/create-roll.ts';
+import { DeleteRoll } from '../../../src/application/use-cases/rolls/delete-roll.ts';
 import { GetRoll } from '../../../src/application/use-cases/rolls/get-roll.ts';
 import { ListRolls } from '../../../src/application/use-cases/rolls/list-rolls.ts';
 import { UpdateRoll } from '../../../src/application/use-cases/rolls/update-roll.ts';
@@ -316,17 +316,26 @@ describe('CreateRoll', () => {
     });
   });
 
-  test('refuses something that is not a roll number', async () => {
-    const { ctx, createRoll, listRolls } = setUp();
+  test.each(['', 'x'.repeat(101)])(
+    'refuses a roll label outside the length bounds: %j',
+    async (roll) => {
+      const { ctx, createRoll, listRolls } = setUp();
 
-    const created = await createRoll.execute(ctx, { roll: '26-14' });
+      const created = await createRoll.execute(ctx, { roll });
 
-    expect(created).toMatchObject({
-      ok: false,
-      error: { kind: 'validation-failed' },
-    });
-    expect(await listRolls.execute(ctx)).toEqual({ rolls: [], unreadable: [] });
-  });
+      expect(created).toMatchObject({
+        ok: false,
+        error: {
+          kind: 'validation-failed',
+          issues: [{ path: ['roll'], message: 'must be 1 to 100 characters' }],
+        },
+      });
+      expect(await listRolls.execute(ctx)).toEqual({
+        rolls: [],
+        unreadable: [],
+      });
+    },
+  );
 });
 
 describe('ListRolls', () => {
@@ -628,29 +637,26 @@ describe('UpdateRoll', () => {
     });
   });
 
-  test('refuses something that is not a roll number, changing nothing', async () => {
-    const { ctx, id, version, updateRoll, getRoll } = await aCreatedRoll();
+  test.each(['', 'x'.repeat(101)])(
+    'refuses an edited label outside the length bounds: %j',
+    async (roll) => {
+      const { ctx, id, version, updateRoll, getRoll } = await aCreatedRoll();
 
-    expect(
-      await updateRoll.execute(ctx, {
-        id,
-        expectedVersion: version,
-        roll: '26-9',
-      }),
-    ).toEqual({
-      ok: false,
-      error: {
-        kind: 'validation-failed',
-        issues: [
-          { path: ['roll'], message: 'must be a roll number like 2026-014' },
-        ],
-      },
-    });
-    expect(await getRoll.execute(ctx, { id })).toMatchObject({
-      ok: true,
-      value: { roll: { roll: '2026-014' } },
-    });
-  });
+      expect(
+        await updateRoll.execute(ctx, { id, expectedVersion: version, roll }),
+      ).toEqual({
+        ok: false,
+        error: {
+          kind: 'validation-failed',
+          issues: [{ path: ['roll'], message: 'must be 1 to 100 characters' }],
+        },
+      });
+      expect(await getRoll.execute(ctx, { id })).toMatchObject({
+        ok: true,
+        value: { roll: { roll: '2026-014' } },
+      });
+    },
+  );
 
   test('refuses a roll number another roll has, as a problem with the number, changing nothing', async () => {
     const { ctx, id, version, updateRoll, getRoll, createRoll } =

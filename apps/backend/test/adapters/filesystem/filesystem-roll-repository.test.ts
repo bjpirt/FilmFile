@@ -1,18 +1,12 @@
 import { createHash } from 'node:crypto';
-import {
-  mkdir,
-  readdir,
-  readFile,
-  rename,
-  rmdir,
-  writeFile,
-} from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { FilesystemRollRepository } from '../../../src/adapters/outbound/filesystem/filesystem-roll-repository.ts';
 import { findRollFolder } from '../../../src/adapters/outbound/filesystem/roll-folder.ts';
 import type { RollRepository } from '../../../src/application/ports/roll-repository.ts';
 import { isFrameNumber } from '../../../src/domain/rolls/frame-number.ts';
+import { isShotDate } from '../../../src/domain/rolls/shot-date.ts';
 import { ok } from '../../../src/domain/shared/result.ts';
 import {
   aFrame,
@@ -87,6 +81,62 @@ test('creates roll.json in a folder named by the roll’s number and the end of 
   );
 });
 
+test('uses the shot year and a safe label for a new freeform roll folder', async () => {
+  const roll = {
+    ...aRoll({ roll: 'BP/roll 1' }),
+    shot: checked('2025-06', isShotDate),
+  };
+  const rolls = repository();
+  await rolls.create(ctx, roll);
+
+  const folder = await findRollFolder(archive.path(), roll.id);
+  expect(path.relative(archive.path(), folder ?? '')).toBe(
+    `rolls/2025/BP_roll_1-${roll.id.slice(-8)}`,
+  );
+});
+
+test('keeps distinct roll numbers with the same safe label in unique folders', async () => {
+  const first = {
+    ...aRoll({ roll: 'BP/roll 1' }),
+    shot: checked('2025', isShotDate),
+  };
+  const second = {
+    ...aRoll({ id: ulidFor(2), roll: 'BP_roll_1' }),
+    shot: checked('2025', isShotDate),
+  };
+  const rolls = repository();
+  await rolls.create(ctx, first);
+  await rolls.create(ctx, second);
+
+  expect(await names(path.join(archive.path(), 'rolls', '2025'))).toEqual([
+    'BP_roll_1-00000001',
+    'BP_roll_1-00000002',
+  ]);
+});
+
+test('keeps an existing parent folder when a roll number and shot year change', async () => {
+  const original = {
+    ...aRoll({ roll: 'BP/roll 1' }),
+    shot: checked('2025', isShotDate),
+  };
+  const rolls = repository();
+  await rolls.create(ctx, original);
+  const read = await rolls.get(ctx, original.id);
+  const changed = {
+    ...original,
+    roll: aRoll({ roll: 'New/name' }).roll,
+    shot: checked('2026', isShotDate),
+  };
+
+  const saved = await rolls.saveRenumbered(ctx, changed, read?.version ?? '');
+
+  expect(saved.ok).toBe(true);
+  const folder = await findRollFolder(archive.path(), original.id);
+  expect(path.relative(archive.path(), folder ?? '')).toBe(
+    `rolls/2025/New_name-${original.id.slice(-8)}`,
+  );
+});
+
 test('versions a roll by the SHA-256 of its file', async () => {
   const rolls = repository();
   await rolls.create(ctx, aRoll());
@@ -136,6 +186,29 @@ test.each([
   await writeFile(path.join(broken, 'roll.json'), '{ not json');
 
   expect(await repository().create(ctx, aRoll())).toMatchObject({
+    ok: false,
+    error: { kind: 'already-exists' },
+  });
+  expect(await readFile(path.join(broken, 'roll.json'), 'utf8')).toBe(
+    '{ not json',
+  );
+});
+
+test('does not create a freeform roll over an unreadable sanitized folder label', async () => {
+  const broken = path.join(
+    archive.path(),
+    'rolls',
+    '2025',
+    'BP_roll_1-ABCD1234',
+  );
+  await mkdir(broken, { recursive: true });
+  await writeFile(path.join(broken, 'roll.json'), '{ not json');
+  const roll = {
+    ...aRoll({ roll: 'BP/roll 1' }),
+    shot: checked('2025', isShotDate),
+  };
+
+  expect(await repository().create(ctx, roll)).toMatchObject({
     ok: false,
     error: { kind: 'already-exists' },
   });
@@ -256,14 +329,14 @@ describe('renaming a roll’s folder when its number changes', () => {
     expect((await rolls.get(ctx, aRoll().id))?.roll.roll).toBe('2026-009');
   });
 
-  test('moves it to the new number’s year, and removes the year folder it leaves empty', async () => {
+  test('keeps its parent folder when its number changes to another year', async () => {
     const rolls = repository();
     await rolls.create(ctx, aRoll({ roll: '2025-031' }));
 
     await renumber(rolls, aRoll({ roll: '2025-031' }), '2026-004');
 
-    expect(await names(path.join(archive.path(), 'rolls'))).toEqual(['2026']);
-    expect(await names(path.join(archive.path(), 'rolls', '2026'))).toEqual([
+    expect(await names(path.join(archive.path(), 'rolls'))).toEqual(['2025']);
+    expect(await names(path.join(archive.path(), 'rolls', '2025'))).toEqual([
       '2026-004-00000001',
     ]);
   });
@@ -279,6 +352,7 @@ describe('renaming a roll’s folder when its number changes', () => {
     await renumber(rolls, aRoll({ roll: '2025-031' }), '2026-004');
 
     expect(await names(path.join(archive.path(), 'rolls', '2025'))).toEqual([
+      '2026-004-00000001',
       '_folder.json',
     ]);
   });
@@ -496,62 +570,47 @@ describe('renaming a roll’s folder when its number changes', () => {
     ]);
   });
 
-  test('restores removed year folders when rollback follows a failed cleanup', async () => {
+  test('batch renumbering keeps existing parent folders and does not remove them', async () => {
     const rolls = repository();
     const first = aRoll({ roll: '2025-001' });
     const second = aRoll({ id: ulidFor(2), roll: '2026-001' });
     await rolls.create(ctx, first);
     await rolls.create(ctx, second);
-    const firstContent = await readFile(rollFile(first.roll, first.id), 'utf8');
-    const secondContent = await readFile(
-      rollFile(second.roll, second.id),
-      'utf8',
-    );
     const snapshot = await rolls.listVersioned(ctx);
     let cleanups = 0;
-    const failAfterFirstYearIsRemoved = async (folder: string) => {
+    const shouldNotRemoveParent = (folder: string) => {
       cleanups += 1;
-      if (cleanups === 1) {
-        await rmdir(folder);
-        throw new Error('injected cleanup failure');
-      }
-      try {
-        await rmdir(folder);
-      } catch (error) {
-        if (
-          typeof error !== 'object' ||
-          error === null ||
-          !('code' in error) ||
-          (error.code !== 'ENOENT' && error.code !== 'ENOTEMPTY')
-        ) {
-          throw error;
-        }
-      }
+      return Promise.reject(
+        new Error(`renumbering must not remove parent folder ${folder}`),
+      );
     };
-    const failingRolls = repository(undefined, failAfterFirstYearIsRemoved);
+    const rollsWithNoParentCleanup = repository(
+      undefined,
+      shouldNotRemoveParent,
+    );
 
-    await expect(
-      failingRolls.saveRenumberedBatch(
-        ctx,
-        snapshot.rolls.map(({ roll, version }) => ({ id: roll.id, version })),
-        snapshot.unreadable,
-        [
-          { id: first.id, roll: aRoll({ roll: '2027-001' }).roll },
-          { id: second.id, roll: aRoll({ roll: '2027-002' }).roll },
-        ],
-      ),
-    ).rejects.toThrow('injected cleanup failure');
+    const saved = await rollsWithNoParentCleanup.saveRenumberedBatch(
+      ctx,
+      snapshot.rolls.map(({ roll, version }) => ({ id: roll.id, version })),
+      snapshot.unreadable,
+      [
+        { id: first.id, roll: aRoll({ roll: '2027-001' }).roll },
+        { id: second.id, roll: aRoll({ roll: '2028-002' }).roll },
+      ],
+    );
 
+    expect(saved).toEqual(ok(undefined));
+    expect(cleanups).toBe(0);
     expect(await names(path.join(archive.path(), 'rolls'))).toEqual([
       '2025',
       '2026',
     ]);
-    expect(await readFile(rollFile(first.roll, first.id), 'utf8')).toBe(
-      firstContent,
-    );
-    expect(await readFile(rollFile(second.roll, second.id), 'utf8')).toBe(
-      secondContent,
-    );
+    expect(await names(path.join(archive.path(), 'rolls', '2025'))).toEqual([
+      '2027-001-00000001',
+    ]);
+    expect(await names(path.join(archive.path(), 'rolls', '2026'))).toEqual([
+      '2028-002-00000002',
+    ]);
   });
 });
 

@@ -2024,7 +2024,7 @@ export interface components {
             /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
             id: string;
             /**
-             * @description The year the roll was shot and a number, YYYY-NNN.
+             * @description A roll number label, up to 100 characters.
              * @example 2026-014
              */
             roll: string;
@@ -2186,7 +2186,7 @@ export interface components {
         /** @description The details to change. A detail left out stays as it is; null clears it. A roll number another roll has is refused with an issue on `roll`. */
         UpdateRollRequest: {
             /**
-             * @description The year the roll was shot and a number, YYYY-NNN.
+             * @description A roll number label, up to 100 characters.
              * @example 2026-014
              */
             roll?: string;

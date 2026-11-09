@@ -50,6 +50,47 @@ describe('numberingPreview', () => {
     });
   });
 
+  test('skips a filtered-out label with an equivalent numeric suffix', () => {
+    const reserved = versioned(
+      aRoll('2026-1', { shot: '2026', camera: 'nikon' }),
+    );
+    const selected = versioned(
+      aRoll('BP/selected', { shot: '2026', camera: 'canon' }),
+    );
+
+    expect(
+      numberingPreview([reserved, selected], [], {
+        year: '2026',
+        camera: 'canon',
+        film: undefined,
+        lens: undefined,
+      }),
+    ).toEqual({
+      ok: true,
+      changes: [{ id: selected.roll.id, roll: '2026-002' }],
+    });
+  });
+
+  test('uses natural roll-number order for rolls with the same shot date', () => {
+    const ten = versioned(aRoll('Roll 10', { shot: '2026-03' }));
+    const two = versioned(aRoll('Roll 2', { shot: '2026-03' }));
+
+    expect(
+      numberingPreview([ten, two], [], {
+        year: undefined,
+        camera: undefined,
+        film: undefined,
+        lens: undefined,
+      }),
+    ).toEqual({
+      ok: true,
+      changes: [
+        { id: two.roll.id, roll: '2026-001' },
+        { id: ten.roll.id, roll: '2026-002' },
+      ],
+    });
+  });
+
   test('sorts by shot date, then current roll number', () => {
     const later = versioned(aRoll('2026-009', { shot: '2026-03-01' }));
     const tieLater = versioned(aRoll('2026-004', { shot: '2026-03' }));

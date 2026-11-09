@@ -1,26 +1,46 @@
 import { glob, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { folderName } from '../../../domain/rolls/folder-names.ts';
-import { yearOf, type RollNumber } from '../../../domain/rolls/roll-number.ts';
+import {
+  folderName,
+  rollFolderName,
+} from '../../../domain/rolls/folder-names.ts';
+import type { RollNumber } from '../../../domain/rolls/roll-number.ts';
 import type { RollId } from '../../../domain/shared/ids.ts';
 import { safePath } from './safe-path.ts';
 
-// A roll's folder is named by its number and the end of its ID, so rolls can
-// swap numbers without their folders clashing (D66): `rolls/2026/2026-014-Q2P7RM4K/`.
+// New roll folders use the shot year and a safe version of the number label;
+// existing folders keep their parent when the label changes (D87).
 // A roll is found by the roll.json in its folder, never by the folder's name,
 // so folders made before this naming, and any a rename left half done, are
 // found too.
 
-/** Where a roll's folder is, or goes when its number changes: `rolls/YYYY/YYYY-NNN-<ID>/`. */
+/** Where a new roll's folder goes: `rolls/<shot year>/<safe label>-<ID>/`. */
 export function rollFolderFor(
   archivePath: string,
-  roll: { readonly id: RollId; readonly roll: RollNumber },
+  roll: {
+    readonly id: RollId;
+    readonly roll: RollNumber;
+    readonly shot: string | null;
+  },
 ): string {
+  const numberYear = /^\d{4}(?=-)/u.exec(roll.roll)?.[0];
+  const year = roll.shot?.slice(0, 4) ?? numberYear ?? 'undated';
   return safePath(
     archivePath,
     'rolls',
-    yearOf(roll.roll),
-    `${roll.roll}-${folderName(roll.id)}`,
+    year,
+    rollFolderName(roll.roll, roll.id),
+  );
+}
+
+/** A changed roll number renames only the leaf within its current parent. */
+export function rollFolderForNumberChange(
+  currentFolder: string,
+  roll: { readonly id: RollId; readonly roll: RollNumber },
+): string {
+  return safePath(
+    path.dirname(currentFolder),
+    rollFolderName(roll.roll, roll.id),
   );
 }
 

@@ -133,6 +133,25 @@ test('creates the roll with its details, then opens it', async () => {
   ]);
 });
 
+test('creates a roll with a freeform number', async () => {
+  const service = fakeArchive();
+  renderPage(service);
+
+  fill('Roll number', '  BP/roll 1  ');
+  fill('Year', '2025');
+  create();
+
+  await waitFor(() => {
+    expect(service.created).toEqual([
+      expect.objectContaining({ roll: 'BP/roll 1' }),
+    ]);
+  });
+  await waitToOpen(rollId);
+  expect(service.created).toEqual([
+    expect.objectContaining({ roll: 'BP/roll 1' }),
+  ]);
+});
+
 describe('the camera', () => {
   const nikonFe = { slug: 'nikon-fe', make: 'Nikon', model: 'FE' };
 
@@ -544,6 +563,7 @@ test('marks the roll number and year as required', () => {
   renderPage(fakeArchive());
 
   expect(field('Roll number').required).toBe(true);
+  expect(field('Roll number').maxLength).toBe(100);
   expect(field('Year').required).toBe(true);
   expect(field('Name').required).toBe(false);
 });
@@ -558,7 +578,7 @@ test('asks for a roll number when it is emptied', async () => {
   fill('Roll number', '');
   create();
 
-  expect(screen.getByText('Enter a roll number like 2026-014.')).toBeDefined();
+  expect(screen.getByText('Enter a roll number.')).toBeDefined();
   expect(service.created).toEqual([]);
 });
 

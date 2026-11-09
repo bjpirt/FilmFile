@@ -1,5 +1,5 @@
-import type { UnreadableRoll } from '@filmfile/contracts/rolls';
-import type { Roll } from '@filmfile/contracts/rolls';
+import type { Roll, UnreadableRoll } from '@filmfile/contracts/rolls';
+import { compareRollNumbers, sameRollNumber } from './roll-number.ts';
 
 export interface NumberingSnapshotRoll {
   readonly roll: Roll;
@@ -36,7 +36,7 @@ function matches(roll: Roll, filters: NumberingFilters): boolean {
 }
 
 function reservedNumber(folder: string): string | undefined {
-  return /^(\d{4}-\d{3})(?:-|$)/.exec(folder)?.[1];
+  return /^(\d{4}-\d+)(?:-|$)/.exec(folder)?.[1];
 }
 
 function numberFor(year: string, suffix: number): string {
@@ -82,20 +82,26 @@ export function numberingPreview(
       .filter(({ roll }) => roll.shot?.slice(0, 4) === year)
       .sort((a, b) => {
         const byShot = (a.roll.shot ?? '').localeCompare(b.roll.shot ?? '');
-        return byShot === 0 ? a.roll.roll.localeCompare(b.roll.roll) : byShot;
+        return byShot === 0
+          ? compareRollNumbers(a.roll.roll, b.roll.roll)
+          : byShot;
       });
     const highestFiled = snapshot.reduce((highest, { roll }) => {
-      if (!roll.filed || !roll.roll.startsWith(`${year}-`)) {
+      const suffix = /^(\d{4})-(\d+)$/.exec(roll.roll);
+      if (!roll.filed || suffix?.[1] !== year) {
         return highest;
       }
-      return Math.max(highest, Number(roll.roll.slice(5)));
+      return Math.max(highest, Number(suffix[2]));
     }, 0);
-    const occupied = new Set(
-      [...fixedNumbers].filter((number) => number.startsWith(`${year}-`)),
+    const occupied = [...fixedNumbers].filter((number) =>
+      number.startsWith(`${year}-`),
     );
     let next = highestFiled + 1;
     for (const { roll } of candidates) {
-      while (next <= 999 && occupied.has(numberFor(year, next))) {
+      while (
+        next <= 999 &&
+        occupied.some((number) => sameRollNumber(number, numberFor(year, next)))
+      ) {
         next += 1;
       }
       const proposed = numberFor(year, next);

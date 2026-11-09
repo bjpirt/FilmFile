@@ -12,7 +12,7 @@ export function nextRollNumber(
 ): string | undefined {
   let highest = 0;
   for (const name of taken) {
-    const found = /^(\d{4})-(\d{3})(?:-|$)/.exec(name);
+    const found = /^(\d{4})-(\d+)(?:-|$)/.exec(name);
     if (found?.[1] === year) {
       highest = Math.max(highest, Number(found[2]));
     }

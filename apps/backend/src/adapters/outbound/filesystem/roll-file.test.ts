@@ -63,7 +63,7 @@ const aFrame = fc.record({
 
 const aRoll: fc.Arbitrary<Roll> = fc.record({
   id: ulid.filter(isRollId),
-  roll: fc.stringMatching(/^\d{4}-\d{3}$/).filter(isRollNumber),
+  roll: fc.string({ minLength: 1, maxLength: 100 }).filter(isRollNumber),
   filed: fc.boolean(),
   name: fc.option(fc.string(), { nil: null }),
   notes: fc.option(fc.string(), { nil: null }),

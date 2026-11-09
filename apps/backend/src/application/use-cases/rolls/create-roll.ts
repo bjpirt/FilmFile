@@ -3,8 +3,8 @@ import {
   parseRollNumber,
   type RollNumber,
 } from '../../../domain/rolls/roll-number.ts';
-import { parseShotDate } from '../../../domain/rolls/shot-date.ts';
 import type { Roll } from '../../../domain/rolls/roll.ts';
+import { parseShotDate } from '../../../domain/rolls/shot-date.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type {
   AlreadyExists,
@@ -49,7 +49,7 @@ export class CreateRoll {
   async execute(
     ctx: ArchiveContext,
     input: {
-      /** `YYYY-NNN`; the next free number is given when it's left out. */
+      /** A freeform label; the next default number is given when it's left out. */
       readonly roll?: string | undefined;
       readonly name?: string | undefined;
       readonly notes?: string | undefined;

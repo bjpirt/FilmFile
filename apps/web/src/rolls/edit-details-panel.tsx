@@ -2,22 +2,22 @@ import type { Camera, FilmStock, Lens } from '@filmfile/contracts/equipment';
 import type { Event } from '@filmfile/contracts/events';
 import type { Roll } from '@filmfile/contracts/rolls';
 import { useState, type SubmitEvent } from 'react';
-import { CameraField } from '../equipment/camera-field.tsx';
-import type { EventChoice } from '../events/event-choice.ts';
-import { EventField } from '../events/event-field.tsx';
 import type { CameraChoice } from '../equipment/camera-choice.ts';
-import { choiceOf } from '../forms/pick-or-add.ts';
+import { CameraField } from '../equipment/camera-field.tsx';
 import type { FilmChoice } from '../equipment/film-choice.ts';
 import { FilmStockField } from '../equipment/film-stock-field.tsx';
 import type { LensChoice } from '../equipment/lens-choice.ts';
 import { LensField } from '../equipment/lens-field.tsx';
+import type { EventChoice } from '../events/event-choice.ts';
+import { EventField } from '../events/event-field.tsx';
+import { choiceOf } from '../forms/pick-or-add.ts';
+import { PadlockIcon } from '../padlock-icon.tsx';
 import { DateShotFields } from './date-shot-fields.tsx';
 import { shotFieldsOf, shotFrom, type ShotFields } from './shot-fields.ts';
-import { PadlockIcon } from '../padlock-icon.tsx';
 
 /** A roll's details as the panel saves them: all of them, blank ones as null. */
 export interface RollDetails {
-  /** The roll's number, `YYYY-NNN`. */
+  /** The roll's freeform number label. */
   readonly roll: string;
   readonly name: string | null;
   readonly notes: string | null;
@@ -70,10 +70,13 @@ export function EditDetailsPanel({
 
   async function submit(event: SubmitEvent) {
     event.preventDefault();
-    if (!/^\d{4}-\d{3}$/.test(rollNumber.trim())) {
-      setProblem(
-        'Enter a roll number like 2026-014: the year it was shot, then three digits.',
-      );
+    const number = rollNumber.trim();
+    if (number === '') {
+      setProblem('Enter a roll number.');
+      return;
+    }
+    if (number.length > 100) {
+      setProblem('Roll number must be 100 characters or fewer.');
       return;
     }
     const entered = shotFrom(shot);
@@ -85,7 +88,7 @@ export function EditDetailsPanel({
     setProblem(undefined);
     setSaving(true);
     const notSaved = await save({
-      roll: rollNumber.trim(),
+      roll: number,
       name: textOrNull(name),
       notes: textOrNull(notes),
       shot: entered.shot,
@@ -135,6 +138,7 @@ export function EditDetailsPanel({
             className="numbers"
             value={rollNumber}
             placeholder="2026-014"
+            maxLength={100}
             required
             autoFocus
             onChange={(event) => {

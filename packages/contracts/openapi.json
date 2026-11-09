@@ -51,8 +51,9 @@
           },
           "roll": {
             "type": "string",
-            "pattern": "^\\d{4}-\\d{3}$",
-            "description": "The year the roll was shot and a number, YYYY-NNN.",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "A roll number label, up to 100 characters.",
             "example": "2026-014"
           },
           "filed": {
@@ -444,7 +445,8 @@
         "properties": {
           "roll": {
             "type": "string",
-            "pattern": "^\\d{4}-\\d{3}$",
+            "minLength": 1,
+            "maxLength": 100,
             "description": "The roll's number. Left out, the roll gets the next free number of the year it was shot (D73).",
             "example": "2026-014"
           },
@@ -557,8 +559,9 @@
         "properties": {
           "roll": {
             "type": "string",
-            "pattern": "^\\d{4}-\\d{3}$",
-            "description": "The year the roll was shot and a number, YYYY-NNN.",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "A roll number label, up to 100 characters.",
             "example": "2026-014"
           },
           "filed": {

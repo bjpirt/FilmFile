@@ -273,22 +273,34 @@ describe('editing the details', () => {
     expect(service.rollUpdates[0]).not.toHaveProperty('roll');
   });
 
-  test.each(['2026-9', '14', 'Iceland', ' '])(
-    'refuses %j as a roll number before sending anything',
-    async (typed) => {
-      const service = archiveWith([], iceland);
-      renderPage(service);
-      await editDetails();
+  test('accepts a freeform roll number when editing', async () => {
+    const service = archiveWith([], iceland);
+    renderPage(service);
+    await editDetails();
 
-      fill('Roll number', typed);
-      fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+    expect(field('Roll number').maxLength).toBe(100);
+    fill('Roll number', 'BP/roll 1');
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
 
-      expect((await screen.findByRole('alert')).textContent).toBe(
-        'Enter a roll number like 2026-014: the year it was shot, then three digits.',
-      );
-      expect(service.rollUpdates).toEqual([]);
-    },
-  );
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Roll BP/roll 1' }),
+    ).toBeDefined();
+    expect(service.rolls[0]?.roll).toBe('BP/roll 1');
+  });
+
+  test('asks for a roll number when the edited value is blank', async () => {
+    const service = archiveWith([], iceland);
+    renderPage(service);
+    await editDetails();
+
+    fill('Roll number', ' ');
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Enter a roll number.',
+    );
+    expect(service.rollUpdates).toEqual([]);
+  });
 
   test('refuses a number another roll has, keeping the panel open and changing nothing', async () => {
     const service = fakeArchive({

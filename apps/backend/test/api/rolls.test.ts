@@ -1,8 +1,8 @@
+import { invalidRequestResponse } from '@filmfile/contracts/errors';
+import { rollList, rollNumberingSnapshot } from '@filmfile/contracts/rolls';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { invalidRequestResponse } from '@filmfile/contracts/errors';
-import { rollList, rollNumberingSnapshot } from '@filmfile/contracts/rolls';
 import { aJpeg } from '../support/a-jpeg.ts';
 import { apiFor, idOf } from '../support/api.ts';
 import { folderOfRoll } from '../support/roll-folder.ts';
@@ -170,6 +170,23 @@ describe('POST /api/rolls', () => {
     });
   });
 
+  test('trims and accepts a freeform roll number', async () => {
+    const response = await post('/api/rolls', {
+      roll: '  BP/roll 1  ',
+      shot: '2025',
+    });
+
+    expect(response.status).toBe(201);
+    const created = rollList.shape.rolls.element.parse(await response.json());
+    expect(created.roll).toBe('BP/roll 1');
+    expect(
+      path.relative(
+        archive.path(),
+        await folderOfRoll(archive.path(), created.roll),
+      ),
+    ).toBe(`rolls/2025/BP_roll_1-${created.id.slice(-8)}`);
+  });
+
   test.each(['2026-02-30', '2026-13', '26'])(
     'refuses a date shot of %j',
     async (shot) => {
@@ -188,6 +205,18 @@ describe('POST /api/rolls', () => {
     const response = await createRoll('2026-014');
 
     expect(response.status).toBe(409);
+  });
+
+  test('treats roll numbers as case-insensitive with equivalent numeric suffixes', async () => {
+    const first = await post('/api/rolls', { roll: 'BP-1', shot: '2025' });
+    expect(first.status).toBe(201);
+
+    const duplicate = await post('/api/rolls', {
+      roll: 'bp-001',
+      shot: '2026',
+    });
+
+    expect(duplicate.status).toBe(409);
   });
 
   test('says which field is wrong when the request is invalid', async () => {
@@ -213,8 +242,8 @@ describe('POST /api/rolls', () => {
     });
   });
 
-  test.each(['2026-14', '26-014', '2026-014a', '../../2026-014', ''])(
-    'rejects %j, which is not a YYYY-NNN roll number',
+  test.each(['', '   ', 'x'.repeat(101)])(
+    'rejects empty or overlength roll number %j',
     async (roll) => {
       const response = await createRoll(roll);
 
@@ -459,6 +488,26 @@ describe('PATCH /api/rolls/{id}', () => {
     expect((await request(url)).status).toBe(200);
   });
 
+  test('trims a freeform number and keeps the existing parent year when the shot year changes', async () => {
+    const { url, etag } = await aRollWithDetails();
+
+    const response = await patch(
+      url,
+      { roll: '  BP/roll 1  ', shot: '2025' },
+      etag,
+    );
+
+    expect(response.status).toBe(200);
+    const changed = rollList.shape.rolls.element.parse(await response.json());
+    expect(changed.roll).toBe('BP/roll 1');
+    expect(
+      path.relative(
+        archive.path(),
+        await folderOfRoll(archive.path(), changed.roll),
+      ),
+    ).toBe(`rolls/2026/BP_roll_1-${changed.id.slice(-8)}`);
+  });
+
   test('refuses a number another roll has, as a problem with the number, changing nothing', async () => {
     const { url, etag } = await aRollWithDetails();
     await post('/api/rolls', { roll: '2026-015', shot: '2026' });
@@ -475,11 +524,14 @@ describe('PATCH /api/rolls/{id}', () => {
     expect((await request(url)).headers.get('ETag')).toBe(etag);
   });
 
-  test('refuses something that is not a roll number', async () => {
-    const { url, etag } = await aRollWithDetails();
+  test.each(['', 'x'.repeat(101)])(
+    'refuses a roll number outside the label length bounds: %j',
+    async (roll) => {
+      const { url, etag } = await aRollWithDetails();
 
-    expect((await patch(url, { roll: '14' }, etag)).status).toBe(422);
-  });
+      expect((await patch(url, { roll }, etag)).status).toBe(422);
+    },
+  );
 
   test('takes the roll’s own number as no change', async () => {
     const { url, etag } = await aRollWithDetails();

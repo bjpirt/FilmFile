@@ -140,10 +140,7 @@ export const storedFrame = z.object({
 const storedRoll = z.object({
   schema: z.literal(currentSchema),
   id: branded<RollId>(isRollId, 'must be a ULID'),
-  roll: branded<RollNumber>(
-    isRollNumber,
-    'must be a roll number like 2026-014',
-  ),
+  roll: branded<RollNumber>(isRollNumber, 'must be 1 to 100 characters'),
   filed: z.boolean().default(false),
   // Added after the first rolls were written, which read as having none.
   name: z.string().nullable().default(null),

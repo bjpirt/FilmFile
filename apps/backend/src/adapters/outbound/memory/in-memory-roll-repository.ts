@@ -2,9 +2,14 @@ import type {
   RollChange,
   RollListing,
   RollRepository,
-  VersionedRollListing,
   VersionedRoll,
+  VersionedRollListing,
 } from '../../../application/ports/roll-repository.ts';
+import {
+  compareRollNumbers,
+  rollNumbersAreUnique,
+  sameRollNumber,
+} from '../../../domain/rolls/roll-number.ts';
 import type { Roll } from '../../../domain/rolls/roll.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type {
@@ -52,7 +57,7 @@ export class InMemoryRollRepository implements RollRepository {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- see above
   listVersioned(_ctx: ArchiveContext): Promise<VersionedRollListing> {
     const rolls = [...this.#rolls.values()].sort((a, b) =>
-      a.roll.roll.localeCompare(b.roll.roll),
+      compareRollNumbers(a.roll.roll, b.roll.roll),
     );
     return Promise.resolve({ rolls, unreadable: [] });
   }
@@ -66,7 +71,11 @@ export class InMemoryRollRepository implements RollRepository {
     roll: Roll,
   ): Promise<Result<void, AlreadyExists>> {
     return this.#writes.run<Result<void, AlreadyExists>>('archive', () => {
-      if ([...this.#rolls.values()].some((r) => r.roll.roll === roll.roll)) {
+      if (
+        [...this.#rolls.values()].some((r) =>
+          sameRollNumber(r.roll.roll, roll.roll),
+        )
+      ) {
         return Promise.resolve(
           err({ kind: 'already-exists', entity: 'roll', id: roll.roll }),
         );
@@ -140,7 +149,8 @@ export class InMemoryRollRepository implements RollRepository {
           });
         } else if (
           [...this.#rolls.values()].some(
-            (r) => r.roll.id !== roll.id && r.roll.roll === roll.roll,
+            (r) =>
+              r.roll.id !== roll.id && sameRollNumber(r.roll.roll, roll.roll),
           )
         ) {
           result = err({
@@ -257,7 +267,7 @@ export class InMemoryRollRepository implements RollRepository {
       const finalNumbers = current.map(
         ({ roll }) => changesById.get(roll.id)?.roll ?? roll.roll,
       );
-      if (new Set(finalNumbers).size !== finalNumbers.length) {
+      if (!rollNumbersAreUnique(finalNumbers)) {
         return Promise.resolve(
           err({
             kind: 'validation-failed',

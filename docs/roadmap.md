@@ -22,7 +22,6 @@ What a frame has is seen at a glance on its thumbnail, a roll's frames are group
 
 Roll numbers can be entered freely or generated from a pattern, while the library stays readable in Finder (D66, D69). (A Browse folder of links is parked, FF-111.)
 
-- [ ] [FF-153 Freeform roll numbers](tasks/FF-153.md): name rolls freely while keeping their folders safe and organized by year.
 - [ ] [FF-159 Custom roll number pattern](tasks/FF-159.md): use a pattern to suggest numbers for new rolls and “Number rolls…”.
 - [ ] [FF-109 Originals read-only](tasks/FF-109.md): the service makes originals read-only, so nothing reaching them through a link can change them.
 - [ ] [FF-149 Rate from a thumbnail](tasks/FF-149.md): point at a thumbnail's stars and click one to rate the frame.
@@ -406,6 +405,12 @@ Frame ratings and scan selection are visible while browsing. Frames can be marke
 - [x] [FF-148 Stars on thumbnails](tasks/FF-148.md)
 - [x] [FF-101 One event per frame](tasks/FF-101.md)
 - [x] [FF-104 Mark frames to scan](tasks/FF-104.md)
+
+### Library management
+
+Roll numbers are stored as entered while their folder labels stay safe and readable (D87).
+
+- [x] [FF-153 Freeform roll numbers](tasks/FF-153.md)
 
 ### Finding your way around the library
 

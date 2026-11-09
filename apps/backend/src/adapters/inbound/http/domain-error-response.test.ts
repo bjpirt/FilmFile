@@ -33,16 +33,12 @@ test.each<[DomainError, number, unknown]>([
   [
     {
       kind: 'validation-failed',
-      issues: [
-        { path: ['roll'], message: 'must be a roll number like 2026-014' },
-      ],
+      issues: [{ path: ['roll'], message: 'must be 1 to 100 characters' }],
     },
     422,
     {
       error: 'invalid request',
-      issues: [
-        { path: ['roll'], message: 'must be a roll number like 2026-014' },
-      ],
+      issues: [{ path: ['roll'], message: 'must be 1 to 100 characters' }],
     },
   ],
   [

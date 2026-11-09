@@ -8,13 +8,10 @@ const ulid = z
   .regex(/^[0-9A-HJKMNP-TV-Z]{26}$/, 'must be a ULID')
   .meta({ example: '01M6EAAP694BKWR9HZ4N5Z54XD' });
 
-export const rollNumber = z
-  .string()
-  .regex(/^\d{4}-\d{3}$/, 'must be a roll number like 2026-014')
-  .meta({
-    description: 'The year the roll was shot and a number, YYYY-NNN.',
-    example: '2026-014',
-  });
+export const rollNumber = z.string().trim().min(1).max(100).meta({
+  description: 'A roll number label, up to 100 characters.',
+  example: '2026-014',
+});
 
 /** How far a version is turned clockwise when shown, in degrees (D41). */
 export const quarterTurn = z
