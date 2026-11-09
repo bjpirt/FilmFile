@@ -81,7 +81,6 @@ FilmFile/
   Exports/       JPEGs of the frames marked for export, kept in step (D60)
   Sites/         event sites, ready to upload (D61)
   Editors/       folders of links for editors: NegPy/, later darktable/ (D51)
-  Browse/        links to every roll's files, named by frame number (parked, FF-111)
 ```
 
 The archive (`Library/`):
@@ -115,8 +114,8 @@ Library/
 - A folder per version means files with the same name (such as a re-exported master) never clash, and a file's sidecars sit beside it. Deleting a frame or version moves one folder.
 - Folder names are a label and the last 8 characters of the ULID (its random part): rolls `<safe roll label>-<ID>` under the shot-year parent for new rolls, frames `<frame number>-<ID>` (`unnumbered-<ID>` without one, the number cleaned to letters, digits and hyphens), versions `<kind>-<ID>`. Roll labels are sanitized using the frame-label rule; the IDs keep names unique, so renumbering can swap names without clashes (D66, D69, D79, D87).
 - Frame-number labels keep ASCII letters, digits and hyphens; every other character becomes `_`, and a leading hyphen is prefixed with `_` (D79). Frame folders are created with the first version, not for empty frames. Only this labeled frame/version layout is supported; ID-only folders are not migrated or supported (D80).
-- Labels follow renumbering and kind changes; files keep their original names and are never changed. `roll.json` records each version's path, updated in the same save as a rename; a rename cut short is recovered by the ID in the name (later, FF-156). A rename makes backup and sync see the files as new, which matters only for raws renumbered after they're added.
-- If a source folder is missing or a destination is occupied, the save fails without changing `roll.json` or overwriting data. Ordinary move/save errors trigger a best-effort rollback; crash recovery remains FF-156 (D81).
+- Labels follow renumbering and kind changes; files keep their original names and are never changed. `roll.json` records each version's path, updated in the same save as a rename; a rename cut short isn't recovered automatically. A rename makes backup and sync see the files as new, which matters only for raws renumbered after they're added.
+- If a source folder is missing or a destination is occupied, the save fails without changing `roll.json` or overwriting data. Ordinary move/save errors trigger a best-effort rollback; a crash isn't recovered automatically (D81).
 - NegPy doesn't need the raws in one folder: it can build a virtual roll from frames anywhere, and keys its edits by file content, so files can move. After a folder path changes, existing links are rebuilt the next time the user explicitly chooses "Open in NegPy" (D82).
 - Every file is listed in `roll.json` with its SHA-256 and size, so corruption, outside edits and stray files are detectable.
 
