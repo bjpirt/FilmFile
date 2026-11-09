@@ -428,6 +428,37 @@ describe('GET /api/rolls/{id}', () => {
   });
 });
 
+describe('a roll number pattern that needs a month, day or event (D89)', () => {
+  test('doesn’t stop a roll being created or edited without them', async () => {
+    await post('/api/settings', { author: 'Ben' });
+    const etag = (await request('/api/settings')).headers.get('ETag') ?? '';
+    await request('/api/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'If-Match': etag },
+      body: JSON.stringify({
+        rollNumberPattern: '{event}-{year}{month}-{n:2}',
+      }),
+    });
+
+    const created = await post('/api/rolls', {
+      roll: 'event-2026MM-01',
+      shot: '2026',
+    });
+    expect(created.status).toBe(201);
+    const url = `/api/rolls/${String(idOf(await created.json()))}`;
+    const changed = await request(url, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'If-Match': (await request(url)).headers.get('ETag') ?? '',
+      },
+      body: JSON.stringify({ shot: '2027', name: 'Iceland' }),
+    });
+
+    expect(changed.status).toBe(200);
+  });
+});
+
 describe('PATCH /api/rolls/{id}', () => {
   async function aRollWithDetails() {
     const created: unknown = await (

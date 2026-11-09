@@ -144,11 +144,20 @@ export function whatIsMissing(
   return pattern.event && facts.event === null ? 'an event' : undefined;
 }
 
-/** Renders the number a roll gets at sequence value `n`, or undefined if it lacks what the pattern uses. */
+/** What stands in a number for a month, day or event a roll doesn't have yet (FF-154, D90). */
+const placeholders = { month: 'MM', day: 'DD', event: 'event' } as const;
+
+/**
+ * Renders the number a roll gets at sequence value `n`, or undefined if it
+ * lacks what the pattern uses. With `placeholder`, a missing month, day or
+ * event is "MM", "DD" or "event" instead, for rolls given their details
+ * later.
+ */
 export function renderRollNumber(
   pattern: RollNumberPattern,
   facts: RollFacts,
   n: number,
+  placeholder = false,
 ): string | undefined {
   let label = '';
   for (const part of pattern.parts) {
@@ -161,18 +170,25 @@ export function renderRollNumber(
         break;
       case 'event':
         if (facts.event === null) {
-          return undefined;
+          if (!placeholder) {
+            return undefined;
+          }
+          label += placeholders.event;
+        } else {
+          label += facts.event;
         }
-        label += facts.event;
         break;
       case 'year':
       case 'month':
       case 'day': {
         const value = shotPart(part.kind, facts.shot);
-        if (value === undefined) {
+        if (value !== undefined) {
+          label += value;
+        } else if (placeholder && part.kind !== 'year') {
+          label += placeholders[part.kind];
+        } else {
           return undefined;
         }
-        label += value;
         break;
       }
     }
@@ -263,9 +279,10 @@ export function firstFreeNumber(
   facts: RollFacts,
   from: number,
   occupied: readonly string[],
+  placeholder = false,
 ): string | undefined {
   for (let n = from; ; n += 1) {
-    const label = renderRollNumber(pattern, facts, n);
+    const label = renderRollNumber(pattern, facts, n, placeholder);
     if (label === undefined) {
       return undefined;
     }
@@ -308,4 +325,20 @@ export function exampleRollNumber(pattern: RollNumberPattern): string {
       14,
     ) ?? ''
   );
+}
+
+/**
+ * The next free number for a roll being imported before its details are all
+ * known (D90): as `suggestRollNumber` when it has what the pattern uses,
+ * else with "MM", "DD" or "event" in place of what's missing, counting up
+ * past the numbers already given out with them.
+ */
+export function suggestImportedNumber(
+  pattern: RollNumberPattern,
+  facts: RollFacts,
+  occupied: readonly string[],
+): string | undefined {
+  return whatIsMissing(pattern, facts) === undefined
+    ? suggestRollNumber(pattern, facts, occupied)
+    : firstFreeNumber(pattern, facts, 1, occupied, true);
 }

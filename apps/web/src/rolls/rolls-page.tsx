@@ -478,6 +478,9 @@ export function RollsPage({
               </button>
             </>
           )}
+          <Link to="/rolls/import" className="button">
+            Import rolls…
+          </Link>
           <Link to="/rolls/new" className="button primary">
             New roll
           </Link>

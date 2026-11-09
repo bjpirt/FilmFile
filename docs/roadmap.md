@@ -131,7 +131,7 @@ A frame's details: what a frame has is seen at a glance on its thumbnail. Frames
 
 A frame has more than one version: a low-res scan to preview it, a hi-res raw scan of the negative or slide, and a processed final (design section 8.2), each a kind chosen as it's added (D48). The version shown is chosen with a star, and frames can be marked to scan. Versions are added one frame at a time for now; adding many frames' raw scans or finals together is for later (FF-134).
 
-- [ ] [FF-103 Choose the version shown](tasks/FF-103.md): a star on each version in the frame view chooses the one shown everywhere.
+- [ ] [FF-103 Choose the version shown](tasks/FF-103.md): a star on each version in the frame view chooses the one shown everywhere, replacing its "Shown everywhere" label.
 - [ ] [later] [FF-131 Raws in batches](tasks/FF-131.md): a scan list from the frames marked to scan, and raws matched to it.
 - [ ] [later] [FF-134 Add raw scans or finals to a roll's frames together](tasks/FF-134.md): raw scans or finals for many frames at once, matched by name.
 - [ ] [later] [FF-135 The newest Final shown](tasks/FF-135.md): a frame's newest Final shown in place of its first version.
@@ -150,8 +150,8 @@ A frame has more than one version: a low-res scan to preview it, a hi-res raw sc
 
 Rolls are numbered freely or from a pattern (D87, D88). Rolls are imported before their year or order is certain: each gets a number straight away, dates are set, then "Number rolls…" previews and renumbers only the rolls matching the current Browse filters, in shot-date order. Filed and filtered-out rolls keep their numbers (D74–D76).
 
-- [ ] [later] [FF-154 Import many rolls at once](tasks/FF-154.md): a folder of folders of scans, one roll each, numbered automatically.
 - [ ] [later] [FF-157 Filter rolls by filing status](tasks/FF-157.md): show only rolls that aren't filed.
+- [x] [FF-154 Import many rolls at once](tasks/FF-154.md)
 - [x] [FF-159 Custom roll number pattern](tasks/FF-159.md)
 - [x] [FF-153 Freeform roll numbers](tasks/FF-153.md)
 - [x] [FF-108 Number rolls by date](tasks/FF-108.md)
@@ -254,7 +254,8 @@ Key journeys, each named by the task that adds it:
 
 | Journey | What it proves |
 |---|---|
-| Catalogue a roll (exists) | Create a roll, add its scans, correct a frame number, reload and find it all there |
+| Import rolls (FF-154) | Choose a folder of two roll folders, see each roll's name, frame count, date and number in the preview, import, and find both rolls with their scans and numbers after a reload |
+| Catalogue a roll (exists, FF-103) | Create a roll, add its scans, correct a frame number, reload and find it all there; give a frame a second version, choose it with its star and see it on the contact sheet after a reload |
 | Renumber a roll (exists) | A tail-to-head roll renumbered as "last scan is frame 1, counting down", saved and reloaded |
 | Find rolls (U6, FF-108) | Switch grid and list, group and filter by shot year, close and reopen the browse panel; number only the filtered rolls |
 | Number rolls (FF-108) | Preview filtered rolls by shot date around filed anchors and fixed numbers; apply the changes or cancel |
@@ -317,7 +318,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D43 | First-run setup is required: until `archive.json` exists, every page shows the setup form, since what's set there (author, copyright) is what frames will inherit. | 1b.2 |
 | D44 | The archive has no name, only an author (required) and a copyright, since there's one archive and its name was never shown. An `archive.json` written with a `name` is read without it. The copyright is made from the author until it's written by hand. | 1b.2 |
 | D45 | Film stock is the roll's alone: a roll is one film, so a frame can't have a film stock of its own, unlike its camera, lens and events (U15). | U52 |
-| D46 | A frame shows its first version, its lab scan, unless one is chosen to show: a later camera raw or edit doesn't take its place by being added. Choosing which version is shown waits (FF-103). Replaces D15's newest. | U60, U61, U34, U28b |
+| D46 | A frame shows its first version, its lab scan, unless one is chosen to show: a later camera raw or edit doesn't take its place by being added. Choosing which version is shown is a star on each version in the frame view (FF-103); choosing the first records no choice, so it still means the first if that is deleted. Replaces D15's newest. | U60, U61, U34, U28b |
 | D47 | A frame can have its own date and time shot, in place of its roll's, like its camera, lens and events: a roll can be shot over several days. It's resolved and shown with the other details. | U59 |
 | D48 | A version is a kind: Scan (ready to view, at any resolution), Raw scan (the negative or slide as scanned, before processing) or Final (processed), chosen as it's added and changeable later. Resolution isn't a kind: it's measured from the image and shown. Replaces D34's `source` and settles D16's open question. | U64, U20, FF-141, FF-112, FF-134, FF-135 |
 | D49 | A thumbnail has one icon for whatever a frame has of its own, details or notes, rather than one for each, to keep small thumbnails uncluttered; its name says which. | U69, FF-148 |
@@ -359,7 +360,9 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D85 | `toScan` is a persistent frame selection, stored only when true and returned by the API as a boolean. Raw scans and Finals change its thumbnail status to “Scanned” but do not clear it; deleting the last such version makes it pending again. The FF-131 scan list uses only marked frames without Raw scans or Finals. | FF-104, FF-131 |
 | D86 | A pending mark uses a neutral scanner icon named “To scan at higher resolution”; a marked frame with a Raw scan or Final uses the same scanner with a check in the orange theme color, named “Scanned”. The frame-view toggle is an icon beside the other actions, named “Mark to scan” or “Marked to scan”; it uses the yellow theme accent whenever marked, regardless of scan completion. The roll heading shows pending count as `N frames (M to scan)` only when nonzero. Bulk feedback is “2 frames marked to scan.” or “Scan mark removed from 2 frames.”, with singular grammar for one. | FF-104 |
 | D87 | A roll number is any non-empty text up to 100 characters after trimming surrounding whitespace. The exact remaining text is stored; only its folder label is sanitized using D79's safe-label rule. Numbers are unique case-insensitively, with D76's numeric-suffix equivalence, and lists sort naturally without case. New roll folders use shot year as their parent; existing folders keep their current parent permanently. | FF-153 |
-| D88 | The archive-wide roll-number pattern is stored in Settings, defaulting to `{year}-{n:3}` for older settings. It has fixed text, one minimum-width sequence token, and optional `{year}`, `{month}`, `{day}` tokens from the shot date and `{event}` (the event's slug). It suggests numbers on New roll and in “Number rolls…” only; an API create without a supplied number keeps its existing default. Counters reset for the distinct values of date tokens present, or are global without date tokens; New roll suggestions advance after the highest matching value, never reuse gaps, and skip occupied labels. “Number rolls…” preserves D74's filed and filtered-out anchors and shot-date order, using the pattern's date-token values as groups. Month/day/event tokens require that precision or an event on every existing roll before saving the pattern and on later create/edit. Saving a pattern does not renumber rolls; “Number rolls…” applies it explicitly. | FF-159 |
+| D88 | The archive-wide roll-number pattern is stored in Settings, defaulting to `{year}-{n:3}` for older settings. It has fixed text, one minimum-width sequence token, and optional `{year}`, `{month}`, `{day}` tokens from the shot date and `{event}` (the event's slug). It suggests numbers on New roll and in “Number rolls…” only; an API create without a supplied number keeps its existing default. Counters reset for the distinct values of date tokens present, or are global without date tokens; New roll suggestions advance after the highest matching value, never reuse gaps, and skip occupied labels. “Number rolls…” preserves D74's filed and filtered-out anchors and shot-date order, using the pattern's date-token values as groups. Month/day/event tokens require that precision or an event on every existing roll before saving the pattern (and "Number rolls…" needs them); creating and editing a roll don't enforce it (D89). Saving a pattern does not renumber rolls; “Number rolls…” applies it explicitly. | FF-159 |
+| D89 | Creating or editing a roll doesn't refuse one that lacks the month, day or event the roll number pattern uses; the pattern can only be saved while every roll has them, and "Number rolls…" stops with a message while a roll lacks them. So rolls can be imported before their details are known and numbered once they are. Relaxes D88. | FF-154, FF-159 |
+| D90 | Importing many rolls: each folder dropped or chosen that holds a JPEG becomes a roll, and one that holds none contributes its subfolders that do (so one folder of roll folders, or several roll folders, can be dropped) named after its folder, dated from a year (and month and day) in its name or else this year, numbered from the pattern in Settings in natural name order, with "MM", "DD" or "event" in a number for what's missing. It runs one roll and one scan at a time, keeps going past failures, can be cancelled without undoing what's done, and doesn't detect folders already imported. | FF-154 |
 
 **Still open:** see `docs/design.md`, section 15.
 

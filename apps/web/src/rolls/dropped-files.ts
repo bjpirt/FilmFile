@@ -27,11 +27,11 @@ export interface Drop {
 
 // Folders can hold sidecars, contact sheets and system files such as
 // .DS_Store and ._12340001.jpg; only the scans are wanted.
-function isScan(name: string): boolean {
+export function isScan(name: string): boolean {
   return !name.startsWith('.') && /\.jpe?g$/i.test(name);
 }
 
-function fileOf(entry: DroppedEntry): Promise<File | undefined> {
+export function fileOf(entry: DroppedEntry): Promise<File | undefined> {
   const { file } = entry;
   if (file === undefined) {
     return Promise.resolve(undefined);
@@ -42,7 +42,7 @@ function fileOf(entry: DroppedEntry): Promise<File | undefined> {
 }
 
 /** Every entry in a folder: browsers hand them back in batches until an empty one. */
-async function entriesIn(entry: DroppedEntry): Promise<DroppedEntry[]> {
+export async function entriesIn(entry: DroppedEntry): Promise<DroppedEntry[]> {
   const reader = entry.createReader?.call(entry);
   if (reader === undefined) {
     return [];
@@ -59,7 +59,7 @@ async function entriesIn(entry: DroppedEntry): Promise<DroppedEntry[]> {
   }
 }
 
-async function scansIn(folder: DroppedEntry): Promise<File[]> {
+export async function scansIn(folder: DroppedEntry): Promise<File[]> {
   const files = await Promise.all(
     (await entriesIn(folder)).filter((e) => isScan(e.name)).map(fileOf),
   );

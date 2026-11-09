@@ -1037,3 +1037,11 @@ test('opens the new roll page from New roll', async () => {
     screen.getByRole('link', { name: 'New roll' }).getAttribute('href'),
   ).toBe('/rolls/new');
 });
+
+test('opens the import page from Import rolls…, beside New roll', async () => {
+  renderPage(fakeArchive());
+
+  const link = await screen.findByRole('link', { name: 'Import rolls…' });
+
+  expect(link.getAttribute('href')).toBe('/rolls/import');
+});

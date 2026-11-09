@@ -7,6 +7,7 @@ import {
   patternOf,
   readRollNumber,
   renderRollNumber,
+  suggestImportedNumber,
   suggestRollNumber,
   whatIsMissing,
   type RollFacts,
@@ -196,5 +197,38 @@ describe('suggestRollNumber', () => {
         [],
       ),
     ).toBeUndefined();
+  });
+});
+
+describe('numbers for rolls whose details are not all known (FF-154, D90)', () => {
+  const none: RollFacts = { shot: '2026', event: null };
+
+  test('put MM, DD or event in for a missing month, day or event', () => {
+    expect(
+      renderRollNumber(
+        pattern('{event}-{year}{month}{day}-{n:2}'),
+        none,
+        3,
+        true,
+      ),
+    ).toBe('event-2026MMDD-03');
+    expect(
+      renderRollNumber(pattern('{year}{month}-{n:2}'), none, 3),
+    ).toBeUndefined();
+  });
+
+  test('are the ordinary next number when the roll has what the pattern uses', () => {
+    expect(
+      suggestImportedNumber(pattern('{year}-{n:3}'), none, ['2026-004']),
+    ).toBe('2026-005');
+  });
+
+  test('count up past the placeholder numbers already there, from one', () => {
+    const monthly = pattern('{year}{month}-{n:2}');
+
+    expect(suggestImportedNumber(monthly, none, [])).toBe('2026MM-01');
+    expect(
+      suggestImportedNumber(monthly, none, ['2026MM-01', '2026MM-02']),
+    ).toBe('2026MM-03');
   });
 });

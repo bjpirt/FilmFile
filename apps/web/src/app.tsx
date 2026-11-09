@@ -6,6 +6,7 @@ import { EventPage } from './events/event-page.tsx';
 import { EventsPage } from './events/events-page.tsx';
 import { EventFramePage } from './frames/event-frame-page.tsx';
 import { RollFramePage } from './frames/roll-frame-page.tsx';
+import { ImportRollsPage } from './rolls/import-rolls-page.tsx';
 import { NewRollPage } from './rolls/new-roll-page.tsx';
 import { RollPage } from './rolls/roll-page.tsx';
 import { useState } from 'react';
@@ -45,6 +46,9 @@ function Page({
   }
   if (path === '/rolls/new') {
     return <NewRollPage api={api} />;
+  }
+  if (path === '/rolls/import') {
+    return <ImportRollsPage api={api} />;
   }
   const rollFrame = rollFramePath.exec(path);
   if (rollFrame?.[1] !== undefined && rollFrame[2] !== undefined) {

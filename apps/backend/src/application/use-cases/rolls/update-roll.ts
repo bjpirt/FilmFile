@@ -14,15 +14,10 @@ import type {
   RollRepository,
   VersionedRoll,
 } from '../../ports/roll-repository.ts';
-import type { SettingsRepository } from '../../ports/settings-repository.ts';
 import { knownCamera } from './known-camera.ts';
 import { knownEvent } from './known-event.ts';
 import { knownFilmStock } from './known-film-stock.ts';
 import { knownLens } from './known-lens.ts';
-import {
-  rollMeetsPattern,
-  savedPatternNeeds,
-} from './roll-number-pattern-needs.ts';
 import { textOrNull } from './text-or-null.ts';
 
 /**
@@ -36,15 +31,12 @@ export class UpdateRoll {
   readonly #rolls: RollRepository;
   readonly #equipment: EquipmentRepository;
   readonly #events: EventRepository;
-  readonly #settings: SettingsRepository;
 
   constructor(
     rolls: RollRepository,
     equipment: EquipmentRepository,
     events: EventRepository,
-    settings: SettingsRepository,
   ) {
-    this.#settings = settings;
     this.#rolls = rolls;
     this.#equipment = equipment;
     this.#events = events;
@@ -84,13 +76,6 @@ export class UpdateRoll {
         : parseShotDate(input.shot);
     if (!shot.ok) {
       return shot;
-    }
-    const meets = rollMeetsPattern(
-      await savedPatternNeeds(this.#settings, ctx),
-      { shot: shot.value, event: input.event },
-    );
-    if (!meets.ok) {
-      return meets;
     }
     const event =
       input.event === undefined || input.event === null

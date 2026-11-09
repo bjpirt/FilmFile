@@ -8,6 +8,8 @@ export interface UploadReport {
     readonly file: string;
     readonly reason: string;
   }[];
+  /** Scans not tried, because the upload was stopped (FF-154). */
+  readonly notTried: number;
 }
 
 async function sha256(file: File): Promise<string> {
@@ -107,6 +109,8 @@ export async function uploadScans(
   roll: Roll,
   files: readonly File[],
   onProgress: (done: number) => void,
+  /** Asked before each scan: true stops the upload, leaving the rest untried. */
+  stop: () => boolean = () => false,
 ): Promise<UploadReport> {
   const inRoll = new Set(
     roll.frames.flatMap((frame) => frame.versions.map((v) => v.sha256)),
@@ -119,7 +123,12 @@ export async function uploadScans(
   let uploaded = 0;
   let alreadyInRoll = 0;
   const failed: { file: string; reason: string }[] = [];
+  let tried = 0;
   for (const [index, file] of ordered.entries()) {
+    if (stop()) {
+      break;
+    }
+    tried += 1;
     const outcome = await uploadScan(api, roll.id, file, number, inRoll);
     if (outcome.frameCreated) {
       number += 1;
@@ -137,5 +146,5 @@ export async function uploadScans(
     }
     onProgress(index + 1);
   }
-  return { uploaded, alreadyInRoll, failed };
+  return { uploaded, alreadyInRoll, failed, notTried: ordered.length - tried };
 }

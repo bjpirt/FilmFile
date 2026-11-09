@@ -165,6 +165,26 @@ select {
   width: 10rem;
 }
 
+/* A file picker: its own button, padded and in step with the app's, and its box as tall as that needs, so nothing sits high in it. */
+input[type='file'] {
+  color: var(--text-muted);
+  cursor: pointer;
+  min-height: 0;
+  padding: var(--space-2) var(--space-3);
+}
+
+input[type='file']::file-selector-button {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.95rem;
+  margin-right: var(--space-3);
+  padding: var(--space-1) var(--space-3);
+}
+
 /* Roll page */
 
 .drop-zone {
@@ -1589,4 +1609,55 @@ textarea {
   margin: 0;
   overflow-wrap: anywhere;
   user-select: text;
+}
+
+/* The rolls to import and what an import did (FF-154): a table, a row to each folder, with headings, rules and alternating rows. */
+.import-rolls,
+.import-summary {
+  border-collapse: collapse;
+  margin-bottom: var(--space-4);
+  width: 100%;
+}
+
+.import-rolls th,
+.import-rolls td,
+.import-summary th,
+.import-summary td {
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-2) var(--space-4);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.import-rolls th,
+.import-summary th {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.import-rolls tbody tr:nth-child(even),
+.import-summary tbody tr:nth-child(even) {
+  background: var(--surface);
+}
+
+/* The date's fields in a row, headed by the column. */
+.import-rolls .date-shot {
+  align-items: center;
+  border: 0;
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+}
+
+.import-ok {
+  color: var(--text-muted);
+}
+
+.import-warn {
+  color: var(--accent);
+}
+
+.import-bad {
+  color: var(--danger, #e5645c);
 }
