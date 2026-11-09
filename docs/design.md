@@ -33,7 +33,7 @@ The phased roadmap is in section 14; the task files under `docs/tasks/` record i
 1. **The filesystem is the source of truth.** JSON files plus image files are the archive. Every database is a cache that can be rebuilt by scanning the tree.
 2. **The API service is the only writer.** Metadata writes go through use cases and repository ports. Versioned roll saves reject stale data, write atomically, and serialize JSON with stable key order so unchanged data produces byte-identical files. Image bytes are written once through `BlobStore` and are never overwritten.
 3. **Originals are never modified or permanently deleted.** Lab scans, raws and editor exports are only ever added. An edit creates a new version, never an overwrite. Deleting a frame or roll moves its files into the archive's `deleted/` holding area; only I empty it.
-4. **Never write metadata into raws.** NegPy identifies files by content hash, so changing EXIF changes the hash. Catalogue metadata is stamped into exports only (the JPEGs made in `Exports/`, D60).
+4. **Never write metadata into raws.** NegPy identifies files by content hash, so changing EXIF changes the hash. Catalogue metadata is stamped into exports only (the JPEGs made in `Exports/`, D94).
 5. **Frame identity lives in `roll.json`, not in paths.** Frame folders are named by the frame number and ID; version folders by kind and ID (D69). Renumbering a frame or changing a version's kind moves its folder and updates the version paths in `roll.json`; files keep their original names and contents.
 6. **Stable IDs.** Archives, rolls, frames, versions and events have ULIDs, so renaming a roll or event doesn't break links, sync or published URLs.
 7. **Catalogue and operational state are separate.** `roll.json` holds the catalogue. A per-roll `.state.json` for workflow outcomes is planned; workflows and this file are not implemented yet.
@@ -78,7 +78,7 @@ Everything FilmFile keeps is in one **FilmFile folder**, chosen once per compute
 FilmFile/
   settings.json  author and copyright, and later what else is set for FilmFile as a whole (D65)
   Library/       the archive, below
-  Exports/       JPEGs of the frames marked for export, kept in step (D60)
+  Exports/       one folder of JPEGs per export, made on demand from its selection (D94)
   Sites/         built sites, one folder each, ready to upload (D91, D92)
   Editors/       folders of links for editors: NegPy/, later darktable/ (D51)
 ```
@@ -98,8 +98,10 @@ Library/
   events/
     iceland-2026.json
     jokulsarlon-day.json           # parent: iceland-2026
+  exports/
+    iceland-2048.json              # an export: its selection of frames and how they're made (D94)
   sites/
-    iceland-highlights.json        # a site: its rules and frames added or left off (D91)
+    iceland-highlights.json        # a site: its selection of frames and how it's built (D91)
   rolls/
     2026/
       _folder.json                 # optional defaults for a group of rolls (later phase)
@@ -264,7 +266,7 @@ To decide later: the definition format for triggers, filters and steps.
 
 ## 12. Web gallery (planned; sites first)
 
-- **Sites first (D91, D92):** a site is a saved set of rules (rating, event, roll, camera, lens, film stock, date shot, has a Final or a Raw scan, each with the control that suits it, all ANDed) plus frames added or left off by hand, kept in `Library/sites/`. Building it makes a self-contained static site in `Sites/<site>/` (HTML, CSS, a small script and web-sized images; no GPS, no originals, metadata only author and copyright), always from the archive as it is, grouped by roll or event as chosen, and made again only where something changed (images are named by a hash of their inputs, and `site.json` says whether the site is up to date). Uploading it, to an S3 bucket or Cloudflare R2, is a separate step.
+- **Sites first (D91, D92):** a site is a name and a selection of frames kept in `Library/sites/`: a selection (D93) is a list of rules (rating, event, roll, camera, lens, film stock, date shot, has a Final or a Raw scan, each with the control that suits it, all ANDed) plus frames added or left off by hand, shared with exports. Building it makes a self-contained static site in `Sites/<site>/` (HTML, CSS, a small script and web-sized images; no GPS, no originals, metadata only author and copyright), always from the archive as it is, grouped by roll or event as chosen, and made again only where something changed (images are named by a hash of their inputs, and `site.json` says whether the site is up to date). Uploading it, to an S3 bucket or Cloudflare R2, is a separate step.
 - A publishing workflow renders a static site from selected frames or albums into a **separate public bucket** behind CloudFront.
 - Per-album options: unlisted or public, strip GPS, watermark, show or hide camera and film details.
 - Unpublishing is an explicit action that removes those exports.
