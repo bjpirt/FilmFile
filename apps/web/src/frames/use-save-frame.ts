@@ -295,6 +295,67 @@ export function useSaveFrame(
     await queryClient.invalidateQueries({ queryKey: ['rolls'], exact: true });
   }
 
+  /** Shows which version is the one shown everywhere (null: the first) in the roll and the rolls list, so the pages showing the frame follow at once. */
+  function showChoice(choice: string | null) {
+    const withChoice = (roll: Roll): Roll => ({
+      ...roll,
+      frames: roll.frames.map((f) =>
+        f.id === frameId ? { ...f, defaultVersion: choice } : f,
+      ),
+    });
+    queryClient.setQueryData<ReadRoll>(['rolls', rollId], (read) =>
+      read === undefined ? undefined : { ...read, roll: withChoice(read.roll) },
+    );
+    queryClient.setQueryData<{ readonly rolls: readonly Roll[] }>(
+      ['rolls'],
+      (list) =>
+        list === undefined
+          ? undefined
+          : {
+              ...list,
+              rolls: list.rolls.map((roll) =>
+                roll.id === rollId ? withChoice(roll) : roll,
+              ),
+            },
+    );
+  }
+
+  /** Saves which version is shown everywhere (FF-103), which is already shown; puts it back if it isn't saved. */
+  async function sendChoice(choice: string | null, previous: string | null) {
+    const read = queryClient.getQueryData<ReadRoll>(['rolls', rollId]);
+    if (read === undefined) {
+      showChoice(previous);
+      return;
+    }
+    setProblem(undefined);
+    const { response } = await api.PATCH(
+      '/api/rolls/{rollId}/frames/{frameId}',
+      {
+        params: {
+          path: { rollId, frameId },
+          header: { 'if-match': read.etag },
+        },
+        body: { defaultVersion: choice },
+      },
+    );
+    if (!response.ok) {
+      showChoice(previous);
+      setProblem(
+        response.status === 409
+          ? 'This roll changed since you opened it. Reload the page.'
+          : "Couldn't save it. Is the service running?",
+      );
+      return;
+    }
+    // Only the version moves on: a choice made straight after is already shown.
+    const etag = response.headers.get('ETag');
+    if (etag !== null) {
+      queryClient.setQueryData<ReadRoll>(['rolls', rollId], (now) =>
+        now === undefined ? undefined : { ...now, etag },
+      );
+    }
+  }
+
   function queued(send: () => Promise<void>): Promise<void> {
     saving.current = saving.current.then(send).catch(() => {
       setProblem("Couldn't save it. Is the service running?");
@@ -304,6 +365,12 @@ export function useSaveFrame(
 
   return {
     save: (changes: FrameChanges) => queued(() => send(changes)),
+    /** Makes a version the one shown everywhere, or the first again with null (FF-103); it shows at once. */
+    chooseShown: (choice: string | null) => {
+      const previous = shown?.frame.defaultVersion ?? null;
+      showChoice(choice);
+      return queued(() => sendChoice(choice, previous));
+    },
     /** Turns one of the frame's versions as it's shown (D41). */
     turn: (versionId: string, rotate: QuarterTurn) =>
       queued(() => sendVersionChange(versionId, { rotate })),

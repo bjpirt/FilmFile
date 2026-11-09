@@ -6,7 +6,7 @@ Each task is about one commit: small enough to review in one sitting, with its t
 
 `[x]` done, `[ ]` to do (`[later]` marks one set aside or not yet planned), `[-]` dropped or replaced (with where it went).
 
-**Next up:** 6. Versions and scans.
+**Next up:** 5. Describing frames.
 
 ---
 
@@ -131,11 +131,11 @@ A frame's details: what a frame has is seen at a glance on its thumbnail. Frames
 
 A frame has more than one version: a low-res scan to preview it, a hi-res raw scan of the negative or slide, and a processed final (design section 8.2), each a kind chosen as it's added (D48). The version shown is chosen with a star, and frames can be marked to scan. Versions are added one frame at a time for now; adding many frames' raw scans or finals together is for later (FF-134).
 
-- [ ] [FF-103 Choose the version shown](tasks/FF-103.md): a star on each version in the frame view chooses the one shown everywhere, replacing its "Shown everywhere" label.
 - [ ] [later] [FF-131 Raws in batches](tasks/FF-131.md): a scan list from the frames marked to scan, and raws matched to it.
 - [ ] [later] [FF-134 Add raw scans or finals to a roll's frames together](tasks/FF-134.md): raw scans or finals for many frames at once, matched by name.
 - [ ] [later] [FF-135 The newest Final shown](tasks/FF-135.md): a frame's newest Final shown in place of its first version.
 - [ ] [later] [FF-143 Robust upload](tasks/FF-143.md): uploads that skip bad files, retry and resume.
+- [x] [FF-103 Choose the version shown](tasks/FF-103.md)
 - [x] [FF-104 Mark frames to scan](tasks/FF-104.md)
 - [x] [U70 Many versions as an icon](tasks/U70.md)
 - [x] [U69 Own details or notes as an icon](tasks/U69.md)

@@ -305,6 +305,69 @@ describe('DELETE /api/rolls/{id}/frames/{frameId}/versions/{versionId}', () => {
   });
 });
 
+describe('the version shown everywhere (FF-103)', () => {
+  async function twoVersions() {
+    const first = String(
+      idOf(await (await upload(await aJpeg({ shade: 40 }))).json()),
+    );
+    const second = String(
+      idOf(
+        await (
+          await upload(await aJpeg({ shade: 200 }), 'file=edit.jpg')
+        ).json(),
+      ),
+    );
+    return { first, second };
+  }
+
+  async function choose(defaultVersion: string | null) {
+    const etag = (await request(`/api/rolls/${rollId}`)).headers.get('ETag');
+    return await request(`/api/rolls/${rollId}/frames/${frameId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'If-Match': etag ?? '' },
+      body: JSON.stringify({ defaultVersion }),
+    });
+  }
+
+  test('is chosen with If-Match, and cleared to the first with null', async () => {
+    const { second } = await twoVersions();
+
+    const chosen = await choose(second);
+    expect(chosen.status).toBe(200);
+    expect(await chosen.json()).toMatchObject({ defaultVersion: second });
+
+    const cleared = await choose(null);
+    expect(cleared.status).toBe(200);
+    expect(await cleared.json()).toMatchObject({ defaultVersion: null });
+  });
+
+  test('refuses a version the frame does not have, changing nothing', async () => {
+    await twoVersions();
+
+    const response = await choose('01JC8Z7K3M0000000000000000');
+
+    expect(response.status).toBe(422);
+    expect(await (await request(`/api/rolls/${rollId}`)).json()).toMatchObject({
+      frames: [{ defaultVersion: null }],
+    });
+  });
+
+  test('goes back to the first when the version chosen is deleted', async () => {
+    const { second } = await twoVersions();
+    await choose(second);
+    const etag = (await request(`/api/rolls/${rollId}`)).headers.get('ETag');
+
+    await request(`/api/rolls/${rollId}/frames/${frameId}/versions/${second}`, {
+      method: 'DELETE',
+      headers: { 'If-Match': etag ?? '' },
+    });
+
+    expect(await (await request(`/api/rolls/${rollId}`)).json()).toMatchObject({
+      frames: [{ defaultVersion: null }],
+    });
+  });
+});
+
 describe('version kinds', () => {
   test('adds a version as the kind given, a scan unless said', async () => {
     const scan: unknown = await (

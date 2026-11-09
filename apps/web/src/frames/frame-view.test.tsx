@@ -434,7 +434,9 @@ describe('the frame’s details and versions', () => {
     openTwice();
 
     const column = await screen.findByRole('group', { name: 'Versions' });
-    const versions = within(column).getAllByRole('button', { name: /^Show / });
+    const versions = within(column).getAllByRole('button', {
+      name: /^Show (?!this everywhere)/,
+    });
     expect(versions.map((v) => v.getAttribute('aria-label'))).toEqual([
       'Show 12340001.jpg',
       'Show 12340001-again.jpg',
@@ -443,7 +445,9 @@ describe('the frame’s details and versions', () => {
       'true',
       'false',
     ]);
-    expect(within(column).getByText('Shown everywhere')).toBeDefined();
+    expect(
+      within(column).getByRole('button', { name: 'Shown everywhere' }),
+    ).toBeDefined();
     // The column has the "+", so the bar doesn't.
     expect(
       within(column).getByRole('button', { name: 'Add a version' }),
@@ -511,6 +515,199 @@ describe('the frame’s details and versions', () => {
         .map((img) => img.getAttribute('src'))
         .join(),
     ).toContain(twice.frames[0]?.versions[0]?.id ?? 'missing');
+  });
+
+  describe('choosing the version shown everywhere (FF-103)', () => {
+    function stars(): HTMLElement[] {
+      return within(screen.getByRole('group', { name: 'Versions' }))
+        .getAllByRole('button', { name: /everywhere$/ })
+        .filter((star) => star.classList.contains('version-star'));
+    }
+
+    function starState(): string[] {
+      return stars().map(
+        (star) =>
+          `${star.getAttribute('aria-label') ?? ''}:${star.classList.contains('filled') ? 'filled' : 'outline'}`,
+      );
+    }
+
+    test('has a star on each version, filled on the one shown everywhere and named for what a click does', async () => {
+      openTwice();
+      await screen.findByRole('group', { name: 'Versions' });
+
+      expect(starState()).toEqual([
+        'Shown everywhere:filled',
+        'Show this everywhere:outline',
+      ]);
+      expect(stars().map((star) => star.getAttribute('title'))).toEqual([
+        'Shown everywhere',
+        'Show this everywhere',
+      ]);
+      expect(stars()[0]?.getAttribute('aria-disabled')).toBe('true');
+      // A button in the Tab order, a screen reader and touch can use.
+      expect(stars().every((star) => star.tabIndex === 0)).toBe(true);
+      // The old text label is gone: the star says it.
+      expect(screen.queryByText('Shown everywhere')).toBeNull();
+    });
+
+    test('makes another version the one shown everywhere, saved against the roll’s version, at once', async () => {
+      const archive = openTwice();
+      await screen.findByRole('group', { name: 'Versions' });
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Show this everywhere' }),
+      );
+
+      await vi.waitFor(() => {
+        expect(starState()).toEqual([
+          'Show this everywhere:outline',
+          'Shown everywhere:filled',
+        ]);
+      });
+      await vi.waitFor(() => {
+        expect(archive.rolls[0]?.frames[0]?.defaultVersion).toBe(
+          twice.frames[0]?.versions[1]?.id,
+        );
+      });
+      expect(archive.ifMatches).toEqual(['"v1"']);
+      // The filmstrip, and so the contact sheets, show it too.
+      expect(
+        within(screen.getByRole('list', { name: 'Filmstrip' }))
+          .getAllByRole('presentation')
+          .map((img) => img.getAttribute('src'))
+          .join(),
+      ).toContain(twice.frames[0]?.versions[1]?.id ?? 'missing');
+    });
+
+    test('leaves the big image on the version looked at', async () => {
+      openTwice();
+      await screen.findByRole('group', { name: 'Versions' });
+      expect(
+        screen.getByRole('img', { name: '12340001.jpg' }).getAttribute('src'),
+      ).toContain('size=large');
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Show this everywhere' }),
+      );
+
+      expect(
+        screen.getByRole('img', { name: '12340001.jpg' }).getAttribute('src'),
+      ).toContain('size=large');
+      expect(
+        screen.queryByRole('img', { name: '12340001-again.jpg' }),
+      ).toBeNull();
+    });
+
+    test('goes back to the first with its star, recording no choice', async () => {
+      const archive = openTwice();
+      await screen.findByRole('group', { name: 'Versions' });
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Show this everywhere' }),
+      );
+      await vi.waitFor(() => {
+        expect(archive.rolls[0]?.frames[0]?.defaultVersion).not.toBeNull();
+      });
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Show this everywhere' }),
+      );
+
+      await vi.waitFor(() => {
+        expect(archive.rolls[0]?.frames[0]?.defaultVersion).toBeNull();
+      });
+      expect(starState()).toEqual([
+        'Shown everywhere:filled',
+        'Show this everywhere:outline',
+      ]);
+    });
+
+    test('does nothing when the star of the version already shown is clicked', async () => {
+      const archive = openTwice();
+      await screen.findByRole('group', { name: 'Versions' });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Shown everywhere' }));
+
+      expect(archive.ifMatches).toEqual([]);
+      expect(starState()[0]).toBe('Shown everywhere:filled');
+    });
+
+    test('puts the star back and says so when the roll changed elsewhere', async () => {
+      const archive = openTwice();
+      await screen.findByRole('group', { name: 'Versions' });
+      archive.changeRoll(twice.id);
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Show this everywhere' }),
+      );
+
+      expect((await screen.findByRole('alert')).textContent).toBe(
+        'This roll changed since you opened it. Reload the page.',
+      );
+      expect(starState()).toEqual([
+        'Shown everywhere:filled',
+        'Show this everywhere:outline',
+      ]);
+      expect(archive.rolls[0]?.frames[0]?.defaultVersion).toBeNull();
+    });
+
+    test('puts the star back and says so when the save fails', async () => {
+      const archive = openTwice();
+      await screen.findByRole('group', { name: 'Versions' });
+      archive.failSaves();
+
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Show this everywhere' }),
+      );
+
+      expect((await screen.findByRole('alert')).textContent).toBe(
+        "Couldn't save it. Is the service running?",
+      );
+      expect(starState()[0]).toBe('Shown everywhere:filled');
+    });
+
+    test('shows the first again, with its star filled, when the version shown is deleted', async () => {
+      const archive = openTwice();
+      await screen.findByRole('group', { name: 'Versions' });
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Show this everywhere' }),
+      );
+      await vi.waitFor(() => {
+        expect(archive.rolls[0]?.frames[0]?.defaultVersion).not.toBeNull();
+      });
+
+      fireEvent.click(
+        within(screen.getByRole('group', { name: 'Versions' })).getByRole(
+          'button',
+          { name: 'Options for 12340001-again.jpg' },
+        ),
+      );
+      fireEvent.click(
+        screen.getByRole('menuitem', { name: 'Delete version…' }),
+      );
+      fireEvent.click(
+        within(
+          screen.getByRole('alertdialog', {
+            name: 'Delete 12340001-again.jpg',
+          }),
+        ).getByRole('button', { name: 'Delete' }),
+      );
+
+      await vi.waitFor(() => {
+        expect(archive.rolls[0]?.frames[0]?.defaultVersion).toBeNull();
+      });
+      // One version is left, so the column and its stars go.
+      await vi.waitFor(() => {
+        expect(screen.queryByRole('group', { name: 'Versions' })).toBeNull();
+      });
+    });
+
+    test('has no stars on a frame with one version', async () => {
+      openAt(`/rolls/${roll.id}/frames/${frameId('1')}`);
+      await screen.findByRole('heading', { name: 'Frame 1' });
+
+      expect(screen.queryByRole('group', { name: 'Versions' })).toBeNull();
+      expect(screen.queryByRole('button', { name: /everywhere$/ })).toBeNull();
+    });
   });
 
   async function chooseDelete(name: string) {

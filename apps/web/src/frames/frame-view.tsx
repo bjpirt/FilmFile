@@ -219,8 +219,16 @@ export function FrameView({
   const next = frames[current + 1];
   const currentInStrip = useRef<HTMLLIElement>(null);
   const [detailsOpen, setDetailsOpen] = useState(rememberedDetailsOpen);
-  const { save, turn, changeKind, remove, addVersion, deleteVersion, problem } =
-    useSaveFrame(api, shown);
+  const {
+    save,
+    turn,
+    changeKind,
+    remove,
+    addVersion,
+    deleteVersion,
+    chooseShown,
+    problem,
+  } = useSaveFrame(api, shown);
   const chooseVersion = useRef<HTMLInputElement>(null);
   // The kind chosen from the "+", for the file picked next (U64).
   const addingAs = useRef<VersionKind>('scan');
@@ -529,12 +537,41 @@ export function FrameView({
                             {kindNames[version.kind]} · {megapixels(version)}
                           </span>
                           <span className="version-name">{name}</span>
-                          {version.id === everywhere?.id && (
-                            <span className="version-everywhere">
-                              Shown everywhere
-                            </span>
-                          )}
                         </button>
+                        <button
+                          type="button"
+                          className={
+                            version.id === everywhere?.id
+                              ? 'version-star filled'
+                              : 'version-star'
+                          }
+                          aria-label={
+                            version.id === everywhere?.id
+                              ? 'Shown everywhere'
+                              : 'Show this everywhere'
+                          }
+                          title={
+                            version.id === everywhere?.id
+                              ? 'Shown everywhere'
+                              : 'Show this everywhere'
+                          }
+                          aria-disabled={
+                            version.id === everywhere?.id ? true : undefined
+                          }
+                          onClick={() => {
+                            if (version.id !== everywhere?.id) {
+                              // What's looked at here stays: the star changes what's shown everywhere, not the big image.
+                              if (inView !== undefined) {
+                                setViewing({
+                                  frameId: shown.frame.id,
+                                  versionId: inView.id,
+                                });
+                              }
+                              // The first version is "no choice", so it stays the one shown if it's deleted.
+                              void chooseShown(i === 0 ? null : version.id);
+                            }
+                          }}
+                        />
                         <MenuButton
                           label={`Options for ${name}`}
                           className="version-menu"

@@ -498,9 +498,40 @@ input[type='file']::file-selector-button {
   white-space: nowrap;
 }
 
-.version-everywhere {
+/* A star at the thumbnail's top left: filled on the version shown everywhere, outlined on the others, drawn here so it adds nothing to the thumbnail's text (FF-103). */
+.version-star {
+  background: none;
+  border: 0;
   color: var(--accent);
-  font-size: 0.7rem;
+  font-size: 1rem;
+  left: 4px;
+  line-height: 1;
+  min-height: 0;
+  padding: 0;
+  position: absolute;
+  text-shadow:
+    0 0 3px rgb(0 0 0 / 0.9),
+    0 1px 2px rgb(0 0 0 / 0.8);
+  top: 4px;
+}
+
+.version-star::before {
+  content: '☆';
+}
+
+.version-star.filled::before {
+  content: '★';
+}
+
+/* A bigger target than the star itself; the shown version's star does nothing, so it isn't a pointer. */
+.version-star::after {
+  content: '';
+  inset: -0.35rem;
+  position: absolute;
+}
+
+.version-star[aria-disabled='true'] {
+  cursor: default;
 }
 
 .version-kind {

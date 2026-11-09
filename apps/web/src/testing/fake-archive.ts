@@ -759,7 +759,13 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       }
       roll.frames = roll.frames.map((f) =>
         f.id === frameId
-          ? { ...f, versions: f.versions.filter((v) => v.id !== gone.id) }
+          ? {
+              ...f,
+              // As the service does: the first is shown again.
+              defaultVersion:
+                f.defaultVersion === gone.id ? null : f.defaultVersion,
+              versions: f.versions.filter((v) => v.id !== gone.id),
+            }
           : f,
       );
       change(roll.id);

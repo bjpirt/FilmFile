@@ -1,5 +1,8 @@
 import { expect, test } from './support/isolated-test.ts';
-import { fixtureSets } from '../../apps/backend/test/support/lab-scans.ts';
+import {
+  aLabScan,
+  fixtureSets,
+} from '../../apps/backend/test/support/lab-scans.ts';
 import {
   changeFrameNumber,
   chooseAction,
@@ -92,6 +95,33 @@ test('catalogue a roll: create it with its details and scans, correct a number, 
   ).toBeVisible();
   await expect(page.getByText('Ice on black sand')).toBeVisible();
   await expect(page.getByLabel('Rated 4 of 5', { exact: true })).toBeVisible();
+
+  // Give it a second version and choose it with its star: the roll's contact
+  // sheet then shows it, even after a reload.
+  const picker = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Add a version' }).click();
+  await page.getByRole('menuitem', { name: 'Add scan…' }).click();
+  await (
+    await picker
+  ).setFiles({
+    name: 'edit0005.jpg',
+    mimeType: 'image/jpeg',
+    buffer: Buffer.from(await aLabScan('A')),
+  });
+  const versions = page.getByRole('group', { name: 'Versions' });
+  await versions.getByRole('button', { name: 'Show this everywhere' }).click();
+  await expect(
+    versions.getByRole('button', { name: 'Show this everywhere' }),
+  ).toHaveCount(1);
+  await page.getByRole('link', { name: 'Roll 2026-014' }).first().click();
+  await page.reload();
+  await expect(
+    framesShown(page).nth(4).getByRole('img', { name: 'edit0005.jpg' }),
+  ).toBeVisible();
+  await page.getByRole('link', { name: 'Open frame 5' }).click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Frame 5' }),
+  ).toBeVisible();
 
   // Delete it from the frame view, which moves on to the frame before.
   await page.getByRole('button', { name: 'Delete frame' }).click();
