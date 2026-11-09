@@ -79,7 +79,7 @@ FilmFile/
   settings.json  author and copyright, and later what else is set for FilmFile as a whole (D65)
   Library/       the archive, below
   Exports/       JPEGs of the frames marked for export, kept in step (D60)
-  Sites/         event sites, ready to upload (D61)
+  Sites/         built sites, one folder each, ready to upload (D91, D92)
   Editors/       folders of links for editors: NegPy/, later darktable/ (D51)
 ```
 
@@ -98,6 +98,8 @@ Library/
   events/
     iceland-2026.json
     jokulsarlon-day.json           # parent: iceland-2026
+  sites/
+    iceland-highlights.json        # a site: its rules and frames added or left off (D91)
   rolls/
     2026/
       _folder.json                 # optional defaults for a group of rolls (later phase)
@@ -125,7 +127,7 @@ Library/
 
 All files are JSON, carry `"schema": <n>`, and validate against Zod schemas owned by the filesystem adapter (which also generate JSON Schemas for reference). Readers migrate older schema versions in memory; files are rewritten in the current version the next time they're saved. A file that can't be read (not valid JSON, not matching its schema, or written by a newer version of FilmFile) is reported, not allowed to hide the rest: the roll list names the roll and the problem, and the file is never changed or deleted. These persistence schemas are separate from the domain model and the API contracts (section 13.3).
 
-- **settings.json:** in the FilmFile folder beside `Library/` (D65): `id`, `meta` (archive-wide defaults: author and copyright; a licence later, D42), and later export recipes, event site defaults and workflow settings. It never holds the folder's own path, nor values that differ on each computer (D52). Labs aren't stored (D35).
+- **settings.json:** in the FilmFile folder beside `Library/` (D65): `id`, `meta` (archive-wide defaults: author and copyright; a licence later, D42), and later export recipes, site defaults and workflow settings. It never holds the folder's own path, nor values that differ on each computer (D52). Labs aren't stored (D35).
 - **roll.json:** roll fields, the optional `filed: true` field (absent means unfiled), roll `meta`, and the `frames` array. A frame's optional `toScan: true` is stored only when marked; absent means false. Each frame also holds its own fields, `meta`, its `event` and `versions`.
 - **Equipment:** one file per item; the slug is the file name.
 - **Event:** `id`, `name`, optional `parent` (event slug), `dates`, `notes`, and `meta` defaults (e.g. `location`).
@@ -260,9 +262,9 @@ To decide later: the definition format for triggers, filters and steps.
 
 ---
 
-## 12. Web gallery (planned)
+## 12. Web gallery (planned; sites first)
 
-- **Event sites first (D61):** an event's frames rated at least a chosen number of stars, with frames added or left off by hand, made into a static site in `Sites/<event>/` (HTML, CSS and web-sized images; no GPS, no originals, metadata only author and copyright), then uploaded to an S3 bucket with an AWS profile from `~/.aws`.
+- **Sites first (D91, D92):** a site is a saved set of rules (rating, event, roll, camera, lens, film stock, date shot, has a Final or a Raw scan, each with the control that suits it, all ANDed) plus frames added or left off by hand, kept in `Library/sites/`. Building it makes a self-contained static site in `Sites/<site>/` (HTML, CSS, a small script and web-sized images; no GPS, no originals, metadata only author and copyright), always from the archive as it is, grouped by roll or event as chosen, and made again only where something changed (images are named by a hash of their inputs, and `site.json` says whether the site is up to date). Uploading it, to an S3 bucket or Cloudflare R2, is a separate step.
 - A publishing workflow renders a static site from selected frames or albums into a **separate public bucket** behind CloudFront.
 - Per-album options: unlisted or public, strip GPS, watermark, show or hide camera and film details.
 - Unpublishing is an explicit action that removes those exports.
