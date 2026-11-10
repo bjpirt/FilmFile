@@ -1,5 +1,6 @@
 import type { ApiClient } from '@filmfile/contracts/client';
-import type { EventChoice } from './event-choice.ts';
+import { shotFrom } from '../rolls/shot-fields.ts';
+import type { EventChoice, NewEvent } from './event-choice.ts';
 
 /** The event chosen, by slug (null for none), or why there isn't one. */
 export type ChosenEvent =
@@ -17,18 +18,31 @@ export async function chooseEvent(
     case 'existing':
       return { ok: true, slug: choice.slug };
     case 'new':
-      return createEvent(api, choice.details.name.trim());
+      return createEvent(api, choice.details);
   }
 }
 
-async function createEvent(api: ApiClient, name: string): Promise<ChosenEvent> {
+async function createEvent(
+  api: ApiClient,
+  details: NewEvent,
+): Promise<ChosenEvent> {
+  const name = details.name.trim();
   if (name === '') {
     return {
       ok: false,
       problem: "Enter the new event's name, like Iceland 2026.",
     };
   }
-  const { data, response } = await api.POST('/api/events', { body: { name } });
+  const date = shotFrom(details.date);
+  if (!date.valid) {
+    return {
+      ok: false,
+      problem: 'Enter the event’s year as four digits, like 2026.',
+    };
+  }
+  const { data, response, error } = await api.POST('/api/events', {
+    body: { name, ...(date.shot === undefined ? {} : { date: date.shot }) },
+  });
   if (data !== undefined) {
     return { ok: true, slug: data.slug };
   }
@@ -51,7 +65,9 @@ async function createEvent(api: ApiClient, name: string): Promise<ChosenEvent> {
       return {
         ok: false,
         problem:
-          'Enter an event name with letters or digits, like Iceland 2026.',
+          'issues' in error && error.issues.some((i) => i.path[0] === 'date')
+            ? "The event's date doesn't exist. Check the day and month."
+            : 'Enter an event name with letters or digits, like Iceland 2026.',
       };
     default:
       return {

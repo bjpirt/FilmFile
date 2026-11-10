@@ -308,6 +308,21 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         return notFound();
     }
   }
+  /** Whether a year, year-month or year-month-day is a real date (an absent one is fine). */
+  function isRealDate(date: string | null | undefined): boolean {
+    const [year, month, day] = (date ?? '').split('-').map(Number);
+    if (date === undefined || date === null || month === undefined) {
+      return true;
+    }
+    if (month < 1 || month > 12) {
+      return false;
+    }
+    return (
+      day === undefined ||
+      (day >= 1 && day <= new Date(Date.UTC(year ?? 0, month, 0)).getUTCDate())
+    );
+  }
+
   async function eventsRoute(
     request: Request,
     slug: string | undefined,
@@ -327,6 +342,16 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         return Response.json({ events: listed });
       }
       const body = await bodyOf(request, createEventRequest);
+      if (body.ok && !isRealDate(body.value.date)) {
+        // As the service does: a date that isn't on the calendar is refused.
+        return Response.json(
+          {
+            error: 'invalid request',
+            issues: [{ path: ['date'], message: "doesn't exist" }],
+          },
+          { status: 422 },
+        );
+      }
       return body.ok
         ? added(events, {
             slug: slugFor(body.value.name),

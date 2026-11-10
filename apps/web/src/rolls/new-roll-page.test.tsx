@@ -381,6 +381,94 @@ describe('the event', () => {
     ]);
   });
 
+  describe('a new one’s date', () => {
+    function addingEvent(service: FakeArchive) {
+      renderPage(service);
+      fill('Roll number', '2026-014');
+      choose('Event', 'Add new…');
+      const form = screen.getByRole('group', { name: 'New event' });
+      fireEvent.change(within(form).getByLabelText('Name', { exact: false }), {
+        target: { value: 'Westfjords' },
+      });
+      return within(screen.getByRole('group', { name: 'Event date' }));
+    }
+
+    test('can be given with the name, a year or as precisely as a day, and is saved with the event', async () => {
+      const service = fakeArchive();
+      const date = addingEvent(service);
+
+      fireEvent.change(date.getByLabelText('Year', { exact: false }), {
+        target: { value: '2025' },
+      });
+      fireEvent.change(date.getByLabelText('Month'), {
+        target: { value: '09' },
+      });
+      fireEvent.change(date.getByLabelText('Day'), { target: { value: '14' } });
+      create();
+
+      await waitToOpen(rollId);
+      expect(service.events).toEqual([
+        { slug: 'westfjords', name: 'Westfjords', date: '2025-09-14' },
+      ]);
+    });
+
+    test('can be left out, which is the default', async () => {
+      const service = fakeArchive();
+      const date = addingEvent(service);
+
+      expect(date.getByLabelText('Year', { exact: false })).toHaveProperty(
+        'value',
+        '',
+      );
+      create();
+
+      await waitToOpen(rollId);
+      expect(service.events).toEqual([
+        { slug: 'westfjords', name: 'Westfjords', date: null },
+      ]);
+    });
+
+    test('is a year of four digits when given', async () => {
+      const service = fakeArchive();
+      const date = addingEvent(service);
+      fireEvent.change(date.getByLabelText('Year', { exact: false }), {
+        target: { value: '25' },
+      });
+
+      create();
+
+      expect(
+        await screen.findByText(
+          'Enter the event’s year as four digits, like 2026.',
+        ),
+      ).toBeDefined();
+      expect(service.events).toEqual([]);
+      expect(service.created).toEqual([]);
+    });
+
+    test('is refused if the day isn’t on the calendar, creating no roll', async () => {
+      const service = fakeArchive();
+      const date = addingEvent(service);
+      fireEvent.change(date.getByLabelText('Year', { exact: false }), {
+        target: { value: '2025' },
+      });
+      fireEvent.change(date.getByLabelText('Month'), {
+        target: { value: '02' },
+      });
+      fireEvent.change(date.getByLabelText('Day'), { target: { value: '30' } });
+
+      create();
+
+      expect(
+        await screen.findByText(
+          "The event's date doesn't exist. Check the day and month.",
+        ),
+      ).toBeDefined();
+      expect(service.events).toEqual([]);
+      expect(service.created).toEqual([]);
+    });
+  });
+
   test('asks for a new one’s name', async () => {
     const service = fakeArchive();
     renderPage(service);

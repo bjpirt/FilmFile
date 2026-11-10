@@ -1,9 +1,10 @@
 import type { Event } from '@filmfile/contracts/events';
 import { PickOrAddSelect } from '../forms/pick-or-add-select.tsx';
 import { RequiredMarker } from '../forms/required-marker.tsx';
+import { DateShotFields } from '../rolls/date-shot-fields.tsx';
 import { blankEvent, type EventChoice } from './event-choice.ts';
 
-/** An event picked from the archive's, or Add new…, which asks for its name. */
+/** An event picked from the archive's, or Add new…, which asks for its name and optional date. */
 export function EventField({
   events,
   choice,
@@ -38,10 +39,22 @@ export function EventField({
               maxLength={100}
               autoFocus
               onChange={(event) => {
-                change({ kind: 'new', details: { name: event.target.value } });
+                change({
+                  kind: 'new',
+                  details: { ...choice.details, name: event.target.value },
+                });
               }}
             />
           </label>
+          <DateShotFields
+            shot={choice.details.date}
+            change={(date) => {
+              change({ kind: 'new', details: { ...choice.details, date } });
+            }}
+            legend="Event date"
+            yearRequired={false}
+            withTime={false}
+          />
         </fieldset>
       )}
     </>

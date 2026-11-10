@@ -492,6 +492,33 @@ describe('editing the details', () => {
     expect(details()).toContainEqual(['Event', 'Iceland 2026']);
   });
 
+  test('adds a new event with a date from the details, and puts the roll in it (FF-171)', async () => {
+    const service = archiveWith([], iceland);
+    renderPage(service);
+    await editDetails();
+
+    choose('Event', 'Add new…');
+    const newEvent = screen.getByRole('group', { name: 'New event' });
+    fireEvent.change(
+      within(newEvent).getByLabelText('Name', { exact: false }),
+      {
+        target: { value: 'Westfjords' },
+      },
+    );
+    const date = within(screen.getByRole('group', { name: 'Event date' }));
+    fireEvent.change(date.getByLabelText('Year', { exact: false }), {
+      target: { value: '2025' },
+    });
+    fireEvent.change(date.getByLabelText('Month'), { target: { value: '06' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save details' }));
+
+    expect(await screen.findByText('Westfjords')).toBeDefined();
+    expect(service.events).toEqual([
+      { slug: 'westfjords', name: 'Westfjords', date: '2025-06' },
+    ]);
+    expect(service.rolls[0]?.event).toBe('westfjords');
+  });
+
   test('asks for a year', async () => {
     const service = archiveWith([], iceland);
     renderPage(service);
