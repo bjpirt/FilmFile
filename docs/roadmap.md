@@ -87,6 +87,7 @@ What a roll is catalogued with, one layer of data at a time: camera, film stock,
 - [ ] [later] [FF-130 Sub-events](tasks/FF-130.md): an event inside another.
 - [ ] [later] [FF-132 Tag frames](tasks/FF-132.md): tags on frames.
 - [ ] [later] [FF-133 Locations](tasks/FF-133.md): places on events, rolls and frames.
+- [x] [FF-169 Edit an event from its page](tasks/FF-169.md)
 - [x] [U63 Events laid out like rolls](tasks/U63.md)
 - [x] [U12c An event's frames](tasks/U12c.md)
 - [x] [U12b Events page: create and edit](tasks/U12b.md)

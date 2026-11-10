@@ -292,3 +292,64 @@ test('says so when a rating can’t be saved, and keeps the frame as it was (FF-
   );
   expect(within(item).queryByText('Rated 4 of 5')).toBeNull();
 });
+
+test('has an Edit button that opens the form for the event, and renames it, showing the new name (FF-169)', async () => {
+  const archive = aSettings();
+  renderPage(archive);
+
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Edit Iceland 2026' }),
+  );
+  const form = await screen.findByRole('form', { name: 'Edit Iceland 2026' });
+  fireEvent.change(within(form).getByLabelText('Name', { exact: false }), {
+    target: { value: 'Iceland, September' },
+  });
+  fireEvent.click(within(form).getByRole('button', { name: 'Save event' }));
+
+  expect(
+    await screen.findByRole('heading', {
+      level: 1,
+      name: 'Iceland, September',
+    }),
+  ).toBeDefined();
+  expect(archive.events[0]?.name).toBe('Iceland, September');
+  expect(archive.ifMatches).toEqual(['"v1"']);
+  // The form closes and the Edit button is back.
+  expect(screen.queryByRole('form')).toBeNull();
+  expect(
+    await screen.findByRole('button', { name: 'Edit Iceland, September' }),
+  ).toBeDefined();
+});
+
+test('closes the event form on Cancel, changing nothing', async () => {
+  const archive = aSettings();
+  renderPage(archive);
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Edit Iceland 2026' }),
+  );
+  const form = await screen.findByRole('form', { name: 'Edit Iceland 2026' });
+
+  fireEvent.click(within(form).getByRole('button', { name: 'Cancel' }));
+
+  expect(screen.queryByRole('form')).toBeNull();
+  expect(archive.events[0]?.name).toBe('Iceland 2026');
+  expect(
+    screen.getByRole('button', { name: 'Edit Iceland 2026' }),
+  ).toBeDefined();
+});
+
+test('refuses to overwrite an event changed since it was opened', async () => {
+  const archive = aSettings();
+  renderPage(archive);
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Edit Iceland 2026' }),
+  );
+  const form = await screen.findByRole('form', { name: 'Edit Iceland 2026' });
+  archive.changeEvent('iceland-2026');
+
+  fireEvent.click(within(form).getByRole('button', { name: 'Save event' }));
+
+  expect((await within(form).findByRole('alert')).textContent).toBe(
+    'This event changed since you opened it. Cancel and edit it again.',
+  );
+});

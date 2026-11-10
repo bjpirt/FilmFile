@@ -1,9 +1,11 @@
 import type { ApiClient } from '@filmfile/contracts/client';
+import { useState } from 'react';
 import { formatShot } from '../rolls/format-shot.ts';
 import { FrameMarks } from '../rolls/frame-marks.tsx';
 import { useRateFrame } from '../rolls/use-rate-frame.ts';
 import { Thumbnail } from '../rolls/thumbnail.tsx';
 import { Link, navigate, useSearch } from '../routing.tsx';
+import { EventEditor } from './event-editor.tsx';
 import { groupingOf, groupings, useEventFrames } from './event-frames.ts';
 
 function frameCount(count: number): string {
@@ -25,6 +27,7 @@ export function EventPage({
   const group = groupingOf(new URLSearchParams(useSearch()).get('group'));
   const shown = useEventFrames(api, slug, group);
   const ratings = useRateFrame(api);
+  const [editing, setEditing] = useState(false);
 
   switch (shown.status) {
     case 'loading':
@@ -62,6 +65,19 @@ export function EventPage({
           )}
           <span className="muted">{frameCount(frames.length)}</span>
         </div>
+        <div className="page-actions">
+          {!editing && (
+            <button
+              type="button"
+              aria-label={`Edit ${event.name}`}
+              onClick={() => {
+                setEditing(true);
+              }}
+            >
+              Edit
+            </button>
+          )}
+        </div>
         <label className="group-by">
           Group by
           <select
@@ -83,6 +99,16 @@ export function EventPage({
           </select>
         </label>
       </div>
+
+      {editing && (
+        <EventEditor
+          api={api}
+          slug={slug}
+          close={() => {
+            setEditing(false);
+          }}
+        />
+      )}
 
       {ratings.problem !== undefined && <p role="alert">{ratings.problem}</p>}
 
