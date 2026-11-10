@@ -1090,6 +1090,129 @@ describe('turning the frame', () => {
     expect(shownImage().getAttribute('src')).toContain('rotate=270');
   });
 
+  describe('from the keyboard (FF-170)', () => {
+    test('R turns the version shown clockwise, and Shift-R anticlockwise', async () => {
+      const archive = openFirst();
+      await screen.findByRole('heading', { level: 1, name: 'Frame 1' });
+
+      fireEvent.keyDown(window, { key: 'r' });
+      await vi.waitFor(() => {
+        expect(savedTurn(archive)).toBe(90);
+      });
+      fireEvent.keyDown(window, { key: 'R', shiftKey: true });
+
+      await vi.waitFor(() => {
+        expect(savedTurn(archive)).toBe(0);
+      });
+      expect(shownImage().getAttribute('src')).not.toContain('rotate');
+    });
+
+    test('keeps turning with each press, round past upright', async () => {
+      const archive = openFirst();
+      await screen.findByRole('heading', { level: 1, name: 'Frame 1' });
+
+      fireEvent.keyDown(window, { key: 'R', shiftKey: true });
+
+      await vi.waitFor(() => {
+        expect(savedTurn(archive)).toBe(270);
+      });
+      fireEvent.keyDown(window, { key: 'r' });
+      fireEvent.keyDown(window, { key: 'r' });
+      await vi.waitFor(() => {
+        expect(savedTurn(archive)).toBe(90);
+      });
+      expect(archive.ifMatches).toEqual(['"v1"', '"v2"', '"v3"']);
+    });
+
+    test('goes by Shift, not by the letter’s case, so Caps Lock doesn’t turn it the other way', async () => {
+      const archive = openFirst();
+      await screen.findByRole('heading', { level: 1, name: 'Frame 1' });
+
+      fireEvent.keyDown(window, { key: 'R' });
+
+      await vi.waitFor(() => {
+        expect(savedTurn(archive)).toBe(90);
+      });
+    });
+
+    test.each([
+      ['Ctrl', { ctrlKey: true }],
+      ['Cmd', { metaKey: true }],
+      ['Alt', { altKey: true }],
+    ])(
+      'leaves %s-R to the browser, turning nothing',
+      async (_name, modifier) => {
+        const archive = openFirst();
+        await screen.findByRole('heading', { level: 1, name: 'Frame 1' });
+
+        fireEvent.keyDown(window, { key: 'r', ...modifier });
+
+        expect(archive.ifMatches).toEqual([]);
+        expect(savedTurn(archive)).toBe(0);
+      },
+    );
+
+    test('doesn’t turn it while typing in a field', async () => {
+      const archive = openFirst();
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Show details' }),
+      );
+      const title = await screen.findByRole('textbox', { name: 'Title' });
+
+      fireEvent.keyDown(title, { key: 'r' });
+
+      expect(archive.ifMatches).toEqual([]);
+      expect(savedTurn(archive)).toBe(0);
+    });
+
+    test('puts the turn back and says so when the roll changed elsewhere', async () => {
+      const archive = openFirst();
+      await screen.findByRole('heading', { level: 1, name: 'Frame 1' });
+      archive.changeRoll(roll.id);
+
+      fireEvent.keyDown(window, { key: 'r' });
+
+      expect((await screen.findByRole('alert')).textContent).toBe(
+        'This roll changed since you opened it. Reload the page.',
+      );
+      await vi.waitFor(() => {
+        expect(shownImage().getAttribute('src')).not.toContain('rotate');
+      });
+      expect(savedTurn(archive)).toBe(0);
+    });
+
+    test('puts the turn back and says so when the save fails', async () => {
+      const archive = openFirst();
+      await screen.findByRole('heading', { level: 1, name: 'Frame 1' });
+      archive.failSaves();
+
+      fireEvent.keyDown(window, { key: 'r' });
+
+      expect((await screen.findByRole('alert')).textContent).toBe(
+        "Couldn't save it. Is the service running?",
+      );
+      await vi.waitFor(() => {
+        expect(shownImage().getAttribute('src')).not.toContain('rotate');
+      });
+    });
+
+    test('names the keys on the buttons', async () => {
+      openFirst();
+      await screen.findByRole('heading', { level: 1, name: 'Frame 1' });
+
+      expect(
+        screen
+          .getByRole('button', { name: 'Rotate clockwise' })
+          .getAttribute('title'),
+      ).toBe('Rotate clockwise (R)');
+      expect(
+        screen
+          .getByRole('button', { name: 'Rotate anticlockwise' })
+          .getAttribute('title'),
+      ).toBe('Rotate anticlockwise (Shift+R)');
+    });
+  });
+
   test('shows it turned in the filmstrip too', async () => {
     openFirst();
     await screen.findByRole('heading', { level: 1, name: 'Frame 1' });

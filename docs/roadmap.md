@@ -103,6 +103,7 @@ What a roll is catalogued with, one layer of data at a time: camera, film stock,
 
 A frame's details: what a frame has is seen at a glance on its thumbnail. Frames inherit an event, camera, film stock and lens from their roll and can have their own, as the design's metadata layering describes (section 6, D25); selecting frames lets them be given one at once.
 
+- [x] [FF-170 Rotate a frame from the keyboard](tasks/FF-170.md)
 - [x] [FF-102 A roll's frames grouped by event](tasks/FF-102.md)
 - [x] [FF-149 Rate from a thumbnail](tasks/FF-149.md)
 - [x] [FF-101 One event per frame](tasks/FF-101.md)

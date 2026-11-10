@@ -13,11 +13,7 @@ import {
   rememberedDetailsOpen,
 } from './details-preference.ts';
 import { FrameDetails } from './frame-details.tsx';
-import {
-  useSaveFrame,
-  type QuarterTurn,
-  type VersionKind,
-} from './use-save-frame.ts';
+import { useSaveFrame, type VersionKind } from './use-save-frame.ts';
 
 const versionKinds: readonly VersionKind[] = ['scan', 'raw-scan', 'final'];
 
@@ -50,8 +46,6 @@ function typing(target: EventTarget | null): boolean {
       ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
   );
 }
-
-const quarterTurns: readonly QuarterTurn[] = [0, 90, 180, 270];
 
 /** A curved arrow, turning one way or the other. */
 function TurnIcon({ clockwise }: { readonly clockwise: boolean }) {
@@ -221,7 +215,7 @@ export function FrameView({
   const [detailsOpen, setDetailsOpen] = useState(rememberedDetailsOpen);
   const {
     save,
-    turn,
+    turnBy,
     changeKind,
     remove,
     addVersion,
@@ -257,16 +251,10 @@ export function FrameView({
         ) ?? shownVersion(shown.frame));
   const turning = inView;
 
-  /** Turns the version shown a quarter turn: 90 clockwise, -90 anticlockwise. */
-  function turnBy(degrees: 90 | -90) {
-    if (turning === undefined) {
-      return;
-    }
-    const turned = quarterTurns.find(
-      (t) => t === (turning.rotate + degrees + 360) % 360,
-    );
-    if (turned !== undefined) {
-      void turn(turning.id, turned);
+  /** Turns the version in view a quarter turn: 90 clockwise, -90 anticlockwise. */
+  function rotateBy(degrees: 90 | -90) {
+    if (turning !== undefined) {
+      void turnBy(turning.id, degrees);
     }
   }
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -323,6 +311,10 @@ export function FrameView({
         navigate(back.to);
       } else if (/^[0-5]$/.test(event.key)) {
         void save({ rating: event.key === '0' ? null : Number(event.key) });
+      } else if (event.key.toLowerCase() === 'r') {
+        // R turns clockwise, Shift-R anticlockwise, as the buttons do; Shift
+        // (not the letter's case) says which, so Caps Lock doesn't flip it.
+        rotateBy(event.shiftKey ? -90 : 90);
       } else {
         return;
       }
@@ -338,6 +330,7 @@ export function FrameView({
     back.to,
     addressOf,
     save,
+    rotateBy,
     confirmingDelete,
     confirmingVersion,
   ]);
@@ -418,9 +411,9 @@ export function FrameView({
                 type="button"
                 className="icon-button"
                 aria-label="Rotate anticlockwise"
-                title="Rotate anticlockwise"
+                title="Rotate anticlockwise (Shift+R)"
                 onClick={() => {
-                  turnBy(-90);
+                  rotateBy(-90);
                 }}
               >
                 <TurnIcon clockwise={false} />
@@ -429,9 +422,9 @@ export function FrameView({
                 type="button"
                 className="icon-button"
                 aria-label="Rotate clockwise"
-                title="Rotate clockwise"
+                title="Rotate clockwise (R)"
                 onClick={() => {
-                  turnBy(90);
+                  rotateBy(90);
                 }}
               >
                 <TurnIcon clockwise />

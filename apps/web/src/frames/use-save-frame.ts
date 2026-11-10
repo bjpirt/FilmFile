@@ -29,6 +29,9 @@ function typeOf(file: File, kind: VersionKind): string | undefined {
   return /\.arw$/i.test(file.name) ? 'image/x-sony-arw' : undefined;
 }
 
+/** The turns a version can have, clockwise. */
+const quarterTurns: readonly QuarterTurn[] = [0, 90, 180, 270];
+
 /** What a version is (D48): scan, raw-scan or final. */
 export type VersionKind = components['schemas']['Version']['kind'];
 
@@ -250,6 +253,78 @@ export function useSaveFrame(
     await queryClient.invalidateQueries({ queryKey: ['rolls'], exact: true });
   }
 
+  /** Shows a version turned (or put back) in the roll and the rolls list at once. */
+  function showTurn(versionId: string, rotate: QuarterTurn) {
+    const turned = (roll: Roll): Roll => ({
+      ...roll,
+      frames: roll.frames.map((f) =>
+        f.id === frameId
+          ? {
+              ...f,
+              versions: f.versions.map((v) =>
+                v.id === versionId ? { ...v, rotate } : v,
+              ),
+            }
+          : f,
+      ),
+    });
+    queryClient.setQueryData<ReadRoll>(['rolls', rollId], (read) =>
+      read === undefined ? undefined : { ...read, roll: turned(read.roll) },
+    );
+    queryClient.setQueryData<{ readonly rolls: readonly Roll[] }>(
+      ['rolls'],
+      (list) =>
+        list === undefined
+          ? undefined
+          : {
+              ...list,
+              rolls: list.rolls.map((roll) =>
+                roll.id === rollId ? turned(roll) : roll,
+              ),
+            },
+    );
+  }
+
+  /** Saves a version's turn, which is already shown; puts it back if it isn't saved. */
+  async function sendTurn(
+    versionId: string,
+    rotate: QuarterTurn,
+    previous: QuarterTurn,
+  ) {
+    const read = queryClient.getQueryData<ReadRoll>(['rolls', rollId]);
+    if (read === undefined) {
+      showTurn(versionId, previous);
+      return;
+    }
+    setProblem(undefined);
+    const { response } = await api.PATCH(
+      '/api/rolls/{rollId}/frames/{frameId}/versions/{versionId}',
+      {
+        params: {
+          path: { rollId, frameId, versionId },
+          header: { 'if-match': read.etag },
+        },
+        body: { rotate },
+      },
+    );
+    if (!response.ok) {
+      showTurn(versionId, previous);
+      setProblem(
+        response.status === 409
+          ? 'This roll changed since you opened it. Reload the page.'
+          : "Couldn't save it. Is the service running?",
+      );
+      return;
+    }
+    // Only the version moves on: a turn made straight after is already shown.
+    const etag = response.headers.get('ETag');
+    if (etag !== null) {
+      queryClient.setQueryData<ReadRoll>(['rolls', rollId], (now) =>
+        now === undefined ? undefined : { ...now, etag },
+      );
+    }
+  }
+
   /** Turns one of the frame's versions (D41) or changes its kind (D48). */
   async function sendVersionChange(
     versionId: string,
@@ -371,9 +446,26 @@ export function useSaveFrame(
       showChoice(choice);
       return queued(() => sendChoice(choice, previous));
     },
-    /** Turns one of the frame's versions as it's shown (D41). */
-    turn: (versionId: string, rotate: QuarterTurn) =>
-      queued(() => sendVersionChange(versionId, { rotate })),
+    /**
+     * Turns one of the frame's versions a quarter turn as it's shown (D41),
+     * clockwise for 90 and anticlockwise for -90. It's worked out from the
+     * turn it has now, as already changed by earlier presses, and shown at
+     * once, so keys pressed in quick succession each add a turn.
+     */
+    turnBy: (versionId: string, degrees: 90 | -90) => {
+      const current = queryClient
+        .getQueryData<ReadRoll>(['rolls', rollId])
+        ?.roll.frames.find((f) => f.id === frameId)
+        ?.versions.find((v) => v.id === versionId)?.rotate;
+      const next = quarterTurns.find(
+        (turn) => turn === ((current ?? 0) + degrees + 360) % 360,
+      );
+      if (current === undefined || next === undefined) {
+        return Promise.resolve();
+      }
+      showTurn(versionId, next);
+      return queued(() => sendTurn(versionId, next, current));
+    },
     /** Changes what kind one of the frame's versions is (D48). */
     changeKind: (versionId: string, kind: VersionKind) =>
       queued(() => sendVersionChange(versionId, { kind })),
