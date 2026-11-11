@@ -221,11 +221,9 @@ Getting frames out as files, simplest first, all through one Export dialog (D97)
 
 A site is a saved description of which frames to share (a selection of frames, shared with exports, D93) and how to present them, built whenever you like into a self-contained static website in `Sites/<site>/`, always from the archive as it is, and made again only where something changed (D91, D92). It comes after exports (group 12), whose image rendering it shares. Putting a built site on the web is a separate step.
 
-- [ ] [FF-119 Sites](tasks/FF-119.md): a Sites page, and a site's selection of frames, with frames pinned or hidden by hand.
+- [ ] [FF-119 Sites](tasks/FF-119.md): a Sites page, and a site's selection of frames, saved as you go, with frames pinned or hidden by hand.
 - [ ] [FF-120 Build a site](tasks/FF-120.md): a self-contained static site of a site's frames in `Sites/<site>/`, grouped by roll or event if chosen, knowing when it's up to date and making again only what changed.
 - [ ] [later] [FF-121 Publish a site](tasks/FF-121.md): upload a built site to S3 or Cloudflare R2, and take it down again.
-- [ ] [later] [FF-162 Make a site or export from the Browse filters](tasks/FF-162.md): start one from the rolls page's filters.
-- [ ] [later] [FF-163 Add selected frames to a site or export](tasks/FF-163.md): pin or hide selected frames on one from the roll and event pages.
 
 ### 14. Index and maintenance
 
@@ -381,6 +379,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D98 | A frame can be marked as in no event, even when its roll has one, by its own `event` being `false`: a frame's event is a slug, `null` for its roll's (as before) or `false` for none, so no magic string can clash with a slug and a check that forgets `false` is a type error. Only a frame can have it, never a roll. It isn't written into exports; sites and exports grouped by event put every frame in no event, marked or never given one, under "No event set". | FF-173, FF-120 |
 | D99 | A frame can be hidden: its own state, `hidden: true` in `roll.json` beside `toScan`, stored only when set. A hidden frame is left out of every list of frames (roll and event pages, counts, grouping, the browse panel, the frame view's stepping) and never included in a site or export, however its selection finds it; a page can show its hidden frames, dimmed, with `?hidden=show` in its address, not remembered once you leave. It keeps its number, files and details, and goes with its roll. It is not a way to leave a frame out of one site only (FF-119). | FF-174, FF-119, FF-165 |
 | D100 | In the desktop app, an export of several frames can be written straight into a folder instead of downloaded as a zip. The service asks its parent app (over the utility process's message channel, which the page can't reach) for a folder, the app shows its own folder chooser and replies, and the service writes the JPEGs there itself: a page never sends a path, and the service writes only into a folder the person chose in that dialog, for that export, never replacing a file that's there (a repeated name gets `-2`). This widens the rule that the service writes nothing outside the FilmFile folder, and D95's "nothing is written to disk by the service" for downloads. A browser, and a single frame, keep the zip and the JPEG download. | FF-176, FF-166, FF-167 |
+| D101 | Sites and exports share one saved-selection record implementation (ID, name, `selection`, slug from name, `If-Match`, byte-stable file, delete moves to `deleted/`), made with exports (FF-116), which comes first; sites reuse it. A site saves each change straight away, and renaming changes its slug and file. A pinned or hidden frame that has gone is skipped, its entry kept. | FF-116, FF-119 |
 
 **Still open:** see `docs/design.md`, section 15.
 
