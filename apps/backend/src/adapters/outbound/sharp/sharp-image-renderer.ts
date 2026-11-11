@@ -1,13 +1,14 @@
 import sharp from 'sharp';
 import type {
-  Credit,
+  ImageMetadata,
   ExportRecipe,
   ImageRenderer,
 } from '../../../application/ports/image-renderer.ts';
 import type { QuarterTurn } from '../../../domain/rolls/quarter-turn.ts';
+import { exifTags, xmpPacket } from './image-metadata-tags.ts';
 import { previewSource } from './preview-source.ts';
 
-/** JPEGs made with sharp, which carry the author and copyright as EXIF and nothing else. */
+/** JPEGs made with sharp, which carry the metadata given as EXIF and XMP, and nothing else. */
 export class SharpImageRenderer implements ImageRenderer {
   readonly #maxPixels: number;
 
@@ -19,7 +20,7 @@ export class SharpImageRenderer implements ImageRenderer {
     file: Uint8Array,
     rotate: QuarterTurn,
     recipe: ExportRecipe,
-    credit: Credit,
+    metadata: ImageMetadata,
   ): Promise<Uint8Array> {
     const image = sharp(previewSource(file), {
       limitInputPixels: this.#maxPixels,
@@ -33,14 +34,8 @@ export class SharpImageRenderer implements ImageRenderer {
           });
     return await sized
       .jpeg({ quality: recipe.quality })
-      .withExif({
-        IFD0: {
-          ...(credit.author === undefined ? {} : { Artist: credit.author }),
-          ...(credit.copyright === undefined
-            ? {}
-            : { Copyright: credit.copyright }),
-        },
-      })
+      .withExif(exifTags(metadata))
+      .withXmp(xmpPacket(metadata))
       .toBuffer();
   }
 }

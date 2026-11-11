@@ -19,11 +19,15 @@ export const quickExportRequest = z
       .min(1)
       .max(100)
       .meta({ description: 'JPEG quality, 1 to 100.' }),
+    metadata: z.enum(['everything', 'author-and-copyright']).meta({
+      description:
+        'What the file says about the frame: everything known (author, copyright, title, notes, date, camera, lens, film, keywords, rating, roll and frame number), or only author and copyright. Never a location.',
+    }),
   })
   .meta({
     id: 'QuickExportRequest',
     description:
-      'What to export once and how: the frame, size and quality. The file carries only its author and copyright.',
+      'What to export once and how: the frame, size, quality and what the file says about the frame.',
   });
 
 export const quickExport = z

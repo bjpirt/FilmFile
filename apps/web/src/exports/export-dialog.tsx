@@ -3,6 +3,8 @@ import type { Frame, Roll } from '@filmfile/contracts/rolls';
 import { useState, type SubmitEvent } from 'react';
 import {
   isQuality,
+  metadataChoices,
+  type Metadata,
   rememberedExportChoices,
   rememberExportChoices,
   sizes,
@@ -52,6 +54,7 @@ export function ExportDialog({
     initial.size === null ? fullSize : String(initial.size),
   );
   const [quality, setQuality] = useState(String(initial.quality));
+  const [metadata, setMetadata] = useState<Metadata>(initial.metadata);
   const [problem, setProblem] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const name = frame.number ?? 'with no number';
@@ -73,6 +76,7 @@ export function ExportDialog({
           frames: [{ rollId: roll.id, frameId: frame.id }],
           size: chosenSize,
           quality: chosenQuality,
+          metadata,
         },
       });
       if (data === undefined) {
@@ -83,7 +87,11 @@ export function ExportDialog({
         );
         return;
       }
-      rememberExportChoices({ size: chosenSize, quality: chosenQuality });
+      rememberExportChoices({
+        size: chosenSize,
+        quality: chosenQuality,
+        metadata,
+      });
       startDownload(data.url);
       close();
     } catch {
@@ -132,6 +140,26 @@ export function ExportDialog({
             setQuality(event.target.value);
           }}
         />
+      </label>
+      <label>
+        Metadata
+        <select
+          value={metadata}
+          onChange={(event) => {
+            const chosen = metadataChoices.find(
+              (choice) => choice.value === event.target.value,
+            );
+            if (chosen !== undefined) {
+              setMetadata(chosen.value);
+            }
+          }}
+        >
+          {metadataChoices.map((choice) => (
+            <option key={choice.value} value={choice.value}>
+              {choice.label}
+            </option>
+          ))}
+        </select>
       </label>
       {cannot !== undefined && <p role="alert">{cannot}</p>}
       {problem !== undefined && <p role="alert">{problem}</p>}

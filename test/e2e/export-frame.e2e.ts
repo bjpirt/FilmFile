@@ -16,6 +16,10 @@ test('export a frame: choose a size and quality in its frame view and find the J
   await expect(dialog).toContainText('This frame: 2 of roll 2026-052');
   await dialog.getByLabel('Size').selectOption({ label: '1024 px' });
   await dialog.getByLabel('Quality').fill('70');
+  await expect(dialog.getByLabel('Metadata')).toHaveValue('everything');
+  await dialog
+    .getByLabel('Metadata')
+    .selectOption({ label: 'Only author and copyright' });
   const download = page.waitForEvent('download');
   await dialog.getByRole('button', { name: 'Download' }).click();
 
@@ -32,4 +36,5 @@ test('export a frame: choose a size and quality in its frame view and find the J
   await page.getByRole('button', { name: 'Export' }).click();
   await expect(page.getByLabel('Size')).toHaveValue('1024');
   await expect(page.getByLabel('Quality')).toHaveValue('70');
+  await expect(page.getByLabel('Metadata')).toHaveValue('author-and-copyright');
 });

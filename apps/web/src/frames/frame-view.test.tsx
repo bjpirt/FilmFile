@@ -189,6 +189,9 @@ describe('exporting the frame shown', () => {
     fireEvent.change(within(dialog).getByLabelText('Quality'), {
       target: { value: '75' },
     });
+    expect(
+      within(dialog).getByLabelText<HTMLSelectElement>('Metadata').value,
+    ).toBe('everything');
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Download' }));
 
@@ -200,6 +203,7 @@ describe('exporting the frame shown', () => {
         frames: [{ rollId: exporting.id, frameId: exporting.frames[0]?.id }],
         size: 1024,
         quality: 75,
+        metadata: 'everything',
       },
     ]);
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -215,6 +219,9 @@ describe('exporting the frame shown', () => {
     fireEvent.change(screen.getByLabelText('Quality'), {
       target: { value: '60' },
     });
+    fireEvent.change(screen.getByLabelText('Metadata'), {
+      target: { value: 'author-and-copyright' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Download' }));
     await vi.waitFor(() => {
       expect(screen.queryByRole('dialog')).toBeNull();
@@ -224,6 +231,9 @@ describe('exporting the frame shown', () => {
 
     expect(screen.getByLabelText<HTMLSelectElement>('Size').value).toBe('full');
     expect(screen.getByLabelText<HTMLInputElement>('Quality').value).toBe('60');
+    expect(screen.getByLabelText<HTMLSelectElement>('Metadata').value).toBe(
+      'author-and-copyright',
+    );
   });
 
   test('Cancel and Esc close it without exporting, Esc not leaving the frame', async () => {

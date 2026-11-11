@@ -2572,7 +2572,7 @@ export interface components {
              */
             url: string;
         };
-        /** @description What to export once and how: the frame, size and quality. The file carries only its author and copyright. */
+        /** @description What to export once and how: the frame, size, quality and what the file says about the frame. */
         QuickExportRequest: {
             /** @description The frame to export; one for now. */
             frames: {
@@ -2585,6 +2585,11 @@ export interface components {
             size: number | null;
             /** @description JPEG quality, 1 to 100. */
             quality: number;
+            /**
+             * @description What the file says about the frame: everything known (author, copyright, title, notes, date, camera, lens, film, keywords, rating, roll and frame number), or only author and copyright. Never a location.
+             * @enum {string}
+             */
+            metadata: "everything" | "author-and-copyright";
         };
         Settings: {
             id: string;

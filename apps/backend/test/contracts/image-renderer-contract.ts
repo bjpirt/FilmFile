@@ -8,7 +8,11 @@ export function imageRendererContract(
   makeRenderer: () => ImageRenderer,
 ): void {
   describe(`${name} meets the ImageRenderer contract`, () => {
-    const recipe = { longestEdge: 2048, quality: 90 };
+    const recipe = {
+      longestEdge: 2048,
+      quality: 90,
+      metadata: 'everything',
+    } as const;
 
     test('makes an image', async () => {
       const original = new Uint8Array(await aJpeg({ width: 600, height: 400 }));

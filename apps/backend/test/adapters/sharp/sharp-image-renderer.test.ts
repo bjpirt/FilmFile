@@ -5,7 +5,11 @@ import { aJpeg } from '../../support/a-jpeg.ts';
 import { aRaw } from '../../support/a-raw.ts';
 
 const renderer = new SharpImageRenderer(100_000_000);
-const full = { longestEdge: null, quality: 90 };
+const full = {
+  longestEdge: null,
+  quality: 90,
+  metadata: 'everything',
+} as const;
 
 async function sizeOf(jpeg: Uint8Array) {
   const { format, width, height } = await sharp(jpeg).metadata();
@@ -111,5 +115,48 @@ describe('SharpImageRenderer', () => {
     expect(
       (await sharp(made).metadata()).exif?.toString('latin1') ?? '',
     ).not.toContain('Ben');
+  });
+});
+
+describe('SharpImageRenderer metadata', () => {
+  async function metadataOf(metadata: object) {
+    const made = await renderer.render(
+      new Uint8Array(await aJpeg()),
+      0,
+      full,
+      metadata,
+    );
+    const { exif, xmp } = await sharp(made).metadata();
+    return {
+      exif: exif?.toString('utf8') ?? '',
+      xmp: xmp?.toString('utf8') ?? '',
+    };
+  }
+
+  test('writes a full date and time to the EXIF and says a partial date only in the XMP', async () => {
+    const full = await metadataOf({ shot: '2026-09-14T15:30' });
+    const month = await metadataOf({ shot: '2026-09' });
+
+    expect(full.exif).toContain('2026:09:14 15:30:00');
+    expect(full.xmp).toContain('2026-09-14T15:30');
+    expect(month.exif).not.toContain('2026');
+    expect(month.xmp).toContain(
+      '<photoshop:DateCreated>2026-09</photoshop:DateCreated>',
+    );
+  });
+
+  test('escapes what it writes into the XMP', async () => {
+    const { xmp } = await metadataOf({ title: 'Fish & <chips>' });
+
+    expect(xmp).toContain('Fish &amp; &lt;chips&gt;');
+  });
+
+  test('writes only what is given', async () => {
+    const { exif, xmp } = await metadataOf({ author: 'Ben Pirt' });
+
+    expect(exif).toContain('Ben Pirt');
+    expect(xmp).toContain('Ben Pirt');
+    expect(xmp).not.toContain('Rating');
+    expect(xmp).not.toContain('tiff:Make');
   });
 });

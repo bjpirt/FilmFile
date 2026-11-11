@@ -77,7 +77,7 @@ export function exportRoutes({
   const routes = new OpenAPIHono({ defaultHook: invalidRequestHook });
 
   routes.openapi(prepareQuickExport, async (c) => {
-    const { frames, size, quality } = c.req.valid('json');
+    const { frames, size, quality, metadata } = c.req.valid('json');
     const [frame] = frames;
     if (frame === undefined) {
       return c.json({ error: 'not found' }, 404);
@@ -89,7 +89,7 @@ export function exportRoutes({
     const prepared = await useCases.prepareQuickExport.execute(ctx, {
       rollId,
       frameId,
-      recipe: { longestEdge: size, quality },
+      recipe: { longestEdge: size, quality, metadata },
     });
     return prepared.ok
       ? c.json({ url: `/api/exports/quick/${prepared.value}` }, 201)

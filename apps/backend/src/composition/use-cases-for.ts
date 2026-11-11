@@ -110,6 +110,8 @@ export function useCasesFor({
     makeQuickExport: new MakeQuickExport(
       rolls,
       settings,
+      equipment,
+      events,
       blobs,
       tickets,
       renderer,

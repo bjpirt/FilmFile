@@ -56,6 +56,7 @@ function prepare(frameId: string, change: object = {}) {
     frames: [{ rollId, frameId }],
     size: null,
     quality: 90,
+    metadata: 'everything',
     ...change,
   });
 }
@@ -68,6 +69,140 @@ async function downloadAddress(frameId: string, change: object = {}) {
     ? String(body.url)
     : '';
 }
+
+/** A frame with all there is to say about it: its camera, lens, film, event, date, title, notes and rating. */
+async function aDescribedFrame(): Promise<string> {
+  const slugOf = async (response: Response) => {
+    const body: unknown = await response.json();
+    return typeof body === 'object' && body !== null && 'slug' in body
+      ? String(body.slug)
+      : '';
+  };
+  const camera = await slugOf(
+    await post('/api/equipment/cameras', { make: 'Nikon', model: 'FE' }),
+  );
+  const film = await slugOf(
+    await post('/api/equipment/films', {
+      make: 'Kodak',
+      name: 'Portra',
+      iso: 400,
+    }),
+  );
+  const lens = await slugOf(
+    await post('/api/equipment/lenses', {
+      make: 'Nikon',
+      name: 'Nikkor',
+      focalLength: 50,
+      maxAperture: 1.8,
+    }),
+  );
+  const event = await slugOf(
+    await post('/api/events', { name: 'Iceland 2026' }),
+  );
+  const described = String(
+    idOf(
+      await (
+        await post('/api/rolls', {
+          roll: '2026-015',
+          shot: '2026-09-14T15:30',
+          camera,
+          film,
+          lens,
+          event,
+        })
+      ).json(),
+    ),
+  );
+  rollId = described;
+  const { frameId } = await aFrame('12A', await aJpeg());
+  const etag =
+    (await request(`/api/rolls/${rollId}`)).headers.get('ETag') ?? '';
+  await request(`/api/rolls/${rollId}/frames/${frameId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'If-Match': etag },
+    body: JSON.stringify({
+      title: 'Black sand beach',
+      notes: 'Low sun & wind',
+      rating: 4,
+    }),
+  });
+  return frameId;
+}
+
+async function metadataOf(address: string) {
+  const made = await request(address);
+  const { exif, xmp } = await sharp(
+    new Uint8Array(await made.arrayBuffer()),
+  ).metadata();
+  return {
+    exif: exif?.toString('utf8') ?? '',
+    xmp: xmp?.toString('utf8') ?? '',
+  };
+}
+
+describe('what an export says about itself', () => {
+  test('with everything, gives the author, copyright, title, notes, date, camera, lens, film, event, rating and where it is from', async () => {
+    const frameId = await aDescribedFrame();
+
+    const { exif, xmp } = await metadataOf(await downloadAddress(frameId));
+
+    for (const said of [
+      'Ben Pirt',
+      'All rights reserved',
+      'Low sun',
+      'Nikon',
+      'FE',
+      '2026:09:14 15:30:00',
+      'Nikon Nikkor 50mm f/1.8',
+    ]) {
+      expect(exif).toContain(said);
+    }
+    expect(xmp).toContain('<dc:title>');
+    for (const said of [
+      'Black sand beach',
+      'Low sun &amp; wind',
+      '<xmp:Rating>4</xmp:Rating>',
+      '2026-09-14T15:30',
+      '2026-015 / 12A',
+      'Kodak Portra 400',
+      'Iceland 2026',
+      '<rdf:Bag>',
+    ]) {
+      expect(xmp).toContain(said);
+    }
+  });
+
+  test('with only author and copyright, says nothing else', async () => {
+    const frameId = await aDescribedFrame();
+
+    const { exif, xmp } = await metadataOf(
+      await downloadAddress(frameId, { metadata: 'author-and-copyright' }),
+    );
+
+    expect(exif).toContain('Ben Pirt');
+    expect(xmp).toContain('Ben Pirt');
+    for (const left of [
+      'Nikon',
+      'Nikkor',
+      'Portra',
+      'Iceland',
+      'Black sand',
+      '2026',
+      'Rating',
+      '12A',
+    ]) {
+      expect(exif).not.toContain(left);
+      expect(xmp).not.toContain(left);
+    }
+  });
+
+  test('refuses something else to choose', async () => {
+    const { frameId } = await aFrame('1', await aJpeg());
+
+    expect((await prepare(frameId, { metadata: 'all' })).status).toBe(422);
+    expect((await prepare(frameId, { metadata: undefined })).status).toBe(422);
+  });
+});
 
 describe('exporting a frame once', () => {
   test('gives a JPEG named for the roll and frame, at the size and with the author and copyright', async () => {

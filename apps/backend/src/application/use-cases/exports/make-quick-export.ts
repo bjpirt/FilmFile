@@ -8,11 +8,14 @@ import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type { NotFound } from '../../../domain/shared/domain-error.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
 import type { BlobStore } from '../../ports/blob-store.ts';
+import type { EquipmentRepository } from '../../ports/equipment-repository.ts';
+import type { EventRepository } from '../../ports/event-repository.ts';
 import type { ExportTickets } from '../../ports/export-tickets.ts';
 import type { ImageRenderer } from '../../ports/image-renderer.ts';
 import type { RollRepository } from '../../ports/roll-repository.ts';
 import type { SettingsRepository } from '../../ports/settings-repository.ts';
 import { exportFileName } from './export-file-name.ts';
+import { exportMetadata } from './export-metadata.ts';
 
 /** A made export, ready to send as a download. */
 export interface MadeExport {
@@ -22,12 +25,14 @@ export interface MadeExport {
 
 /**
  * Makes the frame a ticket is for (D95): from the version shown, turned as
- * it's shown, at the recipe's size and quality, carrying only the author and
- * copyright it inherits. The ticket works once; nothing is written to disk.
+ * it's shown, at the recipe's size and quality, carrying what the recipe says
+ * it should about the frame. The ticket works once; nothing is written to disk.
  */
 export class MakeQuickExport {
   readonly #rolls: RollRepository;
   readonly #settings: SettingsRepository;
+  readonly #equipment: EquipmentRepository;
+  readonly #events: EventRepository;
   readonly #blobs: BlobStore;
   readonly #tickets: ExportTickets;
   readonly #renderer: ImageRenderer;
@@ -35,12 +40,16 @@ export class MakeQuickExport {
   constructor(
     rolls: RollRepository,
     settings: SettingsRepository,
+    equipment: EquipmentRepository,
+    events: EventRepository,
     blobs: BlobStore,
     tickets: ExportTickets,
     renderer: ImageRenderer,
   ) {
     this.#rolls = rolls;
     this.#settings = settings;
+    this.#equipment = equipment;
+    this.#events = events;
     this.#blobs = blobs;
     this.#tickets = tickets;
     this.#renderer = renderer;
@@ -72,10 +81,28 @@ export class MakeQuickExport {
       await this.#blobs.get(ctx, roll.id, version.file),
       version.rotate,
       quick.recipe,
-      {
-        author: details.author?.value,
-        copyright: details.copyright?.value,
-      },
+      exportMetadata({
+        choice: quick.recipe.metadata,
+        details,
+        roll,
+        frame,
+        camera:
+          details.camera === undefined
+            ? undefined
+            : await this.#equipment.getCamera(ctx, details.camera.value),
+        lens:
+          details.lens === undefined
+            ? undefined
+            : await this.#equipment.getLens(ctx, details.lens.value),
+        film:
+          details.film === undefined
+            ? undefined
+            : await this.#equipment.getFilmStock(ctx, details.film.value),
+        event:
+          details.event === undefined
+            ? undefined
+            : (await this.#events.get(ctx, details.event.value))?.event,
+      }),
     );
     return ok({ fileName: exportFileName(roll, frame), jpeg });
   }
