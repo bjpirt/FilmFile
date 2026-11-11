@@ -1,6 +1,7 @@
 import { Link } from '../routing.tsx';
 import { formatShot } from './format-shot.ts';
 import type { ImportResult } from './import-rolls.ts';
+import { rollsLink } from './rolls-address.ts';
 
 export function frameCount(count: number): string {
   return count === 1 ? '1 frame' : `${String(count)} frames`;
@@ -109,8 +110,8 @@ export function ImportSummary({
         </tbody>
       </table>
       <p>
-        <Link to="/" className="button">
-          All rolls
+        <Link to={rollsLink()} className="button">
+          Rolls
         </Link>
       </p>
     </>

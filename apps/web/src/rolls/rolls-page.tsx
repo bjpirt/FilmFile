@@ -20,6 +20,7 @@ import { RollTable } from './roll-table.tsx';
 import {
   addressOf,
   readAddress,
+  rememberAddress,
   type Grouping,
   type RollsAddress,
   type Sorting,
@@ -229,6 +230,10 @@ export function RollsPage({
     if (address.view === undefined) {
       navigate(addressOf({ ...address, view }), { replace: true });
     }
+  }, [address, view]);
+
+  useEffect(() => {
+    rememberAddress({ ...address, view });
   }, [address, view]);
 
   useEffect(() => {

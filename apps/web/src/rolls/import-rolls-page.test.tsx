@@ -253,7 +253,7 @@ describe('importing', () => {
       '2026-001',
       '2026-002',
     ]);
-    expect(screen.getAllByRole('link', { name: 'All rolls' })).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: 'Rolls' })).toHaveLength(2);
   });
 
   test('gives a roll whose number was taken in the meantime the next free one', async () => {

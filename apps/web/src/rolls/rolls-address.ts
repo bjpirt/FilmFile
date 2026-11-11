@@ -83,3 +83,28 @@ export function addressOf(address: RollsAddress): string {
   const query = params.toString();
   return query === '' ? '/' : `/?${query}`;
 }
+
+const rememberedKey = 'filmfile.rollsAddress';
+
+/**
+ * Keeps what the rolls page shows for this tab, so going into a roll and back
+ * to "All rolls" finds the same filter, grouping and sort (a convenience, so
+ * it's fine when storage is missing).
+ */
+export function rememberAddress(address: RollsAddress): void {
+  try {
+    sessionStorage.setItem(rememberedKey, addressOf(address));
+  } catch {
+    // Not remembered this time; the page still works.
+  }
+}
+
+/** Where "All rolls" goes: the address last shown, or the plain list. */
+export function rollsLink(): string {
+  try {
+    const stored = sessionStorage.getItem(rememberedKey);
+    return stored?.startsWith('/?') === true ? stored : '/';
+  } catch {
+    return '/';
+  }
+}

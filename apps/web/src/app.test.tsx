@@ -11,11 +11,12 @@ import { afterEach, beforeEach, expect, test } from 'vitest';
 import { App } from './app.tsx';
 import { aRoll, fakeArchive } from './testing/fake-archive.ts';
 
-const roll = aRoll('2026-014', { event: 'iceland-2026' });
+const roll = aRoll('2026-014', { event: 'iceland-2026', shot: '2026' });
 
 beforeEach(() => {
   window.history.pushState(null, '', '/');
   localStorage.clear();
+  sessionStorage.clear();
 });
 
 afterEach(cleanup);
@@ -42,9 +43,43 @@ test('opens a roll from the list of rolls, and goes back', async () => {
     await screen.findByRole('heading', { name: 'Roll 2026-014' }),
   ).toBeDefined();
 
-  fireEvent.click(screen.getByRole('link', { name: 'All rolls' }));
+  fireEvent.click(breadcrumb());
 
   expect(await screen.findByRole('heading', { name: 'Rolls' })).toBeDefined();
+});
+
+function breadcrumb(): HTMLElement {
+  const link = document.querySelector<HTMLElement>('a.breadcrumb');
+  if (link === null) {
+    throw new Error('no breadcrumb');
+  }
+  return link;
+}
+
+test('goes back to the rolls with the filter they had, from a roll or the navigation', async () => {
+  window.history.pushState(null, '', '/?year=2026&group=year');
+  renderApp();
+  fireEvent.click(await screen.findByRole('link', { name: '2026-014' }));
+  await screen.findByRole('heading', { name: 'Roll 2026-014' });
+
+  fireEvent.click(breadcrumb());
+
+  expect(
+    await screen.findByRole('heading', { name: 'Rolls from 2026' }),
+  ).toBeDefined();
+  expect(window.location.search).toBe('?view=grid&group=year&year=2026');
+
+  fireEvent.click(await screen.findByRole('link', { name: '2026-014' }));
+  await screen.findByRole('heading', { name: 'Roll 2026-014' });
+  fireEvent.click(
+    within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', {
+      name: 'Rolls',
+    }),
+  );
+
+  expect(
+    await screen.findByRole('heading', { name: 'Rolls from 2026' }),
+  ).toBeDefined();
 });
 
 test('opens the roll in the address bar', async () => {

@@ -1,3 +1,4 @@
+import { rollsLink } from './rolls-address.ts';
 import type { ApiClient } from '@filmfile/contracts/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
@@ -100,8 +101,8 @@ export function ImportRollsPage({ api }: { readonly api: ApiClient }) {
 
   const heading = (
     <div className="roll-title">
-      <Link to="/" className="breadcrumb">
-        All rolls
+      <Link to={rollsLink()} className="breadcrumb">
+        Rolls
       </Link>
       <span className="breadcrumb-separator" aria-hidden="true">
         /

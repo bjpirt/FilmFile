@@ -21,7 +21,7 @@ test('describe a roll: add its name, notes, date shot and a new camera later, an
   await expect(page.getByText('Jun 2025')).toBeVisible();
   await expect(page.getByText('Puffins at Látrabjarg.')).toBeVisible();
 
-  await page.getByRole('link', { name: 'All rolls' }).click();
+  await page.locator('.breadcrumb', { hasText: 'Rolls' }).click();
   await expect(
     page.getByRole('listitem').filter({ hasText: '2025-401' }),
   ).toContainText('WestfjordsOlympus OM-1 · Jun 2025');

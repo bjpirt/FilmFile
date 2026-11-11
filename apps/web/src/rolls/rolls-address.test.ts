@@ -1,5 +1,11 @@
-import { expect, test } from 'vitest';
-import { addressOf, readAddress } from './rolls-address.ts';
+// @vitest-environment happy-dom
+import { afterEach, describe, expect, test } from 'vitest';
+import {
+  addressOf,
+  readAddress,
+  rememberAddress,
+  rollsLink,
+} from './rolls-address.ts';
 
 test.each([
   [
@@ -114,5 +120,21 @@ test('ignores what it does not recognise', () => {
     camera: undefined,
     film: undefined,
     lens: undefined,
+  });
+});
+
+describe('the address remembered for All rolls', () => {
+  afterEach(() => {
+    sessionStorage.clear();
+  });
+
+  test('is the plain list until the rolls page has shown something', () => {
+    expect(rollsLink()).toBe('/');
+  });
+
+  test('is the filter, grouping and sort last shown', () => {
+    rememberAddress(readAddress('?year=2026&group=year&sort=shot'));
+
+    expect(rollsLink()).toBe('/?group=year&sort=shot&year=2026');
   });
 });

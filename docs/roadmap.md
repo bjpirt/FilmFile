@@ -63,6 +63,7 @@ Driven from the UI (D19): each task is a change you can see in the browser. Done
 
 The "light table" design chosen from the options canvas (https://claude.ai/artifact/BfhJttJe5NC679GGg97Ay1, row A): dark and photo first, a rolls page with a Grid | List switch, Group by, and a browse panel that can be closed, and a roll page with its details above the contact sheet; creating and editing a roll; deleting frames and rolls into the archive's `deleted/` folder; and tidying the roll page, whose actions go into one Actions menu beside the roll number, with selecting frames taking that menu's place.
 
+- [x] [FF-172 Back to the rolls you were looking at](tasks/FF-172.md)
 - [x] [FF-160 A tidier rolls page header](tasks/FF-160.md)
 - [x] [U56 One Set menu while selecting](tasks/U56.md)
 - [x] [U55 One Actions menu](tasks/U55.md)

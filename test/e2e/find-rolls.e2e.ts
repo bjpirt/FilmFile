@@ -76,4 +76,15 @@ test('find rolls: group by year, filter by year, camera, lens or film stock, swi
   await expect(browse).toBeHidden();
   await page.getByRole('button', { name: 'Show the browse panel' }).click();
   await expect(browse).toBeVisible();
+
+  // Going into a roll and back by its breadcrumb keeps the film stock chosen.
+  await rollsShown(page).filter({ hasText: '2024-303' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Roll 2024-303' }),
+  ).toBeVisible();
+  await page.locator('.breadcrumb', { hasText: 'Rolls' }).click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Rolls of Agfa Vista 200' }),
+  ).toBeVisible();
+  await expect(rollsShown(page)).toHaveText(['2024-303', '2023-301']);
 });

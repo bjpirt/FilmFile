@@ -1,3 +1,4 @@
+import { rollsLink } from './rolls-address.ts';
 import type { ApiClient } from '@filmfile/contracts/client';
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -367,7 +368,7 @@ export function RollPage({
     // only find it missing; the rolls list is reloaded when it next shows.
     queryClient.removeQueries({ queryKey: ['rolls', rollId] });
     await queryClient.invalidateQueries({ queryKey: ['rolls'], exact: true });
-    navigate('/');
+    navigate(rollsLink());
   }
 
   /** Saves every frame's proposed number in one update, closing the panel if it's saved. */
@@ -528,7 +529,7 @@ export function RollPage({
         {roll.error instanceof RollNotFound
           ? 'There is no such roll.'
           : "Couldn't load the roll. Is the service running?"}{' '}
-        <Link to="/">All rolls</Link>
+        <Link to={rollsLink()}>Rolls</Link>
       </p>
     );
   }
@@ -685,8 +686,8 @@ export function RollPage({
     <section>
       <div className="page-heading">
         <div className="roll-title">
-          <Link to="/" className="breadcrumb">
-            All rolls
+          <Link to={rollsLink()} className="breadcrumb">
+            Rolls
           </Link>
           <span className="breadcrumb-separator" aria-hidden="true">
             /

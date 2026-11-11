@@ -1,3 +1,4 @@
+import { rollsLink } from '../rolls/rolls-address.ts';
 import type { ApiClient } from '@filmfile/contracts/client';
 import { useQuery } from '@tanstack/react-query';
 import { inFrameOrder } from '../rolls/frame-order.ts';
@@ -40,7 +41,7 @@ export function RollFramePage({
         {roll.error instanceof RollNotFound
           ? 'There is no such roll.'
           : "Couldn't load the roll. Is the service running?"}{' '}
-        <Link to="/">All rolls</Link>
+        <Link to={rollsLink()}>Rolls</Link>
       </p>
     );
   }

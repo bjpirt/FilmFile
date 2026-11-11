@@ -1,3 +1,4 @@
+import { rollsLink } from './rolls-address.ts';
 import type { ApiClient } from '@filmfile/contracts/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type SubmitEvent } from 'react';
@@ -290,8 +291,8 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
   return (
     <section>
       <div className="roll-title">
-        <Link to="/" className="breadcrumb">
-          All rolls
+        <Link to={rollsLink()} className="breadcrumb">
+          Rolls
         </Link>
         <span className="breadcrumb-separator" aria-hidden="true">
           /
@@ -415,7 +416,7 @@ export function NewRollPage({ api }: { readonly api: ApiClient }) {
           <button type="submit" className="primary" disabled={busy}>
             Create roll
           </button>
-          <Link to="/">Cancel</Link>
+          <Link to={rollsLink()}>Cancel</Link>
         </div>
       </form>
     </section>

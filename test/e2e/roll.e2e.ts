@@ -151,7 +151,7 @@ test('catalogue a roll: create it with its details and scans, correct a number, 
     page.getByRole('heading', { name: 'Roll 2026-908' }),
   ).toBeVisible();
   await expect(framesShown(page)).toHaveText(['1', '2', '3', '4']);
-  await page.getByRole('link', { name: 'All rolls' }).click();
+  await page.locator('.breadcrumb', { hasText: 'Rolls' }).click();
   await expect(rollsShown(page).filter({ hasText: '2026-908' })).toHaveCount(1);
   await expect(rollsShown(page).filter({ hasText: '2026-014' })).toHaveCount(0);
   await rollsShown(page).filter({ hasText: '2026-908' }).click();

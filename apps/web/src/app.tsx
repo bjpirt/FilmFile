@@ -1,3 +1,4 @@
+import { rollsLink } from './rolls/rolls-address.ts';
 import type { ApiClient } from '@filmfile/contracts/client';
 import { SettingsPage } from './settings/settings-page.tsx';
 import { SetUpPage } from './settings/set-up-page.tsx';
@@ -163,7 +164,10 @@ export function App({ api }: { readonly api: ApiClient }) {
           </Link>
         </div>
         <nav aria-label="Main">
-          <Link to="/" current={path === '/' || path.startsWith('/rolls/')}>
+          <Link
+            to={rollsLink()}
+            current={path === '/' || path.startsWith('/rolls/')}
+          >
             Rolls
           </Link>
           <Link to="/events" current={path.startsWith('/events')}>
