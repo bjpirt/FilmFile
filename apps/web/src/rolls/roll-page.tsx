@@ -111,11 +111,32 @@ function RollAbout({
   readonly lens: string | undefined;
   readonly event: string | undefined;
 }) {
-  const facts = [
-    { label: 'Camera', value: camera },
-    { label: 'Lens', value: lens },
-    { label: 'Film stock', value: film },
-    { label: 'Event', value: event },
+  // Each item leads to the rolls shot with it, or to the event's page.
+  const facts: {
+    readonly label: string;
+    readonly value: string | undefined;
+    readonly to?: string;
+  }[] = [
+    {
+      label: 'Camera',
+      value: camera,
+      ...(roll.camera === null ? {} : { to: `/?camera=${roll.camera}` }),
+    },
+    {
+      label: 'Lens',
+      value: lens,
+      ...(roll.lens === null ? {} : { to: `/?lens=${roll.lens}` }),
+    },
+    {
+      label: 'Film stock',
+      value: film,
+      ...(roll.film === null ? {} : { to: `/?film=${roll.film}` }),
+    },
+    {
+      label: 'Event',
+      value: event,
+      ...(roll.event === null ? {} : { to: `/events/${roll.event}` }),
+    },
     {
       label: 'Shot',
       value: roll.shot === null ? undefined : formatShot(roll.shot),
@@ -132,7 +153,13 @@ function RollAbout({
           {facts.map((fact) => (
             <div key={fact.label}>
               <dt>{fact.label}</dt>
-              <dd>{fact.value}</dd>
+              <dd>
+                {fact.to === undefined ? (
+                  fact.value
+                ) : (
+                  <Link to={fact.to}>{fact.value}</Link>
+                )}
+              </dd>
             </div>
           ))}
         </dl>

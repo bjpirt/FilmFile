@@ -39,6 +39,8 @@ export interface FrameGroup {
   readonly title: string | undefined;
   /** The roll the group is, when grouping by roll. */
   readonly roll?: Roll;
+  /** The rolls page showing what the group is, when grouping by camera, lens or film stock. */
+  readonly rollsLink?: string;
   readonly frames: RollFrame[];
 }
 
@@ -94,8 +96,19 @@ function namedGroups(
   frames: readonly RollFrame[],
   nameOf: (frame: RollFrame) => string | undefined,
   none: string,
+  slugOf: (frame: RollFrame) => string | null,
+  filter: 'camera' | 'lens' | 'film',
 ): FrameGroup[] {
-  return groupedBy(frames, (frame) => nameOf(frame) ?? none).sort((a, b) => {
+  const groups = groupedBy(frames, (frame) => nameOf(frame) ?? none).map(
+    (group) => {
+      const first = group.frames[0];
+      const slug = first === undefined ? null : slugOf(first);
+      return slug === null
+        ? group
+        : { ...group, rollsLink: `/?${filter}=${slug}` };
+    },
+  );
+  return groups.sort((a, b) => {
     if (a.title === none || b.title === none) {
       return a.title === none ? 1 : -1;
     }
@@ -184,12 +197,16 @@ export function useEventFrames(
           // A frame's own, where it has one (U15).
           ({ roll, frame }) => cameraName(cameras, frame.camera ?? roll.camera),
           'No camera',
+          ({ roll, frame }) => frame.camera ?? roll.camera,
+          'camera',
         );
       case 'lens':
         return namedGroups(
           frames,
           ({ roll, frame }) => lensName(lenses, frame.lens ?? roll.lens),
           'No lens',
+          ({ roll, frame }) => frame.lens ?? roll.lens,
+          'lens',
         );
       case 'film':
         return namedGroups(
@@ -197,6 +214,8 @@ export function useEventFrames(
           // Always the roll's (D45).
           ({ roll }) => filmStockName(films, roll.film),
           'No film stock',
+          ({ roll }) => roll.film,
+          'film',
         );
     }
   })();

@@ -148,6 +148,27 @@ test('groups the frames by camera, with frames whose roll has none last', async 
   ).toEqual(['Nikon FE 1 frame', 'No camera 2 frames']);
 });
 
+test('a camera group leads to the rolls shot on it, and each frame to its roll', async () => {
+  window.history.replaceState(null, '', '/events/iceland-2026?group=camera');
+  renderPage(aSettings());
+  await screen.findByText('3 frames');
+
+  const [nikon, none] = screen.getAllByRole('heading', { level: 2 });
+  expect(
+    within(nikon ?? document.body)
+      .getByRole('link', { name: 'Nikon FE' })
+      .getAttribute('href'),
+  ).toBe('/?camera=nikon-fe');
+  expect(within(none ?? document.body).queryByRole('link')).toBeNull();
+
+  const [first] = screen.getAllByRole('listitem');
+  expect(
+    within(first ?? document.body)
+      .getByRole('link', { name: '2026-012' })
+      .getAttribute('href'),
+  ).toBe(`/rolls/${aRoll('2026-012').id}`);
+});
+
 test('shows frames put in the event themselves, and leaves out frames of its rolls put elsewhere', async () => {
   renderPage(
     fakeArchive({

@@ -168,12 +168,26 @@ test('shows the roll’s name, camera, lens, film stock, date shot and notes', a
         camera: 'nikon-fe',
         film: 'kodak-portra-400',
         lens: 'zeiss-planar-80mm-f-2-8',
+        event: 'iceland-2026',
       },
-      { cameras: [nikonFe], films: [portra], lenses: [planar] },
+      {
+        cameras: [nikonFe],
+        films: [portra],
+        lenses: [planar],
+        events: [{ slug: 'iceland-2026', name: 'Iceland 2026', date: null }],
+      },
     ),
   );
 
   expect(await screen.findByText('Iceland, first day')).toBeDefined();
+  const href = (name: string) =>
+    screen.getByRole('link', { name }).getAttribute('href');
+  expect(href('Nikon FE')).toBe('/?camera=nikon-fe');
+  expect(href('Zeiss Planar 80mm f/2.8')).toBe(
+    '/?lens=zeiss-planar-80mm-f-2-8',
+  );
+  expect(href('Kodak Portra 400')).toBe('/?film=kodak-portra-400');
+  expect(href('Iceland 2026')).toBe('/events/iceland-2026');
   expect(await screen.findByText('Nikon FE')).toBeDefined();
   expect(await screen.findByText('Kodak Portra 400')).toBeDefined();
   expect(await screen.findByText('Zeiss Planar 80mm f/2.8')).toBeDefined();
@@ -181,6 +195,7 @@ test('shows the roll’s name, camera, lens, film stock, date shot and notes', a
     ['Camera', 'Nikon FE'],
     ['Lens', 'Zeiss Planar 80mm f/2.8'],
     ['Film stock', 'Kodak Portra 400'],
+    ['Event', 'Iceland 2026'],
     ['Shot', '14 Sep 2026, 06:30'],
   ]);
   expect(screen.getByText('Jökulsárlón at dawn.')).toBeDefined();

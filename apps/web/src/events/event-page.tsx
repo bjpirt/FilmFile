@@ -119,12 +119,14 @@ export function EventPage({
           <section key={g.title ?? 'all'} className="roll-group">
             {g.title !== undefined && (
               <h2>
-                {g.roll === undefined ? (
-                  g.title
-                ) : (
+                {g.roll !== undefined ? (
                   <Link to={`/rolls/${g.roll.id}`} className="roll-number">
                     {g.title}
                   </Link>
+                ) : g.rollsLink !== undefined ? (
+                  <Link to={g.rollsLink}>{g.title}</Link>
+                ) : (
+                  g.title
                 )}{' '}
                 <span className="muted">{frameCount(g.frames.length)}</span>
               </h2>
@@ -152,7 +154,9 @@ export function EventPage({
                   </div>
                   <span className="frame-caption">
                     <span className="frame-number">{frame.number ?? '—'}</span>
-                    <span className="muted numbers">{roll.roll}</span>
+                    <Link to={`/rolls/${roll.id}`} className="muted numbers">
+                      {roll.roll}
+                    </Link>
                   </span>
                 </li>
               ))}
