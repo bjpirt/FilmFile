@@ -5,12 +5,25 @@ import type {
 } from '../../../application/ports/site-folders.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type { Slug } from '../../../domain/shared/slug.ts';
-import type { SiteManifest } from '../../../domain/sites/site-manifest.ts';
+import {
+  siteManifestJson,
+  type SiteManifest,
+} from '../../../domain/sites/site-manifest.ts';
 
 /** A built site in memory: its files by path (text or image bytes) and its manifest, if it has one. */
 export interface InMemorySite {
   readonly files: ReadonlyMap<string, string | Uint8Array>;
   readonly manifest: SiteManifest | undefined;
+}
+
+/** Whether every name in a path is safe to put under the site's folder, as the disk's check says. */
+function isSafe(path: string): boolean {
+  return path
+    .split('/')
+    .every(
+      (name) =>
+        name !== '' && name !== '.' && name !== '..' && !name.includes('\\'),
+    );
 }
 
 /**
@@ -45,14 +58,25 @@ export class InMemorySiteFolders implements SiteFolders {
         return Promise.resolve(true);
       },
       writeImage: (path, bytes) => {
+        if (!isSafe(path)) {
+          return Promise.reject(
+            new Error(`unsafe path: ${JSON.stringify(path)}`),
+          );
+        }
         files.set(path, bytes);
         return Promise.resolve();
       },
       writeFile: (path, text) => {
+        if (!isSafe(path)) {
+          return Promise.reject(
+            new Error(`unsafe path: ${JSON.stringify(path)}`),
+          );
+        }
         files.set(path, text);
         return Promise.resolve();
       },
       commit: (manifest) => {
+        files.set('site.json', siteManifestJson(manifest));
         this.sites.set(slug, { files, manifest });
         return Promise.resolve();
       },

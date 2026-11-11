@@ -21,7 +21,6 @@ import {
 } from '../../../domain/sites/site-image-name.ts';
 import { siteImageSizes } from '../../../domain/sites/site-image-sizes.ts';
 import type { SiteManifest } from '../../../domain/sites/site-manifest.ts';
-import { siteManifestJson } from '../../../domain/sites/site-manifest.ts';
 import type { SiteOptions } from '../../../domain/sites/site-options.ts';
 import type {
   GroupLabel,
@@ -161,7 +160,6 @@ export class BuildSite {
         options: input.options,
         photos,
       };
-      await build.writeFile('site.json', siteManifestJson(manifest));
       await build.commit(manifest);
     } catch (error) {
       await build.discard();
