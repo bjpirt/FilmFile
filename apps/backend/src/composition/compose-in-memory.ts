@@ -28,6 +28,7 @@ export function composeInMemory(
   const clock = new FixedClock('2026-11-02T12:00:00.000Z');
   return createApp({
     port: 4310,
+    exportToFolder: overrides.destination !== undefined,
     folderPath: '/in-memory/FilmFile',
     ctx: localArchive(),
     useCases: useCasesFor({

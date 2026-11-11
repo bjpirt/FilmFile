@@ -431,3 +431,107 @@ test('a quick export in the desktop app asks where to save it, says where it wen
   expect(readdirSync(prints)).toEqual(['for-the-lab.jpg']);
   await app.close();
 });
+
+/** A roll with a scanned frame for each number, made through the service as the page would. */
+async function aRollWithFrames(
+  service: string,
+  roll: string,
+  numbers: readonly string[],
+): Promise<string> {
+  async function send(url: string, body: BodyInit, type: string) {
+    const response = await fetch(`${service}${url}`, {
+      method: 'POST',
+      headers: { Origin: service, 'Content-Type': type },
+      body,
+    });
+    const made: unknown = await response.json();
+    return typeof made === 'object' && made !== null && 'id' in made
+      ? String(made.id)
+      : '';
+  }
+  const rollId = await send(
+    '/api/rolls',
+    JSON.stringify({ roll, shot: '2026' }),
+    'application/json',
+  );
+  let shade = 0;
+  for (const number of numbers) {
+    const frame = await send(
+      `/api/rolls/${rollId}/frames`,
+      JSON.stringify({ number }),
+      'application/json',
+    );
+    shade += 30;
+    await send(
+      `/api/rolls/${rollId}/frames/${frame}/versions?file=${number}.jpg`,
+      new Uint8Array(await aJpeg({ shade })),
+      'image/jpeg',
+    );
+  }
+  return rollId;
+}
+
+test('exporting several frames in the desktop app writes JPEGs into a folder chosen in the app, with no zip, and says where they went (FF-176)', async () => {
+  const photos = folderWith('photos');
+  const show =
+    process.platform === 'darwin' ? 'Show in Finder' : 'Show in Folder';
+  const app = await electron.launch({
+    args: ['-r', dialogs, desktop],
+    env: appEnv({
+      FILMFILE_FOLDER: filmFile,
+      FILMFILE_TEST_USER_DATA: userData,
+      // Choose the folder and look at it; then choose it again.
+      FILMFILE_TEST_DIALOGS: JSON.stringify([
+        { choose: photos },
+        { button: show },
+        { choose: photos },
+        { button: 'OK' },
+      ]),
+    }),
+  });
+  const window = await app.firstWindow();
+  const service = new URL(window.url()).origin;
+  const roll = await aRollWithFrames(service, '2026-057', ['1', '2']);
+
+  async function exportBoth() {
+    await window.goto(`${service}/rolls/${roll}`);
+    await window.getByRole('button', { name: 'Actions' }).click();
+    await window.getByRole('menuitem', { name: 'Bulk actions' }).click();
+    await window.getByRole('button', { name: 'Select all' }).click();
+    await window.getByRole('button', { name: 'Export…' }).click();
+    await window
+      .getByRole('dialog', { name: 'Export 2 frames' })
+      .getByRole('button', { name: 'Download' })
+      .click();
+  }
+  await exportBoth();
+
+  await expect
+    .poll(() => readdirSync(photos).sort())
+    .toEqual(['2026-057-1.jpg', '2026-057-2.jpg']);
+  await expect.poll(async () => (await shownList(app)).length).toBe(2);
+  const [asked, said] = await shownList(app);
+  expect(saidBy(asked, 'title')).toBe(
+    'Where should the exported photographs go?',
+  );
+  expect(saidBy(said, 'message')).toBe(`Saved 2 files to ${photos}`);
+  expect(
+    await app.evaluate((): unknown => Reflect.get(globalThis, 'pathsOpened')),
+  ).toEqual([photos]);
+  expect(remembered()).toMatchObject({ exportFolder: photos });
+  expect(
+    readFileSync(path.join(photos, '2026-057-1.jpg')).subarray(0, 2),
+  ).toEqual(Buffer.from([0xff, 0xd8]));
+
+  // Again into the same folder: nothing there is replaced.
+  await exportBoth();
+  await expect
+    .poll(() => readdirSync(photos).sort())
+    .toEqual([
+      '2026-057-1-2.jpg',
+      '2026-057-1.jpg',
+      '2026-057-2-2.jpg',
+      '2026-057-2.jpg',
+    ]);
+  await app.close();
+});

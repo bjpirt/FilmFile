@@ -37,7 +37,11 @@ function serviceFiles(): { readonly main: string; readonly ui?: string } {
  * settings, and resolves once it answers. The service checks the folder and
  * stops, saying why, if it isn't a FilmFile folder (D63).
  */
-export async function startService(folder: string): Promise<Service> {
+export async function startService(
+  folder: string,
+  /** Hears what the service says to the app (D100), with a way to answer. */
+  onMessage?: (message: unknown, reply: (answer: unknown) => void) => void,
+): Promise<Service> {
   // A port given is used as it is, so the packaged app can be checked from outside.
   const given = Number(process.env.FILMFILE_PORT ?? '');
   const port = Number.isInteger(given) && given > 0 ? given : await freePort();
@@ -51,6 +55,11 @@ export async function startService(folder: string): Promise<Service> {
     },
     serviceName: 'FilmFile service',
     stdio: 'inherit',
+  });
+  service.on('message', (message) => {
+    onMessage?.(message, (answer) => {
+      service.postMessage(answer);
+    });
   });
   const exited = new Promise<number>((resolve) => {
     service.once('exit', resolve);

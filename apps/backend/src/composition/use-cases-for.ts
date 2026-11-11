@@ -8,6 +8,7 @@ import type { BlobStore } from '../application/ports/blob-store.ts';
 import type { Clock } from '../application/ports/clock.ts';
 import type { EquipmentRepository } from '../application/ports/equipment-repository.ts';
 import type { EventRepository } from '../application/ports/event-repository.ts';
+import type { ExportDestination } from '../application/ports/export-destination.ts';
 import type { ExportTickets } from '../application/ports/export-tickets.ts';
 import type { HoldingArea } from '../application/ports/holding-area.ts';
 import type { IdGenerator } from '../application/ports/id-generator.ts';
@@ -15,6 +16,7 @@ import type { ImageRenderer } from '../application/ports/image-renderer.ts';
 import type { ImageInspector } from '../application/ports/image-inspector.ts';
 import type { PreviewProvider } from '../application/ports/preview-provider.ts';
 import type { RollRepository } from '../application/ports/roll-repository.ts';
+import { FolderExports } from '../application/use-cases/exports/folder-exports.ts';
 import { MakeQuickExport } from '../application/use-cases/exports/make-quick-export.ts';
 import { PrepareQuickExport } from '../application/use-cases/exports/prepare-quick-export.ts';
 import { GetSettings } from '../application/use-cases/settings/get-settings.ts';
@@ -61,6 +63,8 @@ export interface Adapters {
   readonly previews: PreviewProvider;
   readonly renderer: ImageRenderer;
   readonly tickets: ExportTickets;
+  /** The desktop app, which can ask for a folder to export into (D100); none when there isn't one. */
+  readonly destination?: ExportDestination | undefined;
   readonly ids: IdGenerator;
   readonly clock: Clock;
 }
@@ -77,6 +81,7 @@ export function useCasesFor({
   previews,
   renderer,
   tickets,
+  destination,
   ids,
   clock,
 }: Adapters): RollUseCases &
@@ -84,6 +89,16 @@ export function useCasesFor({
   EventUseCases &
   ExportUseCases &
   SettingsUseCases {
+  const makeQuickExport = new MakeQuickExport(
+    rolls,
+    settings,
+    equipment,
+    events,
+    blobs,
+    tickets,
+    renderer,
+    clock,
+  );
   return {
     getSettings: new GetSettings(settings),
     initialiseSettings: new InitialiseSettings(settings, ids),
@@ -107,16 +122,8 @@ export function useCasesFor({
     getOriginal: new GetOriginal(rolls, blobs),
     getThumbnail: new GetThumbnail(rolls, blobs, previews),
     prepareQuickExport: new PrepareQuickExport(rolls, tickets),
-    makeQuickExport: new MakeQuickExport(
-      rolls,
-      settings,
-      equipment,
-      events,
-      blobs,
-      tickets,
-      renderer,
-      clock,
-    ),
+    makeQuickExport,
+    folderExports: new FolderExports(rolls, makeQuickExport, destination),
     listCameras: new ListCameras(equipment),
     createCamera: new CreateCamera(equipment),
     listFilmStocks: new ListFilmStocks(equipment),

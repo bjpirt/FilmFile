@@ -17,6 +17,51 @@ function refused(path: string, message: string): ValidationFailed {
 }
 
 /**
+ * Checks the frames and file names of an export: the pattern may only use the
+ * placeholders there are, and every frame must be there. A JPEG is of one
+ * frame, which must also have a scan and not be hidden (D99); in a zip or a
+ * folder a frame that can't be made is left out and listed in `skipped.txt`
+ * instead.
+ */
+export async function checkExport(
+  rolls: RollRepository,
+  ctx: ArchiveContext,
+  input: Pick<QuickExport, 'frames' | 'output' | 'naming'>,
+): Promise<Result<undefined, NotFound | ValidationFailed>> {
+  const unknown = unknownPlaceholders(input.naming.pattern);
+  if (unknown.length > 0) {
+    return err(
+      refused(
+        'fileNames',
+        `unknown ${unknown.map((name) => `{${name}}`).join(', ')}; use {roll}, {frame}, {title}, {year} or {original}`,
+      ),
+    );
+  }
+  if (input.output === 'jpeg' && input.frames.length !== 1) {
+    return err(refused('frames', 'a JPEG is of one frame'));
+  }
+  for (const { rollId, frameId } of input.frames) {
+    const roll = (await rolls.get(ctx, rollId))?.roll;
+    if (roll === undefined) {
+      return err({ kind: 'not-found', entity: 'roll', id: rollId });
+    }
+    const frame = roll.frames.find((f) => f.id === frameId);
+    if (frame === undefined) {
+      return err({ kind: 'not-found', entity: 'frame', id: frameId });
+    }
+    if (input.output === 'jpeg' && frame.hidden) {
+      return err(
+        refused('frame', 'this frame is hidden; unhide it to export it'),
+      );
+    }
+    if (input.output === 'jpeg' && frame.versions.length === 0) {
+      return err(refused('frame', 'this frame has no scan to export'));
+    }
+  }
+  return ok(undefined);
+}
+
+/**
  * Checks what's to be exported once (D95) and gives a single-use ticket to
  * download it with. Every frame must be there. A JPEG is one frame that has
  * a scan and isn't hidden (D99); in a zip, a frame that can't be made is left
@@ -35,35 +80,9 @@ export class PrepareQuickExport {
     ctx: ArchiveContext,
     input: QuickExport,
   ): Promise<Result<string, NotFound | ValidationFailed>> {
-    const unknown = unknownPlaceholders(input.naming.pattern);
-    if (unknown.length > 0) {
-      return err(
-        refused(
-          'fileNames',
-          `unknown ${unknown.map((name) => `{${name}}`).join(', ')}; use {roll}, {frame}, {title}, {year} or {original}`,
-        ),
-      );
-    }
-    if (input.output === 'jpeg' && input.frames.length !== 1) {
-      return err(refused('frames', 'a JPEG is of one frame'));
-    }
-    for (const { rollId, frameId } of input.frames) {
-      const roll = (await this.#rolls.get(ctx, rollId))?.roll;
-      if (roll === undefined) {
-        return err({ kind: 'not-found', entity: 'roll', id: rollId });
-      }
-      const frame = roll.frames.find((f) => f.id === frameId);
-      if (frame === undefined) {
-        return err({ kind: 'not-found', entity: 'frame', id: frameId });
-      }
-      if (input.output === 'jpeg' && frame.hidden) {
-        return err(
-          refused('frame', 'this frame is hidden; unhide it to export it'),
-        );
-      }
-      if (input.output === 'jpeg' && frame.versions.length === 0) {
-        return err(refused('frame', 'this frame has no scan to export'));
-      }
+    const checked = await checkExport(this.#rolls, ctx, input);
+    if (!checked.ok) {
+      return checked;
     }
     return ok(this.#tickets.issue(input));
   }

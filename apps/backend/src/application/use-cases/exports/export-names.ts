@@ -71,6 +71,18 @@ function foldersFor(layout: Layout, parts: NameParts): string[] {
   }
 }
 
+/** A path with `-2`, `-3` after its name, before the extension; the path itself for 1. */
+export function numberedPath(path: string, n: number): string {
+  if (n === 1) {
+    return path;
+  }
+  const dot = path.lastIndexOf('.');
+  const slash = path.lastIndexOf('/');
+  return dot > slash + 1
+    ? `${path.slice(0, dot)}-${String(n)}${path.slice(dot)}`
+    : `${path}-${String(n)}`;
+}
+
 /**
  * Gives each exported file its path in the zip, as the layout and names say.
  * Names that would be the same (whatever their case, since some systems
@@ -90,7 +102,7 @@ export class FilePaths {
     const folder = [...foldersFor(this.#layout, parts), ''].join('/');
     const name = fileNameOf(this.#pattern, parts);
     for (let n = 1; ; n += 1) {
-      const path = `${folder}${name}${n === 1 ? '' : `-${String(n)}`}.jpg`;
+      const path = numberedPath(`${folder}${name}.jpg`, n);
       if (!this.#taken.has(path.toLowerCase())) {
         this.#taken.add(path.toLowerCase());
         return path;

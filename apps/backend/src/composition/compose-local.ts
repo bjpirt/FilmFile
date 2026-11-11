@@ -8,6 +8,8 @@ import { FilesystemHoldingArea } from '../adapters/outbound/filesystem/filesyste
 import { FilesystemBlobStore } from '../adapters/outbound/filesystem/filesystem-blob-store.ts';
 import { FilesystemRollRepository } from '../adapters/outbound/filesystem/filesystem-roll-repository.ts';
 import { InMemoryExportTickets } from '../adapters/outbound/memory/in-memory-export-tickets.ts';
+import { ParentProcessExportDestination } from '../adapters/outbound/node/parent-process-export-destination.ts';
+import type { ExportDestination } from '../application/ports/export-destination.ts';
 import { NodeClock } from '../adapters/outbound/node/node-clock.ts';
 import { UlidGenerator } from '../adapters/outbound/node/ulid-generator.ts';
 import { SharpImageInspector } from '../adapters/outbound/sharp/sharp-image-inspector.ts';
@@ -63,10 +65,15 @@ export function composeLocal(config: {
   // Tests pass a fixed clock and sequential IDs.
   readonly clock?: Clock;
   readonly ids?: IdGenerator;
+  /** Asks for a folder to export into; by default the desktop app that started the service, if one did (D100). */
+  readonly destination?: ExportDestination;
 }): OpenAPIHono {
   const clock = config.clock ?? new NodeClock();
+  const destination =
+    config.destination ?? ParentProcessExportDestination.ofThisProcess();
   return createApp({
     ...config,
+    exportToFolder: destination !== undefined,
     ctx: localArchive(),
     useCases: useCasesFor({
       settings: new FilesystemSettingsRepository(config.folderPath),
@@ -79,6 +86,7 @@ export function composeLocal(config: {
       previews: new SharpPreviewProvider(config.cachePath, maxPixels),
       renderer: new SharpImageRenderer(maxPixels),
       tickets: new InMemoryExportTickets(clock),
+      destination,
       ids: config.ids ?? new UlidGenerator(),
       clock,
     }),

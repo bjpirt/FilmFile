@@ -1,13 +1,18 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import {
+  folderExportParams,
+  folderExportRequest,
+  folderExportStatus,
   quickExport,
   quickExportParams,
   quickExportRequest,
+  startedFolderExport,
 } from '@filmfile/contracts/exports';
 import {
   errorResponse,
   invalidRequestResponse,
 } from '@filmfile/contracts/errors';
+import type { FolderExports } from '../../../../application/use-cases/exports/folder-exports.ts';
 import type { MakeQuickExport } from '../../../../application/use-cases/exports/make-quick-export.ts';
 import type { PrepareQuickExport } from '../../../../application/use-cases/exports/prepare-quick-export.ts';
 import type { ArchiveContext } from '../../../../domain/shared/archive-context.ts';
@@ -96,7 +101,57 @@ function streamOf(
   });
 }
 
+const startFolderExport = createRoute({
+  method: 'post',
+  path: '/folder',
+  summary: 'Write frames into a folder chosen in the desktop app',
+  description:
+    "Only when the service was started by the desktop app (the health response says so). The app asks for a folder with its own dialog, and the service writes the JPEGs there itself, as the layout and file names say, never replacing a file that's there. The request answers once the folder is chosen, with an export to follow, or with none if the person cancelled.",
+  middleware: [requireContentType('application/json')] as const,
+  request: {
+    body: {
+      required: true,
+      content: { 'application/json': { schema: folderExportRequest } },
+    },
+  },
+  responses: {
+    200: json(
+      startedFolderExport,
+      'The export started, or the person cancelled.',
+    ),
+    404: json(errorResponse, 'No such roll or frame.'),
+    422: json(
+      invalidRequestResponse,
+      'The request is invalid, or the service has no desktop app to ask.',
+    ),
+  },
+});
+
+const getFolderExport = createRoute({
+  method: 'get',
+  path: '/folder/{job}',
+  summary: 'How far an export into a folder has got',
+  request: { params: folderExportParams },
+  responses: {
+    200: json(folderExportStatus, 'Where the export has got to.'),
+    404: json(errorResponse, 'No such export.'),
+  },
+});
+
+const cancelFolderExport = createRoute({
+  method: 'delete',
+  path: '/folder/{job}',
+  summary: 'Stop an export into a folder',
+  description: 'Stops after the file in progress. What has been written stays.',
+  request: { params: folderExportParams },
+  responses: {
+    204: { description: 'Asked to stop.' },
+    404: json(errorResponse, 'No such export.'),
+  },
+});
+
 export interface ExportUseCases {
+  readonly folderExports: FolderExports;
   readonly prepareQuickExport: PrepareQuickExport;
   readonly makeQuickExport: MakeQuickExport;
 }
@@ -153,6 +208,41 @@ export function exportRoutes({
           ...headers,
           'Content-Type': 'application/zip',
         });
+  });
+
+  routes.openapi(startFolderExport, async (c) => {
+    const { frames, size, quality, metadata, layout, fileNames, name } =
+      c.req.valid('json');
+    const wanted = [];
+    for (const { rollId, frameId } of frames) {
+      if (!isRollId(rollId) || !isFrameId(frameId)) {
+        return c.json({ error: 'not found' }, 404);
+      }
+      wanted.push({ rollId, frameId });
+    }
+    const started = await useCases.folderExports.start(ctx, {
+      frames: wanted,
+      recipe: { longestEdge: size, quality, metadata },
+      naming: { layout, pattern: fileNames },
+      name,
+    });
+    return started.ok
+      ? c.json({ job: started.value ?? null }, 200)
+      : domainErrorResponse(c, started.error);
+  });
+
+  routes.openapi(getFolderExport, (c) => {
+    const status = useCases.folderExports.status(c.req.valid('param').job);
+    return status.ok
+      ? c.json(status.value, 200)
+      : domainErrorResponse(c, status.error);
+  });
+
+  routes.openapi(cancelFolderExport, (c) => {
+    const cancelled = useCases.folderExports.cancel(c.req.valid('param').job);
+    return cancelled.ok
+      ? c.body(null, 204)
+      : domainErrorResponse(c, cancelled.error);
   });
 
   return routes;

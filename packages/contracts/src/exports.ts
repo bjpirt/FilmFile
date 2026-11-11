@@ -63,3 +63,37 @@ export const quickExport = z
   .meta({ id: 'QuickExport' });
 
 export const quickExportParams = z.object({ ticket: z.uuid() });
+
+export const folderExportRequest = quickExportRequest
+  .omit({ output: true })
+  .meta({
+    id: 'FolderExportRequest',
+    description:
+      'What to write into a folder chosen in the desktop app, and how: the frames, size, quality, what the files say, layout and file names.',
+  });
+
+export const startedFolderExport = z
+  .object({
+    job: z.string().nullable().meta({
+      description:
+        'The export to ask after, or null if the person cancelled the folder chooser (nothing was written).',
+    }),
+  })
+  .meta({ id: 'StartedFolderExport' });
+
+export const folderExportStatus = z
+  .object({
+    state: z.enum(['running', 'done', 'cancelled', 'failed']),
+    done: z.number().int().meta({
+      description: 'Frames dealt with so far, made or left out.',
+    }),
+    total: z.number().int(),
+    written: z.number().int().meta({ description: 'JPEGs written.' }),
+    leftOut: z.number().int().meta({
+      description:
+        'Frames that could not be made, listed in a skipped.txt in the folder.',
+    }),
+  })
+  .meta({ id: 'FolderExportStatus' });
+
+export const folderExportParams = z.object({ job: z.string().min(1).max(20) });

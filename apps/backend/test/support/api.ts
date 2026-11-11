@@ -1,4 +1,5 @@
 import type { Clock } from '../../src/application/ports/clock.ts';
+import type { ExportDestination } from '../../src/application/ports/export-destination.ts';
 import type { IdGenerator } from '../../src/application/ports/id-generator.ts';
 import { composeLocal } from '../../src/composition/compose-local.ts';
 import type { TempArchive } from './temp-archive.ts';
@@ -14,7 +15,11 @@ export const origin = `http://127.0.0.1:${String(port)}`;
  */
 export function apiFor(
   archive: TempArchive,
-  overrides: { readonly clock?: Clock; readonly ids?: IdGenerator } = {},
+  overrides: {
+    readonly clock?: Clock;
+    readonly ids?: IdGenerator;
+    readonly destination?: ExportDestination;
+  } = {},
 ) {
   // One app per test archive, as the real service has one app: requests to
   // it share its repositories, and so the locks that make them take turns.

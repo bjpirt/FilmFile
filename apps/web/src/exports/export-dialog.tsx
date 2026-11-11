@@ -1,6 +1,6 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
-import { useState, type SubmitEvent } from 'react';
+import { useEffect, useState, type SubmitEvent } from 'react';
 import {
   defaultFileNames,
   isQuality,
@@ -12,6 +12,7 @@ import {
   type Layout,
   type Metadata,
 } from './export-choices.ts';
+import { useCanExportToFolder } from './use-export-to-folder.ts';
 
 const fullSize = 'full';
 
@@ -41,6 +42,10 @@ function whyNot(frame: Frame): string | undefined {
     : undefined;
 }
 
+function files(count: number): string {
+  return count === 1 ? '1 file' : `${String(count)} files`;
+}
+
 function frames(count: number): string {
   return count === 1 ? '1 frame' : `${String(count)} frames`;
 }
@@ -61,6 +66,7 @@ export function ExportDialog({
   items,
   single = false,
   zipName,
+  pollMilliseconds = 500,
   close,
 }: {
   readonly api: ApiClient;
@@ -70,6 +76,8 @@ export function ExportDialog({
   readonly single?: boolean;
   /** What to call the zip, e.g. the event's name; otherwise it's named for the roll. */
   readonly zipName?: string;
+  /** How often an export into a folder is asked after. */
+  readonly pollMilliseconds?: number;
   readonly close: () => void;
 }) {
   const initial = rememberedExportChoices();
@@ -85,6 +93,54 @@ export function ExportDialog({
   const [takenOut, setTakenOut] = useState<ReadonlySet<string>>(new Set());
   const [problem, setProblem] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  // In the desktop app, several frames are written into a folder, not zipped (D100).
+  const canExportToFolder = useCanExportToFolder(api);
+  // An export being written into a folder: its ID and how far it's got.
+  const [writing, setWriting] = useState<
+    | { readonly job: string; readonly done: number; readonly total: number }
+    | undefined
+  >(undefined);
+  const [stopped, setStopped] = useState<string | undefined>(undefined);
+  const job = writing?.job;
+
+  useEffect(() => {
+    if (job === undefined) {
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let over = false;
+    async function follow(): Promise<void> {
+      const { data } = await api.GET('/api/exports/folder/{job}', {
+        params: { path: { job: job ?? '' } },
+      });
+      if (over) {
+        return;
+      }
+      if (data === undefined) {
+        setProblem("Couldn't follow the export. Is the service running?");
+        setWriting(undefined);
+      } else if (data.state === 'running') {
+        setWriting({ job: job ?? '', done: data.done, total: data.total });
+        timer = setTimeout(() => void follow(), pollMilliseconds);
+      } else if (data.state === 'done') {
+        close();
+      } else if (data.state === 'cancelled') {
+        setStopped(`Stopped after ${files(data.written)}.`);
+        setWriting(undefined);
+      } else {
+        setProblem(
+          "Couldn't write the files. Check the folder has room and can be written to.",
+        );
+        setWriting(undefined);
+      }
+    }
+    timer = setTimeout(() => void follow(), pollMilliseconds);
+    return () => {
+      over = true;
+      clearTimeout(timer);
+    };
+    // Following one export: `close` and `api` don't change what it asks.
+  }, [job]);
   const kept = items.filter(({ frame }) => !takenOut.has(frame.id));
   const noScan = kept.filter(({ frame }) => frame.versions.length === 0).length;
   const [only] = items;
@@ -113,8 +169,45 @@ export function ExportDialog({
     const chosenSize = size === fullSize ? null : Number(size);
     const names = single ? defaultFileNames : fileNames.trim();
     setProblem(undefined);
+    setStopped(undefined);
     setBusy(true);
     try {
+      if (!single && (await canExportToFolder())) {
+        const { data, response } = await api.POST('/api/exports/folder', {
+          body: {
+            frames: kept.map(({ roll, frame }) => ({
+              rollId: roll.id,
+              frameId: frame.id,
+            })),
+            ...(zipName === undefined ? {} : { name: zipName }),
+            layout,
+            fileNames: names,
+            size: chosenSize,
+            quality: chosenQuality,
+            metadata,
+          },
+        });
+        if (data === undefined) {
+          setProblem(
+            response.status === 404
+              ? "A frame isn't there any more. Reload the page."
+              : "Couldn't make the export. Check the file names only use {roll}, {frame}, {title}, {year} and {original}.",
+          );
+          return;
+        }
+        rememberExportChoices({
+          size: chosenSize,
+          quality: chosenQuality,
+          metadata,
+          layout,
+          fileNames: names,
+        });
+        // No job when the person cancelled the folder chooser: nothing was made.
+        if (data.job !== null) {
+          setWriting({ job: data.job, done: 0, total: kept.length });
+        }
+        return;
+      }
       const { data, response } = await api.POST('/api/exports/quick', {
         body: {
           frames: kept.map(({ roll, frame }) => ({
@@ -300,18 +393,37 @@ export function ExportDialog({
       )}
       {cannot !== undefined && <p role="alert">{cannot}</p>}
       {problem !== undefined && <p role="alert">{problem}</p>}
-      <div className="form-actions">
-        <button
-          type="submit"
-          className="primary"
-          disabled={cannot !== undefined || busy}
-        >
-          Download
-        </button>
-        <button type="button" onClick={close}>
-          Cancel
-        </button>
-      </div>
+      {stopped !== undefined && <p role="status">{stopped}</p>}
+      {writing === undefined ? (
+        <div className="form-actions">
+          <button
+            type="submit"
+            className="primary"
+            disabled={cannot !== undefined || busy}
+          >
+            Download
+          </button>
+          <button type="button" onClick={close}>
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <div className="form-actions">
+          <p role="status">
+            Exporting {writing.done} of {writing.total}…
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              void api.DELETE('/api/exports/folder/{job}', {
+                params: { path: { job: writing.job } },
+              });
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
     </form>
   );
 }

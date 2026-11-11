@@ -26,7 +26,10 @@ import {
   type UnreadableRoll,
   type Version,
 } from '@filmfile/contracts/rolls';
-import { quickExportRequest } from '@filmfile/contracts/exports';
+import {
+  folderExportRequest,
+  quickExportRequest,
+} from '@filmfile/contracts/exports';
 import {
   createSettingsRequest,
   updateSettingsRequest,
@@ -63,6 +66,17 @@ export interface ArchiveContents {
   readonly events?: readonly Event[];
   /** FilmFile's settings; set up by default, or null if they aren't yet. */
   readonly settings?: Settings | null;
+  /** Whether the service can export into a folder the desktop app chooses (D100). */
+  readonly exportToFolder?: boolean;
+  /** What a folder export's status says as it's asked after, one after another; the last is kept. */
+  readonly folderExportStates?: readonly {
+    readonly state: 'running' | 'done' | 'cancelled' | 'failed';
+    readonly done: number;
+    readonly written: number;
+    readonly leftOut?: number;
+  }[];
+  /** Whether the person cancels the folder chooser. */
+  readonly folderChooserCancelled?: boolean;
 }
 
 /** Settings that have been set up, as every page but first-run setup expects. */
@@ -211,6 +225,9 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   const rollUpdates: unknown[] = [];
   /** The body of every request to export a frame once. */
   const quickExports: unknown[] = [];
+  /** The body of every request to export into a folder, and the exports cancelled. */
+  const folderExports: unknown[] = [];
+  const folderExportsCancelled: string[] = [];
   /** The file name of every scan uploaded. */
   const uploads: string[] = [];
   /** Every frame deleted, as it was. */
@@ -218,6 +235,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   // Each roll's and event's version, sent as its ETag: "v1", then up by one per change.
   const versions = new Map<string, number>();
   let nextId = 0;
+  let statusCalls = 0;
   let stopped = false;
   let savesFail = false;
 
@@ -870,6 +888,37 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     return Response.json(version, { status: 201 });
   }
 
+  /** An export into a folder: started (the chooser may be cancelled), followed, or cancelled. */
+  async function folderExport(
+    request: Request,
+    job: string | undefined,
+  ): Promise<Response> {
+    if (job === undefined) {
+      const body = await bodyOf(request, folderExportRequest);
+      if (!body.ok) {
+        return body.response;
+      }
+      folderExports.push(body.value);
+      return Response.json({
+        job: contents.folderChooserCancelled === true ? null : 'job-1',
+      });
+    }
+    if (request.method === 'DELETE') {
+      folderExportsCancelled.push(job);
+      return new Response(null, { status: 204 });
+    }
+    const states = contents.folderExportStates ?? [
+      { state: 'done' as const, done: 2, written: 2 },
+    ];
+    statusCalls += 1;
+    const now = states[Math.min(statusCalls, states.length) - 1];
+    return Response.json({
+      total: 2,
+      leftOut: 0,
+      ...now,
+    });
+  }
+
   /** Prepares a frame's export as the service does: refused if hidden or with no scan. */
   async function quickExport(request: Request): Promise<Response> {
     const body = await bodyOf(request, quickExportRequest);
@@ -929,7 +978,14 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       case 'events':
         return eventsRoute(request, rest[0]);
       case 'exports':
-        return quickExport(request);
+        return rest[0] === 'folder'
+          ? folderExport(request, rest[1])
+          : quickExport(request);
+      case 'health':
+        return Response.json({
+          status: 'ok',
+          exportToFolder: contents.exportToFolder ?? false,
+        });
       case 'rolls': {
         if (rest.length === 0) {
           return request.method === 'GET'
@@ -985,6 +1041,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     uploads,
     deleted,
     quickExports,
+    folderExports,
+    folderExportsCancelled,
     /** Stops answering, as a stopped service behind a proxy would: every request gets a 502. */
     stop() {
       stopped = true;

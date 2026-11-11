@@ -38,6 +38,8 @@ export function createApp(config: {
     ExportUseCases &
     SettingsUseCases;
   readonly uiPath?: string;
+  /** Whether exports can be written into a folder the desktop app chooses (D100). */
+  readonly exportToFolder?: boolean;
   readonly port: number;
   readonly uiOrigin?: string;
   readonly reportError?: ReportError;
@@ -47,7 +49,12 @@ export function createApp(config: {
   app.use(securityHeaders());
   app.use(requestGuard(config));
 
-  app.openapi(getHealth, (c) => c.json({ status: 'ok' } as const, 200));
+  app.openapi(getHealth, (c) =>
+    c.json(
+      { status: 'ok' as const, exportToFolder: config.exportToFolder ?? false },
+      200,
+    ),
+  );
   app.route('/api/rolls', rollRoutes(config));
   app.route('/api/equipment', equipmentRoutes(config));
   app.route('/api/events', eventRoutes(config));

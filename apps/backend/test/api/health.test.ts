@@ -8,5 +8,8 @@ test('reports that the service is up', async () => {
   const response = await request('/api/health');
 
   expect(response.status).toBe(200);
-  expect(await response.json()).toEqual({ status: 'ok' });
+  expect(await response.json()).toEqual({
+    status: 'ok',
+    exportToFolder: false,
+  });
 });

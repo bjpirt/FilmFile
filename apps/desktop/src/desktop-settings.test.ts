@@ -51,10 +51,12 @@ test('remembers the folder downloads were last saved to, beside the FilmFile fol
   await saveSettings(file, { folder: '/Volumes/Photos/FilmFile' });
 
   await updateSettings(file, { downloadFolder: '/Users/ben/Pictures/Iceland' });
+  await updateSettings(file, { exportFolder: '/Volumes/Prints' });
   await updateSettings(file, { folder: '/Volumes/Other/FilmFile' });
 
   expect(await readSettings(file)).toEqual({
     folder: '/Volumes/Other/FilmFile',
     downloadFolder: '/Users/ben/Pictures/Iceland',
+    exportFolder: '/Volumes/Prints',
   });
 });

@@ -589,8 +589,11 @@ describe('exporting the selected frames', () => {
     localStorage.clear();
   });
 
-  async function selecting(...numbers: string[]) {
-    const archive = archiveWith(frames());
+  async function selecting(
+    numbers: string[] = [],
+    contents: ArchiveContents = {},
+  ) {
+    const archive = archiveWith(frames(), {}, contents);
     renderPage(archive);
     await screen.findByRole('list', { name: 'Contact sheet' });
     await chooseAction('Bulk actions');
@@ -619,7 +622,7 @@ describe('exporting the selected frames', () => {
   });
 
   test('opens a dialog for the frames selected, listing them to review and take out', async () => {
-    await selecting('1', '2');
+    await selecting(['1', '2']);
     fireEvent.click(screen.getByRole('button', { name: 'Export…' }));
 
     const dialog = screen.getByRole('dialog', { name: 'Export 2 frames' });
@@ -644,7 +647,7 @@ describe('exporting the selected frames', () => {
   });
 
   test('says before anything is made which frames have no scan and will be left out', async () => {
-    await selecting('2', '3');
+    await selecting(['2', '3']);
     fireEvent.click(screen.getByRole('button', { name: 'Export…' }));
 
     expect(
@@ -653,7 +656,7 @@ describe('exporting the selected frames', () => {
   });
 
   test('Download asks for a zip of the frames, as the layout and file names say, and remembers them', async () => {
-    const archive = await selecting('1', '2');
+    const archive = await selecting(['1', '2']);
     const started: string[] = [];
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
       this: HTMLAnchorElement,
@@ -694,8 +697,110 @@ describe('exporting the selected frames', () => {
     );
   });
 
+  describe('in the desktop app, where the service writes into a folder', () => {
+    const inTheApp = (contents: ArchiveContents = {}) =>
+      selecting(['1', '2'], { exportToFolder: true, ...contents });
+
+    async function download(archive: FakeArchive) {
+      fireEvent.click(await screen.findByRole('button', { name: 'Export…' }));
+      const dialog = screen.getByRole('dialog', { name: 'Export 2 frames' });
+      // Quick polling, so the test needn't wait.
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Download' }));
+      await waitFor(() => {
+        expect(archive.folderExports).toHaveLength(1);
+      });
+      return dialog;
+    }
+
+    test('asks the service to write into a folder, in place of downloading a zip, and shows its progress until it is done', async () => {
+      const started: string[] = [];
+      vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(
+        function (this: HTMLAnchorElement) {
+          started.push(this.getAttribute('href') ?? '');
+        },
+      );
+      const archive = await inTheApp({
+        folderExportStates: [
+          { state: 'running', done: 1, written: 1 },
+          { state: 'done', done: 2, written: 2 },
+        ],
+      });
+
+      await download(archive);
+
+      expect(archive.folderExports).toMatchObject([
+        { layout: 'flat', fileNames: '{roll}-{frame}' },
+      ]);
+      expect(archive.quickExports).toEqual([]);
+      expect(
+        await screen.findByText('Exporting 1 of 2…', {}, { timeout: 3000 }),
+      ).toBeDefined();
+      await waitFor(
+        () => {
+          expect(screen.queryByRole('dialog')).toBeNull();
+        },
+        { timeout: 3000 },
+      );
+      expect(started).toEqual([]);
+    });
+
+    test('stays open with nothing made when the person cancels the folder chooser', async () => {
+      const archive = await inTheApp({ folderChooserCancelled: true });
+
+      const dialog = await download(archive);
+
+      expect(within(dialog).queryByText(/^Exporting/)).toBeNull();
+      expect(
+        within(dialog).getByRole<HTMLButtonElement>('button', {
+          name: 'Download',
+        }).disabled,
+      ).toBe(false);
+    });
+
+    test('Cancel stops the export and says how many files were written', async () => {
+      const archive = await inTheApp({
+        folderExportStates: [
+          { state: 'running', done: 1, written: 1 },
+          { state: 'cancelled', done: 1, written: 1 },
+        ],
+      });
+      const dialog = await download(archive);
+      await within(dialog).findByText(
+        'Exporting 1 of 2…',
+        {},
+        { timeout: 3000 },
+      );
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+      expect(
+        await within(dialog).findByText(
+          'Stopped after 1 file.',
+          {},
+          { timeout: 3000 },
+        ),
+      ).toBeDefined();
+      expect(archive.folderExportsCancelled).toEqual(['job-1']);
+    });
+
+    test('says so, without internals, when the files could not be written', async () => {
+      const archive = await inTheApp({
+        folderExportStates: [{ state: 'failed', done: 0, written: 0 }],
+      });
+
+      const dialog = await download(archive);
+
+      expect(
+        (await within(dialog).findByRole('alert', {}, { timeout: 3000 }))
+          .textContent,
+      ).toBe(
+        "Couldn't write the files. Check the folder has room and can be written to.",
+      );
+    });
+  });
+
   test('refuses empty file names, and has nothing to download when none of the frames has a scan', async () => {
-    await selecting('3');
+    await selecting(['3']);
     fireEvent.click(screen.getByRole('button', { name: 'Export…' }));
 
     expect(screen.getByRole('alert').textContent).toBe(

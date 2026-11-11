@@ -1928,6 +1928,146 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/exports/folder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Write frames into a folder chosen in the desktop app
+         * @description Only when the service was started by the desktop app (the health response says so). The app asks for a folder with its own dialog, and the service writes the JPEGs there itself, as the layout and file names say, never replacing a file that's there. The request answers once the folder is chosen, with an export to follow, or with none if the person cancelled.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["FolderExportRequest"];
+                };
+            };
+            responses: {
+                /** @description The export started, or the person cancelled. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StartedFolderExport"];
+                    };
+                };
+                /** @description No such roll or frame. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The request is invalid, or the service has no desktop app to ask. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/exports/folder/{job}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How far an export into a folder has got */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    job: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Where the export has got to. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FolderExportStatus"];
+                    };
+                };
+                /** @description No such export. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Stop an export into a folder
+         * @description Stops after the file in progress. What has been written stays.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    job: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Asked to stop. */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description No such export. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings": {
         parameters: {
             query?: never;
@@ -2127,6 +2267,8 @@ export interface components {
         Health: {
             /** @enum {string} */
             status: "ok";
+            /** @description Whether exports of several frames can be written into a folder chosen in the desktop app, rather than downloaded as a zip (D100). */
+            exportToFolder: boolean;
         };
         RollList: {
             rolls: components["schemas"]["Roll"][];
@@ -2611,6 +2753,55 @@ export interface components {
              * @enum {string}
              */
             metadata: "everything" | "author-and-copyright";
+        };
+        StartedFolderExport: {
+            /** @description The export to ask after, or null if the person cancelled the folder chooser (nothing was written). */
+            job: string | null;
+        };
+        /** @description What to write into a folder chosen in the desktop app, and how: the frames, size, quality, what the files say, layout and file names. */
+        FolderExportRequest: {
+            /** @description The frames to export, in the order they are put in a zip. A JPEG is of exactly one. */
+            frames: {
+                /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
+                rollId: string;
+                /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
+                frameId: string;
+            }[];
+            /**
+             * @description Where a zip's files go: all in one place, a folder for each roll, or a folder for each year with one for each roll in it. Ignored for a JPEG.
+             * @enum {string}
+             */
+            layout: "flat" | "roll-folder" | "year-roll";
+            /**
+             * @description How files are named, with {roll}, {frame}, {title}, {year} and {original} in it, e.g. {roll}-{frame}.
+             * @example {roll}-{frame}
+             */
+            fileNames: string;
+            /**
+             * @description What to call a zip, e.g. an event's name; left out, it's named for the roll the frames are from.
+             * @example Iceland 2026
+             */
+            name?: string;
+            /** @description The longest edge in pixels, or null for the full size. Never enlarges. */
+            size: number | null;
+            /** @description JPEG quality, 1 to 100. */
+            quality: number;
+            /**
+             * @description What the file says about the frame: everything known (author, copyright, title, notes, date, camera, lens, film, keywords, rating, roll and frame number), or only author and copyright. Never a location.
+             * @enum {string}
+             */
+            metadata: "everything" | "author-and-copyright";
+        };
+        FolderExportStatus: {
+            /** @enum {string} */
+            state: "running" | "done" | "cancelled" | "failed";
+            /** @description Frames dealt with so far, made or left out. */
+            done: number;
+            total: number;
+            /** @description JPEGs written. */
+            written: number;
+            /** @description Frames that could not be made, listed in a skipped.txt in the folder. */
+            leftOut: number;
         };
         Settings: {
             id: string;

@@ -7,12 +7,15 @@ export interface DesktopSettings {
   readonly folder?: string;
   /** The folder a download was last saved to (FF-166). */
   readonly downloadFolder?: string;
+  /** The folder an export of several frames was last written into (FF-176). */
+  readonly exportFolder?: string;
 }
 
 // An `archive` from before the FilmFile folder isn't read: the folder is chosen again.
 const settingsFile = z.object({
   folder: z.string().min(1).optional(),
   downloadFolder: z.string().min(1).optional(),
+  exportFolder: z.string().min(1).optional(),
 });
 
 /** The settings saved in `file`, or none if it isn't there or can't be read. */
@@ -34,11 +37,12 @@ export async function readSettings(file: string): Promise<DesktopSettings> {
   if (!parsed.success) {
     return {};
   }
-  const { folder, downloadFolder } = parsed.data;
+  const { folder, downloadFolder, exportFolder } = parsed.data;
   // An `archive` from before the FilmFile folder says nothing, but a download folder still stands.
   return {
     ...(folder === undefined ? {} : { folder }),
     ...(downloadFolder === undefined ? {} : { downloadFolder }),
+    ...(exportFolder === undefined ? {} : { exportFolder }),
   };
 }
 

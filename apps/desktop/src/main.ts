@@ -10,8 +10,13 @@ import path from 'node:path';
 import { appMenu } from './app-menu.ts';
 import { chooseFolder } from './choose-folder.ts';
 import { readSettings, updateSettings } from './desktop-settings.ts';
+import type { ServiceRequests } from './service-messages.ts';
 import { findFolder } from './find-folder.ts';
 import { handleDownload } from './handle-download.ts';
+import {
+  exportFinishedMessage,
+  handleServiceMessage,
+} from './service-messages.ts';
 import { openWindow } from './open-window.ts';
 import { startService, type Service } from './start-service.ts';
 
@@ -40,7 +45,11 @@ function run(): void {
 
   /** Starts the service on the FilmFile folder and opens a window on it, closing those of the folder open before. */
   async function open(next: string): Promise<void> {
-    const started = await startService(next);
+    const started = await startService(next, (message, reply) => {
+      handleServiceMessage(message, serviceRequests, reply).catch(
+        couldNot('export those frames'),
+      );
+    });
     const previous = { window, service };
     folder = next;
     service = started;
@@ -75,6 +84,61 @@ function run(): void {
         : await dialog.showMessageBox(window, options);
     if (response === 0) {
       shell.showItemInFolder(file);
+    }
+  }
+
+  /** The folder an export of several frames was last written into (FF-176). */
+  let exportFolder: string | undefined;
+
+  /** What the service asks of the app (D100): a folder to export into, and telling where an export went. */
+  const serviceRequests: ServiceRequests = {
+    chooseExportFolder: async () => {
+      const options: Electron.OpenDialogOptions = {
+        title: 'Where should the exported photographs go?',
+        message: 'Choose a folder for the photographs to be written into.',
+        buttonLabel: 'Export Here',
+        defaultPath: exportFolder ?? app.getPath('downloads'),
+        properties: ['openDirectory', 'createDirectory'],
+      };
+      const { canceled, filePaths } =
+        window === undefined
+          ? await dialog.showOpenDialog(options)
+          : await dialog.showOpenDialog(window, options);
+      const [chosen] = filePaths;
+      if (canceled || chosen === undefined) {
+        return undefined;
+      }
+      exportFolder = chosen;
+      await updateSettings(settingsFile(), { exportFolder: chosen });
+      return chosen;
+    },
+    exportFinished: (result) => {
+      tellExported(result).catch(couldNot('show where the files went'));
+    },
+  };
+
+  /** Says where an export went and what was left out, with a way to see the folder. */
+  async function tellExported(result: {
+    readonly folder: string;
+    readonly written: number;
+    readonly leftOut: number;
+  }): Promise<void> {
+    const show =
+      process.platform === 'darwin' ? 'Show in Finder' : 'Show in Folder';
+    const options: Electron.MessageBoxOptions = {
+      ...exportFinishedMessage(result),
+      buttons: [show, 'OK'],
+      defaultId: 1,
+    };
+    const { response } =
+      window === undefined
+        ? await dialog.showMessageBox(options)
+        : await dialog.showMessageBox(window, options);
+    if (response === 0) {
+      const problem = await shell.openPath(result.folder);
+      if (problem !== '') {
+        throw new Error(problem);
+      }
     }
   }
 
@@ -125,7 +189,9 @@ function run(): void {
         },
       );
       // Where downloads (a quick export) are saved is asked for each time (FF-166).
-      let downloadFolder = (await readSettings(settingsFile())).downloadFolder;
+      const saved = await readSettings(settingsFile());
+      exportFolder = saved.exportFolder;
+      let downloadFolder = saved.downloadFolder;
       session.defaultSession.on('will-download', (_event, item) => {
         handleDownload(item, {
           lastFolder: () => downloadFolder,

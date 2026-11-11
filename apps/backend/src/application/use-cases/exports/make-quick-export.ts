@@ -96,7 +96,7 @@ export class MakeQuickExport {
       return ok({
         kind: 'zip',
         fileName: `${await this.#zipName(ctx, quick)}.zip`,
-        parts: zipOf(this.#entries(ctx, quick), this.#clock.now()),
+        parts: zipOf(this.entries(ctx, quick), this.#clock.now()),
       });
     }
     const [wanted] = quick.frames;
@@ -154,8 +154,8 @@ export class MakeQuickExport {
     return safeName([roll.roll, event ?? roll.name].filter(Boolean).join(' '));
   }
 
-  /** Each frame's JPEG as it's made, then a list of those left out. */
-  async *#entries(
+  /** Each frame's JPEG as it's made, then a list of those left out (a `skipped.txt`). */
+  async *entries(
     ctx: ArchiveContext,
     quick: QuickExport,
   ): AsyncGenerator<ZipEntry> {
