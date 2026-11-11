@@ -24,6 +24,22 @@ export const groupings: readonly { value: Grouping; label: string }[] = [
   { value: 'film', label: 'Film stock' },
 ];
 
+/**
+ * An event's page address (`?group=camera&hidden=show`), for the links that
+ * leave it and come back to it, so the frame view opened from it keeps both.
+ */
+export function eventQuery(group: Grouping, showHidden: boolean): string {
+  const params = new URLSearchParams();
+  if (group !== 'none') {
+    params.set('group', group);
+  }
+  if (showHidden) {
+    params.set('hidden', 'show');
+  }
+  const query = params.toString();
+  return query === '' ? '' : `?${query}`;
+}
+
 export function groupingOf(value: string | null): Grouping {
   return groupings.find((g) => g.value === value)?.value ?? 'none';
 }
@@ -129,6 +145,8 @@ export type EventFrames =
       readonly event: Event;
       /** Every frame, in shot order, ungrouped. */
       readonly frames: readonly RollFrame[];
+      /** How many of the event's frames are hidden, shown or not (D99). */
+      readonly hidden: number;
       readonly groups: readonly FrameGroup[];
     };
 
@@ -137,6 +155,10 @@ export function useEventFrames(
   api: ApiClient,
   slug: string,
   group: Grouping,
+  /** Whether hidden frames are listed too, `?hidden=show` (D99). */
+  showHidden = false,
+  /** A frame to list even if it's hidden: the one the frame view has open. */
+  keep?: string,
 ): EventFrames {
   const cameras = useCameras(api);
   const films = useFilmStocks(api);
@@ -174,12 +196,15 @@ export function useEventFrames(
       status: event.error instanceof EventNotFound ? 'not-found' : 'failed',
     };
   }
-  const frames: RollFrame[] = byDateShot(
+  const inEvent: RollFrame[] = byDateShot(
     inShotOrder(rolls.data.rolls).flatMap((roll) =>
       inFrameOrder(roll.frames)
         .filter((frame) => eventsOfFrame(frame, roll).includes(slug))
         .map((frame) => ({ roll, frame })),
     ),
+  );
+  const frames = inEvent.filter(
+    ({ frame }) => showHidden || !frame.hidden || frame.id === keep,
   );
   const groups: FrameGroup[] = (() => {
     switch (group) {
@@ -219,5 +244,11 @@ export function useEventFrames(
         );
     }
   })();
-  return { status: 'loaded', event: event.data, frames, groups };
+  return {
+    status: 'loaded',
+    event: event.data,
+    frames,
+    hidden: inEvent.filter(({ frame }) => frame.hidden).length,
+    groups,
+  };
 }

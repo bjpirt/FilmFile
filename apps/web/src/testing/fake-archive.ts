@@ -109,6 +109,7 @@ export function aFrame(number: string | null, file: string): Frame {
     lens: null,
     event: null,
     toScan: false,
+    hidden: false,
     shot: null,
     defaultVersion: null,
     versions: [
@@ -700,6 +701,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
           lens: null,
           event: null,
           toScan: false,
+          hidden: false,
           shot: null,
           defaultVersion: null,
           versions: [],

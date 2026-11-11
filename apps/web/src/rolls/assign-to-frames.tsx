@@ -7,6 +7,7 @@ export interface FramesChange {
   readonly lens?: string | null;
   readonly event?: string | null | false;
   readonly toScan?: boolean;
+  readonly hidden?: boolean;
 }
 
 /** One thing to choose from, e.g. a camera by slug and label. */
@@ -103,6 +104,18 @@ export function AssignToFrames({
     }
   }
 
+  async function setHidden(hidden: boolean): Promise<void> {
+    setDone(undefined);
+    setProblem(undefined);
+    setSaving(true);
+    const notSaved = await apply({ hidden });
+    setSaving(false);
+    setProblem(notSaved);
+    if (notSaved === undefined) {
+      setDone(`${frames(count)} ${hidden ? 'hidden' : 'unhidden'}.`);
+    }
+  }
+
   if (chosen === undefined) {
     return (
       <>
@@ -130,6 +143,19 @@ export function AssignToFrames({
               label: 'Unmark',
               select: () => {
                 void setScanMark(false);
+              },
+            },
+            {
+              label: 'Hide',
+              setApart: true,
+              select: () => {
+                void setHidden(true);
+              },
+            },
+            {
+              label: 'Unhide',
+              select: () => {
+                void setHidden(false);
               },
             },
           ]}

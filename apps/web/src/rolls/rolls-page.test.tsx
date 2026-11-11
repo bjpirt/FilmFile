@@ -40,6 +40,7 @@ function aRollOf(roll: string, frames: number): Roll {
       lens: null,
       event: null,
       toScan: false,
+      hidden: false,
       shot: null,
       defaultVersion: null,
       versions: [],
@@ -99,6 +100,7 @@ function aRollWithScans(roll: string, scans: number): Roll {
         lens: null,
         event: null,
         toScan: false,
+        hidden: false,
         shot: null,
         defaultVersion: null,
         versions: [
@@ -118,6 +120,24 @@ function aRollWithScans(roll: string, scans: number): Roll {
     }),
   };
 }
+
+test('a roll card counts and previews only the frames that are not hidden', async () => {
+  const roll = aRollWithScans('2026-014', 5);
+  renderPage(
+    fakeArchive({
+      rolls: [
+        {
+          ...roll,
+          frames: roll.frames.map((frame, i) => ({ ...frame, hidden: i < 3 })),
+        },
+      ],
+    }),
+  );
+
+  const card = (await screen.findByText('2026-014')).closest('li');
+  expect(screen.getByText('2 frames')).toBeDefined();
+  expect(card?.querySelectorAll('img')).toHaveLength(2);
+});
 
 test('shows each roll as a card with its first three scans', async () => {
   renderPage(fakeArchive({ rolls: [aRollWithScans('2026-014', 5)] }));

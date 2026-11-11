@@ -837,6 +837,40 @@ input[type='file']::file-selector-button {
   opacity: 1;
 }
 
+.frame-hide {
+  align-items: center;
+  display: flex;
+  min-height: 0;
+  opacity: 0;
+  padding: var(--space-1);
+  position: absolute;
+  right: var(--space-2);
+  top: var(--space-2);
+}
+
+/* Beside the bin, where a roll's page has one. */
+.frame-picture:has(.frame-delete) .frame-hide {
+  right: calc(var(--space-2) + 2.25rem);
+}
+
+.contact-sheet li:hover .frame-hide,
+.frame-hide:focus-visible,
+.frame-hide.hidden-frame-eye {
+  opacity: 1;
+}
+
+/* No hover to reveal it on a touch screen, so it's always there. */
+@media (hover: none) {
+  .frame-hide {
+    opacity: 1;
+  }
+}
+
+/* A hidden frame, where its page shows hidden frames. */
+.contact-sheet li.hidden-frame .frame-picture img {
+  opacity: 0.4;
+}
+
 /* Covers the frame's thumbnail, the same size, so the sheet doesn't move. */
 .confirm-delete {
   align-items: center;

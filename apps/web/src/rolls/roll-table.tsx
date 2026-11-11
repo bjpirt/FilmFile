@@ -1,3 +1,4 @@
+import { shownFrames } from './hidden-frames.ts';
 import type { Camera, FilmStock } from '@filmfile/contracts/equipment';
 import type { Event } from '@filmfile/contracts/events';
 import type { Roll } from '@filmfile/contracts/rolls';
@@ -58,12 +59,14 @@ export function RollTable({
               </td>
               <td>
                 <div className="strip" aria-hidden="true">
-                  {roll.frames.slice(0, 4).flatMap((frame) => {
-                    const src = thumbnailUrl(roll.id, frame);
-                    return src === undefined
-                      ? []
-                      : [<img key={frame.id} src={src} alt="" />];
-                  })}
+                  {shownFrames(roll.frames, false)
+                    .slice(0, 4)
+                    .flatMap((frame) => {
+                      const src = thumbnailUrl(roll.id, frame);
+                      return src === undefined
+                        ? []
+                        : [<img key={frame.id} src={src} alt="" />];
+                    })}
                 </div>
               </td>
               <td>{roll.name}</td>
@@ -74,7 +77,9 @@ export function RollTable({
                 {roll.shot === null ? '—' : formatShot(roll.shot)}
               </td>
               <td className="number muted">
-                {roll.frames.length === 0 ? '—' : roll.frames.length}
+                {shownFrames(roll.frames, false).length === 0
+                  ? '—'
+                  : shownFrames(roll.frames, false).length}
               </td>
             </tr>
           ))}

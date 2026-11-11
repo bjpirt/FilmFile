@@ -2,6 +2,7 @@ import type { ApiClient } from '@filmfile/contracts/client';
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
 import { useEffect, useRef, useState } from 'react';
 import { BinIcon } from '../bin-icon.tsx';
+import { EyeIcon } from '../eye-icon.tsx';
 import { MenuButton } from '../menu-button.tsx';
 import { FrameMarks, ratingText, scanStatus } from '../rolls/frame-marks.tsx';
 import { shownVersion } from '../rolls/shown-version.ts';
@@ -215,6 +216,7 @@ export function FrameView({
   const [detailsOpen, setDetailsOpen] = useState(rememberedDetailsOpen);
   const {
     save,
+    hide,
     turnBy,
     changeKind,
     remove,
@@ -273,6 +275,25 @@ export function FrameView({
     });
   }
 
+  /** Hides the frame shown and moves on to the next frame that isn't hidden, the previous, or where it was opened from; unhides one that's hidden, staying on it. */
+  function toggleHidden() {
+    if (shown?.frame.hidden === true) {
+      void save({ hidden: false });
+      return;
+    }
+    const after =
+      frames.slice(current + 1).find(({ frame }) => !frame.hidden) ??
+      frames
+        .slice(0, current)
+        .reverse()
+        .find(({ frame }) => !frame.hidden);
+    void hide(() => {
+      navigate(after === undefined ? back.to : addressOf(after), {
+        replace: true,
+      });
+    });
+  }
+
   useEffect(() => {
     // happy-dom, which the page tests run in, has no scrollIntoView, though
     // its types say every element does.
@@ -311,6 +332,8 @@ export function FrameView({
         navigate(back.to);
       } else if (/^[0-5]$/.test(event.key)) {
         void save({ rating: event.key === '0' ? null : Number(event.key) });
+      } else if (event.key.toLowerCase() === 'h') {
+        toggleHidden();
       } else if (event.key.toLowerCase() === 'r') {
         // R turns clockwise, Shift-R anticlockwise, as the buttons do; Shift
         // (not the letter's case) says which, so Caps Lock doesn't flip it.
@@ -331,6 +354,7 @@ export function FrameView({
     addressOf,
     save,
     rotateBy,
+    toggleHidden,
     confirmingDelete,
     confirmingVersion,
   ]);
@@ -360,6 +384,7 @@ export function FrameView({
           /
         </span>
         <h1>Frame {shown.frame.number ?? 'with no number'}</h1>
+        {shown.frame.hidden && <span className="muted">Hidden</span>}
         {shown.frame.rating !== null && (
           <span
             className="rating"
@@ -431,6 +456,15 @@ export function FrameView({
               </button>
             </>
           )}
+          <button
+            type="button"
+            className="icon-button"
+            aria-label={shown.frame.hidden ? 'Unhide frame' : 'Hide frame'}
+            title={`${shown.frame.hidden ? 'Unhide frame' : 'Hide frame'} (H)`}
+            onClick={toggleHidden}
+          >
+            <EyeIcon size={20} closed={shown.frame.hidden} />
+          </button>
           <button
             type="button"
             className="icon-button"

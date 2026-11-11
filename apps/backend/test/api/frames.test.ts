@@ -34,6 +34,7 @@ describe('POST /api/rolls/{id}/frames', () => {
       lens: null,
       event: null,
       toScan: false,
+      hidden: false,
       shot: null,
       defaultVersion: null,
       versions: [],
@@ -132,6 +133,7 @@ describe('PATCH /api/rolls/{id}/frames/{frameId}', () => {
       lens: null,
       event: null,
       toScan: false,
+      hidden: false,
       shot: null,
       defaultVersion: null,
       versions: [],
@@ -164,6 +166,21 @@ describe('PATCH /api/rolls/{id}/frames/{frameId}', () => {
     );
     expect(cleared.status).toBe(200);
     expect(await cleared.json()).toMatchObject({ toScan: false });
+  });
+
+  test('hides a frame and can unhide it', async () => {
+    const { url, etag } = await aRollWithAFrame();
+    const hidden = await patch(url, { hidden: true }, etag);
+
+    expect(hidden.status).toBe(200);
+    expect(await hidden.json()).toMatchObject({ hidden: true });
+
+    const shown = await patch(
+      url,
+      { hidden: false },
+      hidden.headers.get('ETag') ?? '',
+    );
+    expect(await shown.json()).toMatchObject({ hidden: false });
   });
 
   test('refuses a non-boolean scan mark', async () => {
@@ -340,6 +357,28 @@ describe('PATCH /api/rolls/{id}/frames', () => {
         { camera: null, event: null, toScan: false },
         { camera: 'leica-m6', event: 'westfjords', toScan: true },
       ],
+    });
+  });
+
+  test('hides and unhides many frames in one save', async () => {
+    const { frameIds, url, etag } = await aRollWithFrames(3);
+
+    const hidden = await patchNumbers(
+      url,
+      { frameIds: [frameIds[0], frameIds[2]], hidden: true },
+      etag,
+    );
+
+    expect(await hidden.json()).toMatchObject({
+      frames: [{ hidden: true }, { hidden: false }, { hidden: true }],
+    });
+    const shown = await patchNumbers(
+      url,
+      { frameIds: [frameIds[0]], hidden: false },
+      hidden.headers.get('ETag') ?? '',
+    );
+    expect(await shown.json()).toMatchObject({
+      frames: [{ hidden: false }, { hidden: false }, { hidden: true }],
     });
   });
 

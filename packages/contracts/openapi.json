@@ -221,6 +221,10 @@
             "type": "boolean",
             "description": "Whether this frame is marked for a higher-resolution scan."
           },
+          "hidden": {
+            "type": "boolean",
+            "description": "Whether this frame is hidden: left out of lists of frames, sites and exports, but still in its roll (D99)."
+          },
           "shot": {
             "type": [
               "string",
@@ -256,6 +260,7 @@
           "lens",
           "event",
           "toScan",
+          "hidden",
           "shot",
           "defaultVersion",
           "versions"
@@ -740,6 +745,9 @@
           },
           "toScan": {
             "type": "boolean"
+          },
+          "hidden": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -826,6 +834,10 @@
           "toScan": {
             "type": "boolean",
             "description": "Whether this frame is marked for a higher-resolution scan."
+          },
+          "hidden": {
+            "type": "boolean",
+            "description": "Whether this frame is hidden (D99)."
           },
           "shot": {
             "type": [

@@ -18,7 +18,8 @@ import { chooseEvent } from '../events/choose-event.ts';
 import { eventName, useEvents } from '../events/use-events.ts';
 import { MenuButton } from '../menu-button.tsx';
 import { PadlockIcon } from '../padlock-icon.tsx';
-import { Link, navigate } from '../routing.tsx';
+import { Link, navigate, useSearch } from '../routing.tsx';
+import { hiddenCount, shownFrames, showingHidden } from './hidden-frames.ts';
 import { AssignToFrames, type FramesChange } from './assign-to-frames.tsx';
 import { describeUpload } from './describe-upload.ts';
 import { droppedFiles } from './dropped-files.ts';
@@ -189,6 +190,7 @@ export function RollPage({
     undefined,
   );
   const ratings = useRateFrame(api);
+  const showHidden = showingHidden(useSearch());
   const [deleteFailed, setDeleteFailed] = useState(false);
   const [confirmingRollDelete, setConfirmingRollDelete] = useState(false);
   const [confirmingUnfile, setConfirmingUnfile] = useState(false);
@@ -561,7 +563,10 @@ export function RollPage({
     );
   }
 
-  const frames = roll.data.roll.frames;
+  // Hidden frames are left out of what's listed and counted, but still renumbered (D99).
+  const allFrames = roll.data.roll.frames;
+  const frames = shownFrames(allFrames, showHidden);
+  const hidden = hiddenCount(allFrames);
   const pendingScanCount = frames.filter(
     (frame) =>
       frame.toScan &&
@@ -570,7 +575,7 @@ export function RollPage({
       ),
   ).length;
   // While renumbering, frames are shown in scan order, which is the order the numbers count along.
-  const inOrder = inFrameOrder(frames);
+  const inOrder = inFrameOrder(renumbering === undefined ? frames : allFrames);
   // Frames in more than one event are grouped by it, in one list each; while renumbering, they're all in scan order.
   const groups =
     renumbering === undefined
@@ -578,7 +583,7 @@ export function RollPage({
       : [];
   const shown =
     renumbering !== undefined
-      ? frames
+      ? allFrames
       : groups.length > 1
         ? groups.flatMap((group) => group.frames)
         : inOrder;
@@ -597,20 +602,20 @@ export function RollPage({
   }
   const settings = renumbering && renumberingOf(renumbering);
   const proposed =
-    settings === undefined ? undefined : renumber(frames.length, settings);
+    settings === undefined ? undefined : renumber(allFrames.length, settings);
   const changing = proposed?.filter(
-    (number, i) => number !== frames[i]?.number,
+    (number, i) => number !== allFrames[i]?.number,
   ).length;
   // An empty roll is waiting for its scans, so the drop zone is open from the start.
-  const dropZoneOpen = addingScans || frames.length === 0;
+  const dropZoneOpen = addingScans || allFrames.length === 0;
 
   /** One frame on the sheet, at `i` in the order shown. */
   const frameItem = (frame: Frame, i: number) => (
-    <li key={frame.id}>
+    <li key={frame.id} className={frame.hidden ? 'hidden-frame' : undefined}>
       <div className="frame-picture">
         {selection === undefined ? (
           <Link
-            to={`/rolls/${rollId}/frames/${frame.id}`}
+            to={`/rolls/${rollId}/frames/${frame.id}${showHidden ? '?hidden=show' : ''}`}
             aria-label={`Open ${frameName(frame)}`}
           >
             <Thumbnail rollId={rollId} frame={frame} />
@@ -694,6 +699,9 @@ export function RollPage({
                 rate: (rating: number | null) => {
                   ratings.rate(rollId, frame.id, rating, frame.rating);
                 },
+                hide: (hide: boolean) => {
+                  ratings.hide(rollId, frame.id, hide, frameName(frame));
+                },
               }
             : {})}
         />
@@ -735,6 +743,7 @@ export function RollPage({
           </h1>
           <span className="muted">
             {frameCount(frames.length)}
+            {hidden > 0 && ` (${String(hidden)} hidden)`}
             {pendingScanCount > 0 && ` (${String(pendingScanCount)} to scan)`}
           </span>
         </div>
@@ -775,9 +784,9 @@ export function RollPage({
             className="page-actions confirm-roll-delete"
           >
             <p>
-              {frames.length === 0
+              {allFrames.length === 0
                 ? 'Delete this roll?'
-                : `Delete this roll and its ${frameCount(frames.length)}?`}
+                : `Delete this roll and its ${frameCount(allFrames.length)}?`}
             </p>
             <button
               type="button"
@@ -829,7 +838,23 @@ export function RollPage({
                       setAddingScans(true);
                     },
                   },
-                  ...(frames.length === 0
+                  ...(hidden === 0
+                    ? []
+                    : [
+                        {
+                          label: showHidden
+                            ? 'Hide hidden frames'
+                            : 'Show hidden frames',
+                          select: () => {
+                            navigate(
+                              showHidden
+                                ? `/rolls/${rollId}`
+                                : `/rolls/${rollId}?hidden=show`,
+                            );
+                          },
+                        },
+                      ]),
+                  ...(allFrames.length === 0
                     ? []
                     : [
                         {
@@ -841,7 +866,7 @@ export function RollPage({
                         {
                           label: 'Renumber…',
                           select: () => {
-                            startRenumbering(frames);
+                            startRenumbering(allFrames);
                           },
                         },
                       ]),
@@ -918,7 +943,7 @@ export function RollPage({
           }}
         >
           <p>Drop individual scans here</p>
-          {frames.length > 0 && (
+          {allFrames.length > 0 && (
             <button
               type="button"
               className="drop-zone-close"
@@ -960,8 +985,13 @@ export function RollPage({
         </div>
       )}
 
-      {frames.length === 0 ? (
+      {allFrames.length === 0 ? (
         <p>No frames yet.</p>
+      ) : frames.length === 0 && renumbering === undefined ? (
+        <p>
+          {String(hidden)} hidden.{' '}
+          <Link to={`/rolls/${rollId}?hidden=show`}>Show hidden frames</Link>
+        </p>
       ) : (
         <>
           {selection !== undefined ? (
@@ -1061,7 +1091,7 @@ export function RollPage({
               notSaved={numbersNotSaved}
               save={() => {
                 if (proposed !== undefined) {
-                  void saveRenumbering(frames, proposed);
+                  void saveRenumbering(allFrames, proposed);
                 }
               }}
               cancel={() => {

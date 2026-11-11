@@ -31,7 +31,10 @@ export function EventCard({
   const photos: { readonly roll: Roll; readonly frame: Frame }[] =
     inEvent.flatMap((roll) =>
       roll.frames
-        .filter((frame) => eventsOfFrame(frame, roll).includes(event.slug))
+        .filter(
+          (frame) =>
+            !frame.hidden && eventsOfFrame(frame, roll).includes(event.slug),
+        )
         .map((frame) => ({ roll, frame })),
     );
   const best = bestRated(photos, 3);

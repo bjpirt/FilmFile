@@ -77,6 +77,10 @@ export const frame = z
     toScan: z.boolean().meta({
       description: 'Whether this frame is marked for a higher-resolution scan.',
     }),
+    hidden: z.boolean().meta({
+      description:
+        'Whether this frame is hidden: left out of lists of frames, sites and exports, but still in its roll (D99).',
+    }),
     shot: shotDate.nullable().meta({
       description:
         "When the frame was shot, in place of its roll's date, or null to use the roll's (D47).",
@@ -239,6 +243,9 @@ export const updateFrameRequest = z
     toScan: z.boolean().optional().meta({
       description: 'Whether this frame is marked for a higher-resolution scan.',
     }),
+    hidden: z.boolean().optional().meta({
+      description: 'Whether this frame is hidden (D99).',
+    }),
     shot: shotDate.nullable().optional().meta({
       description:
         "The frame's own date shot, or null to use its roll's again.",
@@ -273,6 +280,7 @@ export const updateFrameDetailsRequest = z
     lens: slug.nullable().optional(),
     event: slug.or(z.literal(false)).nullable().optional(),
     toScan: z.boolean().optional(),
+    hidden: z.boolean().optional(),
   })
   .meta({
     id: 'UpdateFrameDetailsRequest',

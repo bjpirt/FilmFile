@@ -8,6 +8,7 @@ import { eventName } from '../events/use-events.ts';
 import { Link } from '../routing.tsx';
 import { formatShot } from './format-shot.ts';
 import { bestRated } from './best-rated.ts';
+import { shownFrames } from './hidden-frames.ts';
 import { frameCount } from './frame-count.ts';
 import { thumbnailUrl } from './thumbnail-url.ts';
 
@@ -34,8 +35,10 @@ export function RollCard({
   ]
     .filter((part) => part !== undefined)
     .join(' · ');
+  // Hidden frames aren't counted or shown (D99).
+  const frames = shownFrames(roll.frames, false);
   const best = bestRated(
-    roll.frames.map((frame) => ({ frame })),
+    frames.map((frame) => ({ frame })),
     3,
   );
   const peek = [0, 1, 2].map((i) => {
@@ -72,7 +75,7 @@ export function RollCard({
             </span>
           )}
         </div>
-        <span className="muted">{frameCount(roll.frames.length)}</span>
+        <span className="muted">{frameCount(frames.length)}</span>
       </div>
       {(roll.name !== null || about !== '') && (
         <div className="roll-card-details">

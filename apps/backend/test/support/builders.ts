@@ -59,6 +59,7 @@ export function aFrame(
     readonly id?: string;
     readonly number?: string | null;
     readonly toScan?: boolean;
+    readonly hidden?: boolean;
     readonly defaultVersion?: string;
     readonly versions?: readonly Version[];
   } = {},
@@ -76,6 +77,7 @@ export function aFrame(
     lens: null,
     event: null,
     toScan: overrides.toScan ?? false,
+    hidden: overrides.hidden ?? false,
     shot: null,
     defaultVersion:
       overrides.defaultVersion === undefined

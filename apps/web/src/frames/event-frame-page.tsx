@@ -1,5 +1,10 @@
 import type { ApiClient } from '@filmfile/contracts/client';
-import { groupingOf, useEventFrames } from '../events/event-frames.ts';
+import {
+  eventQuery,
+  groupingOf,
+  useEventFrames,
+} from '../events/event-frames.ts';
+import { showingHidden } from '../rolls/hidden-frames.ts';
 import { Link, useSearch } from '../routing.tsx';
 import { FrameView } from './frame-view.tsx';
 
@@ -16,9 +21,11 @@ export function EventFramePage({
   readonly slug: string;
   readonly frameId: string;
 }) {
-  const group = groupingOf(new URLSearchParams(useSearch()).get('group'));
-  const shown = useEventFrames(api, slug, group);
-  const grouping = group === 'none' ? '' : `?group=${group}`;
+  const search = useSearch();
+  const group = groupingOf(new URLSearchParams(search).get('group'));
+  const showHidden = showingHidden(search);
+  const shown = useEventFrames(api, slug, group, showHidden, frameId);
+  const grouping = eventQuery(group, showHidden);
 
   switch (shown.status) {
     case 'loading':

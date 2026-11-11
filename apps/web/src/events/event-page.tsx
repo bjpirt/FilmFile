@@ -6,7 +6,14 @@ import { useRateFrame } from '../rolls/use-rate-frame.ts';
 import { Thumbnail } from '../rolls/thumbnail.tsx';
 import { Link, navigate, useSearch } from '../routing.tsx';
 import { EventEditor } from './event-editor.tsx';
-import { groupingOf, groupings, useEventFrames } from './event-frames.ts';
+import { MenuButton } from '../menu-button.tsx';
+import { showingHidden } from '../rolls/hidden-frames.ts';
+import {
+  eventQuery,
+  groupingOf,
+  groupings,
+  useEventFrames,
+} from './event-frames.ts';
 
 function frameCount(count: number): string {
   return count === 1 ? '1 frame' : `${String(count)} frames`;
@@ -25,7 +32,8 @@ export function EventPage({
   readonly slug: string;
 }) {
   const group = groupingOf(new URLSearchParams(useSearch()).get('group'));
-  const shown = useEventFrames(api, slug, group);
+  const showHidden = showingHidden(useSearch());
+  const shown = useEventFrames(api, slug, group, showHidden);
   const ratings = useRateFrame(api);
   const [editing, setEditing] = useState(false);
 
@@ -45,9 +53,9 @@ export function EventPage({
     case 'loaded':
       break;
   }
-  const { event, frames, groups } = shown;
+  const { event, frames, groups, hidden } = shown;
   // Frames open in the frame view, keeping the grouping, so it steps through them in the same order.
-  const grouping = group === 'none' ? '' : `?group=${group}`;
+  const grouping = eventQuery(group, showHidden);
 
   return (
     <section>
@@ -63,9 +71,29 @@ export function EventPage({
           {event.date !== null && (
             <span className="muted">{formatShot(event.date)}</span>
           )}
-          <span className="muted">{frameCount(frames.length)}</span>
+          <span className="muted">
+            {frameCount(frames.length)}
+            {hidden > 0 && ` (${String(hidden)} hidden)`}
+          </span>
         </div>
         <div className="page-actions">
+          {hidden > 0 && (
+            <MenuButton
+              label="Actions"
+              items={[
+                {
+                  label: showHidden
+                    ? 'Hide hidden frames'
+                    : 'Show hidden frames',
+                  select: () => {
+                    navigate(
+                      `/events/${slug}${eventQuery(group, !showHidden)}`,
+                    );
+                  },
+                },
+              ]}
+            />
+          )}
           {!editing && (
             <button
               type="button"
@@ -84,11 +112,7 @@ export function EventPage({
             value={group}
             onChange={(change) => {
               const chosen = groupingOf(change.target.value);
-              navigate(
-                chosen === 'none'
-                  ? `/events/${slug}`
-                  : `/events/${slug}?group=${chosen}`,
-              );
+              navigate(`/events/${slug}${eventQuery(chosen, showHidden)}`);
             }}
           >
             {groupings.map((g) => (
@@ -112,7 +136,14 @@ export function EventPage({
 
       {ratings.problem !== undefined && <p role="alert">{ratings.problem}</p>}
 
-      {frames.length === 0 ? (
+      {frames.length === 0 && hidden > 0 ? (
+        <p>
+          {String(hidden)} hidden.{' '}
+          <Link to={`/events/${slug}${eventQuery(group, true)}`}>
+            Show hidden frames
+          </Link>
+        </p>
+      ) : frames.length === 0 ? (
         <p>No frames yet. Put rolls in this event from their details.</p>
       ) : (
         groups.map((g) => (
@@ -135,6 +166,7 @@ export function EventPage({
               {g.frames.map(({ roll, frame }) => (
                 <li
                   key={`${roll.id}-${frame.id}`}
+                  className={frame.hidden ? 'hidden-frame' : undefined}
                   aria-label={`Frame ${frame.number ?? 'with no number'} of roll ${roll.roll}`}
                 >
                   <div className="frame-picture">
@@ -149,6 +181,14 @@ export function EventPage({
                       roll={roll}
                       rate={(rating) => {
                         ratings.rate(roll.id, frame.id, rating, frame.rating);
+                      }}
+                      hide={(hide) => {
+                        ratings.hide(
+                          roll.id,
+                          frame.id,
+                          hide,
+                          `frame ${frame.number ?? 'with no number'}`,
+                        );
                       }}
                     />
                   </div>

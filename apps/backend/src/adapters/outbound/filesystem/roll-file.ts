@@ -132,6 +132,7 @@ export const storedFrame = z.object({
     ])
     .optional(),
   toScan: z.boolean().default(false),
+  hidden: z.boolean().default(false),
   meta: storedMeta.optional(),
   shot: branded<ShotDate>(
     isShotDate,
@@ -275,6 +276,7 @@ export function storedFrameOf(frame: Frame): z.input<typeof storedFrame> {
     // Only what the frame sets itself, so a frame that inherits it all says nothing.
     ...(frame.event === null ? {} : { event: frame.event }),
     ...(frame.toScan ? { toScan: true } : {}),
+    ...(frame.hidden ? { hidden: true } : {}),
     ...(frame.camera === null && frame.lens === null
       ? {}
       : {

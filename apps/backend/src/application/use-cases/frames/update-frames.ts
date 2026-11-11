@@ -51,6 +51,7 @@ export class UpdateFrames {
       /** The event to set on each frame, null to use each roll's, or false for no event. */
       readonly event?: string | null | false | undefined;
       readonly toScan?: boolean | undefined;
+      readonly hidden?: boolean | undefined;
     },
   ): Promise<
     Result<VersionedRoll, NotFound | ConcurrencyConflict | ValidationFailed>
@@ -98,6 +99,7 @@ export class UpdateFrames {
               ...(lens.value === undefined ? {} : { lens: lens.value }),
               ...(event.value === undefined ? {} : { event: event.value }),
               ...(input.toScan === undefined ? {} : { toScan: input.toScan }),
+              ...(input.hidden === undefined ? {} : { hidden: input.hidden }),
             }
           : frame,
       ),

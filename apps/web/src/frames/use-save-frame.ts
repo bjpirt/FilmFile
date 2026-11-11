@@ -440,6 +440,17 @@ export function useSaveFrame(
 
   return {
     save: (changes: FrameChanges) => queued(() => send(changes)),
+    /** Hides the frame, and only once that's saved calls `onHidden` (to move on, as deleting does, D99). */
+    hide: (onHidden: () => void) =>
+      queued(async () => {
+        await send({ hidden: true });
+        const hidden = queryClient
+          .getQueryData<ReadRoll>(['rolls', rollId])
+          ?.roll.frames.find((f) => f.id === frameId)?.hidden;
+        if (hidden === true) {
+          onHidden();
+        }
+      }),
     /** Makes a version the one shown everywhere, or the first again with null (FF-103); it shows at once. */
     chooseShown: (choice: string | null) => {
       const previous = shown?.frame.defaultVersion ?? null;

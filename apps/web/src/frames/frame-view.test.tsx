@@ -135,6 +135,88 @@ describe('the filmstrip’s marks', () => {
   });
 });
 
+describe('hiding the frame shown', () => {
+  const three = () =>
+    aRoll('2026-031', {
+      frames: [
+        aFrame('1', '12340001.jpg'),
+        aFrame('2', '12340002.jpg'),
+        aFrame('3', '12340003.jpg'),
+      ],
+    });
+
+  test('the Hide frame button and the H key hide it, saved, and move on to the next frame', async () => {
+    const hiding = three();
+    const archive = fakeArchive({ rolls: [hiding] });
+    openAt(`/rolls/${hiding.id}/frames/${hiding.frames[0]?.id ?? ''}`, archive);
+    await screen.findByRole('heading', { name: 'Frame 1' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide frame' }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Frame 2' }),
+    ).toBeDefined();
+    expect(archive.rolls[0]?.frames.map((f) => f.hidden)).toEqual([
+      true,
+      false,
+      false,
+    ]);
+    expect(filmstrip()).toEqual(['Frame 2 (shown)', 'Frame 3']);
+
+    fireEvent.keyDown(window, { key: 'h' });
+    expect(
+      await screen.findByRole('heading', { name: 'Frame 3' }),
+    ).toBeDefined();
+    expect(archive.rolls[0]?.frames.map((f) => f.hidden)).toEqual([
+      true,
+      true,
+      false,
+    ]);
+  });
+
+  test('the last frame left goes back to the roll', async () => {
+    const hiding = aRoll('2026-032', { frames: [aFrame('1', '12340001.jpg')] });
+    openAt(
+      `/rolls/${hiding.id}/frames/${hiding.frames[0]?.id ?? ''}`,
+      fakeArchive({ rolls: [hiding] }),
+    );
+    await screen.findByRole('heading', { name: 'Frame 1' });
+
+    fireEvent.keyDown(window, { key: 'h' });
+
+    await vi.waitFor(() => {
+      expect(window.location.pathname).toBe(`/rolls/${hiding.id}`);
+    });
+  });
+
+  test('a hidden frame opened directly says Hidden and can be unhidden, and stepping skips the others', async () => {
+    const hiding = three();
+    const [first, second, third] = hiding.frames;
+    const archive = fakeArchive({
+      rolls: [
+        {
+          ...hiding,
+          frames: [first, second, third].map((frame, i) =>
+            frame === undefined
+              ? aFrame('x', 'x.jpg')
+              : { ...frame, hidden: i !== 2 },
+          ),
+        },
+      ],
+    });
+    openAt(`/rolls/${hiding.id}/frames/${first?.id ?? ''}`, archive);
+
+    expect(await screen.findByText('Hidden')).toBeDefined();
+    expect(filmstrip()).toEqual(['Frame 1 (shown)', 'Frame 3']);
+    fireEvent.click(screen.getByRole('button', { name: 'Unhide frame' }));
+
+    await vi.waitFor(() => {
+      expect(archive.rolls[0]?.frames[0]?.hidden).toBe(false);
+    });
+    expect(screen.queryByText('Hidden')).toBeNull();
+  });
+});
+
 describe('opened from a roll', () => {
   test('steps through the roll’s frames in frame order, whatever events they are in (FF-102)', async () => {
     const eventful = aRoll('2026-030', {

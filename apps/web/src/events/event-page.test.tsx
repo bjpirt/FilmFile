@@ -169,6 +169,33 @@ test('a camera group leads to the rolls shot on it, and each frame to its roll',
   ).toBe(`/rolls/${aRoll('2026-012').id}`);
 });
 
+test('leaves out hidden frames, counting them, until they are shown from the Actions menu', async () => {
+  const base = aSettings();
+  const [first, second] = base.rolls;
+  const archive = fakeArchive({
+    events: [iceland],
+    rolls: [
+      {
+        ...(first ?? aRoll('x')),
+        frames: (first?.frames ?? []).map((frame, i) => ({
+          ...frame,
+          hidden: i === 0,
+        })),
+      },
+      ...(second === undefined ? [] : [second]),
+    ],
+  });
+  renderPage(archive);
+
+  expect(await screen.findByText('2 frames (1 hidden)')).toBeDefined();
+  expect(framesShown()).toHaveLength(2);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Actions' }));
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Show hidden frames' }));
+
+  expect(window.location.search).toBe('?hidden=show');
+});
+
 test('shows frames put in the event themselves, and leaves out frames of its rolls put elsewhere', async () => {
   renderPage(
     fakeArchive({

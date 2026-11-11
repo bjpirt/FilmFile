@@ -1,5 +1,6 @@
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
 import { useState } from 'react';
+import { EyeIcon } from '../eye-icon.tsx';
 import { ScanIcon } from '../scan-icon.tsx';
 import { TextIcon } from '../text-icon.tsx';
 import { VersionsIcon } from '../versions-icon.tsx';
@@ -96,6 +97,7 @@ export function FrameMarks({
   stars = true,
   readers = true,
   rate,
+  hide,
 }: {
   readonly frame: Frame;
   readonly roll: Roll;
@@ -104,6 +106,8 @@ export function FrameMarks({
   readonly readers?: boolean;
   /** Rates the frame from its thumbnail; left out where thumbnails can't rate (the filmstrip, while renumbering or selecting). */
   readonly rate?: (rating: number | null) => void;
+  /** Hides or unhides the frame from its thumbnail (D99); left out wherever thumbnails can't. */
+  readonly hide?: (hidden: boolean) => void;
 }) {
   const own = ownDetails(frame, roll);
   const versions =
@@ -113,8 +117,25 @@ export function FrameMarks({
   const status = scanStatus(frame);
   const scanned = status === 'Scanned';
   const rating = stars ? frame.rating : null;
+  const eyeLabel = `${frame.hidden ? 'Unhide' : 'Hide'} frame ${frame.number ?? 'with no number'}`;
   return (
     <div aria-hidden={readers ? undefined : true}>
+      {hide !== undefined && (
+        <button
+          type="button"
+          tabIndex={-1}
+          className={
+            frame.hidden ? 'frame-hide hidden-frame-eye' : 'frame-hide'
+          }
+          aria-label={eyeLabel}
+          title={eyeLabel}
+          onClick={() => {
+            hide(!frame.hidden);
+          }}
+        >
+          <EyeIcon size={16} closed={frame.hidden} />
+        </button>
+      )}
       {rate !== undefined && stars && (
         <RatingStrip rating={frame.rating} rate={rate} />
       )}

@@ -49,6 +49,7 @@ const aFrame = fc.record({
   lens: fc.option(aSlug, { nil: null }),
   event: fc.option(aSlug, { nil: null }),
   toScan: fc.boolean(),
+  hidden: fc.boolean(),
   shot: fc.option(
     fc.constantFrom<string>('2026', '2026-09-15T06:30').filter(isShotDate),
     { nil: null },
@@ -248,6 +249,34 @@ describe('roll.json', () => {
 
     expect(read.ok && read.value.frames[0]?.toScan).toBe(false);
     expect(read.ok && rollFileContent(read.value)).not.toContain('"toScan"');
+  });
+
+  test('reads a frame without hidden as shown and writes hidden only when true', () => {
+    const roll = (hidden: object) =>
+      parseRollFile(
+        JSON.stringify({
+          schema: 2,
+          id: '01M6EAAP694BKWR9HZ4N5Z54XD',
+          roll: '2026-014',
+          frames: [
+            {
+              id: '01M6EAAP694BKWR9HZ4N5Z54XE',
+              number: '1',
+              ...hidden,
+              versions: [],
+            },
+          ],
+        }),
+      );
+
+    const plain = roll({});
+    expect(plain.ok && plain.value.frames[0]?.hidden).toBe(false);
+    expect(plain.ok && rollFileContent(plain.value)).not.toContain('"hidden"');
+    const hidden = roll({ hidden: true });
+    expect(hidden.ok && hidden.value.frames[0]?.hidden).toBe(true);
+    expect(hidden.ok && rollFileContent(hidden.value)).toContain(
+      '"hidden": true',
+    );
   });
 
   test('writes toScan only when true', () => {

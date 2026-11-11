@@ -2,7 +2,8 @@ import { rollsLink } from '../rolls/rolls-address.ts';
 import type { ApiClient } from '@filmfile/contracts/client';
 import { useQuery } from '@tanstack/react-query';
 import { inFrameOrder } from '../rolls/frame-order.ts';
-import { Link } from '../routing.tsx';
+import { showingHidden } from '../rolls/hidden-frames.ts';
+import { Link, useSearch } from '../routing.tsx';
 import { FrameView, type CollectionFrame } from './frame-view.tsx';
 
 class RollNotFound extends Error {}
@@ -17,6 +18,8 @@ export function RollFramePage({
   readonly rollId: string;
   readonly frameId: string;
 }) {
+  const showHidden = showingHidden(useSearch());
+  const query = showHidden ? '?hidden=show' : '';
   const roll = useQuery({
     queryKey: ['rolls', rollId],
     queryFn: async () => {
@@ -45,16 +48,20 @@ export function RollFramePage({
       </p>
     );
   }
-  const frames: CollectionFrame[] = inFrameOrder(roll.data.roll.frames).map(
-    (frame) => ({ roll: roll.data.roll, frame }),
-  );
+  // Hidden frames are stepped past (D99), unless the roll page shows them; the one open stays.
+  const frames: CollectionFrame[] = inFrameOrder(roll.data.roll.frames)
+    .filter((frame) => showHidden || !frame.hidden || frame.id === frameId)
+    .map((frame) => ({ roll: roll.data.roll, frame }));
   return (
     <FrameView
       api={api}
       frames={frames}
       current={frames.findIndex(({ frame }) => frame.id === frameId)}
-      back={{ to: `/rolls/${rollId}`, label: `Roll ${roll.data.roll.roll}` }}
-      addressOf={({ frame }) => `/rolls/${rollId}/frames/${frame.id}`}
+      back={{
+        to: `/rolls/${rollId}${query}`,
+        label: `Roll ${roll.data.roll.roll}`,
+      }}
+      addressOf={({ frame }) => `/rolls/${rollId}/frames/${frame.id}${query}`}
       labelOf={({ frame }) => `Frame ${frame.number ?? 'with no number'}`}
     />
   );

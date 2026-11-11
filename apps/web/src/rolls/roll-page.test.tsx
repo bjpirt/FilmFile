@@ -74,6 +74,7 @@ function aFrameWithScan(number: string | null, file: string): Frame {
     lens: null,
     event: null,
     toScan: false,
+    hidden: false,
     shot: null,
     defaultVersion: null,
     versions: [
@@ -576,6 +577,100 @@ describe('editing the details', () => {
   });
 });
 
+describe('hiding frames', () => {
+  const threeFrames = () => [
+    aFrameWithScan('1', '12340001.jpg'),
+    aFrameWithScan('2', '12340002.jpg'),
+    aFrameWithScan('3', '12340003.jpg'),
+  ];
+
+  afterEach(() => {
+    window.history.replaceState(null, '', '/');
+  });
+
+  test('hides a frame from its thumbnail: it leaves the page at once and is saved', async () => {
+    const service = archiveWith(threeFrames());
+    renderPage(service);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Hide frame 2' }),
+    );
+
+    expect(screen.queryByRole('link', { name: 'Open frame 2' })).toBeNull();
+    expect(await screen.findByText(/2 frames \(1 hidden\)/)).toBeDefined();
+    await waitFor(() => {
+      expect(framesOf(service).map((frame) => frame.hidden)).toEqual([
+        false,
+        true,
+        false,
+      ]);
+    });
+  });
+
+  test('puts a frame back and says so when it can’t be saved', async () => {
+    const service = archiveWith(threeFrames());
+    renderPage(service);
+    service.changeRoll(rollId);
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Hide frame 2' }),
+    );
+
+    expect(await screen.findByRole('alert')).toBeDefined();
+    expect(
+      await screen.findByRole('link', { name: 'Open frame 2' }),
+    ).toBeDefined();
+  });
+
+  test('shows hidden frames dimmed from the Actions menu, each with a way to unhide it', async () => {
+    const service = archiveWith(
+      threeFrames().map((frame, i) => ({ ...frame, hidden: i === 1 })),
+    );
+    renderPage(service);
+    await screen.findByText(/2 frames \(1 hidden\)/);
+    expect(screen.queryByRole('link', { name: 'Open frame 2' })).toBeNull();
+
+    await chooseAction('Show hidden frames');
+
+    expect(window.location.search).toBe('?hidden=show');
+  });
+
+  test('lists hidden frames with ?hidden=show, and unhides one by its eye', async () => {
+    window.history.replaceState(null, '', '/?hidden=show');
+    const service = archiveWith(
+      threeFrames().map((frame, i) => ({ ...frame, hidden: i === 1 })),
+    );
+    renderPage(service);
+
+    const link = await screen.findByRole('link', { name: 'Open frame 2' });
+    expect(link.closest('li')?.className).toBe('hidden-frame');
+    expect(link.getAttribute('href')).toContain('?hidden=show');
+    fireEvent.click(screen.getByRole('button', { name: 'Unhide frame 2' }));
+
+    await waitFor(() => {
+      expect(framesOf(service).map((frame) => frame.hidden)).toEqual([
+        false,
+        false,
+        false,
+      ]);
+    });
+    expect(screen.getByText(/3 frames/)).toBeDefined();
+  });
+
+  test('with every frame hidden, says so and offers to show them', async () => {
+    renderPage(
+      archiveWith(threeFrames().map((frame) => ({ ...frame, hidden: true }))),
+    );
+
+    expect(await screen.findByText(/3 hidden\./)).toBeDefined();
+    expect(
+      screen
+        .getByRole('link', { name: 'Show hidden frames' })
+        .getAttribute('href'),
+    ).toBe(`/rolls/${rollId}?hidden=show`);
+  });
+});
+
 describe('deleting a frame', () => {
   const twoFrames = () => [
     aFrameWithScan('1', '12340001.jpg'),
@@ -966,7 +1061,15 @@ describe('setting details on selected frames', () => {
 
     expect(
       screen.getAllByRole('menuitem').map((item) => item.textContent),
-    ).toEqual(['Event…', 'Camera…', 'Lens…', 'Mark to scan', 'Unmark']);
+    ).toEqual([
+      'Event…',
+      'Camera…',
+      'Lens…',
+      'Mark to scan',
+      'Unmark',
+      'Hide',
+      'Unhide',
+    ]);
   });
 
   test('closes a choice on Esc, still selecting', async () => {
@@ -1065,6 +1168,19 @@ describe('setting details on selected frames', () => {
       false,
       false,
       false,
+    ]);
+  });
+
+  test('hides and unhides selected frames with count feedback', async () => {
+    const service = await selectFramesOf(['1', '3']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Hide' }));
+    expect(await screen.findByText('2 frames hidden.')).toBeDefined();
+    expect(framesOf(service).map((frame) => frame.hidden)).toEqual([
+      true,
+      false,
+      true,
     ]);
   });
 
@@ -1949,6 +2065,7 @@ test('shows a placeholder for a frame with no scan', async () => {
         lens: null,
         event: null,
         toScan: false,
+        hidden: false,
         shot: null,
         defaultVersion: null,
         versions: [],

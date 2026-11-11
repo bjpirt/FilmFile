@@ -46,6 +46,8 @@ export interface Frame {
   readonly event: Slug | null | false;
   /** Whether this frame is selected for a higher-resolution scan. */
   readonly toScan: boolean;
+  /** Left out of every list of frames, site and export until unhidden (D99). */
+  readonly hidden: boolean;
   /** When the frame was shot, in place of its roll's date; null uses the roll's (D47). */
   readonly shot: ShotDate | null;
   /** The version shown for the frame; when null, its first (D15, D46). */

@@ -17,8 +17,11 @@ export function eventsOfRoll(roll: Roll): readonly string[] {
   return [
     ...new Set([
       ...(roll.event === null ? [] : [roll.event]),
+      // A hidden frame doesn't put its roll in an event (D99).
       ...roll.frames.flatMap((frame) =>
-        frame.event === null || frame.event === false ? [] : [frame.event],
+        frame.hidden || frame.event === null || frame.event === false
+          ? []
+          : [frame.event],
       ),
     ]),
   ];

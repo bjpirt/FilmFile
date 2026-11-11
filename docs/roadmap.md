@@ -89,6 +89,7 @@ What a roll is catalogued with, one layer of data at a time: camera, film stock,
 - [ ] [later] [FF-132 Tag frames](tasks/FF-132.md): tags on frames.
 - [ ] [later] [FF-133 Locations](tasks/FF-133.md): places on events, rolls and frames.
 - [x] [FF-175 Link events and equipment to where they lead](tasks/FF-175.md)
+- [x] [FF-174 Hide a frame](tasks/FF-174.md)
 - [x] [FF-173 Mark a frame as in no event](tasks/FF-173.md)
 - [x] [FF-171 A date for a new event added from a roll](tasks/FF-171.md)
 - [x] [FF-169 Edit an event from its page](tasks/FF-169.md)
@@ -107,7 +108,6 @@ What a roll is catalogued with, one layer of data at a time: camera, film stock,
 
 A frame's details: what a frame has is seen at a glance on its thumbnail. Frames inherit an event, camera, film stock and lens from their roll and can have their own, as the design's metadata layering describes (section 6, D25); selecting frames lets them be given one at once.
 
-- [ ] [FF-174 Hide a frame](tasks/FF-174.md): an eye on a thumbnail, the frame view and Set menu hide a frame from every list, site and export; "Show hidden frames" brings them back, dimmed.
 - [x] [FF-170 Rotate a frame from the keyboard](tasks/FF-170.md)
 - [x] [FF-102 A roll's frames grouped by event](tasks/FF-102.md)
 - [x] [FF-149 Rate from a thumbnail](tasks/FF-149.md)

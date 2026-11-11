@@ -44,6 +44,7 @@ export class CreateFrame {
         lens: null,
         event: null,
         toScan: false,
+        hidden: false,
         shot: null,
         defaultVersion: null,
         versions: [],

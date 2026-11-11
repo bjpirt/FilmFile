@@ -9,17 +9,20 @@ interface ReadRoll {
   readonly etag: string;
 }
 
-function withRating(roll: Roll, frameId: string, rating: number | null): Roll {
+/** What a thumbnail changes on a frame: its rating, or whether it's hidden. */
+type Change = { readonly rating: number | null } | { readonly hidden: boolean };
+
+function withChange(roll: Roll, frameId: string, change: Change): Roll {
   return {
     ...roll,
     frames: roll.frames.map((frame) =>
-      frame.id === frameId ? { ...frame, rating } : frame,
+      frame.id === frameId ? { ...frame, ...change } : frame,
     ),
   };
 }
 
 /**
- * Rates frames from their thumbnails (FF-149, D62). A rating shows at once,
+ * Rates and hides frames from their thumbnails (FF-149, D62, D99). A rating shows at once,
  * wherever the frame is shown, and is saved in the background: each roll's
  * saves run one after another, against the version the last left, so quick
  * clicks never clash. A save that fails puts the rating back and says why.
@@ -31,11 +34,11 @@ export function useRateFrame(api: ApiClient) {
   const [problem, setProblem] = useState<string | undefined>(undefined);
   const queues = useRef(new Map<string, Promise<void>>());
 
-  function show(rollId: string, frameId: string, rating: number | null) {
+  function show(rollId: string, frameId: string, change: Change) {
     queryClient.setQueryData<ReadRoll>(['rolls', rollId], (read) =>
       read === undefined
         ? undefined
-        : { ...read, roll: withRating(read.roll, frameId, rating) },
+        : { ...read, roll: withChange(read.roll, frameId, change) },
     );
     queryClient.setQueryData<{ readonly rolls: readonly Roll[] }>(
       ['rolls'],
@@ -45,7 +48,7 @@ export function useRateFrame(api: ApiClient) {
           : {
               ...list,
               rolls: list.rolls.map((roll) =>
-                roll.id === rollId ? withRating(roll, frameId, rating) : roll,
+                roll.id === rollId ? withChange(roll, frameId, change) : roll,
               ),
             },
     );
@@ -73,8 +76,9 @@ export function useRateFrame(api: ApiClient) {
   async function save(
     rollId: string,
     frameId: string,
-    rating: number | null,
-    previous: number | null,
+    change: Change,
+    previous: Change,
+    what: { readonly noun: string; readonly failure: string },
   ) {
     const failed = (message: string) => {
       show(rollId, frameId, previous);
@@ -89,19 +93,19 @@ export function useRateFrame(api: ApiClient) {
             path: { rollId, frameId },
             header: { 'if-match': read.etag },
           },
-          body: { rating },
+          body: change,
         },
       );
       if (response.status === 409) {
         failed(
-          "This roll changed since you opened it. The rating wasn't saved. Reload the page.",
+          `This roll changed since you opened it. The ${what.noun} wasn't saved. Reload the page.`,
         );
         // Read again, so the next click is against what the roll is now.
         await queryClient.invalidateQueries({ queryKey: ['rolls'] });
         return;
       }
       if (!response.ok) {
-        failed("Couldn't save the rating. Is the service running?");
+        failed(what.failure);
         return;
       }
       // Only the version moves on: a later click on this frame is already shown.
@@ -112,8 +116,23 @@ export function useRateFrame(api: ApiClient) {
         );
       }
     } catch {
-      failed("Couldn't save the rating. Is the service running?");
+      failed(what.failure);
     }
+  }
+
+  function change(
+    rollId: string,
+    frameId: string,
+    now: Change,
+    previous: Change,
+    what: { readonly noun: string; readonly failure: string },
+  ) {
+    setProblem(undefined);
+    show(rollId, frameId, now);
+    const queued = (queues.current.get(rollId) ?? Promise.resolve()).then(() =>
+      save(rollId, frameId, now, previous, what),
+    );
+    queues.current.set(rollId, queued);
   }
 
   /** Rates the frame (null clears it), from the rating it shows now. */
@@ -123,13 +142,36 @@ export function useRateFrame(api: ApiClient) {
     rating: number | null,
     previous: number | null,
   ) {
-    setProblem(undefined);
-    show(rollId, frameId, rating);
-    const queued = (queues.current.get(rollId) ?? Promise.resolve()).then(() =>
-      save(rollId, frameId, rating, previous),
+    change(
+      rollId,
+      frameId,
+      { rating },
+      { rating: previous },
+      {
+        noun: 'rating',
+        failure: "Couldn't save the rating. Is the service running?",
+      },
     );
-    queues.current.set(rollId, queued);
   }
 
-  return { rate, problem };
+  /** Hides or unhides the frame; `name` is how the frame is called in a failure, e.g. "frame 3". */
+  function hide(
+    rollId: string,
+    frameId: string,
+    hidden: boolean,
+    name: string,
+  ) {
+    change(
+      rollId,
+      frameId,
+      { hidden },
+      { hidden: !hidden },
+      {
+        noun: hidden ? 'hiding' : 'unhiding',
+        failure: `Couldn't ${hidden ? 'hide' : 'unhide'} ${name}.`,
+      },
+    );
+  }
+
+  return { rate, hide, problem };
 }
