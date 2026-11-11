@@ -1,4 +1,5 @@
 import { renderSitePage } from './render-site-page.ts';
+import type { SiteManifest } from './site-manifest.ts';
 import type { SiteOptions } from './site-options.ts';
 import type { SitePhoto } from './site-photo.ts';
 import { siteScript } from './site-script.ts';
@@ -20,18 +21,7 @@ export function renderSite(
   photos: readonly SitePhoto[],
   options: SiteOptions,
 ): SiteFile[] {
-  const manifest = {
-    version: 1,
-    options,
-    photos: photos.map((photo) => ({
-      frame: photo.frame,
-      images: photo.images.map((image) => ({
-        src: image.src,
-        width: image.width,
-        madeFrom: image.madeFrom,
-      })),
-    })),
-  };
+  const manifest: SiteManifest = { version: 1, options, photos };
   return [
     { path: 'index.html', content: renderSitePage(photos, options) },
     { path: 'assets/site.css', content: siteStylesheet },
