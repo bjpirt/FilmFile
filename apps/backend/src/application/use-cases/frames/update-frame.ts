@@ -57,8 +57,8 @@ export class UpdateFrame {
       /** Slugs of equipment in the archive. */
       readonly camera?: string | null | undefined;
       readonly lens?: string | null | undefined;
-      /** The frame's own event, or null to use its roll's. */
-      readonly event?: string | null | undefined;
+      /** The frame's own event, null to use its roll's, or false for no event. */
+      readonly event?: string | null | false | undefined;
       readonly toScan?: boolean | undefined;
       /** e.g. 2026-09-15T06:30 (D47). */
       readonly shot?: string | null | undefined;
@@ -105,7 +105,7 @@ export class UpdateFrame {
       return lens;
     }
     const event =
-      input.event === undefined || input.event === null
+      input.event === undefined || input.event === null || input.event === false
         ? ok(input.event)
         : await knownEvent(this.#events, ctx, input.event);
     if (!event.ok) {

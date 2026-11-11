@@ -86,9 +86,14 @@ interface Editing {
   }[];
   /** The frame's own, or '' when it uses the roll's. */
   readonly current: string;
+  /** A choice of none, for a detail that can be left out even when the roll has it (D98): how it's worded, and its save. */
+  readonly none?: { readonly label: string; readonly change: FrameChanges };
   /** The save for a choice: a slug, or null for the roll's. */
   readonly change: (value: string | null) => FrameChanges;
 }
+
+// Stands for none in the list; no slug begins with #.
+const noneChoice = '#none';
 
 /**
  * A detail's value, as it is wherever it came from; the frame's own has a
@@ -132,7 +137,11 @@ function FactValue({
           onChange={(event) => {
             setEditing(false);
             const chosen = event.target.value;
-            void save(edit.change(chosen === '' ? null : chosen));
+            void save(
+              chosen === noneChoice && edit.none !== undefined
+                ? edit.none.change
+                : edit.change(chosen === '' ? null : chosen),
+            );
           }}
           // Clicking away leaves it as it was.
           onBlur={() => {
@@ -147,6 +156,9 @@ function FactValue({
           }}
         >
           <option value="">The roll’s: {edit.rolls}</option>
+          {edit.none !== undefined && (
+            <option value={noneChoice}>{edit.none.label}</option>
+          )}
           {edit.choices.map((choice) => (
             <option key={choice.value} value={choice.value}>
               {choice.label}
@@ -323,8 +335,10 @@ export function FrameDetails({
     },
   }).data;
   const resolvedEvent = inherited?.event?.value;
-  const frameEvent =
-    resolvedEvent === undefined
+  const noEvent = frame.event === false;
+  const frameEvent = noEvent
+    ? 'No event'
+    : resolvedEvent === undefined
       ? undefined
       : (eventName(events, resolvedEvent) ?? resolvedEvent);
 
@@ -379,7 +393,7 @@ export function FrameDetails({
     {
       label: 'Event',
       value: frameEvent,
-      from: inherited?.event?.source.layer,
+      from: noEvent ? 'frame' : inherited?.event?.source.layer,
       clear: { event: null },
       edit: {
         name: 'event',
@@ -388,7 +402,8 @@ export function FrameDetails({
           value: event.slug,
           label: event.name,
         })),
-        current: frame.event ?? '',
+        none: { label: 'No event', change: { event: false as const } },
+        current: frame.event === false ? noneChoice : (frame.event ?? ''),
         change: (event: string | null) => ({ event }),
       },
     },

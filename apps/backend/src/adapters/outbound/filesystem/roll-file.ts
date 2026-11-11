@@ -124,7 +124,13 @@ export const storedFrame = z.object({
     .default(null),
   notes: z.string().nullable().default(null),
   // Only on a frame that has its own (D50); otherwise its roll's applies.
-  event: branded<Slug>(isSlug, 'must be a slug like iceland-2026').optional(),
+  // false puts the frame in no event, even when its roll has one (D98).
+  event: z
+    .union([
+      branded<Slug>(isSlug, 'must be a slug like iceland-2026'),
+      z.literal(false),
+    ])
+    .optional(),
   toScan: z.boolean().default(false),
   meta: storedMeta.optional(),
   shot: branded<ShotDate>(

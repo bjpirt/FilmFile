@@ -70,8 +70,9 @@ export const frame = z
         "The frame's own camera, in place of its roll's, or null to use the roll's.",
     }),
     lens: slug.nullable(),
-    event: slug.nullable().meta({
-      description: "The frame's own event, or null to use its roll's event.",
+    event: slug.or(z.literal(false)).nullable().meta({
+      description:
+        "The frame's own event, null to use its roll's event, or false for no event even when its roll has one.",
     }),
     toScan: z.boolean().meta({
       description: 'Whether this frame is marked for a higher-resolution scan.',
@@ -231,8 +232,9 @@ export const updateFrameRequest = z
       description: "The frame's own camera, or null to use its roll's again.",
     }),
     lens: slug.nullable().optional(),
-    event: slug.nullable().optional().meta({
-      description: "The frame's own event, or null to use its roll's again.",
+    event: slug.or(z.literal(false)).nullable().optional().meta({
+      description:
+        "The frame's own event, null to use its roll's again, or false for no event.",
     }),
     toScan: z.boolean().optional().meta({
       description: 'Whether this frame is marked for a higher-resolution scan.',
@@ -269,7 +271,7 @@ export const updateFrameDetailsRequest = z
     frameIds: z.array(ulid).min(1).max(1000),
     camera: slug.nullable().optional(),
     lens: slug.nullable().optional(),
-    event: slug.nullable().optional(),
+    event: slug.or(z.literal(false)).nullable().optional(),
     toScan: z.boolean().optional(),
   })
   .meta({

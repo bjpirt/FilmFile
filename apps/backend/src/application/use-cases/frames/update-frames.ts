@@ -48,8 +48,8 @@ export class UpdateFrames {
       /** Slugs of equipment in the archive. */
       readonly camera?: string | null | undefined;
       readonly lens?: string | null | undefined;
-      /** The event to set on each frame, or null to use each roll's. */
-      readonly event?: string | null | undefined;
+      /** The event to set on each frame, null to use each roll's, or false for no event. */
+      readonly event?: string | null | false | undefined;
       readonly toScan?: boolean | undefined;
     },
   ): Promise<
@@ -70,7 +70,7 @@ export class UpdateFrames {
       return lens;
     }
     const event =
-      input.event === undefined || input.event === null
+      input.event === undefined || input.event === null || input.event === false
         ? ok(input.event)
         : await knownEvent(this.#events, ctx, input.event);
     if (!event.ok) {

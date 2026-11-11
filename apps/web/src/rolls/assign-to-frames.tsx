@@ -1,11 +1,11 @@
 import { useState, type ReactNode, type SubmitEvent } from 'react';
 import { MenuButton } from '../menu-button.tsx';
 
-/** What selected frames are given: their own camera, lens or event, or null for their roll's. Never a film stock, which is the roll's (D45). */
+/** What selected frames are given: their own camera, lens or event, or null for their roll's (and false for no event at all, D98). Never a film stock, which is the roll's (D45). */
 export interface FramesChange {
   readonly camera?: string | null;
   readonly lens?: string | null;
-  readonly event?: string | null;
+  readonly event?: string | null | false;
   readonly toScan?: boolean;
 }
 
@@ -25,12 +25,14 @@ type Detail = (typeof details)[number]['key'];
 
 // Stands for the roll's in the list; no slug can be empty.
 const rollsOwn = '';
+// Stands for no event in the list; no slug begins with #.
+const noEvent = '#none';
 
 function changeOf(detail: Detail, value: string): FramesChange {
   const chosen = value === rollsOwn ? null : value;
   switch (detail) {
     case 'event':
-      return { event: chosen };
+      return { event: chosen === noEvent ? false : chosen };
     case 'camera':
       return { camera: chosen };
     case 'lens':
@@ -166,6 +168,7 @@ export function AssignToFrames({
               {choice.label}
             </option>
           ))}
+          {chosen.key === 'event' && <option value={noEvent}>No event</option>}
           <option value={rollsOwn}>
             The roll’s {chosen.name.toLowerCase()}
           </option>

@@ -658,6 +658,46 @@ describe('GET /api/rolls/{id}/frames/{frameId}/details', () => {
     });
   });
 
+  test('a frame in no event has none, even when its roll has one', async () => {
+    await post('/api/events', { name: 'Iceland 2026' });
+    const rollId = String(
+      idOf(
+        await (
+          await post('/api/rolls', {
+            roll: '2026-014',
+            event: 'iceland-2026',
+            shot: '2026',
+          })
+        ).json(),
+      ),
+    );
+    const frameId = String(
+      idOf(await (await post(`/api/rolls/${rollId}/frames`, {})).json()),
+    );
+    const etag = (await request(`/api/rolls/${rollId}`)).headers.get('ETag');
+
+    const patched = await request(`/api/rolls/${rollId}/frames/${frameId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'If-Match': etag ?? '' },
+      body: JSON.stringify({ event: false }),
+    });
+
+    expect(await patched.json()).toMatchObject({ event: false });
+    const details: unknown = await (
+      await request(`/api/rolls/${rollId}/frames/${frameId}/details`)
+    ).json();
+    expect(details).not.toHaveProperty('event');
+    const refused = await request(`/api/rolls/${rollId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'If-Match': patched.headers.get('ETag') ?? '',
+      },
+      body: JSON.stringify({ event: false }),
+    });
+    expect(refused.status).toBe(422);
+  });
+
   test('the frame’s own camera and event win over its roll’s', async () => {
     await post('/api/equipment/cameras', { make: 'Nikon', model: 'FE' });
     await post('/api/equipment/cameras', { make: 'Leica', model: 'M6' });

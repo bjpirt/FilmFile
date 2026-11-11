@@ -41,7 +41,10 @@ export function frameLayer(
     details: {
       ...(frame.camera === null ? {} : { camera: frame.camera }),
       ...(frame.lens === null ? {} : { lens: frame.lens }),
-      ...(frame.event === null ? {} : { event: frame.event }),
+      // No event clears the one its roll gave (D98), as null does in a layer.
+      ...(frame.event === null
+        ? {}
+        : { event: frame.event === false ? null : frame.event }),
       ...(frame.shot === null ? {} : { shot: frame.shot }),
     },
   };

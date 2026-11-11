@@ -3,6 +3,7 @@ import { isShotDate } from '../rolls/shot-date.ts';
 import { isArchiveId, isFrameId, isRollId } from '../shared/ids.ts';
 import { isSlug } from '../shared/slug.ts';
 import { archiveLayer, frameLayer, rollLayer } from './layers.ts';
+import { resolveDetails } from './resolve-details.ts';
 
 const archiveId = '01JC8Y0000000000000000000A';
 const rollId = '01JC8Z7K3M0000000002026014';
@@ -69,4 +70,27 @@ test('a frame that sets nothing gives nothing, so it inherits everything', () =>
       shot: null,
     }).details,
   ).toEqual({});
+});
+
+test('a frame in no event clears the event its roll gave, so it ends with none', () => {
+  const layers = [
+    rollLayer({
+      id: rollId,
+      camera: null,
+      film: null,
+      lens: null,
+      event,
+      shot: null,
+    }),
+    frameLayer({
+      id: frameId,
+      camera: null,
+      lens: null,
+      event: false,
+      shot: null,
+    }),
+  ];
+
+  expect(layers[1]?.details).toEqual({ event: null });
+  expect(resolveDetails(layers)).toEqual({});
 });

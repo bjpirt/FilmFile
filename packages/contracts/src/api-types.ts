@@ -2079,11 +2079,8 @@ export interface components {
             camera: string | null;
             /** @example nikon-fe */
             lens: string | null;
-            /**
-             * @description The frame's own event, or null to use its roll's event.
-             * @example nikon-fe
-             */
-            event: string | null;
+            /** @description The frame's own event, null to use its roll's event, or false for no event even when its roll has one. */
+            event: string | false | null;
             /** @description Whether this frame is marked for a higher-resolution scan. */
             toScan: boolean;
             /**
@@ -2230,8 +2227,7 @@ export interface components {
             camera?: string | null;
             /** @example nikon-fe */
             lens?: string | null;
-            /** @example nikon-fe */
-            event?: string | null;
+            event?: string | false | null;
             toScan?: boolean;
         };
         /** @description The details to change; a detail left out stays as it is. */
@@ -2252,11 +2248,8 @@ export interface components {
             camera?: string | null;
             /** @example nikon-fe */
             lens?: string | null;
-            /**
-             * @description The frame's own event, or null to use its roll's again.
-             * @example nikon-fe
-             */
-            event?: string | null;
+            /** @description The frame's own event, null to use its roll's again, or false for no event. */
+            event?: string | false | null;
             /** @description Whether this frame is marked for a higher-resolution scan. */
             toScan?: boolean;
             /**

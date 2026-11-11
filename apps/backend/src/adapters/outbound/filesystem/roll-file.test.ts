@@ -370,6 +370,41 @@ describe('roll.json', () => {
     });
   });
 
+  test('keeps a frame that is in no event, as event false, and reads one with none of its own as null', () => {
+    const json = {
+      schema: 2,
+      id: '01M6EAAP694BKWR9HZ4N5Z54XD',
+      roll: '2026-014',
+      event: 'iceland-2026',
+      frames: [
+        { id: '01M6EAAP694BKWR9HZ4N5Z54XE', number: '1', versions: [] },
+        {
+          id: '01M6EAAP694BKWR9HZ4N5Z54XF',
+          number: '2',
+          event: false,
+          versions: [],
+        },
+      ],
+    };
+
+    const read = parseRollFile(JSON.stringify(json));
+
+    expect(read).toMatchObject({
+      ok: true,
+      value: { frames: [{ event: null }, { event: false }] },
+    });
+    const written: unknown = read.ok && JSON.parse(rollFileContent(read.value));
+    expect(written).toMatchObject({
+      frames: [
+        { id: '01M6EAAP694BKWR9HZ4N5Z54XE' },
+        { id: '01M6EAAP694BKWR9HZ4N5Z54XF', event: false },
+      ],
+    });
+    // Only the roll's and the second frame's: the first says nothing, so it inherits.
+    const content = read.ok ? rollFileContent(read.value) : '';
+    expect(content.match(/"event"/g)).toHaveLength(2);
+  });
+
   test('reads a roll without a filed field as unfiled', () => {
     const read = parseRollFile(
       JSON.stringify({

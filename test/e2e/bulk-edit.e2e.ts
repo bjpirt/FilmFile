@@ -103,4 +103,26 @@ test('bulk edit: select some of a roll’s frames, give them another camera and 
       }),
     ).toBeVisible();
   }
+
+  // Frame 4 turns out not to be part of the walk: it's put in no event, and the event has two.
+  await page.getByRole('link', { name: 'Rolls', exact: true }).click();
+  await page.getByRole('link', { name: '2026-042' }).click();
+  await chooseAction(page, 'Bulk edit');
+  await page.getByRole('checkbox', { name: 'Select frame 4' }).click();
+  await page.getByRole('button', { name: 'Set', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Event…' }).click();
+  const setNone = page.getByRole('form', { name: 'Set event' });
+  await setNone
+    .getByLabel('Event for 1 frame')
+    .selectOption({ label: 'No event' });
+  await setNone.getByRole('button', { name: 'Set' }).click();
+  await expect(
+    page.getByRole('status').filter({ hasText: 'Event set on 1 frame.' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 2, name: 'Harbour walk · 2' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 2, name: 'No event · 4' }),
+  ).toBeVisible();
 });

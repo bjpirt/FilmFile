@@ -39,8 +39,11 @@ export interface Frame {
    */
   readonly camera: Slug | null;
   readonly lens: Slug | null;
-  /** The frame's own event, by slug; null uses its roll's. */
-  readonly event: Slug | null;
+  /**
+   * The frame's own event, by slug; null uses its roll's, and false puts it
+   * in no event even when its roll has one (D98).
+   */
+  readonly event: Slug | null | false;
   /** Whether this frame is selected for a higher-resolution scan. */
   readonly toScan: boolean;
   /** When the frame was shot, in place of its roll's date; null uses the roll's (D47). */

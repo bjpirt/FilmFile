@@ -1,5 +1,12 @@
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
 
+/** Whether its event differs from its roll's: another one, or none where its roll has one (D98). */
+function hasOwnEvent(frame: Frame, roll: Roll): boolean {
+  return frame.event === false
+    ? roll.event !== null
+    : frame.event !== null && frame.event !== roll.event;
+}
+
 /**
  * What a frame has of its own, in words: the details that differ from its
  * roll's (U15, U59) and whether it has notes (U29), as "Its own camera and
@@ -10,7 +17,7 @@ export function ownDetails(frame: Frame, roll: Roll): string | undefined {
   const own = [
     frame.camera !== null && frame.camera !== roll.camera ? 'camera' : '',
     frame.lens !== null && frame.lens !== roll.lens ? 'lens' : '',
-    frame.event !== null && frame.event !== roll.event ? 'event' : '',
+    hasOwnEvent(frame, roll) ? 'event' : '',
     frame.shot !== null && frame.shot !== roll.shot ? 'date' : '',
   ].filter((detail) => detail !== '');
   const notes = (frame.notes ?? '').trim() !== '';

@@ -539,7 +539,9 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     const film = either(null, roll.film);
     const lens = either(frame.lens, roll.lens);
     const shot = either(frame.shot, roll.shot);
-    const event = either(frame.event, roll.event);
+    // Marked as in no event, it has none whatever its roll has (D98).
+    const event =
+      frame.event === false ? undefined : either(frame.event, roll.event);
     return {
       ...(settings === null ? {} : { author: fromArchive(settings.author) }),
       ...(settings?.copyright === undefined || settings.copyright === null

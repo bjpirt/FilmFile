@@ -88,6 +88,7 @@ What a roll is catalogued with, one layer of data at a time: camera, film stock,
 - [ ] [later] [FF-130 Sub-events](tasks/FF-130.md): an event inside another.
 - [ ] [later] [FF-132 Tag frames](tasks/FF-132.md): tags on frames.
 - [ ] [later] [FF-133 Locations](tasks/FF-133.md): places on events, rolls and frames.
+- [x] [FF-173 Mark a frame as in no event](tasks/FF-173.md)
 - [x] [FF-171 A date for a new event added from a roll](tasks/FF-171.md)
 - [x] [FF-169 Edit an event from its page](tasks/FF-169.md)
 - [x] [U63 Events laid out like rolls](tasks/U63.md)
@@ -374,6 +375,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D95 | A frame, or the frames selected on a roll's or an event's page, can be exported once, without a saved export: a dialog with the export recipe's choices (starting from an export's or the last used), making the files through the same rendering and downloading them the normal browser way, one frame as a JPEG and several as a store-only zip streamed as it's made; nothing is written to disk by the service. The desktop app asks where to save a download with its own save dialog, so the service never writes outside the FilmFile folder because a page asked it to. Saved exports (D94) are always made in `Exports/<slug>/`. | FF-165, FF-118, FF-166, FF-167, FF-168 |
 | D96 | Originals are made read-only so nothing reaching them (NegPy through links, a file manager) can overwrite them in place: each version's image file, as it's stored and, once when the service starts, every one already in the library, by clearing its write bits; never JSON, sidecars, recipes or folders. It guards against overwriting, not against deleting or moving, which a program with write access to the folder can still do; a failure to change permissions is skipped and logged, never an upload failure. Refines D51's guard. | FF-109, FF-112 |
 | D97 | Every way of exporting uses one Export dialog: a "Frames" line (one frame, the frames selected on a roll's or an event's page, or the rules found on the Find frames page, expandable to edit them), the recipe (size, quality, metadata, and layout and file names for several frames) and an output: "Download" now, or "Save as an export…" once saved exports exist. A saved export's page is the same form with a name. So a frame, a hand-picked selection and a search are all one kind of selection (D93, with frames chosen by hand as a rule's values). | FF-165, FF-167, FF-168, FF-164, FF-116 |
+| D98 | A frame can be marked as in no event, even when its roll has one, by its own `event` being `false`: a frame's event is a slug, `null` for its roll's (as before) or `false` for none, so no magic string can clash with a slug and a check that forgets `false` is a type error. Only a frame can have it, never a roll. It isn't written into exports; sites and exports grouped by event put every frame in no event, marked or never given one, under "No event set". | FF-173, FF-120 |
 
 **Still open:** see `docs/design.md`, section 15.
 

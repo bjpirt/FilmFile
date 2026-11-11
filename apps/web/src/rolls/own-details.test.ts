@@ -49,3 +49,13 @@ test.each([
 test('says nothing of notes that are only spaces', () => {
   expect(ownDetails({ ...frame, notes: '  ' }, roll)).toBeUndefined();
 });
+
+test('says a frame in no event has its own event, when its roll has one', () => {
+  expect(ownDetails({ ...frame, event: false }, roll)).toBe('Its own event');
+});
+
+test('says nothing of a frame in no event on a roll that has none', () => {
+  expect(
+    ownDetails({ ...frame, event: false }, aRoll('2026-015')),
+  ).toBeUndefined();
+});

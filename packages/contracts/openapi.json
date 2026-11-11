@@ -198,14 +198,24 @@
             "example": "nikon-fe"
           },
           "event": {
-            "type": [
-              "string",
-              "null"
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60,
+                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                "example": "nikon-fe"
+              },
+              {
+                "type": "boolean",
+                "enum": [
+                  false
+                ]
+              },
+              {
+                "type": "null"
+              }
             ],
-            "maxLength": 60,
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
-            "example": "nikon-fe",
-            "description": "The frame's own event, or null to use its roll's event."
+            "description": "The frame's own event, null to use its roll's event, or false for no event even when its roll has one."
           },
           "toScan": {
             "type": "boolean",
@@ -710,13 +720,23 @@
             "example": "nikon-fe"
           },
           "event": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "maxLength": 60,
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
-            "example": "nikon-fe"
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60,
+                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                "example": "nikon-fe"
+              },
+              {
+                "type": "boolean",
+                "enum": [
+                  false
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "toScan": {
             "type": "boolean"
@@ -784,14 +804,24 @@
             "example": "nikon-fe"
           },
           "event": {
-            "type": [
-              "string",
-              "null"
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60,
+                "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                "example": "nikon-fe"
+              },
+              {
+                "type": "boolean",
+                "enum": [
+                  false
+                ]
+              },
+              {
+                "type": "null"
+              }
             ],
-            "maxLength": 60,
-            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
-            "example": "nikon-fe",
-            "description": "The frame's own event, or null to use its roll's again."
+            "description": "The frame's own event, null to use its roll's again, or false for no event."
           },
           "toScan": {
             "type": "boolean",

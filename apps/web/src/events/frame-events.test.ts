@@ -17,6 +17,12 @@ test('a frame is in its own event, or falls back to its roll’s', () => {
   expect(eventsOfFrame(frame, aRoll('2026-015'))).toEqual([]);
 });
 
+test('a frame marked as in no event is in none, even when its roll has one', () => {
+  const roll = aRoll('2026-014', { event: 'iceland-2026' });
+
+  expect(eventsOfFrame({ ...frame, event: false }, roll)).toEqual([]);
+});
+
 test('a roll is in its own event and every event any of its frames is in, each once', () => {
   const roll = aRoll('2026-014', {
     event: 'iceland-2026',
@@ -29,4 +35,12 @@ test('a roll is in its own event and every event any of its frames is in, each o
 
   expect(eventsOfRoll(roll)).toEqual(['iceland-2026', 'westfjords', 'puffins']);
   expect(eventsOfRoll(aRoll('2026-015'))).toEqual([]);
+});
+
+test('a roll is not in an event only by a frame marked as in no event', () => {
+  const roll = aRoll('2026-014', {
+    frames: [{ ...frame, event: false }],
+  });
+
+  expect(eventsOfRoll(roll)).toEqual([]);
 });

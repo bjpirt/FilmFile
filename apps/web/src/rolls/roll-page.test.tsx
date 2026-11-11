@@ -821,6 +821,20 @@ describe('frames grouped by event (FF-102)', () => {
     expect(labels()).toEqual(['Iceland 2026 · 1', 'Norway 2025 · 1']);
   });
 
+  test('shows a frame marked as in no event under No event, though its roll has an event', async () => {
+    renderPage(
+      archiveWith(
+        [inEvent('1', null), { ...inEvent('2', null), event: false }],
+        { event: 'iceland-2026' },
+        { events },
+      ),
+    );
+
+    await screen.findByRole('list', { name: 'Frames in Iceland 2026' });
+
+    expect(labels()).toEqual(['Iceland 2026 · 1', 'No event · 1']);
+  });
+
   test('groups the sheet when a bulk edit puts frames in another event, and takes the groups away again', async () => {
     renderPage(
       archiveWith(
@@ -976,6 +990,30 @@ describe('setting details on selected frames', () => {
     await waitFor(() => {
       expect(screen.getAllByText('Its own camera')).toHaveLength(2);
     });
+  });
+
+  test('puts the selected frames in no event, though their roll has one', async () => {
+    const service = await selectFramesOf(['2']);
+    fireEvent.click(screen.getByRole('button', { name: 'Set' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Event…' }));
+    const form = screen.getByRole('form', { name: 'Set event' });
+    const choose = within(form).getByLabelText('Event for 1 frame');
+
+    fireEvent.change(choose, {
+      target: {
+        value: within(choose)
+          .getByRole('option', { name: 'No event' })
+          .getAttribute('value'),
+      },
+    });
+    fireEvent.click(within(form).getByRole('button', { name: 'Set' }));
+
+    await screen.findByText('Event set on 1 frame.');
+    expect(framesOf(service).map((frame) => frame.event)).toEqual([
+      null,
+      false,
+      null,
+    ]);
   });
 
   test('puts the selected frames in an event', async () => {

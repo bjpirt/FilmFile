@@ -1407,6 +1407,41 @@ describe('editing a frame’s details in place', () => {
     });
   });
 
+  test('puts the frame in no event, even though its roll has one, and back with the roll’s reset', async () => {
+    const archive = openWith(null);
+    const details = await panel();
+
+    fireEvent.click(
+      within(details).getByRole('button', { name: 'Change the event' }),
+    );
+    const choose = within(details).getByRole('combobox', { name: 'Event' });
+    fireEvent.change(choose, {
+      target: {
+        value: within(choose)
+          .getByRole('option', { name: 'No event' })
+          .getAttribute('value'),
+      },
+    });
+
+    await vi.waitFor(() => {
+      expect(archive.rolls[0]?.frames[0]?.event).toBe(false);
+    });
+    expect(
+      await within(details).findByRole('button', { name: 'Change the event' }),
+    ).toHaveProperty('textContent', 'No event');
+
+    fireEvent.click(
+      within(details).getByRole('button', { name: 'Use the roll’s event' }),
+    );
+
+    await vi.waitFor(() => {
+      expect(archive.rolls[0]?.frames[0]?.event).toBeNull();
+    });
+    expect(
+      await within(details).findByRole('button', { name: 'Change the event' }),
+    ).toHaveProperty('textContent', 'Iceland');
+  });
+
   test('leaves it as it was on Esc, still in the frame view', async () => {
     const archive = openWith(null);
     const details = await panel();

@@ -1,9 +1,12 @@
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
 
-/** The event a frame is in: its own if set (U15), otherwise its roll's. */
+/**
+ * The event a frame is in: its own if set (U15), none if it's marked as in no
+ * event (D98), otherwise its roll's.
+ */
 export function eventsOfFrame(frame: Frame, roll: Roll): readonly string[] {
   const event = frame.event ?? roll.event;
-  return event === null ? [] : [event];
+  return event === null || event === false ? [] : [event];
 }
 
 /**
@@ -15,7 +18,7 @@ export function eventsOfRoll(roll: Roll): readonly string[] {
     ...new Set([
       ...(roll.event === null ? [] : [roll.event]),
       ...roll.frames.flatMap((frame) =>
-        frame.event === null ? [] : [frame.event],
+        frame.event === null || frame.event === false ? [] : [frame.event],
       ),
     ]),
   ];

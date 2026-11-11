@@ -400,6 +400,29 @@ describe('UpdateFrame with the frame’s own details', () => {
     ).toMatchObject({ ok: false, error: { kind: 'validation-failed' } });
   });
 
+  test('is put in no event with false, and back in its roll’s with null', async () => {
+    const { roll, frameId, version, updateFrame } = await withAFrame();
+
+    const none = await updateFrame.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      expectedVersion: version,
+      event: false,
+    });
+    expect(none).toMatchObject({
+      ok: true,
+      value: { frame: { event: false } },
+    });
+
+    const back = await updateFrame.execute(ctx, {
+      rollId: roll.id,
+      frameId,
+      expectedVersion: none.ok ? none.value.version : '',
+      event: null,
+    });
+    expect(back).toMatchObject({ ok: true, value: { frame: { event: null } } });
+  });
+
   test('goes back to the roll’s with null', async () => {
     const { roll, frameId, version, updateFrame } = await withAFrame();
     const set = await updateFrame.execute(ctx, {
@@ -485,6 +508,24 @@ describe('UpdateFrames', () => {
       ['leica-m6', 'westfjords'],
       [null, null],
       ['leica-m6', 'westfjords'],
+    ]);
+  });
+
+  test('puts the frames chosen in no event with false', async () => {
+    const { rolls, roll, ids, version, updateFrames } = await withThreeFrames();
+
+    await updateFrames.execute(ctx, {
+      rollId: roll.id,
+      expectedVersion: version,
+      frameIds: [ids[1] ?? ''],
+      event: false,
+    });
+
+    const after = await rolls.get(ctx, roll.id);
+    expect(after?.roll.frames.map((frame) => frame.event)).toEqual([
+      null,
+      false,
+      null,
     ]);
   });
 
