@@ -1,6 +1,7 @@
 import type { Event } from '@filmfile/contracts/events';
 import type { Frame, Roll } from '@filmfile/contracts/rolls';
 import { formatShot } from '../rolls/format-shot.ts';
+import { bestRated } from '../rolls/best-rated.ts';
 import { thumbnailUrl } from '../rolls/thumbnail-url.ts';
 import { Link } from '../routing.tsx';
 import { eventsOfFrame, eventsOfRoll } from './frame-events.ts';
@@ -11,7 +12,7 @@ function counted(count: number, one: string, many: string): string {
 
 /**
  * An event on the Events page, laid out as a roll is on the rolls page: a
- * peek at its first three photos, its name leading to its page, how many
+ * peek at its three highest rated photos, its name leading to its page, how many
  * rolls and photos are in it (through their frames too, U17), and its date.
  */
 export function EventCard({
@@ -33,8 +34,9 @@ export function EventCard({
         .filter((frame) => eventsOfFrame(frame, roll).includes(event.slug))
         .map((frame) => ({ roll, frame })),
     );
+  const best = bestRated(photos, 3);
   const peek = [0, 1, 2].map((i) => {
-    const photo = photos[i];
+    const photo = best[i];
     return photo === undefined
       ? undefined
       : thumbnailUrl(photo.roll.id, photo.frame);

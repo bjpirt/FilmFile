@@ -7,10 +7,11 @@ import { filmStockName } from '../equipment/use-film-stocks.ts';
 import { eventName } from '../events/use-events.ts';
 import { Link } from '../routing.tsx';
 import { formatShot } from './format-shot.ts';
+import { bestRated } from './best-rated.ts';
 import { frameCount } from './frame-count.ts';
 import { thumbnailUrl } from './thumbnail-url.ts';
 
-/** A roll on the rolls page: a peek at its first three scans, its number, frame count and details. */
+/** A roll on the rolls page: a peek at its three highest rated scans, its number, frame count and details. */
 export function RollCard({
   roll,
   cameras,
@@ -33,8 +34,12 @@ export function RollCard({
   ]
     .filter((part) => part !== undefined)
     .join(' · ');
+  const best = bestRated(
+    roll.frames.map((frame) => ({ frame })),
+    3,
+  );
   const peek = [0, 1, 2].map((i) => {
-    const frame = roll.frames[i];
+    const frame = best[i]?.frame;
     return frame === undefined ? undefined : thumbnailUrl(roll.id, frame);
   });
   return (

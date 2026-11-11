@@ -136,6 +136,23 @@ test('shows each roll as a card with its first three scans', async () => {
   expect(screen.getByText('5 frames')).toBeDefined();
 });
 
+test('a roll card shows its three highest rated scans, best first', async () => {
+  const roll = aRollWithScans('2026-014', 5);
+  const rated = roll.frames.map((frame, i) => ({
+    ...frame,
+    rating: [null, 2, null, 5, 4][i] ?? null,
+  }));
+  renderPage(fakeArchive({ rolls: [{ ...roll, frames: rated }] }));
+
+  const card = (await screen.findByText('2026-014')).closest('li');
+  const peek = Array.from(
+    card?.querySelectorAll('img') ?? [],
+    (img) => /frames\/\w{24}(\d\d)\//.exec(img.getAttribute('src') ?? '')?.[1],
+  );
+
+  expect(peek).toEqual(['03', '04', '01']);
+});
+
 test('shows a filed padlock after the number on the roll card, not in list view', async () => {
   const filedRoll = { ...aRollWithScans('2026-014', 1), filed: true };
   renderPage(fakeArchive({ rolls: [filedRoll] }));
