@@ -16,7 +16,7 @@ test('bulk edit: select some of a roll’s frames, give them another camera and 
     scans: fixtureSets.headToTail,
   });
 
-  await chooseAction(page, 'Bulk edit');
+  await chooseAction(page, 'Bulk actions');
   await page.getByRole('checkbox', { name: 'Select frame 2' }).click();
   await page
     .getByRole('checkbox', { name: 'Select frame 4' })
@@ -107,7 +107,7 @@ test('bulk edit: select some of a roll’s frames, give them another camera and 
   // Frame 4 turns out not to be part of the walk: it's put in no event, and the event has two.
   await page.getByRole('link', { name: 'Rolls', exact: true }).click();
   await page.getByRole('link', { name: '2026-042' }).click();
-  await chooseAction(page, 'Bulk edit');
+  await chooseAction(page, 'Bulk actions');
   await page.getByRole('checkbox', { name: 'Select frame 4' }).click();
   await page.getByRole('button', { name: 'Set', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Event…' }).click();

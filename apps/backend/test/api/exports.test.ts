@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import sharp from 'sharp';
 import { aJpeg } from '../support/a-jpeg.ts';
+import { readZip } from '../support/read-zip.ts';
 import { apiFor, idOf } from '../support/api.ts';
 import { useTempArchive } from '../support/temp-archive.ts';
 
@@ -54,6 +55,9 @@ async function aFrame(
 function prepare(frameId: string, change: object = {}) {
   return post('/api/exports/quick', {
     frames: [{ rollId, frameId }],
+    output: 'jpeg',
+    layout: 'flat',
+    fileNames: '{roll}-{frame}',
     size: null,
     quality: 90,
     metadata: 'everything',
@@ -218,7 +222,7 @@ describe('exporting a frame once', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('Content-Type')).toBe('image/jpeg');
     expect(response.headers.get('Content-Disposition')).toBe(
-      'attachment; filename="2026-014-12A.jpg"',
+      `attachment; filename="2026-014-12A.jpg"; filename*=UTF-8''2026-014-12A.jpg`,
     );
     const jpeg = new Uint8Array(await response.arrayBuffer());
     const { width, height, exif } = await sharp(jpeg).metadata();
@@ -233,7 +237,7 @@ describe('exporting a frame once', () => {
     const response = await request(await downloadAddress(frameId));
 
     expect(response.headers.get('Content-Disposition')).toBe(
-      'attachment; filename="2026-014-frame.jpg"',
+      `attachment; filename="2026-014-frame.jpg"; filename*=UTF-8''2026-014-frame.jpg`,
     );
   });
 
@@ -334,6 +338,190 @@ describe('exporting a frame once', () => {
     expect((await request('/api/exports/quick/not-a-ticket')).status).toBe(422);
     expect(
       (await request('/api/exports/quick/0f8fad5b-d9cb-469f-a165-70867728950e'))
+        .status,
+    ).toBe(404);
+  });
+});
+
+describe('exporting several frames as a zip', () => {
+  function prepareZip(
+    frames: { rollId: string; frameId: string }[],
+    change: object = {},
+  ) {
+    return post('/api/exports/quick', {
+      frames,
+      output: 'zip',
+      layout: 'flat',
+      fileNames: '{roll}-{frame}',
+      size: 300,
+      quality: 80,
+      metadata: 'author-and-copyright',
+      ...change,
+    });
+  }
+
+  async function zipOf(
+    frames: { rollId: string; frameId: string }[],
+    change: object = {},
+  ) {
+    const prepared = await prepareZip(frames, change);
+    expect(prepared.status).toBe(201);
+    const body: unknown = await prepared.json();
+    const url =
+      typeof body === 'object' && body !== null && 'url' in body
+        ? String(body.url)
+        : '';
+    const response = await request(url);
+    return {
+      response,
+      files: readZip(new Uint8Array(await response.arrayBuffer())),
+    };
+  }
+
+  // Each scan differs, since a roll refuses the same scan twice.
+  let shades = 0;
+  const shade = () => (shades += 20);
+
+  /** A frame of the roll, with this number and title. */
+  async function framed(number: string, title?: string, scan = true) {
+    const { frameId } = await aFrame(
+      number,
+      scan
+        ? await aJpeg({ width: 600, height: 400, shade: shade() })
+        : undefined,
+    );
+    if (title !== undefined) {
+      const etag =
+        (await request(`/api/rolls/${rollId}`)).headers.get('ETag') ?? '';
+      await request(`/api/rolls/${rollId}/frames/${frameId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'If-Match': etag },
+        body: JSON.stringify({ title }),
+      });
+    }
+    return { rollId, frameId };
+  }
+
+  test('is a zip named for the roll and its event, with a JPEG of each frame as the recipe makes it', async () => {
+    await post('/api/events', { name: 'Westfjords' });
+    rollId = String(
+      idOf(
+        await (
+          await post('/api/rolls', {
+            roll: '2026-016',
+            shot: '2026-09',
+            event: 'westfjords',
+          })
+        ).json(),
+      ),
+    );
+    const frames = [await framed('1'), await framed('2')];
+
+    const { response, files } = await zipOf(frames);
+
+    expect(response.headers.get('Content-Type')).toBe('application/zip');
+    expect(response.headers.get('Content-Disposition')).toBe(
+      `attachment; filename="2026-016 Westfjords.zip"; filename*=UTF-8''2026-016%20Westfjords.zip`,
+    );
+    expect(files.map((file) => file.name)).toEqual([
+      '2026-016-1.jpg',
+      '2026-016-2.jpg',
+    ]);
+    const { width, height } = await sharp(
+      new Uint8Array(files[0]?.data ?? []),
+    ).metadata();
+    expect([width, height]).toEqual([300, 200]);
+  });
+
+  test('lays files out and names them as chosen, numbering names that would be the same', async () => {
+    const frames = [
+      await framed('1', 'Black sand'),
+      await framed('2', 'Black sand'),
+      await framed('3', 'Glacier'),
+    ];
+
+    const { files } = await zipOf(frames, {
+      layout: 'year-roll',
+      fileNames: '{title}',
+    });
+
+    expect(files.map((file) => file.name)).toEqual([
+      '2026/2026-014/Black sand.jpg',
+      '2026/2026-014/Black sand-2.jpg',
+      '2026/2026-014/Glacier.jpg',
+    ]);
+  });
+
+  test('names a zip of several rolls for FilmFile', async () => {
+    const first = await framed('1');
+    rollId = String(
+      idOf(
+        await (
+          await post('/api/rolls', { roll: '2026-020', shot: '2026' })
+        ).json(),
+      ),
+    );
+    const second = await framed('1');
+
+    const { response, files } = await zipOf([first, second], {
+      layout: 'roll-folder',
+    });
+
+    expect(response.headers.get('Content-Disposition')).toContain(
+      'FilmFile export.zip',
+    );
+    expect(files.map((file) => file.name)).toEqual([
+      '2026-014/2026-014-1.jpg',
+      '2026-020/2026-020-1.jpg',
+    ]);
+  });
+
+  test('leaves out a frame that has no scan or is hidden, listing it in skipped.txt', async () => {
+    const good = await framed('1');
+    const noScan = await framed('2', undefined, false);
+    const hidden = await framed('3');
+    const etag =
+      (await request(`/api/rolls/${rollId}`)).headers.get('ETag') ?? '';
+    await request(`/api/rolls/${rollId}/frames/${hidden.frameId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'If-Match': etag },
+      body: JSON.stringify({ hidden: true }),
+    });
+
+    const { files } = await zipOf([good, noScan, hidden]);
+
+    expect(files.map((file) => file.name)).toEqual([
+      '2026-014-1.jpg',
+      'skipped.txt',
+    ]);
+    expect(files[1]?.data.toString()).toBe(
+      'These frames were left out:\n- frame 2 of roll 2026-014: it has no scan\n- frame 3 of roll 2026-014: it is hidden\n',
+    );
+  });
+
+  test('has no skipped.txt when every frame is made', async () => {
+    const { files } = await zipOf([await framed('1')]);
+
+    expect(files.map((file) => file.name)).toEqual(['2026-014-1.jpg']);
+  });
+
+  test('refuses a pattern with something that is not a placeholder', async () => {
+    const response = await prepareZip([await framed('1')], {
+      fileNames: '{roll}-{rol}',
+    });
+
+    expect(response.status).toBe(422);
+    expect(JSON.stringify(await response.json())).toContain('{rol}');
+  });
+
+  test('refuses a JPEG of several frames, and a frame that is not there', async () => {
+    const frame = await framed('1');
+
+    expect((await prepareZip([frame, frame], { output: 'jpeg' })).status).toBe(
+      422,
+    );
+    expect(
+      (await prepareZip([{ rollId, frameId: '01JC8Z7K3M0000000000000009' }]))
         .status,
     ).toBe(404);
   });

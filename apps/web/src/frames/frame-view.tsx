@@ -532,8 +532,8 @@ export function FrameView({
           // A new frame, a new dialog, so it starts from the choices last made.
           key={shown.frame.id}
           api={api}
-          roll={shown.roll}
-          frame={shown.frame}
+          items={[shown]}
+          single
           close={() => {
             setExporting(false);
           }}

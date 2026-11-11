@@ -23,6 +23,7 @@ import { hiddenCount, shownFrames, showingHidden } from './hidden-frames.ts';
 import { AssignToFrames, type FramesChange } from './assign-to-frames.tsx';
 import { describeUpload } from './describe-upload.ts';
 import { droppedFiles } from './dropped-files.ts';
+import { ExportDialog } from '../exports/export-dialog.tsx';
 import { EditDetailsPanel, type RollDetails } from './edit-details-panel.tsx';
 import { formatShot } from './format-shot.ts';
 import { frameCount } from './frame-count.ts';
@@ -201,6 +202,7 @@ export function RollPage({
   const [numbersNotSaved, setNumbersNotSaved] = useState(false);
   // Selecting frames, to set details on or delete together; undefined when not.
   const [selection, setSelection] = useState<Selection | undefined>(undefined);
+  const [exportingSelected, setExportingSelected] = useState(false);
   const [confirmingSelectedDelete, setConfirmingSelectedDelete] =
     useState(false);
   const [renumbering, setRenumbering] = useState<RenumberSettings | undefined>(
@@ -858,7 +860,7 @@ export function RollPage({
                     ? []
                     : [
                         {
-                          label: 'Bulk edit',
+                          label: 'Bulk actions',
                           select: () => {
                             setSelection(noSelection);
                           },
@@ -1063,6 +1065,15 @@ export function RollPage({
                       type="button"
                       disabled={selection.selected.size === 0}
                       onClick={() => {
+                        setExportingSelected(!exportingSelected);
+                      }}
+                    >
+                      Export…
+                    </button>
+                    <button
+                      type="button"
+                      disabled={selection.selected.size === 0}
+                      onClick={() => {
                         setConfirmingSelectedDelete(true);
                       }}
                     >
@@ -1073,6 +1084,7 @@ export function RollPage({
                       className="primary"
                       onClick={() => {
                         setConfirmingSelectedDelete(false);
+                        setExportingSelected(false);
                         setSelection(undefined);
                       }}
                     >
@@ -1080,6 +1092,17 @@ export function RollPage({
                     </button>
                   </AssignToFrames>
                 </>
+              )}
+              {exportingSelected && (
+                <ExportDialog
+                  api={api}
+                  items={shown
+                    .filter((frame) => selection.selected.has(frame.id))
+                    .map((frame) => ({ roll: roll.data.roll, frame }))}
+                  close={() => {
+                    setExportingSelected(false);
+                  }}
+                />
               )}
             </div>
           ) : renumbering === undefined ? null : (

@@ -1561,7 +1561,33 @@
               ],
               "additionalProperties": false
             },
-            "description": "The frame to export; one for now."
+            "minItems": 1,
+            "maxItems": 1000,
+            "description": "The frames to export, in the order they are put in a zip. A JPEG is of exactly one."
+          },
+          "output": {
+            "type": "string",
+            "enum": [
+              "jpeg",
+              "zip"
+            ],
+            "description": "One frame as a JPEG, or any number as a zip of JPEGs sent as it is made. A zip leaves out frames that cannot be made, listing them in skipped.txt."
+          },
+          "layout": {
+            "type": "string",
+            "enum": [
+              "flat",
+              "roll-folder",
+              "year-roll"
+            ],
+            "description": "Where a zip's files go: all in one place, a folder for each roll, or a folder for each year with one for each roll in it. Ignored for a JPEG."
+          },
+          "fileNames": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "How files are named, with {roll}, {frame}, {title}, {year} and {original} in it, e.g. {roll}-{frame}.",
+            "example": "{roll}-{frame}"
           },
           "size": {
             "type": [
@@ -1589,6 +1615,9 @@
         },
         "required": [
           "frames",
+          "output",
+          "layout",
+          "fileNames",
           "size",
           "quality",
           "metadata"
@@ -3707,8 +3736,8 @@
     },
     "/api/exports/quick": {
       "post": {
-        "summary": "Prepare to download a frame as a JPEG, once",
-        "description": "Checks the frame can be exported and gives a single-use address to download it from. Nothing is written to disk.",
+        "summary": "Prepare to download frames as a JPEG or a zip, once",
+        "description": "Checks what is to be exported and gives a single-use address to download it from. Nothing is written to disk.",
         "requestBody": {
           "required": true,
           "content": {
@@ -3741,7 +3770,7 @@
             }
           },
           "422": {
-            "description": "The request is invalid, the frame is hidden, or it has no scan to export.",
+            "description": "The request is invalid, a file name pattern has a {placeholder} that is not one, or a JPEG is asked of a frame that is hidden or has no scan.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3756,7 +3785,7 @@
     "/api/exports/quick/{ticket}": {
       "get": {
         "summary": "Download a prepared export",
-        "description": "Makes the JPEG and sends it as a download. The address works once.",
+        "description": "Makes the JPEG, or the zip as a stream, and sends it as a download. The address works once.",
         "parameters": [
           {
             "schema": {
@@ -3770,9 +3799,15 @@
         ],
         "responses": {
           "200": {
-            "description": "The JPEG, as an attachment named for the frame.",
+            "description": "The JPEG named for the frame, or the zip named for the roll, as an attachment.",
             "content": {
               "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/zip": {
                 "schema": {
                   "type": "string",
                   "format": "binary"

@@ -7,8 +7,25 @@ export const quickExportRequest = z
   .strictObject({
     frames: z
       .array(z.strictObject({ rollId: ulid, frameId: ulid }))
-      .length(1)
-      .meta({ description: 'The frame to export; one for now.' }),
+      .min(1)
+      .max(1000)
+      .meta({
+        description:
+          'The frames to export, in the order they are put in a zip. A JPEG is of exactly one.',
+      }),
+    output: z.enum(['jpeg', 'zip']).meta({
+      description:
+        'One frame as a JPEG, or any number as a zip of JPEGs sent as it is made. A zip leaves out frames that cannot be made, listing them in skipped.txt.',
+    }),
+    layout: z.enum(['flat', 'roll-folder', 'year-roll']).meta({
+      description:
+        "Where a zip's files go: all in one place, a folder for each roll, or a folder for each year with one for each roll in it. Ignored for a JPEG.",
+    }),
+    fileNames: z.string().min(1).max(200).meta({
+      description:
+        'How files are named, with {roll}, {frame}, {title}, {year} and {original} in it, e.g. {roll}-{frame}.',
+      example: '{roll}-{frame}',
+    }),
     size: z.number().int().min(16).max(20000).nullable().meta({
       description:
         'The longest edge in pixels, or null for the full size. Never enlarges.',

@@ -877,14 +877,19 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       return body.response;
     }
     quickExports.push(body.value);
-    const [wanted] = body.value.frames;
-    const frame = rolls
-      .find((r) => r.id === wanted?.rollId)
-      ?.frames.find((f) => f.id === wanted?.frameId);
-    if (frame === undefined) {
+    const found = body.value.frames.map(({ rollId, frameId }) =>
+      rolls.find((r) => r.id === rollId)?.frames.find((f) => f.id === frameId),
+    );
+    if (found.some((frame) => frame === undefined)) {
       return notFound();
     }
-    if (frame.hidden || frame.versions.length === 0) {
+    // A zip leaves out frames it can't make; a JPEG is refused.
+    if (
+      body.value.output === 'jpeg' &&
+      found.some(
+        (frame) => frame?.hidden === true || frame?.versions.length === 0,
+      )
+    ) {
       return Response.json(
         {
           error: 'invalid request',

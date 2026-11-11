@@ -23,9 +23,9 @@ function json<T extends z.ZodType>(schema: T, description: string) {
 const prepareQuickExport = createRoute({
   method: 'post',
   path: '/quick',
-  summary: 'Prepare to download a frame as a JPEG, once',
+  summary: 'Prepare to download frames as a JPEG or a zip, once',
   description:
-    'Checks the frame can be exported and gives a single-use address to download it from. Nothing is written to disk.',
+    'Checks what is to be exported and gives a single-use address to download it from. Nothing is written to disk.',
   middleware: [requireContentType('application/json')] as const,
   request: {
     body: {
@@ -38,7 +38,7 @@ const prepareQuickExport = createRoute({
     404: json(errorResponse, 'No such roll or frame.'),
     422: json(
       invalidRequestResponse,
-      'The request is invalid, the frame is hidden, or it has no scan to export.',
+      'The request is invalid, a file name pattern has a {placeholder} that is not one, or a JPEG is asked of a frame that is hidden or has no scan.',
     ),
   },
 });
@@ -48,18 +48,53 @@ const downloadQuickExport = createRoute({
   path: '/quick/{ticket}',
   summary: 'Download a prepared export',
   description:
-    'Makes the JPEG and sends it as a download. The address works once.',
+    'Makes the JPEG, or the zip as a stream, and sends it as a download. The address works once.',
   request: { params: quickExportParams },
   responses: {
     200: {
-      description: 'The JPEG, as an attachment named for the frame.',
+      description:
+        'The JPEG named for the frame, or the zip named for the roll, as an attachment.',
       content: {
         'image/jpeg': { schema: z.string().meta({ format: 'binary' }) },
+        'application/zip': { schema: z.string().meta({ format: 'binary' }) },
       },
     },
     404: json(errorResponse, 'The address is unknown, used or has expired.'),
   },
 });
+
+/**
+ * A download's name for the browser: an ASCII fallback, and the real name,
+ * which can have spaces and other letters, percent-encoded as RFC 6266 says.
+ */
+function attachment(fileName: string): string {
+  const ascii = fileName.replace(/[^\x20-\x7e]|["\\%]/g, '_');
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
+}
+
+/**
+ * The parts as a stream read one at a time, as the download is: a part is
+ * made only when it's asked for, and a download that's cancelled stops the
+ * rest being made.
+ */
+function streamOf(
+  parts: AsyncIterable<Uint8Array>,
+): ReadableStream<Uint8Array> {
+  const iterator = parts[Symbol.asyncIterator]();
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      const next = await iterator.next();
+      if (next.done === true) {
+        controller.close();
+      } else {
+        controller.enqueue(next.value);
+      }
+    },
+    async cancel() {
+      await iterator.return?.();
+    },
+  });
+}
 
 export interface ExportUseCases {
   readonly prepareQuickExport: PrepareQuickExport;
@@ -77,19 +112,20 @@ export function exportRoutes({
   const routes = new OpenAPIHono({ defaultHook: invalidRequestHook });
 
   routes.openapi(prepareQuickExport, async (c) => {
-    const { frames, size, quality, metadata } = c.req.valid('json');
-    const [frame] = frames;
-    if (frame === undefined) {
-      return c.json({ error: 'not found' }, 404);
-    }
-    const { rollId, frameId } = frame;
-    if (!isRollId(rollId) || !isFrameId(frameId)) {
-      return c.json({ error: 'not found' }, 404);
+    const { frames, size, quality, metadata, output, layout, fileNames } =
+      c.req.valid('json');
+    const wanted = [];
+    for (const { rollId, frameId } of frames) {
+      if (!isRollId(rollId) || !isFrameId(frameId)) {
+        return c.json({ error: 'not found' }, 404);
+      }
+      wanted.push({ rollId, frameId });
     }
     const prepared = await useCases.prepareQuickExport.execute(ctx, {
-      rollId,
-      frameId,
+      frames: wanted,
       recipe: { longestEdge: size, quality, metadata },
+      output,
+      naming: { layout, pattern: fileNames },
     });
     return prepared.ok
       ? c.json({ url: `/api/exports/quick/${prepared.value}` }, 201)
@@ -100,14 +136,22 @@ export function exportRoutes({
     const made = await useCases.makeQuickExport.execute(ctx, {
       ticket: c.req.valid('param').ticket,
     });
-    return made.ok
+    if (!made.ok) {
+      return domainErrorResponse(c, made.error);
+    }
+    const headers = {
+      'Content-Disposition': attachment(made.value.fileName),
+      'Cache-Control': 'no-store',
+    };
+    return made.value.kind === 'jpeg'
       ? c.body(new Uint8Array(made.value.jpeg), 200, {
+          ...headers,
           'Content-Type': 'image/jpeg',
-          // The name is only letters, digits, dots and dashes (exportFileName).
-          'Content-Disposition': `attachment; filename="${made.value.fileName}"`,
-          'Cache-Control': 'no-store',
         })
-      : domainErrorResponse(c, made.error);
+      : c.body(streamOf(made.value.parts), 200, {
+          ...headers,
+          'Content-Type': 'application/zip',
+        });
   });
 
   return routes;

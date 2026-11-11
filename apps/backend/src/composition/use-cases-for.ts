@@ -115,6 +115,7 @@ export function useCasesFor({
       blobs,
       tickets,
       renderer,
+      clock,
     ),
     listCameras: new ListCameras(equipment),
     createCamera: new CreateCamera(equipment),

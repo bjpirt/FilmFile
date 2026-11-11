@@ -1,11 +1,28 @@
 import type { FrameId, RollId } from '../../domain/shared/ids.ts';
 import type { ExportRecipe } from './image-renderer.ts';
 
-/** A frame to be made and downloaded once, as the recipe says (D95). */
+/** How a zip's files are laid out: all in one place, a folder for each roll, or a folder for each year with one for each roll in it. */
+export type Layout = 'flat' | 'roll-folder' | 'year-roll';
+
+/** What the files are called and where they go, as the pattern and layout say (D94). */
+export interface Naming {
+  readonly layout: Layout;
+  /** Text with `{roll}`, `{frame}`, `{title}`, `{year}` and `{original}` in it. */
+  readonly pattern: string;
+}
+
+/** What is made: one frame as a JPEG, or any number as a zip of JPEGs. */
+export type ExportOutput = 'jpeg' | 'zip';
+
+/** Frames to be made and downloaded once, as the recipe says (D95). */
 export interface QuickExport {
-  readonly rollId: RollId;
-  readonly frameId: FrameId;
+  readonly frames: readonly {
+    readonly rollId: RollId;
+    readonly frameId: FrameId;
+  }[];
   readonly recipe: ExportRecipe;
+  readonly output: ExportOutput;
+  readonly naming: Naming;
 }
 
 /**

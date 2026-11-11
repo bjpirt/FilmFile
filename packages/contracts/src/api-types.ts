@@ -1826,8 +1826,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Prepare to download a frame as a JPEG, once
-         * @description Checks the frame can be exported and gives a single-use address to download it from. Nothing is written to disk.
+         * Prepare to download frames as a JPEG or a zip, once
+         * @description Checks what is to be exported and gives a single-use address to download it from. Nothing is written to disk.
          */
         post: {
             parameters: {
@@ -1860,7 +1860,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description The request is invalid, the frame is hidden, or it has no scan to export. */
+                /** @description The request is invalid, a file name pattern has a {placeholder} that is not one, or a JPEG is asked of a frame that is hidden or has no scan. */
                 422: {
                     headers: {
                         [name: string]: unknown;
@@ -1886,7 +1886,7 @@ export interface paths {
         };
         /**
          * Download a prepared export
-         * @description Makes the JPEG and sends it as a download. The address works once.
+         * @description Makes the JPEG, or the zip as a stream, and sends it as a download. The address works once.
          */
         get: {
             parameters: {
@@ -1899,13 +1899,14 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description The JPEG, as an attachment named for the frame. */
+                /** @description The JPEG named for the frame, or the zip named for the roll, as an attachment. */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
                         "image/jpeg": Blob;
+                        "application/zip": Blob;
                     };
                 };
                 /** @description The address is unknown, used or has expired. */
@@ -2574,13 +2575,28 @@ export interface components {
         };
         /** @description What to export once and how: the frame, size, quality and what the file says about the frame. */
         QuickExportRequest: {
-            /** @description The frame to export; one for now. */
+            /** @description The frames to export, in the order they are put in a zip. A JPEG is of exactly one. */
             frames: {
                 /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
                 rollId: string;
                 /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
                 frameId: string;
             }[];
+            /**
+             * @description One frame as a JPEG, or any number as a zip of JPEGs sent as it is made. A zip leaves out frames that cannot be made, listing them in skipped.txt.
+             * @enum {string}
+             */
+            output: "jpeg" | "zip";
+            /**
+             * @description Where a zip's files go: all in one place, a folder for each roll, or a folder for each year with one for each roll in it. Ignored for a JPEG.
+             * @enum {string}
+             */
+            layout: "flat" | "roll-folder" | "year-roll";
+            /**
+             * @description How files are named, with {roll}, {frame}, {title}, {year} and {original} in it, e.g. {roll}-{frame}.
+             * @example {roll}-{frame}
+             */
+            fileNames: string;
             /** @description The longest edge in pixels, or null for the full size. Never enlarges. */
             size: number | null;
             /** @description JPEG quality, 1 to 100. */

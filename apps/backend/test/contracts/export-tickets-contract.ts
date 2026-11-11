@@ -21,9 +21,15 @@ export class MovableClock implements Clock {
 }
 
 const quick: QuickExport = {
-  rollId: checked('01JC8Z7K3M0000000002026014', isRollId),
-  frameId: checked('01JC8Z7K3M0000000000000001', isFrameId),
+  frames: [
+    {
+      rollId: checked('01JC8Z7K3M0000000002026014', isRollId),
+      frameId: checked('01JC8Z7K3M0000000000000001', isFrameId),
+    },
+  ],
   recipe: { longestEdge: 2048, quality: 90, metadata: 'everything' },
+  output: 'jpeg',
+  naming: { layout: 'flat', pattern: '{roll}-{frame}' },
 };
 
 /** What every ExportTickets must do, run against each adapter. */

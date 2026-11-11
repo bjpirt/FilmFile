@@ -8,7 +8,22 @@ export interface ExportChoices {
   readonly quality: number;
   /** What the file says about the frame: everything known, or only who it's by. */
   readonly metadata: Metadata;
+  /** For a zip: where the files go. */
+  readonly layout: Layout;
+  /** For a zip: how the files are named, with `{roll}`, `{frame}`, `{title}`, `{year}` and `{original}`. */
+  readonly fileNames: string;
 }
+
+export type Layout = 'flat' | 'roll-folder' | 'year-roll';
+
+export const layoutChoices: readonly { value: Layout; label: string }[] = [
+  { value: 'flat', label: 'Flat' },
+  { value: 'roll-folder', label: 'A folder per roll' },
+  { value: 'year-roll', label: 'Year then roll' },
+];
+
+/** What a single frame is named by, and a zip's files first. */
+export const defaultFileNames = '{roll}-{frame}';
 
 export type Metadata = 'everything' | 'author-and-copyright';
 
@@ -24,6 +39,8 @@ const firstTime: ExportChoices = {
   size: 2048,
   quality: 90,
   metadata: 'everything',
+  layout: 'flat',
+  fileNames: defaultFileNames,
 };
 
 /** The size and quality last chosen, kept in the browser as a convenience (D95). */
@@ -36,6 +53,8 @@ export function rememberedExportChoices(): ExportChoices {
     const size = 'size' in stored ? stored.size : undefined;
     const quality = 'quality' in stored ? stored.quality : undefined;
     const metadata = 'metadata' in stored ? stored.metadata : undefined;
+    const layout = 'layout' in stored ? stored.layout : undefined;
+    const fileNames = 'fileNames' in stored ? stored.fileNames : undefined;
     return {
       size:
         size === null || (typeof size === 'number' && sizes.includes(size))
@@ -45,6 +64,13 @@ export function rememberedExportChoices(): ExportChoices {
       metadata:
         metadataChoices.find((choice) => choice.value === metadata)?.value ??
         firstTime.metadata,
+      layout:
+        layoutChoices.find((choice) => choice.value === layout)?.value ??
+        firstTime.layout,
+      fileNames:
+        typeof fileNames === 'string' && fileNames !== ''
+          ? fileNames
+          : firstTime.fileNames,
     };
   } catch {
     return firstTime;

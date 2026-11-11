@@ -201,6 +201,9 @@ describe('exporting the frame shown', () => {
     expect(archive.quickExports).toEqual([
       {
         frames: [{ rollId: exporting.id, frameId: exporting.frames[0]?.id }],
+        output: 'jpeg',
+        layout: 'flat',
+        fileNames: '{roll}-{frame}',
         size: 1024,
         quality: 75,
         metadata: 'everything',

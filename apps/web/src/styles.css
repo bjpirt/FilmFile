@@ -1858,3 +1858,16 @@ textarea {
   flex-basis: 100%;
   margin: 0;
 }
+
+.selection-bar .export-dialog {
+  flex-basis: 100%;
+}
+
+.export-frames {
+  flex-basis: 100%;
+}
+
+.export-frames ul {
+  margin: var(--space-2) 0;
+  padding-left: var(--space-5);
+}

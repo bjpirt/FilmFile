@@ -10,7 +10,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
   aRoll,
   fakeArchive,
@@ -131,7 +131,7 @@ test('offers the roll’s actions in one menu, selecting and renumbering once it
     'Mark as filed',
     'Edit details',
     'Add scans',
-    'Bulk edit',
+    'Bulk actions',
     'Renumber…',
     'Delete roll…',
   ]);
@@ -577,6 +577,137 @@ describe('editing the details', () => {
   });
 });
 
+describe('exporting the selected frames', () => {
+  const frames = () => [
+    aFrameWithScan('1', '12340001.jpg'),
+    aFrameWithScan('2', '12340002.jpg'),
+    { ...aFrameWithScan('3', '12340003.jpg'), versions: [] },
+  ];
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    localStorage.clear();
+  });
+
+  async function selecting(...numbers: string[]) {
+    const archive = archiveWith(frames());
+    renderPage(archive);
+    await screen.findByRole('list', { name: 'Contact sheet' });
+    await chooseAction('Bulk actions');
+    for (const number of numbers) {
+      fireEvent.click(
+        screen.getByRole('checkbox', { name: `Select frame ${number}` }),
+      );
+    }
+    return archive;
+  }
+
+  test('the selection bar has Export…, which waits for frames to be selected', async () => {
+    await selecting();
+
+    expect(
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Export…' })
+        .disabled,
+    ).toBe(true);
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select frame 1' }));
+
+    expect(
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Export…' })
+        .disabled,
+    ).toBe(false);
+  });
+
+  test('opens a dialog for the frames selected, listing them to review and take out', async () => {
+    await selecting('1', '2');
+    fireEvent.click(screen.getByRole('button', { name: 'Export…' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Export 2 frames' });
+    expect(dialog.textContent).toContain('2 selected frames');
+    expect(within(dialog).queryByRole('list')).toBeNull();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Review' }));
+    expect(
+      within(within(dialog).getByRole('list', { name: 'Frames to export' }))
+        .getAllByRole('listitem')
+        .map((item) => item.textContent.replace(' Take out', '')),
+    ).toEqual(['frame 1 of roll 2026-014', 'frame 2 of roll 2026-014']);
+    fireEvent.click(
+      within(dialog).getByRole('button', {
+        name: 'Take out frame 1 of roll 2026-014',
+      }),
+    );
+
+    expect(
+      screen.getByRole('dialog', { name: 'Export 1 frame' }).textContent,
+    ).toContain('1 selected frame');
+  });
+
+  test('says before anything is made which frames have no scan and will be left out', async () => {
+    await selecting('2', '3');
+    fireEvent.click(screen.getByRole('button', { name: 'Export…' }));
+
+    expect(
+      within(screen.getByRole('dialog')).getByRole('status').textContent,
+    ).toBe('1 frame has no scan and will be left out');
+  });
+
+  test('Download asks for a zip of the frames, as the layout and file names say, and remembers them', async () => {
+    const archive = await selecting('1', '2');
+    const started: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      started.push(this.getAttribute('href') ?? '');
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Export…' }));
+    const dialog = screen.getByRole('dialog', { name: 'Export 2 frames' });
+    fireEvent.change(within(dialog).getByLabelText('Layout'), {
+      target: { value: 'year-roll' },
+    });
+    fireEvent.change(within(dialog).getByLabelText('File names'), {
+      target: { value: '{year}-{title}' },
+    });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Download' }));
+
+    await waitFor(() => {
+      expect(started).toEqual(['/api/exports/quick/ticket-1']);
+    });
+    expect(archive.quickExports).toMatchObject([
+      {
+        frames: [
+          { rollId, frameId: framesOf(archive)[0]?.id },
+          { rollId, frameId: framesOf(archive)[1]?.id },
+        ],
+        output: 'zip',
+        layout: 'year-roll',
+        fileNames: '{year}-{title}',
+      },
+    ]);
+    fireEvent.click(screen.getByRole('button', { name: 'Export…' }));
+    expect(screen.getByLabelText<HTMLSelectElement>('Layout').value).toBe(
+      'year-roll',
+    );
+    expect(screen.getByLabelText<HTMLInputElement>('File names').value).toBe(
+      '{year}-{title}',
+    );
+  });
+
+  test('refuses empty file names, and has nothing to download when none of the frames has a scan', async () => {
+    await selecting('3');
+    fireEvent.click(screen.getByRole('button', { name: 'Export…' }));
+
+    expect(screen.getByRole('alert').textContent).toBe(
+      'There are no frames with a scan to export.',
+    );
+    expect(
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Download' })
+        .disabled,
+    ).toBe(true);
+  });
+});
+
 describe('hiding frames', () => {
   const threeFrames = () => [
     aFrameWithScan('1', '12340001.jpg'),
@@ -755,7 +886,7 @@ describe('selecting frames', () => {
 
   async function startSelecting(archive = archiveWith(threeFrames())) {
     renderPage(archive);
-    await chooseAction('Bulk edit');
+    await chooseAction('Bulk actions');
     return archive;
   }
 
@@ -825,7 +956,7 @@ describe('selecting frames', () => {
     expect(screen.queryByRole('checkbox')).toBeNull();
     expect(screen.getByRole('link', { name: 'Open frame 1' })).toBeDefined();
 
-    await chooseAction('Bulk edit');
+    await chooseAction('Bulk actions');
     expect(ticked()).toEqual([]);
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.queryByRole('checkbox')).toBeNull();
@@ -954,7 +1085,7 @@ describe('frames grouped by event (FF-102)', () => {
       ),
     );
     await screen.findByRole('list', { name: 'Contact sheet' });
-    await chooseAction('Bulk edit');
+    await chooseAction('Bulk actions');
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select frame 2' }));
     fireEvent.click(screen.getByRole('button', { name: 'Set' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Event…' }));
@@ -989,7 +1120,7 @@ describe('frames grouped by event (FF-102)', () => {
   test('selects every frame across the groups, and a shift-click run in the order on screen', async () => {
     renderPage(mixed());
     await screen.findByRole('list', { name: 'Frames in Iceland 2026' });
-    await chooseAction('Bulk edit');
+    await chooseAction('Bulk actions');
 
     fireEvent.click(screen.getByRole('button', { name: 'Select all' }));
     expect(screen.getByRole('status', { name: 'Selection' }).textContent).toBe(
@@ -1031,7 +1162,7 @@ describe('setting details on selected frames', () => {
         },
       );
     renderPage(service);
-    await chooseAction('Bulk edit');
+    await chooseAction('Bulk actions');
     for (const number of numbers) {
       fireEvent.click(
         screen.getByRole('checkbox', { name: `Select frame ${number}` }),
@@ -1243,7 +1374,7 @@ describe('deleting selected frames', () => {
       aFrameWithScan('3', '12340003.jpg'),
     ]);
     renderPage(service);
-    await chooseAction('Bulk edit');
+    await chooseAction('Bulk actions');
     for (const number of numbers) {
       fireEvent.click(
         screen.getByRole('checkbox', { name: `Select frame ${number}` }),
@@ -1854,7 +1985,7 @@ test('hides the stars while selecting frames, and shows them again when done', a
   );
   await screen.findByText('Rated 4 of 5');
 
-  await chooseAction('Bulk edit');
+  await chooseAction('Bulk actions');
   expect(screen.queryByText('Rated 4 of 5')).toBeNull();
 
   fireEvent.click(screen.getByRole('button', { name: 'Done' }));
@@ -2047,7 +2178,7 @@ describe('rating from a thumbnail (FF-149)', () => {
     expect(screen.getByText('Rated 2 of 5')).toBeDefined();
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    await chooseAction('Bulk edit');
+    await chooseAction('Bulk actions');
     expect(screen.queryByRole('button', { name: /^Rate \d/ })).toBeNull();
   });
 });
