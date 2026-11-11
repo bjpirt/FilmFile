@@ -9,8 +9,9 @@ import {
 import path from 'node:path';
 import { appMenu } from './app-menu.ts';
 import { chooseFolder } from './choose-folder.ts';
-import { readSettings, saveSettings } from './desktop-settings.ts';
+import { readSettings, updateSettings } from './desktop-settings.ts';
 import { findFolder } from './find-folder.ts';
+import { handleDownload } from './handle-download.ts';
 import { openWindow } from './open-window.ts';
 import { startService, type Service } from './start-service.ts';
 
@@ -55,7 +56,26 @@ function run(): void {
       return;
     }
     await open(chosen);
-    await saveSettings(settingsFile(), { folder: chosen });
+    await updateSettings(settingsFile(), { folder: chosen });
+  }
+
+  /** Remembers the folder a download went to, and says where it is, with a way to see it there. */
+  async function tellSaved(file: string, savedTo: string): Promise<void> {
+    await updateSettings(settingsFile(), { downloadFolder: savedTo });
+    const show =
+      process.platform === 'darwin' ? 'Show in Finder' : 'Show in Folder';
+    const options: Electron.MessageBoxOptions = {
+      message: `Saved to ${file}`,
+      buttons: [show, 'OK'],
+      defaultId: 1,
+    };
+    const { response } =
+      window === undefined
+        ? await dialog.showMessageBox(options)
+        : await dialog.showMessageBox(window, options);
+    if (response === 0) {
+      shell.showItemInFolder(file);
+    }
   }
 
   /** File › Show FilmFile Folder in Finder. */
@@ -104,6 +124,18 @@ function run(): void {
           answer(false);
         },
       );
+      // Where downloads (a quick export) are saved is asked for each time (FF-166).
+      let downloadFolder = (await readSettings(settingsFile())).downloadFolder;
+      session.defaultSession.on('will-download', (_event, item) => {
+        handleDownload(item, {
+          lastFolder: () => downloadFolder,
+          downloads: app.getPath('downloads'),
+          saved: (file) => {
+            downloadFolder = path.dirname(file);
+            tellSaved(file, downloadFolder).catch(couldNot('save that file'));
+          },
+        });
+      });
       Menu.setApplicationMenu(
         appMenu({
           openFolder: () => {
@@ -128,7 +160,7 @@ function run(): void {
       }
       await open(chosen);
       if (chosen !== remembered) {
-        await saveSettings(settingsFile(), { folder: chosen });
+        await updateSettings(settingsFile(), { folder: chosen });
       }
     })
     .catch((error: unknown) => {

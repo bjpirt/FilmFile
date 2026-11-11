@@ -5,10 +5,15 @@ import { z } from 'zod';
 export interface DesktopSettings {
   /** The FilmFile folder, as chosen (FF-105). */
   readonly folder?: string;
+  /** The folder a download was last saved to (FF-166). */
+  readonly downloadFolder?: string;
 }
 
 // An `archive` from before the FilmFile folder isn't read: the folder is chosen again.
-const settingsFile = z.object({ folder: z.string().min(1).optional() });
+const settingsFile = z.object({
+  folder: z.string().min(1).optional(),
+  downloadFolder: z.string().min(1).optional(),
+});
 
 /** The settings saved in `file`, or none if it isn't there or can't be read. */
 export async function readSettings(file: string): Promise<DesktopSettings> {
@@ -26,10 +31,15 @@ export async function readSettings(file: string): Promise<DesktopSettings> {
     return {};
   }
   const parsed = settingsFile.safeParse(json);
-  if (!parsed.success || parsed.data.folder === undefined) {
+  if (!parsed.success) {
     return {};
   }
-  return { folder: parsed.data.folder };
+  const { folder, downloadFolder } = parsed.data;
+  // An `archive` from before the FilmFile folder says nothing, but a download folder still stands.
+  return {
+    ...(folder === undefined ? {} : { folder }),
+    ...(downloadFolder === undefined ? {} : { downloadFolder }),
+  };
 }
 
 /** Saves the settings to `file` in one step, so a crash never leaves half a file. */
@@ -40,4 +50,12 @@ export async function saveSettings(
   const temporary = `${file}.tmp`;
   await writeFile(temporary, `${JSON.stringify(settings, null, 2)}\n`);
   await rename(temporary, file);
+}
+
+/** Changes some of the settings saved in `file`, keeping the rest. */
+export async function updateSettings(
+  file: string,
+  change: DesktopSettings,
+): Promise<void> {
+  await saveSettings(file, { ...(await readSettings(file)), ...change });
 }

@@ -2,7 +2,11 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, expect, test } from 'vitest';
-import { readSettings, saveSettings } from './desktop-settings.ts';
+import {
+  readSettings,
+  saveSettings,
+  updateSettings,
+} from './desktop-settings.ts';
 
 let folder = '';
 let file = '';
@@ -41,4 +45,16 @@ test('starts afresh from settings it can’t read', async () => {
   writeFileSync(file, '{ "folder": 12 ');
 
   expect(await readSettings(file)).toEqual({});
+});
+
+test('remembers the folder downloads were last saved to, beside the FilmFile folder', async () => {
+  await saveSettings(file, { folder: '/Volumes/Photos/FilmFile' });
+
+  await updateSettings(file, { downloadFolder: '/Users/ben/Pictures/Iceland' });
+  await updateSettings(file, { folder: '/Volumes/Other/FilmFile' });
+
+  expect(await readSettings(file)).toEqual({
+    folder: '/Volumes/Other/FilmFile',
+    downloadFolder: '/Users/ben/Pictures/Iceland',
+  });
 });

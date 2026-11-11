@@ -15,6 +15,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
+import { aJpeg } from '../../apps/backend/test/support/a-jpeg.ts';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -85,7 +86,8 @@ function appEnv(extra: Record<string, string> = {}): Record<string, string> {
   return { ...env, FILMFILE_CACHE: cache, ...extra };
 }
 
-type Answer = { choose: string } | { cancel: true } | { button: string };
+type Answer =
+  { choose: string } | { cancel: true } | { button: string } | { save: string };
 
 /** The app, with no folder given, answering its dialogs as given. */
 function launchChoosing(
@@ -325,5 +327,107 @@ test('a remembered folder that is no longer a FilmFile folder is refused, not op
   ).toBeVisible();
   expect(await dialogsShown(app)).toEqual([notFilmFileFolder(moved), chooser]);
   expect(readdirSync(moved)).toEqual(['Exports']);
+  await app.close();
+});
+
+/** The dialogs the app has shown so far, as a list. */
+async function shownList(app: ElectronApplication): Promise<unknown[]> {
+  const shown = await dialogsShown(app);
+  return Array.isArray(shown) ? shown.map((entry: unknown) => entry) : [];
+}
+
+/** What a dialog entry says under `key`, if it's text there or in the object under `inside`. */
+function saidBy(entry: unknown, key: string, inside?: string): string {
+  const field = (from: unknown, name: string): unknown =>
+    typeof from === 'object' && from !== null
+      ? Reflect.get(from, name)
+      : undefined;
+  const said = field(inside === undefined ? entry : field(entry, inside), key);
+  return typeof said === 'string' ? said : '';
+}
+
+test('a quick export in the desktop app asks where to save it, says where it went and starts there next time', async () => {
+  const prints = folderWith('prints');
+  const saved = path.join(prints, 'for-the-lab.jpg');
+  const show =
+    process.platform === 'darwin' ? 'Show in Finder' : 'Show in Folder';
+  const app = await electron.launch({
+    args: ['-r', dialogs, desktop],
+    env: appEnv({
+      FILMFILE_FOLDER: filmFile,
+      FILMFILE_TEST_USER_DATA: userData,
+      // Save the first, say where, and cancel the second.
+      FILMFILE_TEST_DIALOGS: JSON.stringify([
+        { save: saved },
+        { button: show },
+        { cancel: true },
+      ]),
+    }),
+  });
+  const window = await app.firstWindow();
+  const service = new URL(window.url()).origin;
+
+  // A roll with one scanned frame, made through the service as the page would.
+  async function send(url: string, body: BodyInit, type: string) {
+    const response = await fetch(`${service}${url}`, {
+      method: 'POST',
+      headers: { Origin: service, 'Content-Type': type },
+      body,
+    });
+    const made: unknown = await response.json();
+    return typeof made === 'object' && made !== null && 'id' in made
+      ? String(made.id)
+      : '';
+  }
+  const asJson = (body: object) => JSON.stringify(body);
+  const roll = await send(
+    '/api/rolls',
+    asJson({ roll: '2026-053', shot: '2026' }),
+    'application/json',
+  );
+  const frame = await send(
+    `/api/rolls/${roll}/frames`,
+    asJson({ number: '1' }),
+    'application/json',
+  );
+  await send(
+    `/api/rolls/${roll}/frames/${frame}/versions?file=12340001.jpg`,
+    new Uint8Array(await aJpeg()),
+    'image/jpeg',
+  );
+
+  async function download() {
+    await window.getByRole('button', { name: 'Export' }).click();
+    await window
+      .getByRole('dialog', { name: 'Export frame 1' })
+      .getByRole('button', { name: 'Download' })
+      .click();
+  }
+  await window.goto(`${service}/rolls/${roll}/frames/${frame}`);
+  await download();
+
+  await expect.poll(() => existsSync(saved)).toBe(true);
+  await expect.poll(async () => (await shownList(app)).length).toBe(2);
+  const [asked, said] = await shownList(app);
+  // It asked with the name the service gave, and then said where the file went.
+  expect(path.basename(saidBy(asked, 'defaultPath', 'saveDialog'))).toBe(
+    '2026-053-1.jpg',
+  );
+  expect(saidBy(said, 'message')).toBe(`Saved to ${saved}`);
+  expect(
+    await app.evaluate((): unknown =>
+      Reflect.get(globalThis, 'pathsShownInFolder'),
+    ),
+  ).toEqual([saved]);
+  expect(readFileSync(saved).subarray(0, 2)).toEqual(Buffer.from([0xff, 0xd8]));
+  expect(remembered()).toMatchObject({ downloadFolder: prints });
+
+  // The next one starts in that folder, and cancelling it saves and says nothing.
+  await download();
+  await expect.poll(async () => (await shownList(app)).length).toBe(3);
+  expect(saidBy((await shownList(app))[2], 'defaultPath', 'saveDialog')).toBe(
+    path.join(prints, '2026-053-1.jpg'),
+  );
+  expect(readdirSync(prints)).toEqual(['for-the-lab.jpg']);
   await app.close();
 });
