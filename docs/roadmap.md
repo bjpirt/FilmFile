@@ -106,6 +106,7 @@ What a roll is catalogued with, one layer of data at a time: camera, film stock,
 
 A frame's details: what a frame has is seen at a glance on its thumbnail. Frames inherit an event, camera, film stock and lens from their roll and can have their own, as the design's metadata layering describes (section 6, D25); selecting frames lets them be given one at once.
 
+- [ ] [FF-174 Hide a frame](tasks/FF-174.md): an eye on a thumbnail, the frame view and Set menu hide a frame from every list, site and export; "Show hidden frames" brings them back, dimmed.
 - [x] [FF-170 Rotate a frame from the keyboard](tasks/FF-170.md)
 - [x] [FF-102 A roll's frames grouped by event](tasks/FF-102.md)
 - [x] [FF-149 Rate from a thumbnail](tasks/FF-149.md)
@@ -376,6 +377,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D96 | Originals are made read-only so nothing reaching them (NegPy through links, a file manager) can overwrite them in place: each version's image file, as it's stored and, once when the service starts, every one already in the library, by clearing its write bits; never JSON, sidecars, recipes or folders. It guards against overwriting, not against deleting or moving, which a program with write access to the folder can still do; a failure to change permissions is skipped and logged, never an upload failure. Refines D51's guard. | FF-109, FF-112 |
 | D97 | Every way of exporting uses one Export dialog: a "Frames" line (one frame, the frames selected on a roll's or an event's page, or the rules found on the Find frames page, expandable to edit them), the recipe (size, quality, metadata, and layout and file names for several frames) and an output: "Download" now, or "Save as an export…" once saved exports exist. A saved export's page is the same form with a name. So a frame, a hand-picked selection and a search are all one kind of selection (D93, with frames chosen by hand as a rule's values). | FF-165, FF-167, FF-168, FF-164, FF-116 |
 | D98 | A frame can be marked as in no event, even when its roll has one, by its own `event` being `false`: a frame's event is a slug, `null` for its roll's (as before) or `false` for none, so no magic string can clash with a slug and a check that forgets `false` is a type error. Only a frame can have it, never a roll. It isn't written into exports; sites and exports grouped by event put every frame in no event, marked or never given one, under "No event set". | FF-173, FF-120 |
+| D99 | A frame can be hidden: its own state, `hidden: true` in `roll.json` beside `toScan`, stored only when set. A hidden frame is left out of every list of frames (roll and event pages, counts, grouping, the browse panel, the frame view's stepping) and never included in a site or export, however its selection finds it; a page can show its hidden frames, dimmed, with `?hidden=show` in its address, not remembered once you leave. It keeps its number, files and details, and goes with its roll. It is not a way to leave a frame out of one site only (FF-119). | FF-174, FF-119, FF-165 |
 
 **Still open:** see `docs/design.md`, section 15.
 
