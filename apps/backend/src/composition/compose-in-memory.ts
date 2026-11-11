@@ -5,7 +5,9 @@ import { InMemorySettingsRepository } from '../adapters/outbound/memory/in-memor
 import { InMemoryBlobStore } from '../adapters/outbound/memory/in-memory-blob-store.ts';
 import { InMemoryEquipmentRepository } from '../adapters/outbound/memory/in-memory-equipment-repository.ts';
 import { InMemoryEventRepository } from '../adapters/outbound/memory/in-memory-event-repository.ts';
+import { InMemoryExportTickets } from '../adapters/outbound/memory/in-memory-export-tickets.ts';
 import { InMemoryHoldingArea } from '../adapters/outbound/memory/in-memory-holding-area.ts';
+import { InMemoryImageRenderer } from '../adapters/outbound/memory/in-memory-image-renderer.ts';
 import { InMemoryPreviewProvider } from '../adapters/outbound/memory/in-memory-preview-provider.ts';
 import { InMemoryRollRepository } from '../adapters/outbound/memory/in-memory-roll-repository.ts';
 import { SequentialIdGenerator } from '../adapters/outbound/memory/sequential-id-generator.ts';
@@ -23,6 +25,7 @@ import { useCasesFor, type Adapters } from './use-cases-for.ts';
 export function composeInMemory(
   overrides: Partial<Adapters> = {},
 ): OpenAPIHono {
+  const clock = new FixedClock('2026-11-02T12:00:00.000Z');
   return createApp({
     port: 4310,
     folderPath: '/in-memory/FilmFile',
@@ -36,8 +39,10 @@ export function composeInMemory(
       holding: new InMemoryHoldingArea(),
       inspector: new SharpImageInspector(maxPixels),
       previews: new InMemoryPreviewProvider(),
+      renderer: new InMemoryImageRenderer(),
+      tickets: new InMemoryExportTickets(clock),
       ids: new SequentialIdGenerator(),
-      clock: new FixedClock('2026-11-02T12:00:00.000Z'),
+      clock,
       ...overrides,
     }),
   });

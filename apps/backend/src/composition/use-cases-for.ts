@@ -1,17 +1,22 @@
 import type { SettingsUseCases } from '../adapters/inbound/http/routes/settings.ts';
 import type { EquipmentUseCases } from '../adapters/inbound/http/routes/equipment.ts';
 import type { EventUseCases } from '../adapters/inbound/http/routes/events.ts';
+import type { ExportUseCases } from '../adapters/inbound/http/routes/exports.ts';
 import type { RollUseCases } from '../adapters/inbound/http/routes/rolls.ts';
 import type { SettingsRepository } from '../application/ports/settings-repository.ts';
 import type { BlobStore } from '../application/ports/blob-store.ts';
 import type { Clock } from '../application/ports/clock.ts';
 import type { EquipmentRepository } from '../application/ports/equipment-repository.ts';
 import type { EventRepository } from '../application/ports/event-repository.ts';
+import type { ExportTickets } from '../application/ports/export-tickets.ts';
 import type { HoldingArea } from '../application/ports/holding-area.ts';
 import type { IdGenerator } from '../application/ports/id-generator.ts';
+import type { ImageRenderer } from '../application/ports/image-renderer.ts';
 import type { ImageInspector } from '../application/ports/image-inspector.ts';
 import type { PreviewProvider } from '../application/ports/preview-provider.ts';
 import type { RollRepository } from '../application/ports/roll-repository.ts';
+import { MakeQuickExport } from '../application/use-cases/exports/make-quick-export.ts';
+import { PrepareQuickExport } from '../application/use-cases/exports/prepare-quick-export.ts';
 import { GetSettings } from '../application/use-cases/settings/get-settings.ts';
 import { InitialiseSettings } from '../application/use-cases/settings/initialise-settings.ts';
 import { UpdateSettings } from '../application/use-cases/settings/update-settings.ts';
@@ -54,6 +59,8 @@ export interface Adapters {
   readonly holding: HoldingArea;
   readonly inspector: ImageInspector;
   readonly previews: PreviewProvider;
+  readonly renderer: ImageRenderer;
+  readonly tickets: ExportTickets;
   readonly ids: IdGenerator;
   readonly clock: Clock;
 }
@@ -68,11 +75,14 @@ export function useCasesFor({
   holding,
   inspector,
   previews,
+  renderer,
+  tickets,
   ids,
   clock,
 }: Adapters): RollUseCases &
   EquipmentUseCases &
   EventUseCases &
+  ExportUseCases &
   SettingsUseCases {
   return {
     getSettings: new GetSettings(settings),
@@ -96,6 +106,14 @@ export function useCasesFor({
     getFrameDetails: new GetFrameDetails(rolls, settings),
     getOriginal: new GetOriginal(rolls, blobs),
     getThumbnail: new GetThumbnail(rolls, blobs, previews),
+    prepareQuickExport: new PrepareQuickExport(rolls, tickets),
+    makeQuickExport: new MakeQuickExport(
+      rolls,
+      settings,
+      blobs,
+      tickets,
+      renderer,
+    ),
     listCameras: new ListCameras(equipment),
     createCamera: new CreateCamera(equipment),
     listFilmStocks: new ListFilmStocks(equipment),

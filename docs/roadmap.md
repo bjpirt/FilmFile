@@ -207,7 +207,6 @@ The round trip of design section 9: a roll's raw scans go where NegPy can find t
 
 Getting frames out as files, simplest first, all through one Export dialog (D97). One frame from the frame view, then the frames selected on a roll's or an event's page, each downloaded the normal browser way (the desktop app can ask where to save, D95); then frames found by rules; then saving the same choices as an export: a saved definition of a set of exported files, a selection of frames (rules, and frames added or left off by hand, shared with sites, D93) with how they're made, built into `Exports/<export>/` whenever you like, always from the archive as it is, making again only what changed, and optionally keeping itself up to date (D94).
 
-- [ ] [FF-165 Export a frame](tasks/FF-165.md): an Export button in the frame view, downloading the frame as a JPEG at a size and quality chosen.
 - [ ] [FF-118 What an export says about itself](tasks/FF-118.md): everything the catalogue knows about the frame as EXIF and XMP, or only the author and copyright, chosen in the dialog.
 - [ ] [FF-166 Choose where downloads are saved in the desktop app](tasks/FF-166.md): the desktop app asks where to save a quick export.
 - [ ] [FF-167 Export selected frames](tasks/FF-167.md): Export… in the roll page's selection (Bulk edit becomes Bulk actions), downloading the frames as a zip in a layout and with names chosen.
@@ -215,6 +214,7 @@ Getting frames out as files, simplest first, all through one Export dialog (D97)
 - [ ] [FF-164 Frame selections](tasks/FF-164.md): choose frames by rules (rating, event, roll, camera, lens, film, date shot, has a Final or Raw) with a live count and grid on a "Find frames" page, and export what's found through the same Export dialog.
 - [ ] [later] [FF-116 Exports and their frames](tasks/FF-116.md): "Save as an export…" in the Export dialog, an Exports page, and an export's selection of frames, with frames pinned or hidden by hand.
 - [ ] [later] [FF-117 Build an export](tasks/FF-117.md): a JPEG of each frame into `Exports/<export>/` at the size, quality, layout and names chosen, knowing when it's up to date and making again only what changed.
+- [x] [FF-165 Export a frame](tasks/FF-165.md)
 
 ### 13. Sites
 

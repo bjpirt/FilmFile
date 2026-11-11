@@ -7,9 +7,11 @@ import { FilesystemEventRepository } from '../adapters/outbound/filesystem/files
 import { FilesystemHoldingArea } from '../adapters/outbound/filesystem/filesystem-holding-area.ts';
 import { FilesystemBlobStore } from '../adapters/outbound/filesystem/filesystem-blob-store.ts';
 import { FilesystemRollRepository } from '../adapters/outbound/filesystem/filesystem-roll-repository.ts';
+import { InMemoryExportTickets } from '../adapters/outbound/memory/in-memory-export-tickets.ts';
 import { NodeClock } from '../adapters/outbound/node/node-clock.ts';
 import { UlidGenerator } from '../adapters/outbound/node/ulid-generator.ts';
 import { SharpImageInspector } from '../adapters/outbound/sharp/sharp-image-inspector.ts';
+import { SharpImageRenderer } from '../adapters/outbound/sharp/sharp-image-renderer.ts';
 import { SharpPreviewProvider } from '../adapters/outbound/sharp/sharp-preview-provider.ts';
 import type { Clock } from '../application/ports/clock.ts';
 import type { IdGenerator } from '../application/ports/id-generator.ts';
@@ -62,6 +64,7 @@ export function composeLocal(config: {
   readonly clock?: Clock;
   readonly ids?: IdGenerator;
 }): OpenAPIHono {
+  const clock = config.clock ?? new NodeClock();
   return createApp({
     ...config,
     ctx: localArchive(),
@@ -74,8 +77,10 @@ export function composeLocal(config: {
       holding: new FilesystemHoldingArea(config.archivePath),
       inspector: new SharpImageInspector(maxPixels),
       previews: new SharpPreviewProvider(config.cachePath, maxPixels),
+      renderer: new SharpImageRenderer(maxPixels),
+      tickets: new InMemoryExportTickets(clock),
       ids: config.ids ?? new UlidGenerator(),
-      clock: config.clock ?? new NodeClock(),
+      clock,
     }),
   });
 }

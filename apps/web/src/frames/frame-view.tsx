@@ -3,6 +3,7 @@ import type { Frame, Roll } from '@filmfile/contracts/rolls';
 import { useEffect, useRef, useState } from 'react';
 import { BinIcon } from '../bin-icon.tsx';
 import { EyeIcon } from '../eye-icon.tsx';
+import { ExportDialog } from '../exports/export-dialog.tsx';
 import { MenuButton } from '../menu-button.tsx';
 import { FrameMarks, ratingText, scanStatus } from '../rolls/frame-marks.tsx';
 import { shownVersion } from '../rolls/shown-version.ts';
@@ -67,6 +68,25 @@ function TurnIcon({ clockwise }: { readonly clockwise: boolean }) {
         <path d="M4 12a8 8 0 1 0 2.5-5.8" />
         <path d="M4 3v5h5" />
       </g>
+    </svg>
+  );
+}
+
+/** An arrow leaving a tray, for taking the frame out as a file. */
+function ExportIcon() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14" />
     </svg>
   );
 }
@@ -260,6 +280,7 @@ export function FrameView({
     }
   }
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [exporting, setExporting] = useState(false);
   // The version being asked about, "Delete this version?" (U28b).
   const [confirmingVersion, setConfirmingVersion] = useState<
     string | undefined
@@ -314,6 +335,14 @@ export function FrameView({
       ) {
         return;
       }
+      if (exporting) {
+        // The dialog has the keys: Esc closes it, rather than leaving the frame view.
+        if (event.key === 'Escape') {
+          setExporting(false);
+          event.preventDefault();
+        }
+        return;
+      }
       if (confirmingDelete || confirmingVersion !== undefined) {
         // Esc answers the question, rather than leaving the frame view.
         if (event.key === 'Escape') {
@@ -357,6 +386,7 @@ export function FrameView({
     toggleHidden,
     confirmingDelete,
     confirmingVersion,
+    exporting,
   ]);
 
   if (shown === undefined) {
@@ -412,6 +442,18 @@ export function FrameView({
             }}
           >
             <ScanIcon scanned={isScanned} size={20} />
+          </button>
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Export"
+            title="Export"
+            aria-expanded={exporting}
+            onClick={() => {
+              setExporting(!exporting);
+            }}
+          >
+            <ExportIcon />
           </button>
           {/* At the foot of the versions column once there's more than one (U61). */}
           {!manyVersions && (
@@ -485,6 +527,18 @@ export function FrameView({
           />
         </span>
       </div>
+      {exporting && (
+        <ExportDialog
+          // A new frame, a new dialog, so it starts from the choices last made.
+          key={shown.frame.id}
+          api={api}
+          roll={shown.roll}
+          frame={shown.frame}
+          close={() => {
+            setExporting(false);
+          }}
+        />
+      )}
       {shown.frame.title !== null && (
         <p className="frame-title">{shown.frame.title}</p>
       )}

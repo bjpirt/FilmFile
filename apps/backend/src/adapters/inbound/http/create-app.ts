@@ -11,6 +11,7 @@ import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import { docsRoutes } from './routes/docs.ts';
 import { equipmentRoutes, type EquipmentUseCases } from './routes/equipment.ts';
 import { settingsRoutes, type SettingsUseCases } from './routes/settings.ts';
+import { exportRoutes, type ExportUseCases } from './routes/exports.ts';
 import { eventRoutes, type EventUseCases } from './routes/events.ts';
 import { rollRoutes, type RollUseCases } from './routes/rolls.ts';
 import { uiRoutes } from './routes/ui.ts';
@@ -34,6 +35,7 @@ export function createApp(config: {
   readonly useCases: RollUseCases &
     EquipmentUseCases &
     EventUseCases &
+    ExportUseCases &
     SettingsUseCases;
   readonly uiPath?: string;
   readonly port: number;
@@ -49,6 +51,7 @@ export function createApp(config: {
   app.route('/api/rolls', rollRoutes(config));
   app.route('/api/equipment', equipmentRoutes(config));
   app.route('/api/events', eventRoutes(config));
+  app.route('/api/exports', exportRoutes(config));
   app.route('/api/settings', settingsRoutes(config));
   app.doc31('/api/openapi.json', {
     openapi: '3.1.0',

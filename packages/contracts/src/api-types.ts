@@ -1816,6 +1816,117 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/exports/quick": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Prepare to download a frame as a JPEG, once
+         * @description Checks the frame can be exported and gives a single-use address to download it from. Nothing is written to disk.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["QuickExportRequest"];
+                };
+            };
+            responses: {
+                /** @description Where to download the file from, once. */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["QuickExport"];
+                    };
+                };
+                /** @description No such roll or frame. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The request is invalid, the frame is hidden, or it has no scan to export. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/exports/quick/{ticket}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download a prepared export
+         * @description Makes the JPEG and sends it as a download. The address works once.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    ticket: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The JPEG, as an attachment named for the frame. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "image/jpeg": Blob;
+                    };
+                };
+                /** @description The address is unknown, used or has expired. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings": {
         parameters: {
             query?: never;
@@ -2453,6 +2564,27 @@ export interface components {
             name?: string;
             /** @example 2026-09 */
             date?: string | null;
+        };
+        QuickExport: {
+            /**
+             * @description A single-use address that downloads the file, valid for a few minutes.
+             * @example /api/exports/quick/0f8fad5b-d9cb-469f-a165-70867728950e
+             */
+            url: string;
+        };
+        /** @description What to export once and how: the frame, size and quality. The file carries only its author and copyright. */
+        QuickExportRequest: {
+            /** @description The frame to export; one for now. */
+            frames: {
+                /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
+                rollId: string;
+                /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
+                frameId: string;
+            }[];
+            /** @description The longest edge in pixels, or null for the full size. Never enlarges. */
+            size: number | null;
+            /** @description JPEG quality, 1 to 100. */
+            quality: number;
         };
         Settings: {
             id: string;

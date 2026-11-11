@@ -1841,3 +1841,20 @@ textarea {
 .numbering-bar span {
   margin-right: auto;
 }
+
+/* The Export dialog, between the frame view's bar and the picture. */
+.export-dialog {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-small);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-6);
+  margin: var(--space-3) 0;
+  padding: var(--space-3) var(--space-4);
+}
+
+.export-dialog p {
+  flex-basis: 100%;
+  margin: 0;
+}

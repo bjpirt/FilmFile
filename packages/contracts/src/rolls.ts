@@ -3,7 +3,7 @@ import { slug } from './slug.ts';
 
 // Request and response shapes for rolls, their frames and the frames' versions.
 
-const ulid = z
+export const ulid = z
   .string()
   .regex(/^[0-9A-HJKMNP-TV-Z]{26}$/, 'must be a ULID')
   .meta({ example: '01M6EAAP694BKWR9HZ4N5Z54XD' });

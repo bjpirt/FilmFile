@@ -26,6 +26,7 @@ import {
   type UnreadableRoll,
   type Version,
 } from '@filmfile/contracts/rolls';
+import { quickExportRequest } from '@filmfile/contracts/exports';
 import {
   createSettingsRequest,
   updateSettingsRequest,
@@ -208,6 +209,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   const created: unknown[] = [];
   /** The body of every request to change a roll's details. */
   const rollUpdates: unknown[] = [];
+  /** The body of every request to export a frame once. */
+  const quickExports: unknown[] = [];
   /** The file name of every scan uploaded. */
   const uploads: string[] = [];
   /** Every frame deleted, as it was. */
@@ -867,6 +870,35 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     return Response.json(version, { status: 201 });
   }
 
+  /** Prepares a frame's export as the service does: refused if hidden or with no scan. */
+  async function quickExport(request: Request): Promise<Response> {
+    const body = await bodyOf(request, quickExportRequest);
+    if (!body.ok) {
+      return body.response;
+    }
+    quickExports.push(body.value);
+    const [wanted] = body.value.frames;
+    const frame = rolls
+      .find((r) => r.id === wanted?.rollId)
+      ?.frames.find((f) => f.id === wanted?.frameId);
+    if (frame === undefined) {
+      return notFound();
+    }
+    if (frame.hidden || frame.versions.length === 0) {
+      return Response.json(
+        {
+          error: 'invalid request',
+          issues: [{ path: ['frame'], message: 'no' }],
+        },
+        { status: 422 },
+      );
+    }
+    return Response.json(
+      { url: `/api/exports/quick/ticket-${String(quickExports.length)}` },
+      { status: 201 },
+    );
+  }
+
   async function answer(request: Request): Promise<Response> {
     const url = new URL(request.url);
     requests.push(`${request.method} ${url.pathname}${url.search}`);
@@ -891,6 +923,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         return equipment(request, rest[0] ?? '');
       case 'events':
         return eventsRoute(request, rest[0]);
+      case 'exports':
+        return quickExport(request);
       case 'rolls': {
         if (rest.length === 0) {
           return request.method === 'GET'
@@ -945,6 +979,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     rollUpdates,
     uploads,
     deleted,
+    quickExports,
     /** Stops answering, as a stopped service behind a proxy would: every request gets a 502. */
     stop() {
       stopped = true;

@@ -135,6 +135,160 @@ describe('the filmstrip’s marks', () => {
   });
 });
 
+describe('exporting the frame shown', () => {
+  const exporting = aRoll('2026-033', {
+    frames: [aFrame('12A', '12340001.jpg'), aFrame('2', '12340002.jpg')],
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** The addresses the page started downloads from. */
+  function watchDownloads(): string[] {
+    const started: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      started.push(this.getAttribute('href') ?? '');
+    });
+    return started;
+  }
+
+  function openExport(archive: FakeArchive, frameIndex = 0) {
+    openAt(
+      `/rolls/${exporting.id}/frames/${exporting.frames[frameIndex]?.id ?? ''}`,
+      archive,
+    );
+  }
+
+  test('opens a dialog saying what is exported, with a size and quality to start from', async () => {
+    openExport(fakeArchive({ rolls: [exporting] }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Export' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Export frame 12A' });
+    expect(dialog.textContent).toContain('This frame: 12A of roll 2026-033');
+    expect(within(dialog).getByLabelText<HTMLSelectElement>('Size').value).toBe(
+      '2048',
+    );
+    expect(
+      within(dialog).getByLabelText<HTMLInputElement>('Quality').value,
+    ).toBe('90');
+  });
+
+  test('Download asks for the export, follows its address as a download and closes', async () => {
+    const archive = fakeArchive({ rolls: [exporting] });
+    const started = watchDownloads();
+    openExport(archive);
+    fireEvent.click(await screen.findByRole('button', { name: 'Export' }));
+    const dialog = screen.getByRole('dialog', { name: 'Export frame 12A' });
+    fireEvent.change(within(dialog).getByLabelText('Size'), {
+      target: { value: '1024' },
+    });
+    fireEvent.change(within(dialog).getByLabelText('Quality'), {
+      target: { value: '75' },
+    });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Download' }));
+
+    await vi.waitFor(() => {
+      expect(started).toEqual(['/api/exports/quick/ticket-1']);
+    });
+    expect(archive.quickExports).toEqual([
+      {
+        frames: [{ rollId: exporting.id, frameId: exporting.frames[0]?.id }],
+        size: 1024,
+        quality: 75,
+      },
+    ]);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  test('remembers the size and quality last used', async () => {
+    watchDownloads();
+    openExport(fakeArchive({ rolls: [exporting] }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Export' }));
+    fireEvent.change(screen.getByLabelText('Size'), {
+      target: { value: 'full' },
+    });
+    fireEvent.change(screen.getByLabelText('Quality'), {
+      target: { value: '60' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Download' }));
+    await vi.waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+
+    expect(screen.getByLabelText<HTMLSelectElement>('Size').value).toBe('full');
+    expect(screen.getByLabelText<HTMLInputElement>('Quality').value).toBe('60');
+  });
+
+  test('Cancel and Esc close it without exporting, Esc not leaving the frame', async () => {
+    const archive = fakeArchive({ rolls: [exporting] });
+    openExport(archive);
+    fireEvent.click(await screen.findByRole('button', { name: 'Export' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }));
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(window.location.pathname).toContain('/frames/');
+    expect(archive.quickExports).toEqual([]);
+  });
+
+  test('refuses a quality that is not a whole number from 1 to 100', async () => {
+    const archive = fakeArchive({ rolls: [exporting] });
+    openExport(archive);
+    fireEvent.click(await screen.findByRole('button', { name: 'Export' }));
+    fireEvent.change(screen.getByLabelText('Quality'), {
+      target: { value: '101' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download' }));
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Quality must be a whole number from 1 to 100.',
+    );
+    expect(archive.quickExports).toEqual([]);
+  });
+
+  test('a frame with no scan says so and makes nothing', async () => {
+    const empty = aRoll('2026-034', {
+      frames: [{ ...aFrame('1', '12340001.jpg'), versions: [] }],
+    });
+    const archive = fakeArchive({ rolls: [empty] });
+    openAt(`/rolls/${empty.id}/frames/${empty.frames[0]?.id ?? ''}`, archive);
+    fireEvent.click(await screen.findByRole('button', { name: 'Export' }));
+
+    expect(screen.getByRole('alert').textContent).toBe(
+      'This frame has no scan to export.',
+    );
+    expect(
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Download' })
+        .disabled,
+    ).toBe(true);
+  });
+
+  test('says what went wrong when the service refuses, and stays open', async () => {
+    const archive = fakeArchive({ rolls: [exporting] });
+    openExport(archive);
+    fireEvent.click(await screen.findByRole('button', { name: 'Export' }));
+    archive.stop();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download' }));
+
+    expect((await screen.findByRole('alert')).textContent).toMatch(
+      /Couldn't make the export/,
+    );
+    expect(screen.getByRole('dialog')).toBeDefined();
+  });
+});
+
 describe('hiding the frame shown', () => {
   const three = () =>
     aRoll('2026-031', {
