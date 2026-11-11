@@ -8,7 +8,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import { afterEach, beforeEach, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
   aFrame,
   aRoll,
@@ -21,7 +21,11 @@ beforeEach(() => {
   window.history.replaceState(null, '', '/events/iceland-2026');
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  localStorage.clear();
+});
 
 const iceland = { slug: 'iceland-2026', name: 'Iceland 2026', date: '2026-09' };
 
@@ -400,4 +404,111 @@ test('refuses to overwrite an event changed since it was opened', async () => {
   expect((await within(form).findByRole('alert')).textContent).toBe(
     'This event changed since you opened it. Cancel and edit it again.',
   );
+});
+
+describe('selecting frames to export', () => {
+  const rollOf = (archive: FakeArchive, roll: string) =>
+    archive.rolls.find((r) => r.roll === roll);
+
+  async function selecting() {
+    const archive = aSettings();
+    renderPage(archive);
+    await screen.findByText('3 frames');
+    fireEvent.click(screen.getByRole('button', { name: 'Select' }));
+    return archive;
+  }
+
+  const frame = (number: string, roll: string) =>
+    screen.getByRole('checkbox', {
+      name: `Select frame ${number} of roll ${roll}`,
+    });
+
+  test('puts a checkbox on each frame in place of opening it, with a bar counting them', async () => {
+    await selecting();
+
+    expect(screen.queryByRole('link', { name: /^Open frame/ })).toBeNull();
+    expect(screen.getByRole('status', { name: 'Selection' }).textContent).toBe(
+      'No frames selected',
+    );
+
+    fireEvent.click(frame('36', '2026-012'));
+    expect(screen.getByRole('status', { name: 'Selection' }).textContent).toBe(
+      '1 frame selected',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Select all' }));
+    expect(screen.getByRole('status', { name: 'Selection' }).textContent).toBe(
+      '3 frames selected',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(screen.getByRole('status', { name: 'Selection' }).textContent).toBe(
+      'No frames selected',
+    );
+  });
+
+  test('a click on the picture selects it, and a shift-click a run in the order shown', async () => {
+    await selecting();
+    const [first] = screen.getAllByRole('checkbox');
+
+    fireEvent.click(
+      first?.parentElement?.querySelector('.selectable') ?? document.body,
+    );
+    fireEvent.click(frame('2', '2026-014'), { shiftKey: true });
+
+    expect(screen.getByRole('status', { name: 'Selection' }).textContent).toBe(
+      '3 frames selected',
+    );
+  });
+
+  test('Done and Esc leave selection mode', async () => {
+    await selecting();
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.queryByRole('checkbox')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select' }));
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Select' })).toBeDefined();
+  });
+
+  test('Export… waits for frames, then asks for a zip of them from every roll, named for the event', async () => {
+    const archive = await selecting();
+    const started: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      started.push(this.getAttribute('href') ?? '');
+    });
+    expect(
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Export…' })
+        .disabled,
+    ).toBe(true);
+
+    fireEvent.click(frame('36', '2026-012'));
+    fireEvent.click(frame('1', '2026-014'));
+    fireEvent.click(screen.getByRole('button', { name: 'Export…' }));
+    const dialog = screen.getByRole('dialog', { name: 'Export 2 frames' });
+    fireEvent.change(within(dialog).getByLabelText('Layout'), {
+      target: { value: 'roll-folder' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Download' }));
+
+    await waitFor(() => {
+      expect(started).toHaveLength(1);
+    });
+    expect(archive.quickExports).toMatchObject([
+      {
+        frames: [
+          {
+            rollId: rollOf(archive, '2026-012')?.id,
+            frameId: rollOf(archive, '2026-012')?.frames[0]?.id,
+          },
+          { rollId: rollOf(archive, '2026-014')?.id },
+        ],
+        output: 'zip',
+        layout: 'roll-folder',
+        name: 'Iceland 2026',
+      },
+    ]);
+  });
 });

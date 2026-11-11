@@ -1589,6 +1589,13 @@
             "description": "How files are named, with {roll}, {frame}, {title}, {year} and {original} in it, e.g. {roll}-{frame}.",
             "example": "{roll}-{frame}"
           },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "What to call a zip, e.g. an event's name; left out, it's named for the roll the frames are from.",
+            "example": "Iceland 2026"
+          },
           "size": {
             "type": [
               "integer",

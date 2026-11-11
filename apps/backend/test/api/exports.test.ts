@@ -476,6 +476,34 @@ describe('exporting several frames as a zip', () => {
     ]);
   });
 
+  test('is named as asked, however many rolls its frames are from, each made from its own roll', async () => {
+    const first = await framed('1');
+    rollId = String(
+      idOf(
+        await (
+          await post('/api/rolls', { roll: '2026-020', shot: '2026' })
+        ).json(),
+      ),
+    );
+    const second = await framed('1');
+
+    const { response, files } = await zipOf([first, second], {
+      name: 'Iceland 2026',
+      layout: 'roll-folder',
+    });
+
+    expect(response.headers.get('Content-Disposition')).toContain(
+      'filename="Iceland 2026.zip"',
+    );
+    expect(files.map((file) => file.name)).toEqual([
+      '2026-014/2026-014-1.jpg',
+      '2026-020/2026-020-1.jpg',
+    ]);
+    expect(files[0]?.data.equals(files[1]?.data ?? Buffer.alloc(0))).toBe(
+      false,
+    );
+  });
+
   test('leaves out a frame that has no scan or is hidden, listing it in skipped.txt', async () => {
     const good = await framed('1');
     const noScan = await framed('2', undefined, false);

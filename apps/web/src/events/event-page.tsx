@@ -1,5 +1,6 @@
 import type { ApiClient } from '@filmfile/contracts/client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { ExportDialog } from '../exports/export-dialog.tsx';
 import { formatShot } from '../rolls/format-shot.ts';
 import { FrameMarks } from '../rolls/frame-marks.tsx';
 import { useRateFrame } from '../rolls/use-rate-frame.ts';
@@ -8,6 +9,13 @@ import { Link, navigate, useSearch } from '../routing.tsx';
 import { EventEditor } from './event-editor.tsx';
 import { MenuButton } from '../menu-button.tsx';
 import { showingHidden } from '../rolls/hidden-frames.ts';
+import {
+  noSelection,
+  selectAll,
+  selectionCount,
+  toggle,
+  type Selection,
+} from '../rolls/selection.ts';
 import {
   eventQuery,
   groupingOf,
@@ -36,6 +44,30 @@ export function EventPage({
   const shown = useEventFrames(api, slug, group, showHidden);
   const ratings = useRateFrame(api);
   const [editing, setEditing] = useState(false);
+  // Selecting frames, to export together; undefined when not.
+  const [selection, setSelection] = useState<Selection | undefined>(undefined);
+  const [exporting, setExporting] = useState(false);
+
+  // Esc closes the Export dialog, or else leaves Select mode.
+  useEffect(() => {
+    if (selection === undefined) {
+      return;
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== 'Escape') {
+        return;
+      }
+      if (exporting) {
+        setExporting(false);
+      } else {
+        setSelection(undefined);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [selection, exporting]);
 
   switch (shown.status) {
     case 'loading':
@@ -56,6 +88,12 @@ export function EventPage({
   const { event, frames, groups, hidden } = shown;
   // Frames open in the frame view, keeping the grouping, so it steps through them in the same order.
   const grouping = eventQuery(group, showHidden);
+  // The frames in the order the page shows them, which a shift-click runs along.
+  const inOrder = groups.flatMap((g) => g.frames);
+  const order = inOrder.map(({ frame }) => frame.id);
+  const pick = (id: string, shift: boolean) => {
+    setSelection((current) => current && toggle(current, order, id, shift));
+  };
 
   return (
     <section>
@@ -93,6 +131,16 @@ export function EventPage({
                 },
               ]}
             />
+          )}
+          {selection === undefined && frames.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelection(noSelection);
+              }}
+            >
+              Select
+            </button>
           )}
           {!editing && (
             <button
@@ -134,6 +182,61 @@ export function EventPage({
         />
       )}
 
+      {selection !== undefined && (
+        <div className="sheet-controls selection-bar">
+          <p role="status" aria-label="Selection">
+            {selectionCount(selection)}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setSelection(selectAll(order));
+            }}
+          >
+            Select all
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSelection(noSelection);
+            }}
+          >
+            Clear
+          </button>
+          <button
+            type="button"
+            disabled={selection.selected.size === 0}
+            onClick={() => {
+              setExporting(!exporting);
+            }}
+          >
+            Export…
+          </button>
+          <button
+            type="button"
+            className="primary"
+            onClick={() => {
+              setExporting(false);
+              setSelection(undefined);
+            }}
+          >
+            Done
+          </button>
+          {exporting && (
+            <ExportDialog
+              api={api}
+              items={inOrder.filter(({ frame }) =>
+                selection.selected.has(frame.id),
+              )}
+              zipName={event.name}
+              close={() => {
+                setExporting(false);
+              }}
+            />
+          )}
+        </div>
+      )}
+
       {ratings.problem !== undefined && <p role="alert">{ratings.problem}</p>}
 
       {frames.length === 0 && hidden > 0 ? (
@@ -170,26 +273,63 @@ export function EventPage({
                   aria-label={`Frame ${frame.number ?? 'with no number'} of roll ${roll.roll}`}
                 >
                   <div className="frame-picture">
-                    <Link
-                      to={`/events/${slug}/frames/${frame.id}${grouping}`}
-                      aria-label={`Open frame ${frame.number ?? 'with no number'} of roll ${roll.roll}`}
-                    >
-                      <Thumbnail rollId={roll.id} frame={frame} />
-                    </Link>
+                    {selection === undefined ? (
+                      <Link
+                        to={`/events/${slug}/frames/${frame.id}${grouping}`}
+                        aria-label={`Open frame ${frame.number ?? 'with no number'} of roll ${roll.roll}`}
+                      >
+                        <Thumbnail rollId={roll.id} frame={frame} />
+                      </Link>
+                    ) : (
+                      <>
+                        {/* The picture toggles too, for the mouse; the checkbox is what the keyboard and screen readers use. */}
+                        <div
+                          className="selectable"
+                          onClick={(click) => {
+                            pick(frame.id, click.shiftKey);
+                          }}
+                        >
+                          <Thumbnail rollId={roll.id} frame={frame} />
+                        </div>
+                        <input
+                          type="checkbox"
+                          className="frame-select"
+                          aria-label={`Select frame ${frame.number ?? 'with no number'} of roll ${roll.roll}`}
+                          checked={selection.selected.has(frame.id)}
+                          onChange={(change) => {
+                            pick(
+                              frame.id,
+                              'shiftKey' in change.nativeEvent &&
+                                change.nativeEvent.shiftKey === true,
+                            );
+                          }}
+                        />
+                      </>
+                    )}
                     <FrameMarks
                       frame={frame}
                       roll={roll}
-                      rate={(rating) => {
-                        ratings.rate(roll.id, frame.id, rating, frame.rating);
-                      }}
-                      hide={(hide) => {
-                        ratings.hide(
-                          roll.id,
-                          frame.id,
-                          hide,
-                          `frame ${frame.number ?? 'with no number'}`,
-                        );
-                      }}
+                      stars={selection === undefined}
+                      {...(selection === undefined
+                        ? {
+                            rate: (rating: number | null) => {
+                              ratings.rate(
+                                roll.id,
+                                frame.id,
+                                rating,
+                                frame.rating,
+                              );
+                            },
+                            hide: (hide: boolean) => {
+                              ratings.hide(
+                                roll.id,
+                                frame.id,
+                                hide,
+                                `frame ${frame.number ?? 'with no number'}`,
+                              );
+                            },
+                          }
+                        : {})}
                     />
                   </div>
                   <span className="frame-caption">

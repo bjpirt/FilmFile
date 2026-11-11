@@ -60,6 +60,7 @@ export function ExportDialog({
   api,
   items,
   single = false,
+  zipName,
   close,
 }: {
   readonly api: ApiClient;
@@ -67,6 +68,8 @@ export function ExportDialog({
   readonly items: readonly ExportItem[];
   /** Whether it's the one frame being looked at, as a JPEG, rather than a selection as a zip. */
   readonly single?: boolean;
+  /** What to call the zip, e.g. the event's name; otherwise it's named for the roll. */
+  readonly zipName?: string;
   readonly close: () => void;
 }) {
   const initial = rememberedExportChoices();
@@ -119,6 +122,7 @@ export function ExportDialog({
             frameId: frame.id,
           })),
           output: single ? 'jpeg' : 'zip',
+          ...(zipName === undefined || single ? {} : { name: zipName }),
           layout: single ? 'flat' : layout,
           fileNames: names,
           size: chosenSize,

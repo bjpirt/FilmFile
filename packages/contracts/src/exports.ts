@@ -26,6 +26,11 @@ export const quickExportRequest = z
         'How files are named, with {roll}, {frame}, {title}, {year} and {original} in it, e.g. {roll}-{frame}.',
       example: '{roll}-{frame}',
     }),
+    name: z.string().trim().min(1).max(100).optional().meta({
+      description:
+        "What to call a zip, e.g. an event's name; left out, it's named for the roll the frames are from.",
+      example: 'Iceland 2026',
+    }),
     size: z.number().int().min(16).max(20000).nullable().meta({
       description:
         'The longest edge in pixels, or null for the full size. Never enlarges.',

@@ -2597,6 +2597,11 @@ export interface components {
              * @example {roll}-{frame}
              */
             fileNames: string;
+            /**
+             * @description What to call a zip, e.g. an event's name; left out, it's named for the roll the frames are from.
+             * @example Iceland 2026
+             */
+            name?: string;
             /** @description The longest edge in pixels, or null for the full size. Never enlarges. */
             size: number | null;
             /** @description JPEG quality, 1 to 100. */

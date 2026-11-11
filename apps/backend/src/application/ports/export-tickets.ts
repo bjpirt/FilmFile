@@ -23,6 +23,8 @@ export interface QuickExport {
   readonly recipe: ExportRecipe;
   readonly output: ExportOutput;
   readonly naming: Naming;
+  /** What to call a zip, if not the roll's name. */
+  readonly name?: string | undefined;
 }
 
 /**

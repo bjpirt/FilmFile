@@ -132,8 +132,12 @@ export class MakeQuickExport {
     };
   }
 
-  /** The zip's name: the roll's number and what it's of, e.g. "2026-014 Westfjords"; for several rolls, "FilmFile export". */
+  /** The zip's name: the one asked for, else the roll's number and what it's of, e.g. "2026-014 Westfjords"; for several rolls, "FilmFile export". */
   async #zipName(ctx: ArchiveContext, quick: QuickExport): Promise<string> {
+    const given = safeName(quick.name ?? '');
+    if (given !== '') {
+      return given;
+    }
     const rollIds = new Set(quick.frames.map((frame) => frame.rollId));
     const [only] = [...rollIds];
     const roll =

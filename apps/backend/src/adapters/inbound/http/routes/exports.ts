@@ -112,7 +112,7 @@ export function exportRoutes({
   const routes = new OpenAPIHono({ defaultHook: invalidRequestHook });
 
   routes.openapi(prepareQuickExport, async (c) => {
-    const { frames, size, quality, metadata, output, layout, fileNames } =
+    const { frames, size, quality, metadata, output, layout, fileNames, name } =
       c.req.valid('json');
     const wanted = [];
     for (const { rollId, frameId } of frames) {
@@ -126,6 +126,7 @@ export function exportRoutes({
       recipe: { longestEdge: size, quality, metadata },
       output,
       naming: { layout, pattern: fileNames },
+      name,
     });
     return prepared.ok
       ? c.json({ url: `/api/exports/quick/${prepared.value}` }, 201)
