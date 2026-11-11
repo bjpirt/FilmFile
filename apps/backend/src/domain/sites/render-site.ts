@@ -1,5 +1,4 @@
 import { renderSitePage } from './render-site-page.ts';
-import type { SiteManifest } from './site-manifest.ts';
 import type { SiteOptions } from './site-options.ts';
 import type { SitePhoto } from './site-photo.ts';
 import { siteScript } from './site-script.ts';
@@ -12,20 +11,17 @@ export interface SiteFile {
 }
 
 /**
- * Every text file of a site (the images are made apart): the page, its
- * stylesheet and script, and `site.json`, which records the frames on the
- * site and what each image was made from so a later build can tell what
- * changed. The same inputs make byte-identical files.
+ * The files of a site that are text (the images are made apart, and
+ * `site.json` is its manifest's): the page, its stylesheet and script. The
+ * same inputs make byte-identical files.
  */
 export function renderSite(
   photos: readonly SitePhoto[],
   options: SiteOptions,
 ): SiteFile[] {
-  const manifest: SiteManifest = { version: 1, options, photos };
   return [
     { path: 'index.html', content: renderSitePage(photos, options) },
     { path: 'assets/site.css', content: siteStylesheet },
     { path: 'assets/site.js', content: siteScript },
-    { path: 'site.json', content: `${JSON.stringify(manifest, null, 2)}\n` },
   ];
 }

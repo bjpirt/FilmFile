@@ -48,12 +48,11 @@ function page(photos: readonly SitePhoto[], over: Partial<SiteOptions> = {}) {
   return file.content;
 }
 
-test('writes the page, its stylesheet and script, and the manifest', () => {
+test('writes the page, its stylesheet and script', () => {
   expect(renderSite([], options).map((file) => file.path)).toEqual([
     'index.html',
     'assets/site.css',
     'assets/site.js',
-    'site.json',
   ]);
 });
 
@@ -125,25 +124,6 @@ test('escapes every word that came from the archive', () => {
   expect(html).not.toContain('<b>Bold');
   expect(html).not.toContain('<i>hi');
   expect(html).toContain('<h1>A &amp; B</h1>');
-});
-
-test('records the frames and what each image was made from', () => {
-  const file = renderSite([aPhoto('1')], options).find(
-    (candidate) => candidate.path === 'site.json',
-  );
-  const manifest: unknown = JSON.parse(file?.content ?? 'null');
-  expect(manifest).toMatchObject({
-    version: 1,
-    photos: [
-      {
-        frame: frameId('1'),
-        images: [
-          { src: 'images/1-640.jpg', width: 640, madeFrom: 'h1a' },
-          { src: 'images/1-1600.jpg', width: 1600, madeFrom: 'h1b' },
-        ],
-      },
-    ],
-  });
 });
 
 test('makes byte-identical files from the same inputs', () => {

@@ -11,3 +11,8 @@ export interface SiteManifest {
   readonly options: SiteOptions;
   readonly photos: readonly SitePhoto[];
 }
+
+/** `site.json`'s text: the same manifest always gives the same bytes. */
+export function siteManifestJson(manifest: SiteManifest): string {
+  return `${JSON.stringify(manifest, null, 2)}\n`;
+}
