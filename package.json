@@ -14,6 +14,7 @@
     "build": "pnpm --filter @filmfile/web build",
     "desktop": "pnpm build && pnpm --filter @filmfile/desktop start",
     "package": "pnpm build && pnpm --filter @filmfile/desktop package",
+    "install:app": "pnpm package && pnpm --filter @filmfile/desktop install-app",
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
