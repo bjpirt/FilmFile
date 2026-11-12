@@ -7,8 +7,9 @@ import { slug } from './slug.ts';
 
 export const sitePresentation = z
   .strictObject({
-    groupBy: z.enum(['nothing', 'roll', 'event']).meta({
-      description: 'What the photos are split under.',
+    organiseBy: z.enum(['events', 'rolls', 'both']).meta({
+      description:
+        'Whether the built site is cards of its events, of its rolls, or both with a menu (D104).',
     }),
     captions: z
       .array(z.enum(['title', 'shot', 'camera', 'lens', 'film']))

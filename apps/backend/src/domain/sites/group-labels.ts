@@ -10,6 +10,9 @@ export function rollGroupLabel(
   return {
     key: roll.id,
     heading: [roll.roll, roll.name].filter(Boolean).join(' '),
+    // The roll's number and the last of its ID, as its folder is named, so two
+    // rolls numbered alike can't clash.
+    file: `${roll.roll}-${roll.id.slice(-8)}`,
   };
 }
 
@@ -19,5 +22,6 @@ export function eventGroupLabel(event: Event): GroupLabel {
     key: event.slug,
     heading: event.name,
     ...(event.date === null ? {} : { detail: shotLabel(event.date) }),
+    file: event.slug,
   };
 }

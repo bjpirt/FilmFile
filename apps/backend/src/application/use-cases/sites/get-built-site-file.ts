@@ -17,14 +17,17 @@ const contentTypes: Readonly<Record<string, string>> = {
   jpg: 'image/jpeg',
 };
 
-/** The page, or a file in `assets/` or `images/`, with names that can't climb out of them. */
+/**
+ * The cards pages, a roll's or event's page, or a file in `assets/` or
+ * `images/` (D104), with names that can't climb out of them.
+ */
 const served =
-  /^(?:index\.html|(?:assets|images)\/[A-Za-z0-9_-][A-Za-z0-9._-]*)$/;
+  /^(?:index\.html|rolls\.html|(?:rolls|events)\/[A-Za-z0-9_-][A-Za-z0-9._-]*\.html|(?:assets|images)\/[A-Za-z0-9_-][A-Za-z0-9._-]*)$/;
 
 /**
  * A file of a built site, to open the site in the browser (FF-120). Only what
- * a build makes for showing is given (its page, assets and images): never its
- * `site.json`, and never anything else in `Sites/`.
+ * a build makes for showing is given (its pages, assets and images, D104):
+ * never its `site.json`, and never anything else in `Sites/`.
  */
 export class GetBuiltSiteFile {
   readonly #folders: SiteFolders;

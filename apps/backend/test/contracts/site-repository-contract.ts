@@ -67,7 +67,7 @@ export function siteRepositoryContract(
       const sites = make();
       const shown = aSite('Iceland', {
         presentation: {
-          groupBy: 'event',
+          organiseBy: 'events',
           captions: ['title', 'shot', 'camera'],
         },
       });

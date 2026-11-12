@@ -12,7 +12,7 @@ const manifest: SiteManifest = {
   version: 1,
   options: {
     title: 'Iceland',
-    groupBy: 'event',
+    organiseBy: 'events',
     captions: ['title', 'shot'],
   },
   photos: [
@@ -22,8 +22,14 @@ const manifest: SiteManifest = {
       images: [{ src: 'images/a.jpg', width: 480, madeFrom: 'abc' }],
       width: 480,
       height: 320,
-      roll: { key: 'r', heading: '2026-014' },
-      event: { key: 'iceland', heading: 'Iceland', detail: '2026' },
+      rating: 4,
+      roll: { key: 'r', heading: '2026-014', file: '2026-014-AAAAAAAA' },
+      event: {
+        key: 'iceland',
+        heading: 'Iceland',
+        detail: '2026',
+        file: 'iceland',
+      },
       details: { title: 'Black beach', shot: '12 Sep 2026' },
     },
   ],

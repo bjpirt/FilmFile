@@ -16,6 +16,8 @@ export interface GroupLabel {
   readonly heading: string;
   /** A smaller line beside the heading, such as an event's date. */
   readonly detail?: string;
+  /** The name of its page on a site, without `.html` (D104). */
+  readonly file: string;
 }
 
 /** The words a photo's caption can be made of; each is left out when unknown. */
@@ -38,6 +40,8 @@ export interface SitePhoto {
   /** The widest image's shape, so the page keeps its place as images load. */
   readonly width: number;
   readonly height: number;
+  /** Its stars, to pick a card's best photos (FF-183). */
+  readonly rating: number | null;
   readonly roll: GroupLabel;
   /** Absent when the frame is in no event. */
   readonly event?: GroupLabel;

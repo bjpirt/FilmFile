@@ -3405,10 +3405,10 @@ export interface components {
         };
         SitePresentation: {
             /**
-             * @description What the photos are split under.
+             * @description Whether the built site is cards of its events, of its rolls, or both with a menu (D104).
              * @enum {string}
              */
-            groupBy: "nothing" | "roll" | "event";
+            organiseBy: "events" | "rolls" | "both";
             /** @description Which details appear under each photo. */
             captions: ("title" | "shot" | "camera" | "lens" | "film")[];
         };

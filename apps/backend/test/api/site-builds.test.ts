@@ -76,6 +76,13 @@ async function build(slug: string) {
 
 const siteFolder = (slug: string) => path.join(archive.folder(), 'Sites', slug);
 
+/** The text of a built site's one roll page. */
+async function rollPage(slug: string): Promise<string> {
+  const folder = path.join(siteFolder(slug), 'rolls');
+  const [file] = await readdir(folder);
+  return file === undefined ? '' : readFile(path.join(folder, file), 'utf8');
+}
+
 describe('POST /api/sites/{slug}/build', () => {
   test('leaves out a frame excluded by hand (D103)', async () => {
     const excluded = await aFrameWithAScan('1');
@@ -111,8 +118,11 @@ describe('POST /api/sites/{slug}/build', () => {
     });
     expect((await readdir(siteFolder(slug))).sort()).toEqual([
       'assets',
+      'events',
       'images',
       'index.html',
+      'rolls',
+      'rolls.html',
       'site.json',
     ]);
     expect(await readdir(path.join(siteFolder(slug), 'images'))).toHaveLength(
@@ -122,8 +132,8 @@ describe('POST /api/sites/{slug}/build', () => {
       path.join(siteFolder(slug), 'index.html'),
       'utf8',
     );
-    expect(page).toContain('<h1>Iceland highlights</h1>');
-    expect(page).toContain('Roll 2026-014, frame 2');
+    expect(page).toContain('>Iceland highlights</a></h1>');
+    expect(await rollPage(slug)).toContain('Roll 2026-014, frame 2');
   });
 
   test('makes images of the right size that say only who they are by', async () => {
@@ -209,7 +219,7 @@ describe('POST /api/sites/{slug}/build', () => {
     ).toContain('This site has no photos yet.');
   });
 
-  test('uses the site’s name as its title, with no intro, and its grouping and captions', async () => {
+  test('uses the site’s name as its title, how it is organised and its captions', async () => {
     await aFrameWithAScan('1');
     const slug = await aSite();
     const etag =
@@ -219,7 +229,7 @@ describe('POST /api/sites/{slug}/build', () => {
       headers: { 'Content-Type': 'application/json', 'If-Match': etag },
       body: JSON.stringify({
         presentation: {
-          groupBy: 'roll',
+          organiseBy: 'rolls',
           captions: ['shot'],
         },
       }),
@@ -232,10 +242,13 @@ describe('POST /api/sites/{slug}/build', () => {
       'utf8',
     );
     expect(page).toContain('<title>Iceland highlights</title>');
-    expect(page).toContain('<h1>Iceland highlights</h1>');
-    expect(page).not.toContain('class="intro"');
+    expect(page).toContain('>Iceland highlights</a></h1>');
     expect(page).toContain('<h2>2026-014</h2>');
-    expect(page).toContain('<figcaption>12 Sep 2026</figcaption>');
+    expect(page).not.toContain('class="views"');
+    expect(await readdir(siteFolder(slug))).not.toContain('events');
+    expect(await rollPage(slug)).toContain(
+      '<figcaption>12 Sep 2026</figcaption>',
+    );
   });
 
   test('says there is no such site', async () => {
@@ -301,7 +314,7 @@ describe('DELETE /api/sites/{slug}/build', () => {
 });
 
 describe('GET /built-sites/{slug}/', () => {
-  test('opens the built site: its page, stylesheet, script and images', async () => {
+  test('opens the built site: its cards, a roll’s and an event’s page, stylesheet, script and images', async () => {
     await aFrameWithAScan('1');
     const slug = await aSite();
     await build(slug);
@@ -310,12 +323,16 @@ describe('GET /built-sites/{slug}/', () => {
     expect(page.status).toBe(200);
     expect(page.headers.get('Content-Type')).toBe('text/html; charset=utf-8');
     const html = await page.text();
-    expect(html).toContain('<h1>Iceland highlights</h1>');
+    expect(html).toContain('>Iceland highlights</a></h1>');
     expect(page.headers.get('Content-Security-Policy')).toContain(
       "default-src 'self'",
     );
+    const rollFile = (await readdir(path.join(siteFolder(slug), 'rolls')))[0];
 
     for (const [file, type] of [
+      ['rolls.html', 'text/html; charset=utf-8'],
+      [`rolls/${rollFile ?? ''}`, 'text/html; charset=utf-8'],
+      ['events/_no-event.html', 'text/html; charset=utf-8'],
       ['assets/site.css', 'text/css; charset=utf-8'],
       ['assets/site.js', 'text/javascript; charset=utf-8'],
     ] as const) {
@@ -348,6 +365,10 @@ describe('GET /built-sites/{slug}/', () => {
       'assets/../site.json',
       'assets/nothing.css',
       'images/',
+      'rolls/nothing.html',
+      'rolls/../site.json',
+      'events/secret.txt',
+      'rolls.json',
     ]) {
       expect((await request(`/built-sites/${slug}/${file}`)).status, file).toBe(
         404,

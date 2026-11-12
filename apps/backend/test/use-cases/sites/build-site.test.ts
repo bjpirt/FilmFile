@@ -26,7 +26,7 @@ import { checked } from '../../support/checked.ts';
 const slug = checked('iceland-highlights', isSlug);
 const options: SiteOptions = {
   title: 'Iceland highlights',
-  groupBy: 'nothing',
+  organiseBy: 'both',
   captions: ['title'],
 };
 
@@ -115,8 +115,16 @@ function text(file: string | Uint8Array | undefined): string {
     : new TextDecoder().decode(file ?? new Uint8Array());
 }
 
+/** The text of the built site's one roll page. */
+function rollPage(
+  files: ReadonlyMap<string, string | Uint8Array> | undefined,
+): string {
+  const path = [...(files?.keys() ?? [])].find((p) => p.startsWith('rolls/'));
+  return path === undefined ? '' : text(files?.get(path));
+}
+
 describe('BuildSite', () => {
-  test('writes the page, its assets, the manifest and an image at each size for every frame', async () => {
+  test('writes the pages, its assets, the manifest and an image at each size for every frame', async () => {
     const archive = anArchive();
     const one = await archive.addFrame(1);
     const two = await archive.addFrame(2);
@@ -128,13 +136,18 @@ describe('BuildSite', () => {
       value: { photos: 2, leftOut: 0, imagesMade: 6, imagesUnchanged: 0 },
     });
     const files = archive.folders.sites.get(slug)?.files;
-    expect(
-      [...(files?.keys() ?? [])].filter((p) => !p.startsWith('images/')),
-    ).toEqual(['index.html', 'assets/site.css', 'assets/site.js', 'site.json']);
-    expect(
-      [...(files?.keys() ?? [])].filter((p) => p.startsWith('images/')),
-    ).toHaveLength(6);
-    expect(text(files?.get('index.html'))).toContain('Roll 2026-014, frame 2');
+    const paths = [...(files?.keys() ?? [])];
+    expect(paths.filter((p) => !p.startsWith('images/'))).toEqual([
+      'index.html',
+      'rolls.html',
+      'events/_no-event.html',
+      expect.stringMatching(/^rolls\/2026-014-[0-9A-Z]{8}\.html$/),
+      'assets/site.css',
+      'assets/site.js',
+      'site.json',
+    ]);
+    expect(paths.filter((p) => p.startsWith('images/'))).toHaveLength(6);
+    expect(rollPage(files)).toContain('Roll 2026-014, frame 2');
   });
 
   test('builds a site that is up to date again without touching it', async () => {
@@ -218,9 +231,9 @@ describe('BuildSite', () => {
 
     await archive.build([one]);
 
-    expect(
-      text(archive.folders.sites.get(slug)?.files.get('index.html')),
-    ).toContain('<figcaption>Black beach</figcaption>');
+    expect(rollPage(archive.folders.sites.get(slug)?.files)).toContain(
+      '<figcaption>Black beach</figcaption>',
+    );
   });
 
   test('refuses to build over a folder that holds something else, changing nothing', async () => {

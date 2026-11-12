@@ -230,9 +230,9 @@ async function bodyOf<T>(
   };
 }
 
-/** How a site is shown when nothing is said: one grid, each photo's title. */
+/** How a site is shown when nothing is said: cards of its events and its rolls, each photo's title. */
 export const plainPresentation: Site['presentation'] = {
-  groupBy: 'nothing',
+  organiseBy: 'both',
   captions: ['title'],
 };
 

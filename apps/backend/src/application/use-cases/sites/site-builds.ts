@@ -43,7 +43,7 @@ interface Job {
 function optionsOf(site: Site): SiteOptions {
   return {
     title: site.name,
-    groupBy: site.presentation.groupBy,
+    organiseBy: site.presentation.organiseBy,
     captions: site.presentation.captions,
   };
 }

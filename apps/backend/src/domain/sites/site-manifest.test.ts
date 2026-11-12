@@ -5,7 +5,7 @@ const manifest: SiteManifest = {
   version: 1,
   options: {
     title: 'Iceland',
-    groupBy: 'roll',
+    organiseBy: 'rolls',
     captions: ['title'],
   },
   photos: [],

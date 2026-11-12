@@ -46,36 +46,109 @@ a {
 }
 
 .site-header {
-  margin-bottom: var(--space-6);
-  max-width: 42rem;
+  align-items: baseline;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+  justify-content: space-between;
+  padding: var(--space-4);
+}
+
+.site-name {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.site-name a {
+  text-decoration: none;
+}
+
+/* "Events | Rolls" with Both (D104): the view shown in the accent colour. */
+.views {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.views a {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.views a[aria-current='page'] {
+  color: var(--accent);
 }
 
 h1 {
   font-size: 1.75rem;
   font-weight: 600;
-  margin: 0 0 var(--space-3);
+  margin: 0 0 var(--space-2);
 }
 
-.group {
-  margin-bottom: var(--space-6);
+.back {
+  color: var(--text-muted);
+  display: inline-block;
+  margin-bottom: var(--space-3);
+  text-decoration: none;
 }
 
-.group h2 {
-  align-items: baseline;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  flex-wrap: wrap;
+.group-meta {
+  color: var(--text-muted);
+  margin: 0 0 var(--space-5);
+}
+
+/* A card for each roll or event, as on the app's rolls and events pages. */
+.cards {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.card a {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: block;
+  overflow: hidden;
+  text-decoration: none;
+}
+
+.card a:hover {
+  border-color: var(--text-muted);
+}
+
+.peek {
+  background: #0b0c0d;
+  display: grid;
+  gap: 2px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.peek img,
+.peek-empty {
+  aspect-ratio: 3 / 2;
+  background: var(--placeholder);
+  display: block;
+  object-fit: cover;
+  width: 100%;
+}
+
+.card h2 {
   font-size: 1.1rem;
   font-weight: 600;
-  gap: var(--space-3);
-  margin: 0 0 var(--space-4);
-  padding-bottom: var(--space-2);
+  margin: 0;
+  padding: var(--space-3) var(--space-4) 0;
 }
 
-.group h2 small {
+.card p {
   color: var(--text-muted);
   font-size: 0.9rem;
-  font-weight: 400;
+  margin: 0;
+  padding: var(--space-2) var(--space-4) var(--space-4);
 }
 
 /* Rows that fill the width: each photo grows in proportion to its shape. */

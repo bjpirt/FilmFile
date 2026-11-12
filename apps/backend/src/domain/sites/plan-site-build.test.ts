@@ -11,7 +11,7 @@ import { isFrameId, type FrameId } from '../shared/ids.ts';
 
 const options: SiteOptions = {
   title: 'Iceland',
-  groupBy: 'nothing',
+  organiseBy: 'both',
   captions: ['title'],
 };
 
@@ -30,7 +30,8 @@ function aPhoto(name: string, hash = 'a', title = ''): SitePhoto {
     images: [{ src: `images/${name}-${hash}.jpg`, width: 640, madeFrom: hash }],
     width: 3,
     height: 2,
-    roll: { key: 'r', heading: 'Roll' },
+    rating: null,
+    roll: { key: 'r', heading: 'Roll', file: 'r' },
     details: title === '' ? {} : { title },
   };
 }
@@ -63,6 +64,7 @@ test('does not mistake the order of a photo’s fields for a change', () => {
   const shuffled: SitePhoto = {
     details: photo.details,
     roll: photo.roll,
+    rating: photo.rating,
     height: photo.height,
     width: photo.width,
     images: photo.images,
@@ -117,7 +119,7 @@ test('different options are out of date', () => {
   const photos = [aPhoto('1')];
   const plan = planSiteBuild(built(...photos), photos, {
     ...options,
-    groupBy: 'roll',
+    organiseBy: 'rolls',
   });
   expect(describeSiteStatus(plan.status)).toBe('Out of date: options changed');
 });

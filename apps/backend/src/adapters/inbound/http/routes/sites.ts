@@ -182,7 +182,7 @@ function siteBody({ site }: VersionedSite) {
     name: site.name,
     selection: selectionBody(site.selection),
     presentation: {
-      groupBy: site.presentation.groupBy,
+      organiseBy: site.presentation.organiseBy,
       captions: [...site.presentation.captions],
     },
   };

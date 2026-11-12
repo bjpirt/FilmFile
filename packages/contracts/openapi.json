@@ -2285,14 +2285,14 @@
       "SitePresentation": {
         "type": "object",
         "properties": {
-          "groupBy": {
+          "organiseBy": {
             "type": "string",
             "enum": [
-              "nothing",
-              "roll",
-              "event"
+              "events",
+              "rolls",
+              "both"
             ],
-            "description": "What the photos are split under."
+            "description": "Whether the built site is cards of its events, of its rolls, or both with a menu (D104)."
           },
           "captions": {
             "type": "array",
@@ -2311,7 +2311,7 @@
           }
         },
         "required": [
-          "groupBy",
+          "organiseBy",
           "captions"
         ],
         "additionalProperties": false

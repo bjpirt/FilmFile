@@ -294,6 +294,7 @@ export class BuildSite {
         images,
         width: widest.width,
         height: widest.height,
+        rating: frame.rating,
         roll: rollGroupLabel(roll),
         ...(eventLabel === undefined ? {} : { event: eventLabel }),
         details: {

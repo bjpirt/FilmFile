@@ -61,7 +61,8 @@ const storedRule = z.discriminatedUnion('kind', [
 const storedFrame = z.object({ roll: rollIdValue, frame: frameIdValue });
 
 const storedPresentation = z.object({
-  groupBy: z.enum(['nothing', 'roll', 'event']),
+  // Older files had `groupBy` instead (D104); not migrated, they read as Both.
+  organiseBy: z.enum(['events', 'rolls', 'both']).default('both'),
   captions: z.array(z.enum(['title', 'shot', 'camera', 'lens', 'film'])),
 });
 
@@ -152,7 +153,7 @@ export function siteFileContent(site: SiteDetails): string {
       ? {}
       : {
           presentation: {
-            groupBy: site.presentation.groupBy,
+            organiseBy: site.presentation.organiseBy,
             captions: [...site.presentation.captions],
           },
         }),

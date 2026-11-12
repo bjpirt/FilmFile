@@ -3,9 +3,14 @@ import { noEventHeading, groupPhotos } from './group-photos.ts';
 import type { GroupLabel, SitePhoto } from './site-photo.ts';
 import { isFrameId, type FrameId } from '../shared/ids.ts';
 
-const rollA: GroupLabel = { key: 'a', heading: '2026-001 Iceland' };
-const rollB: GroupLabel = { key: 'b', heading: '2026-002 Norway' };
-const iceland: GroupLabel = { key: 'ice', heading: 'Iceland', detail: '2026' };
+const rollA: GroupLabel = { key: 'a', heading: '2026-001 Iceland', file: 'a' };
+const rollB: GroupLabel = { key: 'b', heading: '2026-002 Norway', file: 'b' };
+const iceland: GroupLabel = {
+  key: 'ice',
+  heading: 'Iceland',
+  detail: '2026',
+  file: 'ice',
+};
 
 function frameId(name: string): FrameId {
   const id = name.padStart(26, '0');
@@ -22,6 +27,7 @@ function aPhoto(name: string, roll: GroupLabel, event?: GroupLabel): SitePhoto {
     images: [],
     width: 3,
     height: 2,
+    rating: null,
     roll,
     ...(event === undefined ? {} : { event }),
     details: {},

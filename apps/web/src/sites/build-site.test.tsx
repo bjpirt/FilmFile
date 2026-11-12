@@ -148,9 +148,8 @@ test('an edit makes an up-to-date site out of date', async () => {
   renderPage(archive);
   await screen.findByText('Up to date');
 
-  fireEvent.click(screen.getByLabelText('Group by'));
-  fireEvent.change(screen.getByLabelText('Group by'), {
-    target: { value: 'roll' },
+  fireEvent.change(screen.getByLabelText('Organise by'), {
+    target: { value: 'rolls' },
   });
 
   expect(await screen.findByText('Out of date: options changed')).toBeTruthy();
@@ -206,12 +205,18 @@ test('Cancel on the empty-site question builds nothing', async () => {
   expect(archive.siteBuilds).toEqual([]);
 });
 
-test('shows how the site is presented, with no page title or intro, as its name is its title', async () => {
+test('shows how the site is presented: "Organise by" at Both, and no page title, intro or Group by', async () => {
   renderPage(archiveWith());
 
-  expect(
-    await screen.findByLabelText<HTMLSelectElement>('Group by'),
-  ).toHaveProperty('value', 'nothing');
+  const organiseBy =
+    await screen.findByLabelText<HTMLSelectElement>('Organise by');
+  expect(organiseBy.value).toBe('both');
+  expect([...organiseBy.options].map((option) => option.text)).toEqual([
+    'Events',
+    'Rolls',
+    'Both',
+  ]);
+  expect(screen.queryByLabelText('Group by')).toBeNull();
   expect(screen.queryByLabelText('Page title')).toBeNull();
   expect(screen.queryByLabelText('Intro')).toBeNull();
   expect(screen.getByLabelText<HTMLInputElement>('Title').checked).toBe(true);
@@ -222,13 +227,13 @@ test('saves a choice at once', async () => {
   const archive = archiveWith();
   renderPage(archive);
 
-  fireEvent.change(await screen.findByLabelText('Group by'), {
-    target: { value: 'event' },
+  fireEvent.change(await screen.findByLabelText('Organise by'), {
+    target: { value: 'events' },
   });
   fireEvent.click(screen.getByLabelText('Camera'));
   await waitFor(() => {
     expect(archive.sites[0]?.presentation).toEqual({
-      groupBy: 'event',
+      organiseBy: 'events',
       captions: ['title', 'camera'],
     });
   });

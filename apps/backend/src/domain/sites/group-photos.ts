@@ -16,7 +16,12 @@ export interface PhotoGroup<T extends Groupable = SitePhoto> {
   readonly photos: readonly T[];
 }
 
-const noEvent: GroupLabel = { key: 'no-event', heading: noEventHeading };
+// Its page is `_no-event.html`: a slug never starts with `_`, so no event's can clash.
+const noEvent: GroupLabel = {
+  key: 'no-event',
+  heading: noEventHeading,
+  file: '_no-event',
+};
 
 /**
  * Splits photos (already in shot order) under their roll or event, in the

@@ -8,17 +8,20 @@ import type { GroupLabel } from '../../../domain/sites/site-photo.ts';
 // checks every field: a `site.json` that isn't one is treated as not a
 // site's, and left alone.
 
+// Fields added since a site was first built (D104) default when missing, so
+// an older site.json still reads as a site's, only out of date.
 const groupLabel = z.object({
   key: z.string(),
   heading: z.string(),
   detail: z.string().optional(),
+  file: z.string().default(''),
 });
 
 const storedManifest = z.object({
   version: z.literal(1),
   options: z.object({
     title: z.string(),
-    groupBy: z.enum(['nothing', 'roll', 'event']),
+    organiseBy: z.enum(['events', 'rolls', 'both']).default('both'),
     captions: z.array(z.enum(['title', 'shot', 'camera', 'lens', 'film'])),
   }),
   photos: z.array(
@@ -37,6 +40,7 @@ const storedManifest = z.object({
       ),
       width: z.number(),
       height: z.number(),
+      rating: z.number().nullable().default(null),
       roll: groupLabel,
       event: groupLabel.optional(),
       details: z.object({
@@ -55,6 +59,7 @@ function label(stored: z.infer<typeof groupLabel>): GroupLabel {
     key: stored.key,
     heading: stored.heading,
     ...(stored.detail === undefined ? {} : { detail: stored.detail }),
+    file: stored.file,
   };
 }
 
@@ -70,6 +75,7 @@ export function parseSiteManifestFile(text: string): SiteManifest {
       images: photo.images,
       width: photo.width,
       height: photo.height,
+      rating: photo.rating,
       roll: label(photo.roll),
       ...(photo.event === undefined ? {} : { event: label(photo.event) }),
       details: {
