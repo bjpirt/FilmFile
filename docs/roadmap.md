@@ -221,10 +221,10 @@ Getting frames out as files, simplest first, all through one Export dialog (D97)
 
 A site is a saved description of which frames to share (a selection of frames, shared with exports, D93) and how to present them, built whenever you like into a self-contained static website in `Sites/<site>/`, always from the archive as it is, and made again only where something changed (D91, D92). It comes after exports (group 12), whose image rendering it shares. Putting a built site on the web is a separate step.
 
-- [ ] [FF-120 Build a site](tasks/FF-120.md): a self-contained static site of a site's frames in `Sites/<site>/`, grouped by roll or event if chosen, knowing when it's up to date and making again only what changed.
 - [ ] [later] [FF-121 Publish a site](tasks/FF-121.md): upload a built site to S3 or Cloudflare R2, and take it down again.
 - [ ] [later] [FF-162 Make a site or export from the Browse filters](tasks/FF-162.md): start one from the rolls page's filters.
 - [ ] [later] [FF-163 Add selected frames to a site or export](tasks/FF-163.md): pin or hide selected frames on one from the roll and event pages.
+- [x] [FF-120 Build a site](tasks/FF-120.md)
 - [x] [FF-119 Sites](tasks/FF-119.md)
 - [x] [FF-177 Frame selections](tasks/FF-177.md)
 
