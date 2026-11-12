@@ -1775,6 +1775,368 @@
           "leftOut"
         ]
       },
+      "SearchFramesResponse": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer"
+          },
+          "frames": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "rollId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                  "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+                },
+                "frameId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                  "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+                },
+                "why": {
+                  "type": "string",
+                  "enum": [
+                    "rules",
+                    "pinned"
+                  ],
+                  "description": "Why it is on the selection."
+                }
+              },
+              "required": [
+                "rollId",
+                "frameId",
+                "why"
+              ]
+            }
+          }
+        },
+        "required": [
+          "count",
+          "frames"
+        ],
+        "description": "The matching frames in shot order, and how many."
+      },
+      "FrameSelection": {
+        "type": "object",
+        "properties": {
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SelectionRule"
+            },
+            "maxItems": 50
+          },
+          "pinned": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "rollId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                  "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+                },
+                "frameId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                  "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+                }
+              },
+              "required": [
+                "rollId",
+                "frameId"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 5000,
+            "description": "Frames always included, whatever the rules say (\"Always include\")."
+          },
+          "hidden": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "rollId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                  "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+                },
+                "frameId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                  "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+                }
+              },
+              "required": [
+                "rollId",
+                "frameId"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 5000,
+            "description": "Frames never included (\"Never include\")."
+          }
+        },
+        "required": [
+          "rules",
+          "pinned",
+          "hidden"
+        ],
+        "additionalProperties": false,
+        "description": "Which frames: those meeting every rule (all of them with no rules), plus those pinned, minus those left off. A hidden frame is never on one."
+      },
+      "SelectionRule": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "rating"
+                ]
+              },
+              "atLeast": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "enum": [
+                      1
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "enum": [
+                      2
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "enum": [
+                      3
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "enum": [
+                      4
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "enum": [
+                      5
+                    ]
+                  }
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "atLeast"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "event"
+                ]
+              },
+              "events": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 60,
+                  "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                  "example": "nikon-fe"
+                },
+                "maxItems": 500
+              }
+            },
+            "required": [
+              "kind",
+              "events"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "roll"
+                ]
+              },
+              "rolls": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                  "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+                },
+                "maxItems": 500
+              }
+            },
+            "required": [
+              "kind",
+              "rolls"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "camera"
+                ]
+              },
+              "cameras": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 60,
+                  "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                  "example": "nikon-fe"
+                },
+                "maxItems": 500
+              }
+            },
+            "required": [
+              "kind",
+              "cameras"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "lens"
+                ]
+              },
+              "lenses": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 60,
+                  "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                  "example": "nikon-fe"
+                },
+                "maxItems": 500
+              }
+            },
+            "required": [
+              "kind",
+              "lenses"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "film"
+                ]
+              },
+              "films": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 60,
+                  "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                  "example": "nikon-fe"
+                },
+                "maxItems": 500
+              }
+            },
+            "required": [
+              "kind",
+              "films"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "shot-after"
+                ]
+              },
+              "date": {
+                "type": "string",
+                "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
+                "example": "2026-09"
+              }
+            },
+            "required": [
+              "kind",
+              "date"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "shot-before"
+                ]
+              },
+              "date": {
+                "type": "string",
+                "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
+                "example": "2026-09"
+              }
+            },
+            "required": [
+              "kind",
+              "date"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "has"
+                ]
+              },
+              "version": {
+                "type": "string",
+                "enum": [
+                  "final",
+                  "raw-scan"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "version"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "description": "One condition a frame must meet. A list of values is \"any of these\"; a frame must meet every rule."
+      },
       "Settings": {
         "type": "object",
         "properties": {
@@ -4089,6 +4451,44 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/frames/search": {
+      "post": {
+        "summary": "Find the frames on a selection",
+        "description": "Works out, from the archive as it is now, which frames meet the rules (and are pinned, and not left off), in shot order. Nothing is saved.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FrameSelection"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The matching frames and their count.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchFramesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
                 }
               }
             }

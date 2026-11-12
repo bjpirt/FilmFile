@@ -2068,6 +2068,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/frames/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Find the frames on a selection
+         * @description Works out, from the archive as it is now, which frames meet the rules (and are pinned, and not left off), in shot order. Nothing is saved.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["FrameSelection"];
+                };
+            };
+            responses: {
+                /** @description The matching frames and their count. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SearchFramesResponse"];
+                    };
+                };
+                /** @description The request is invalid. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings": {
         parameters: {
             query?: never;
@@ -2802,6 +2854,80 @@ export interface components {
             written: number;
             /** @description Frames that could not be made, listed in a skipped.txt in the folder. */
             leftOut: number;
+        };
+        /** @description The matching frames in shot order, and how many. */
+        SearchFramesResponse: {
+            count: number;
+            frames: {
+                /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
+                rollId: string;
+                /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
+                frameId: string;
+                /**
+                 * @description Why it is on the selection.
+                 * @enum {string}
+                 */
+                why: "rules" | "pinned";
+            }[];
+        };
+        /** @description Which frames: those meeting every rule (all of them with no rules), plus those pinned, minus those left off. A hidden frame is never on one. */
+        FrameSelection: {
+            rules: components["schemas"]["SelectionRule"][];
+            /** @description Frames always included, whatever the rules say ("Always include"). */
+            pinned: {
+                /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
+                rollId: string;
+                /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
+                frameId: string;
+            }[];
+            /** @description Frames never included ("Never include"). */
+            hidden: {
+                /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
+                rollId: string;
+                /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
+                frameId: string;
+            }[];
+        };
+        /** @description One condition a frame must meet. A list of values is "any of these"; a frame must meet every rule. */
+        SelectionRule: {
+            /** @enum {string} */
+            kind: "rating";
+            atLeast: 1 | 2 | 3 | 4 | 5;
+        } | {
+            /** @enum {string} */
+            kind: "event";
+            events: string[];
+        } | {
+            /** @enum {string} */
+            kind: "roll";
+            rolls: string[];
+        } | {
+            /** @enum {string} */
+            kind: "camera";
+            cameras: string[];
+        } | {
+            /** @enum {string} */
+            kind: "lens";
+            lenses: string[];
+        } | {
+            /** @enum {string} */
+            kind: "film";
+            films: string[];
+        } | {
+            /** @enum {string} */
+            kind: "shot-after";
+            /** @example 2026-09 */
+            date: string;
+        } | {
+            /** @enum {string} */
+            kind: "shot-before";
+            /** @example 2026-09 */
+            date: string;
+        } | {
+            /** @enum {string} */
+            kind: "has";
+            /** @enum {string} */
+            version: "final" | "raw-scan";
         };
         Settings: {
             id: string;

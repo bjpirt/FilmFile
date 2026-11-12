@@ -1,6 +1,7 @@
 import type { SettingsUseCases } from '../adapters/inbound/http/routes/settings.ts';
 import type { EquipmentUseCases } from '../adapters/inbound/http/routes/equipment.ts';
 import type { EventUseCases } from '../adapters/inbound/http/routes/events.ts';
+import type { FrameSelectionUseCases } from '../adapters/inbound/http/routes/frames.ts';
 import type { ExportUseCases } from '../adapters/inbound/http/routes/exports.ts';
 import type { RollUseCases } from '../adapters/inbound/http/routes/rolls.ts';
 import type { SettingsRepository } from '../application/ports/settings-repository.ts';
@@ -19,6 +20,7 @@ import type { RollRepository } from '../application/ports/roll-repository.ts';
 import { FolderExports } from '../application/use-cases/exports/folder-exports.ts';
 import { MakeQuickExport } from '../application/use-cases/exports/make-quick-export.ts';
 import { PrepareQuickExport } from '../application/use-cases/exports/prepare-quick-export.ts';
+import { SearchFrames } from '../application/use-cases/selections/search-frames.ts';
 import { GetSettings } from '../application/use-cases/settings/get-settings.ts';
 import { InitialiseSettings } from '../application/use-cases/settings/initialise-settings.ts';
 import { UpdateSettings } from '../application/use-cases/settings/update-settings.ts';
@@ -88,6 +90,7 @@ export function useCasesFor({
   EquipmentUseCases &
   EventUseCases &
   ExportUseCases &
+  FrameSelectionUseCases &
   SettingsUseCases {
   const makeQuickExport = new MakeQuickExport(
     rolls,
@@ -124,6 +127,7 @@ export function useCasesFor({
     prepareQuickExport: new PrepareQuickExport(rolls, tickets),
     makeQuickExport,
     folderExports: new FolderExports(rolls, makeQuickExport, destination),
+    searchFrames: new SearchFrames(rolls, settings),
     listCameras: new ListCameras(equipment),
     createCamera: new CreateCamera(equipment),
     listFilmStocks: new ListFilmStocks(equipment),
