@@ -12,6 +12,9 @@ import {
   pin,
   putBack,
 } from '../selections/selection-edit.ts';
+import { useFrameSearch } from '../selections/use-frame-search.ts';
+import { BuildPanel } from './build-panel.tsx';
+import { PresentationFields } from './presentation-fields.tsx';
 import { useSiteSaver, type SaveState } from './use-site-saver.ts';
 
 const messages: Readonly<Record<SaveState, string | undefined>> = {
@@ -47,12 +50,17 @@ function SiteEditor({
       return data;
     },
   });
+  const found = useFrameSearch(api, site.selection).found;
   const saver = useSiteSaver({
     api,
     slug: loaded.slug,
     etag,
     saved: (saved) => {
-      void queryClient.invalidateQueries({ queryKey: ['sites'] });
+      void queryClient.invalidateQueries({ queryKey: ['sites'], exact: true });
+      // Whether the site is up to date depends on what was just changed.
+      void queryClient.invalidateQueries({
+        queryKey: ['sites', saved.slug, 'status'],
+      });
       if (window.location.pathname !== `/sites/${saved.slug}`) {
         // The address follows the name.
         navigate(`/sites/${saved.slug}`, { replace: true });
@@ -64,6 +72,11 @@ function SiteEditor({
   function select(selection: FrameSelection) {
     setSite({ ...site, selection });
     void saver.save({ selection });
+  }
+
+  function present(presentation: Site['presentation']) {
+    setSite({ ...site, presentation });
+    void saver.save({ presentation });
   }
 
   function rename(event: SubmitEvent) {
@@ -166,6 +179,12 @@ function SiteEditor({
           {messages[saver.state]}
         </p>
       )}
+      <PresentationFields
+        presentation={site.presentation}
+        siteName={site.name}
+        change={present}
+      />
+      <BuildPanel api={api} slug={site.slug} frameCount={found?.count} />
       <FrameSelectionEditor
         api={api}
         selection={site.selection}

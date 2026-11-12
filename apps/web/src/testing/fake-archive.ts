@@ -70,7 +70,10 @@ export interface ArchiveContents {
   readonly films?: readonly FilmStock[];
   readonly lenses?: readonly Lens[];
   readonly events?: readonly Event[];
-  readonly sites?: readonly Site[];
+  /** Sites, plainly presented unless they say how. */
+  readonly sites?: readonly (Omit<Site, 'presentation'> & {
+    readonly presentation?: Site['presentation'];
+  })[];
   /** FilmFile's settings; set up by default, or null if they aren't yet. */
   readonly settings?: Settings | null;
   /** Whether the service can export into a folder the desktop app chooses (D100). */
@@ -81,6 +84,23 @@ export interface ArchiveContents {
     readonly done: number;
     readonly written: number;
     readonly leftOut?: number;
+  }[];
+  /** How each site starts out: not built, unless said. */
+  readonly siteStatuses?: Readonly<
+    Record<
+      string,
+      {
+        readonly freshness:
+          'not-built' | 'up-to-date' | 'out-of-date' | 'in-the-way';
+        readonly message: string;
+      }
+    >
+  >;
+  /** What a build's progress says as it's asked after, one after another; the last is kept. */
+  readonly siteBuildStates?: readonly {
+    readonly state: 'running' | 'done' | 'cancelled' | 'failed';
+    readonly done: number;
+    readonly total: number;
   }[];
   /** Whether the person cancels the folder chooser. */
   readonly folderChooserCancelled?: boolean;
@@ -210,6 +230,14 @@ async function bodyOf<T>(
   };
 }
 
+/** How a site is shown when nothing is said: its name, no intro, one grid, each photo's title. */
+export const plainPresentation: Site['presentation'] = {
+  title: null,
+  intro: '',
+  groupBy: 'nothing',
+  captions: ['title'],
+};
+
 export function fakeArchive(contents: ArchiveContents = {}) {
   const rolls: Roll[] = (contents.rolls ?? []).map((roll) => ({
     ...roll,
@@ -220,7 +248,10 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   const films = [...(contents.films ?? [])];
   const lenses = [...(contents.lenses ?? [])];
   const events = [...(contents.events ?? [])];
-  const sites: Site[] = [...(contents.sites ?? [])];
+  const sites: Site[] = (contents.sites ?? []).map((site) => ({
+    ...site,
+    presentation: site.presentation ?? plainPresentation,
+  }));
   let settings =
     contents.settings === undefined ? setUpSettings : contents.settings;
   /** Every request, as "METHOD /path?query". */
@@ -234,6 +265,14 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   /** The body of every request to export a frame once. */
   const quickExports: unknown[] = [];
   const searches: unknown[] = [];
+  /** The slug of every site a build was started for, and every build cancelled. */
+  const siteBuilds: string[] = [];
+  const siteBuildsCancelled: string[] = [];
+  const siteFreshness = new Map<string, { freshness: string; message: string }>(
+    Object.entries(contents.siteStatuses ?? {}),
+  );
+  let siteBuildCalls = 0;
+  let building: string | undefined;
   /** Every change to a site: which one, and what was sent. */
   const siteUpdates: { slug: string; body: unknown }[] = [];
   /** The body of every request to export into a folder, and the exports cancelled. */
@@ -959,9 +998,69 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       }));
   }
 
+  /** Building a site and asking how it stands, as the service answers. */
+  function siteBuild(
+    request: Request,
+    slug: string,
+    what: 'build' | 'status',
+  ): Response {
+    const states = contents.siteBuildStates ?? [
+      { state: 'done' as const, done: 3, total: 3 },
+    ];
+    if (what === 'build') {
+      if (request.method === 'DELETE') {
+        siteBuildsCancelled.push(slug);
+        return new Response(null, { status: 204 });
+      }
+      siteBuilds.push(slug);
+      siteBuildCalls = 0;
+      building = slug;
+      return Response.json(
+        {
+          state: 'running',
+          done: 0,
+          total: 0,
+          photos: 0,
+          leftOut: 0,
+          imagesMade: 0,
+          imagesUnchanged: 0,
+        },
+        { status: 202 },
+      );
+    }
+    const stated = siteFreshness.get(slug) ?? {
+      freshness: 'not-built',
+      message: 'Not built yet',
+    };
+    if (building !== slug) {
+      return Response.json({ ...stated, build: null });
+    }
+    siteBuildCalls += 1;
+    const now = states[Math.min(siteBuildCalls, states.length) - 1];
+    if (now?.state === 'done') {
+      siteFreshness.set(slug, {
+        freshness: 'up-to-date',
+        message: 'Up to date',
+      });
+    }
+    return Response.json({
+      ...(now?.state === 'done'
+        ? { freshness: 'up-to-date', message: 'Up to date' }
+        : stated),
+      build: {
+        photos: 2,
+        leftOut: 0,
+        imagesMade: 3,
+        imagesUnchanged: 1,
+        ...now,
+      },
+    });
+  }
+
   async function sitesRoute(
     request: Request,
     slug: string | undefined,
+    below?: string,
   ): Promise<Response> {
     if (slug === undefined) {
       if (request.method === 'GET') {
@@ -984,6 +1083,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         slug: slugFor(body.value.name),
         name: body.value.name,
         selection: { rules: [], pinned: [], hidden: [] },
+        presentation: plainPresentation,
       };
       if (sites.some((site) => site.slug === made.slug)) {
         return Response.json(
@@ -1001,6 +1101,9 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     const current = sites[index];
     if (current === undefined) {
       return notFound();
+    }
+    if (below === 'build' || below === 'status') {
+      return siteBuild(request, slug, below);
     }
     const key = `site:${slug}`;
     if (request.method === 'GET') {
@@ -1039,9 +1142,18 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       ...(body.value.selection === undefined
         ? {}
         : { selection: body.value.selection }),
+      ...(body.value.presentation === undefined
+        ? {}
+        : { presentation: body.value.presentation }),
     };
     sites[index] = updated;
     change(`site:${newSlug}`);
+    if (siteFreshness.get(slug)?.freshness === 'up-to-date') {
+      siteFreshness.set(newSlug, {
+        freshness: 'out-of-date',
+        message: 'Out of date: options changed',
+      });
+    }
     siteUpdates.push({ slug, body: body.value });
     return Response.json(updated, {
       headers: { ETag: etagOf(`site:${newSlug}`) },
@@ -1128,7 +1240,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       case 'frames':
         return searchFrames(request);
       case 'sites':
-        return sitesRoute(request, rest[0]);
+        return sitesRoute(request, rest[0], rest[1]);
       case 'health':
         return Response.json({
           status: 'ok',
@@ -1192,6 +1304,15 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     searches,
     sites,
     siteUpdates,
+    siteBuilds,
+    siteBuildsCancelled,
+    /** Changes how a site stands, as an edit elsewhere would. */
+    setSiteStatus(
+      slug: string,
+      status: { freshness: string; message: string },
+    ) {
+      siteFreshness.set(slug, status);
+    },
     folderExports,
     folderExportsCancelled,
     /** Stops answering, as a stopped service behind a proxy would: every request gets a 502. */

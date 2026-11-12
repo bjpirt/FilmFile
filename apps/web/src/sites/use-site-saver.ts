@@ -5,6 +5,7 @@ import { useRef, useState } from 'react';
 interface Change {
   readonly name?: string;
   readonly selection?: Site['selection'];
+  readonly presentation?: Site['presentation'];
 }
 
 export type SaveState =
