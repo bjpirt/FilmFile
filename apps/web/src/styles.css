@@ -1948,3 +1948,61 @@ textarea {
   color: var(--accent);
   font-size: 0.85rem;
 }
+
+/* Sites (FF-119) */
+
+.site-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.site-count {
+  color: var(--text-muted);
+}
+
+.site-name {
+  align-items: flex-end;
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.site-name label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.save-state {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.frame-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.frame-choices button,
+.hidden-frame button {
+  font-size: 0.85rem;
+  min-height: 2rem;
+}
+
+.hidden-frames {
+  margin-top: var(--space-6);
+}
+
+.hidden-count {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.hidden-frame img {
+  opacity: 0.5;
+}

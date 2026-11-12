@@ -10,6 +10,8 @@ import { RollFramePage } from './frames/roll-frame-page.tsx';
 import { ImportRollsPage } from './rolls/import-rolls-page.tsx';
 import { NewRollPage } from './rolls/new-roll-page.tsx';
 import { RollPage } from './rolls/roll-page.tsx';
+import { SitePage } from './sites/site-page.tsx';
+import { SitesPage } from './sites/sites-page.tsx';
 import { useState } from 'react';
 import { RollsPage } from './rolls/rolls-page.tsx';
 import {
@@ -19,6 +21,7 @@ import {
 import { Link, usePath } from './routing.tsx';
 
 const rollPath = /^\/rolls\/([0-9A-HJKMNP-TV-Z]{26})$/;
+const sitePath = /^\/sites\/([a-z0-9]+(?:-[a-z0-9]+)*)$/;
 const eventPath = /^\/events\/([a-z0-9]+(?:-[a-z0-9]+)*)$/;
 const rollFramePath =
   /^\/rolls\/([0-9A-HJKMNP-TV-Z]{26})\/frames\/([0-9A-HJKMNP-TV-Z]{26})$/;
@@ -44,6 +47,13 @@ function Page({
   }
   if (path === '/events') {
     return <EventsPage api={api} />;
+  }
+  if (path === '/sites') {
+    return <SitesPage api={api} />;
+  }
+  const siteSlug = sitePath.exec(path)?.[1];
+  if (siteSlug !== undefined) {
+    return <SitePage api={api} slug={siteSlug} />;
   }
   if (path === '/rolls/new') {
     return <NewRollPage api={api} />;
@@ -172,6 +182,9 @@ export function App({ api }: { readonly api: ApiClient }) {
           </Link>
           <Link to="/events" current={path.startsWith('/events')}>
             Events
+          </Link>
+          <Link to="/sites" current={path.startsWith('/sites')}>
+            Sites
           </Link>
           <Link to="/settings" current={path === '/settings'}>
             Settings

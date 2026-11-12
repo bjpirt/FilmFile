@@ -32,6 +32,11 @@ import {
 } from '@filmfile/contracts/exports';
 import { frameSelection } from '@filmfile/contracts/selections';
 import {
+  createSiteRequest,
+  updateSiteRequest,
+  type Site,
+} from '@filmfile/contracts/sites';
+import {
   createSettingsRequest,
   updateSettingsRequest,
   type Settings,
@@ -65,6 +70,7 @@ export interface ArchiveContents {
   readonly films?: readonly FilmStock[];
   readonly lenses?: readonly Lens[];
   readonly events?: readonly Event[];
+  readonly sites?: readonly Site[];
   /** FilmFile's settings; set up by default, or null if they aren't yet. */
   readonly settings?: Settings | null;
   /** Whether the service can export into a folder the desktop app chooses (D100). */
@@ -214,6 +220,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   const films = [...(contents.films ?? [])];
   const lenses = [...(contents.lenses ?? [])];
   const events = [...(contents.events ?? [])];
+  const sites: Site[] = [...(contents.sites ?? [])];
   let settings =
     contents.settings === undefined ? setUpSettings : contents.settings;
   /** Every request, as "METHOD /path?query". */
@@ -227,6 +234,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   /** The body of every request to export a frame once. */
   const quickExports: unknown[] = [];
   const searches: unknown[] = [];
+  /** Every change to a site: which one, and what was sent. */
+  const siteUpdates: { slug: string; body: unknown }[] = [];
   /** The body of every request to export into a folder, and the exports cancelled. */
   const folderExports: unknown[] = [];
   const folderExportsCancelled: string[] = [];
@@ -922,6 +931,124 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   }
 
   /**
+   * The frames on a selection as the fake knows them: every frame that isn't
+   * hidden, minus those left off, with those pinned marked. Rules aren't
+   * matched (the service's tests do that).
+   */
+  function framesOn(selection: {
+    readonly pinned: readonly { rollId: string; frameId: string }[];
+    readonly hidden: readonly { rollId: string; frameId: string }[];
+  }) {
+    const is = (
+      list: readonly { rollId: string; frameId: string }[],
+      r: string,
+      f: string,
+    ) => list.some((ref) => ref.rollId === r && ref.frameId === f);
+    return rolls
+      .flatMap((roll) =>
+        roll.frames
+          .filter((frame) => !frame.hidden)
+          .map((frame) => ({ rollId: roll.id, frameId: frame.id })),
+      )
+      .filter(({ rollId, frameId }) => !is(selection.hidden, rollId, frameId))
+      .map((ref) => ({
+        ...ref,
+        why: is(selection.pinned, ref.rollId, ref.frameId)
+          ? ('pinned' as const)
+          : ('rules' as const),
+      }));
+  }
+
+  async function sitesRoute(
+    request: Request,
+    slug: string | undefined,
+  ): Promise<Response> {
+    if (slug === undefined) {
+      if (request.method === 'GET') {
+        return Response.json({
+          sites: [...sites]
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((site) => ({
+              slug: site.slug,
+              name: site.name,
+              frameCount: framesOn(site.selection).length,
+            })),
+        });
+      }
+      const body = await bodyOf(request, createSiteRequest);
+      if (!body.ok) {
+        return body.response;
+      }
+      const made: Site = {
+        id: newId(),
+        slug: slugFor(body.value.name),
+        name: body.value.name,
+        selection: { rules: [], pinned: [], hidden: [] },
+      };
+      if (sites.some((site) => site.slug === made.slug)) {
+        return Response.json(
+          { error: `site ${made.slug} already exists` },
+          { status: 409 },
+        );
+      }
+      sites.push(made);
+      return Response.json(made, {
+        status: 201,
+        headers: { ETag: etagOf(`site:${made.slug}`) },
+      });
+    }
+    const index = sites.findIndex((site) => site.slug === slug);
+    const current = sites[index];
+    if (current === undefined) {
+      return notFound();
+    }
+    const key = `site:${slug}`;
+    if (request.method === 'GET') {
+      return Response.json(current, { headers: { ETag: etagOf(key) } });
+    }
+    if (request.method === 'DELETE') {
+      sites.splice(index, 1);
+      return new Response(null, { status: 204 });
+    }
+    if (savesFail) {
+      return new Response('', { status: 500 });
+    }
+    const refused = checkIfMatch(request, key);
+    if (refused !== undefined) {
+      return Response.json(
+        { error: 'the site has changed since it was read' },
+        { status: 409 },
+      );
+    }
+    const body = await bodyOf(request, updateSiteRequest);
+    if (!body.ok) {
+      return body.response;
+    }
+    const name = body.value.name ?? current.name;
+    const newSlug = slugFor(name);
+    if (newSlug !== slug && sites.some((site) => site.slug === newSlug)) {
+      return Response.json(
+        { error: `site ${newSlug} already exists` },
+        { status: 409 },
+      );
+    }
+    const updated: Site = {
+      ...current,
+      slug: newSlug,
+      name,
+      ...(body.value.selection === undefined
+        ? {}
+        : { selection: body.value.selection }),
+    };
+    sites[index] = updated;
+    change(`site:${newSlug}`);
+    siteUpdates.push({ slug, body: body.value });
+    return Response.json(updated, {
+      headers: { ETag: etagOf(`site:${newSlug}`) },
+    });
+  }
+
+  /**
    * Finds frames as the service does, except that it doesn't match rules (the
    * service's tests do): every frame that isn't hidden, minus those left off,
    * with those pinned marked. What it was asked is in `searches`.
@@ -932,24 +1059,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       return body.response;
     }
     searches.push(body.value);
-    const is = (
-      list: readonly { rollId: string; frameId: string }[],
-      r: string,
-      f: string,
-    ) => list.some((ref) => ref.rollId === r && ref.frameId === f);
-    const frames = rolls
-      .flatMap((roll) =>
-        roll.frames
-          .filter((frame) => !frame.hidden)
-          .map((frame) => ({ rollId: roll.id, frameId: frame.id })),
-      )
-      .filter(({ rollId, frameId }) => !is(body.value.hidden, rollId, frameId))
-      .map((ref) => ({
-        ...ref,
-        why: is(body.value.pinned, ref.rollId, ref.frameId)
-          ? ('pinned' as const)
-          : ('rules' as const),
-      }));
+    const frames = framesOn(body.value);
     return Response.json({ count: frames.length, frames });
   }
 
@@ -1017,6 +1127,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
           : quickExport(request);
       case 'frames':
         return searchFrames(request);
+      case 'sites':
+        return sitesRoute(request, rest[0]);
       case 'health':
         return Response.json({
           status: 'ok',
@@ -1078,6 +1190,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     deleted,
     quickExports,
     searches,
+    sites,
+    siteUpdates,
     folderExports,
     folderExportsCancelled,
     /** Stops answering, as a stopped service behind a proxy would: every request gets a 502. */
@@ -1097,6 +1211,10 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     /** Changes the settings elsewhere, as another tab would. */
     changeSettings() {
       change('settings');
+    },
+    /** Changes a site elsewhere, as another tab would, so the page's version is stale. */
+    changeSite(slug: string) {
+      change(`site:${slug}`);
     },
     /** Changes an event elsewhere, as another tab would. */
     changeEvent(slug: string) {

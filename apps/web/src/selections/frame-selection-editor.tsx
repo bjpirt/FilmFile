@@ -24,7 +24,7 @@ export function FrameSelectionEditor({
   readonly api: ApiClient;
   readonly selection: FrameSelection;
   readonly change: (selection: FrameSelection) => void;
-  readonly frameActions?: (frame: FoundFrame) => ReactNode;
+  readonly frameActions?: (frame: FoundFrame, name: string) => ReactNode;
 }) {
   const { found, failed } = useFrameSearch(api, selection);
   const rolls = useQuery({

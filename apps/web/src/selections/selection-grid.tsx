@@ -28,7 +28,8 @@ export function SelectionGrid({
 }: {
   readonly rolls: readonly Roll[];
   readonly frames: readonly FoundFrame[];
-  readonly actions?: (frame: FoundFrame) => ReactNode;
+  /** Given the frame and its name, "Roll 2026-014, frame 12", for naming its buttons. */
+  readonly actions?: (frame: FoundFrame, name: string) => ReactNode;
 }) {
   return (
     <ul className="contact-sheet selection-grid">
@@ -38,18 +39,16 @@ export function SelectionGrid({
         if (roll === undefined || frame === undefined) {
           return null;
         }
+        const name = `Roll ${roll.roll}, frame ${frame.number ?? 'with no number'}`;
         return (
           <li key={`${found.rollId}-${found.frameId}`}>
-            <Link
-              to={`/rolls/${roll.id}/frames/${frame.id}`}
-              aria-label={`Roll ${roll.roll}, frame ${frame.number ?? 'with no number'}`}
-            >
+            <Link to={`/rolls/${roll.id}/frames/${frame.id}`} aria-label={name}>
               <Thumbnail rollId={roll.id} frame={frame} decorative />
             </Link>
             {found.why === 'pinned' && (
               <span className="always-included">Always included</span>
             )}
-            {actions?.(found)}
+            {actions?.(found, name)}
           </li>
         );
       })}
