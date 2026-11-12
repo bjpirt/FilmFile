@@ -1,19 +1,27 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import type { FrameSelection } from '@filmfile/contracts/selections';
 import { useQuery } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
-import { RuleEditor } from './rule-editor.tsx';
+import { useState, type ReactNode } from 'react';
 import {
-  MatchCount,
-  SelectionGrid,
-  type FoundFrame,
-} from './selection-grid.tsx';
+  rememberPreviewBy,
+  rememberedPreviewBy,
+  type PreviewBy,
+} from './preview-by-preference.ts';
+import { RuleEditor } from './rule-editor.tsx';
+import { SelectionGroups } from './selection-groups.tsx';
+import { MatchCount, type FoundFrame } from './selection-grid.tsx';
 import { useFrameSearch } from './use-frame-search.ts';
+
+const previewChoices: readonly { value: PreviewBy; label: string }[] = [
+  { value: 'roll', label: 'Roll' },
+  { value: 'event', label: 'Event' },
+];
 
 /**
  * A selection of frames, to hold in a page's own state: its rules to edit,
- * how many frames match and the frames themselves, updating as the rules do
- * and saving nothing. The page puts its own actions on each frame.
+ * how many frames match and the frames themselves under each roll or event
+ * ("Preview by"), updating as the rules do and saving nothing. The page puts
+ * its own actions on each frame.
  */
 export function FrameSelectionEditor({
   api,
@@ -26,7 +34,8 @@ export function FrameSelectionEditor({
   readonly change: (selection: FrameSelection) => void;
   readonly frameActions?: (frame: FoundFrame, name: string) => ReactNode;
 }) {
-  const { found, failed } = useFrameSearch(api, selection);
+  const [previewBy, setPreviewBy] = useState(rememberedPreviewBy);
+  const { found, failed } = useFrameSearch(api, selection, previewBy);
   const rolls = useQuery({
     queryKey: ['rolls'],
     queryFn: async () => {
@@ -49,16 +58,35 @@ export function FrameSelectionEditor({
       {failed && (
         <p role="alert">Couldn't find the frames. Is the service running?</p>
       )}
-      {found !== undefined && (
-        <MatchCount
-          count={found.count}
-          excluded={found.frames.filter((frame) => frame.excluded).length}
-        />
-      )}
-      {found !== undefined && rolls.data !== undefined && (
-        <SelectionGrid
+      <div className="selection-bar">
+        {found !== undefined && (
+          <MatchCount
+            count={found.count}
+            excluded={found.frames.filter((frame) => frame.excluded).length}
+          />
+        )}
+        <fieldset className="preview-by">
+          <legend>Preview by</legend>
+          {previewChoices.map((choice) => (
+            <label key={choice.value}>
+              <input
+                type="radio"
+                name="preview-by"
+                checked={previewBy === choice.value}
+                onChange={() => {
+                  setPreviewBy(choice.value);
+                  rememberPreviewBy(choice.value);
+                }}
+              />
+              {choice.label}
+            </label>
+          ))}
+        </fieldset>
+      </div>
+      {found?.groups !== undefined && rolls.data !== undefined && (
+        <SelectionGroups
           rolls={rolls.data.rolls}
-          frames={found.frames}
+          groups={found.groups}
           {...(frameActions === undefined ? {} : { actions: frameActions })}
         />
       )}

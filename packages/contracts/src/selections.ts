@@ -76,18 +76,47 @@ export const frameSelection = z
       'Which frames: those meeting every rule (all of them with no rules), minus those excluded by hand. A hidden frame is never on one.',
   });
 
+export const searchFramesRequest = frameSelection
+  .extend({
+    groupBy: z.enum(['roll', 'event']).optional().meta({
+      description:
+        'Also give the frames grouped under their roll or event, as a built site groups them.',
+    }),
+  })
+  .meta({ id: 'SearchFramesRequest' });
+
+const foundFrame = z.object({
+  rollId: ulid,
+  frameId: ulid,
+  excluded: z.boolean().meta({
+    description: 'Excluded by hand: found by the rules but not on it.',
+  }),
+});
+
 export const searchFramesResponse = z
   .object({
     count: z.number().int(),
-    frames: z.array(
-      z.object({
-        rollId: ulid,
-        frameId: ulid,
-        excluded: z.boolean().meta({
-          description: 'Excluded by hand: found by the rules but not on it.',
+    frames: z.array(foundFrame),
+    groups: z
+      .array(
+        z.object({
+          key: z.string().meta({
+            description:
+              "The roll's ID or the event's slug; `no-event` for the frames in none.",
+          }),
+          heading: z.string().meta({ example: '2026-053 Westfjords' }),
+          detail: z
+            .string()
+            .optional()
+            .meta({ description: "An event's date.", example: 'Sep 2026' }),
+          frames: z.array(foundFrame),
         }),
+      )
+      .optional()
+      .meta({
+        description:
+          'The frames under their roll or event, in the order of each group’s first frame, when `groupBy` is asked.',
       }),
-    ),
   })
   .meta({
     id: 'SearchFramesResponse',
@@ -97,4 +126,5 @@ export const searchFramesResponse = z
 
 export type SelectionRule = z.infer<typeof selectionRule>;
 export type FrameSelection = z.infer<typeof frameSelection>;
+export type SearchFramesRequest = z.infer<typeof searchFramesRequest>;
 export type SearchFramesResponse = z.infer<typeof searchFramesResponse>;

@@ -20,7 +20,10 @@ import {
 import { FrameSelectionEditor } from './frame-selection-editor.tsx';
 import { everyFrame, exclude } from './selection-edit.ts';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
 
 function aTwoRollArchive(more: Parameters<typeof fakeArchive>[0] = {}) {
   return fakeArchive({
@@ -326,4 +329,101 @@ test('says so when the frames cannot be found', async () => {
   show(archive);
 
   expect(await screen.findByRole('alert')).toBeTruthy();
+});
+
+function aRollAndEventArchive() {
+  return aTwoRollArchive({
+    events: [{ slug: 'iceland', name: 'Iceland trip', date: '2026-03' }],
+    rolls: [
+      aRoll('2026-001', {
+        name: 'Iceland',
+        event: 'iceland',
+        frames: [aFrame('1', '12340001.jpg'), aFrame('2', '12340002.jpg')],
+      }),
+      aRoll('2026-002', { frames: [aFrame('1', '12340003.jpg')] }),
+    ],
+  });
+}
+
+test('previews the frames under each roll, with its count, Roll at first', async () => {
+  const archive = aRollAndEventArchive();
+  show(archive);
+
+  expect(
+    await screen.findByRole('heading', { name: '2026-001 Iceland · 2 frames' }),
+  ).toBeTruthy();
+  expect(
+    screen.getByRole('heading', { name: '2026-002 · 1 frame' }),
+  ).toBeTruthy();
+  expect(screen.getByRole('radio', { name: 'Roll' })).toHaveProperty(
+    'checked',
+    true,
+  );
+  expect(lastSearch(archive)).toMatchObject({ groupBy: 'roll' });
+});
+
+test('"Event" previews them under each event, with its date, and "No event set" last, remembered', async () => {
+  show(aRollAndEventArchive());
+  await screen.findByRole('heading', { name: '2026-001 Iceland · 2 frames' });
+
+  fireEvent.click(screen.getByRole('radio', { name: 'Event' }));
+
+  expect(
+    await screen.findByRole('heading', {
+      name: 'Iceland trip · 2026-03 · 2 frames',
+    }),
+  ).toBeTruthy();
+  const headings = screen
+    .getAllByRole('heading', { level: 3 })
+    .map((heading) => heading.textContent);
+  expect(headings).toEqual([
+    'Iceland trip · 2026-03 · 2 frames',
+    'No event set · 1 frame',
+  ]);
+
+  cleanup();
+  show(aRollAndEventArchive());
+  expect(
+    await screen.findByRole('heading', { name: 'No event set · 1 frame' }),
+  ).toBeTruthy();
+  expect(screen.getByRole('radio', { name: 'Event' })).toHaveProperty(
+    'checked',
+    true,
+  );
+});
+
+test('folds a group away and unfolds it, all open at first', async () => {
+  show(aRollAndEventArchive());
+  await screen.findByRole('heading', { name: '2026-001 Iceland · 2 frames' });
+
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Fold 2026-001 Iceland' }),
+  );
+
+  expect(
+    screen.queryByRole('link', { name: 'Roll 2026-001, frame 1' }),
+  ).toBeNull();
+  expect(
+    screen.getByRole('link', { name: 'Roll 2026-002, frame 1' }),
+  ).toBeTruthy();
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Unfold 2026-001 Iceland' }),
+  );
+  expect(
+    screen.getByRole('link', { name: 'Roll 2026-001, frame 1' }),
+  ).toBeTruthy();
+});
+
+test('counts only the frames not excluded in a group, and keeps a group whose frames are all excluded', async () => {
+  show(aRollAndEventArchive(), everyFrame, true);
+  await screen.findByRole('heading', { name: '2026-002 · 1 frame' });
+
+  fireEvent.click(screen.getByRole('button', { name: 'Exclude 0003' }));
+
+  expect(
+    await screen.findByRole('heading', { name: '2026-002 · 0 frames' }),
+  ).toBeTruthy();
+  expect(
+    screen.getByRole('link', { name: 'Roll 2026-002, frame 1' }),
+  ).toBeTruthy();
 });

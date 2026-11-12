@@ -1950,6 +1950,80 @@ textarea {
   font-weight: 600;
 }
 
+/* The count and "Preview by" above a selection's frames (FF-182). */
+.selection-bar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.selection-bar .match-count {
+  margin: 0;
+}
+
+.preview-by {
+  align-items: center;
+  border: 0;
+  display: flex;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+}
+
+.preview-by legend {
+  color: var(--text-muted);
+  float: left;
+  margin-right: var(--space-1);
+  padding: 0;
+}
+
+.preview-by label {
+  align-items: center;
+  display: flex;
+  gap: var(--space-1);
+}
+
+.preview-by input {
+  margin: 0;
+  min-height: 0;
+}
+
+/* A roll's or event's frames in the preview, under a heading that folds them away. */
+.selection-group {
+  margin-bottom: var(--space-5);
+}
+
+.selection-group-head {
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-1);
+}
+
+.selection-group-head h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.fold-group {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: center;
+  min-height: 0;
+  padding: 0;
+  height: 1.75rem;
+  width: 1.75rem;
+}
+
 /* A frame's × or ↺ on a site's page (D103): always there, so it works by touch too. */
 .selection-grid li {
   position: relative;

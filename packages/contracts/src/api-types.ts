@@ -2079,7 +2079,7 @@ export interface paths {
         put?: never;
         /**
          * Find the frames on a selection
-         * @description Works out, from the archive as it is now, which frames meet the rules, in shot order, each marked if it is excluded by hand; the count leaves the excluded out. Nothing is saved.
+         * @description Works out, from the archive as it is now, which frames meet the rules, in shot order, each marked if it is excluded by hand, and grouped by roll or event if asked; the count leaves the excluded out. Nothing is saved.
          */
         post: {
             parameters: {
@@ -2090,7 +2090,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["FrameSelection"];
+                    "application/json": components["schemas"]["SearchFramesRequest"];
                 };
             };
             responses: {
@@ -3292,9 +3292,28 @@ export interface components {
                 /** @description Excluded by hand: found by the rules but not on it. */
                 excluded: boolean;
             }[];
+            /** @description The frames under their roll or event, in the order of each group’s first frame, when `groupBy` is asked. */
+            groups?: {
+                /** @description The roll's ID or the event's slug; `no-event` for the frames in none. */
+                key: string;
+                /** @example 2026-053 Westfjords */
+                heading: string;
+                /**
+                 * @description An event's date.
+                 * @example Sep 2026
+                 */
+                detail?: string;
+                frames: {
+                    /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
+                    rollId: string;
+                    /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
+                    frameId: string;
+                    /** @description Excluded by hand: found by the rules but not on it. */
+                    excluded: boolean;
+                }[];
+            }[];
         };
-        /** @description Which frames: those meeting every rule (all of them with no rules), minus those excluded by hand. A hidden frame is never on one. */
-        FrameSelection: {
+        SearchFramesRequest: {
             rules: components["schemas"]["SelectionRule"][];
             /** @description Frames the rules find that are left off by hand (the × on a frame, D103). */
             excluded: {
@@ -3303,6 +3322,11 @@ export interface components {
                 /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
                 frameId: string;
             }[];
+            /**
+             * @description Also give the frames grouped under their roll or event, as a built site groups them.
+             * @enum {string}
+             */
+            groupBy?: "roll" | "event";
         };
         /** @description One condition a frame must meet. A list of values is "any of these"; a frame must meet every rule. */
         SelectionRule: {
@@ -3367,6 +3391,17 @@ export interface components {
             name: string;
             selection: components["schemas"]["FrameSelection"];
             presentation: components["schemas"]["SitePresentation"];
+        };
+        /** @description Which frames: those meeting every rule (all of them with no rules), minus those excluded by hand. A hidden frame is never on one. */
+        FrameSelection: {
+            rules: components["schemas"]["SelectionRule"][];
+            /** @description Frames the rules find that are left off by hand (the × on a frame, D103). */
+            excluded: {
+                /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
+                rollId: string;
+                /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
+                frameId: string;
+            }[];
         };
         SitePresentation: {
             /**

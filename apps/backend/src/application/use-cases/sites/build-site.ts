@@ -25,12 +25,12 @@ import {
 import { siteImageSizes } from '../../../domain/sites/site-image-sizes.ts';
 import type { SiteManifest } from '../../../domain/sites/site-manifest.ts';
 import type { SiteOptions } from '../../../domain/sites/site-options.ts';
-import type {
-  GroupLabel,
-  SiteImage,
-  SitePhoto,
-} from '../../../domain/sites/site-photo.ts';
+import type { SiteImage, SitePhoto } from '../../../domain/sites/site-photo.ts';
 import { shotLabel } from '../../../domain/sites/shot-label.ts';
+import {
+  eventGroupLabel,
+  rollGroupLabel,
+} from '../../../domain/sites/group-labels.ts';
 import type { BlobStore } from '../../ports/blob-store.ts';
 import type { EquipmentRepository } from '../../ports/equipment-repository.ts';
 import type { EventRepository } from '../../ports/event-repository.ts';
@@ -286,24 +286,15 @@ export class BuildSite {
         details.film === undefined
           ? undefined
           : await this.#equipment.getFilmStock(ctx, details.film.value);
-      const eventLabel: GroupLabel | undefined =
-        event === undefined
-          ? undefined
-          : {
-              key: event.slug,
-              heading: event.name,
-              ...(event.date === null ? {} : { detail: shotLabel(event.date) }),
-            };
+      const eventLabel =
+        event === undefined ? undefined : eventGroupLabel(event);
       photos.push({
         frame: frame.id,
         alt: `Roll ${roll.roll}, frame ${frame.number ?? 'with no number'}`,
         images,
         width: widest.width,
         height: widest.height,
-        roll: {
-          key: roll.id,
-          heading: [roll.roll, roll.name].filter(Boolean).join(' '),
-        },
+        roll: rollGroupLabel(roll),
         ...(eventLabel === undefined ? {} : { event: eventLabel }),
         details: {
           ...(frame.title === null ? {} : { title: frame.title }),

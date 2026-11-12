@@ -1807,6 +1807,60 @@
                 "excluded"
               ]
             }
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "description": "The roll's ID or the event's slug; `no-event` for the frames in none."
+                },
+                "heading": {
+                  "type": "string",
+                  "example": "2026-053 Westfjords"
+                },
+                "detail": {
+                  "type": "string",
+                  "description": "An event's date.",
+                  "example": "Sep 2026"
+                },
+                "frames": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "rollId": {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                        "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+                      },
+                      "frameId": {
+                        "type": "string",
+                        "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                        "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+                      },
+                      "excluded": {
+                        "type": "boolean",
+                        "description": "Excluded by hand: found by the rules but not on it."
+                      }
+                    },
+                    "required": [
+                      "rollId",
+                      "frameId",
+                      "excluded"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "key",
+                "heading",
+                "frames"
+              ]
+            },
+            "description": "The frames under their roll or event, in the order of each group’s first frame, when `groupBy` is asked."
           }
         },
         "required": [
@@ -1815,7 +1869,7 @@
         ],
         "description": "The frames the rules find in shot order, the excluded marked, and how many are not excluded."
       },
-      "FrameSelection": {
+      "SearchFramesRequest": {
         "type": "object",
         "properties": {
           "rules": {
@@ -1849,14 +1903,21 @@
             },
             "maxItems": 5000,
             "description": "Frames the rules find that are left off by hand (the × on a frame, D103)."
+          },
+          "groupBy": {
+            "type": "string",
+            "enum": [
+              "roll",
+              "event"
+            ],
+            "description": "Also give the frames grouped under their roll or event, as a built site groups them."
           }
         },
         "required": [
           "rules",
           "excluded"
         ],
-        "additionalProperties": false,
-        "description": "Which frames: those meeting every rule (all of them with no rules), minus those excluded by hand. A hidden frame is never on one."
+        "additionalProperties": false
       },
       "SelectionRule": {
         "oneOf": [
@@ -2177,6 +2238,49 @@
           "selection",
           "presentation"
         ]
+      },
+      "FrameSelection": {
+        "type": "object",
+        "properties": {
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SelectionRule"
+            },
+            "maxItems": 50
+          },
+          "excluded": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "rollId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                  "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+                },
+                "frameId": {
+                  "type": "string",
+                  "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+                  "example": "01M6EAAP694BKWR9HZ4N5Z54XD"
+                }
+              },
+              "required": [
+                "rollId",
+                "frameId"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 5000,
+            "description": "Frames the rules find that are left off by hand (the × on a frame, D103)."
+          }
+        },
+        "required": [
+          "rules",
+          "excluded"
+        ],
+        "additionalProperties": false,
+        "description": "Which frames: those meeting every rule (all of them with no rules), minus those excluded by hand. A hidden frame is never on one."
       },
       "SitePresentation": {
         "type": "object",
@@ -4685,13 +4789,13 @@
     "/api/frames/search": {
       "post": {
         "summary": "Find the frames on a selection",
-        "description": "Works out, from the archive as it is now, which frames meet the rules, in shot order, each marked if it is excluded by hand; the count leaves the excluded out. Nothing is saved.",
+        "description": "Works out, from the archive as it is now, which frames meet the rules, in shot order, each marked if it is excluded by hand, and grouped by roll or event if asked; the count leaves the excluded out. Nothing is saved.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/FrameSelection"
+                "$ref": "#/components/schemas/SearchFramesRequest"
               }
             }
           }

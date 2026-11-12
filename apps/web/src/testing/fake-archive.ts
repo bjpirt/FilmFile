@@ -30,7 +30,7 @@ import {
   folderExportRequest,
   quickExportRequest,
 } from '@filmfile/contracts/exports';
-import { frameSelection } from '@filmfile/contracts/selections';
+import { searchFramesRequest } from '@filmfile/contracts/selections';
 import {
   createSiteRequest,
   updateSiteRequest,
@@ -1161,14 +1161,68 @@ export function fakeArchive(contents: ArchiveContents = {}) {
    * hand marked and not counted. What it was asked is in `searches`.
    */
   async function searchFrames(request: Request): Promise<Response> {
-    const body = await bodyOf(request, frameSelection);
+    const body = await bodyOf(request, searchFramesRequest);
     if (!body.ok) {
       return body.response;
     }
     searches.push(body.value);
     const frames = framesOn(body.value);
     const count = frames.filter((frame) => !frame.excluded).length;
-    return Response.json({ count, frames });
+    return Response.json(
+      body.value.groupBy === undefined
+        ? { count, frames }
+        : { count, frames, groups: groupsOf(frames, body.value.groupBy) },
+    );
+  }
+
+  /**
+   * Frames under their roll (its number and name) or event (its name and
+   * date as stored), in the order of each group's first frame, with those in
+   * no event last under "No event set", as the service groups them.
+   */
+  function groupsOf(
+    frames: readonly { rollId: string; frameId: string; excluded: boolean }[],
+    groupBy: 'roll' | 'event',
+  ) {
+    const groups = new Map<
+      string,
+      {
+        key: string;
+        heading: string;
+        detail?: string;
+        frames: (typeof frames)[number][];
+      }
+    >();
+    for (const found of frames) {
+      const roll = rolls.find((r) => r.id === found.rollId);
+      const frame = roll?.frames.find((f) => f.id === found.frameId);
+      if (roll === undefined || frame === undefined) {
+        continue;
+      }
+      const slug = frame.event === false ? null : (frame.event ?? roll.event);
+      const event = events.find((e) => e.slug === slug);
+      const label =
+        groupBy === 'roll'
+          ? {
+              key: roll.id,
+              heading: [roll.roll, roll.name].filter(Boolean).join(' '),
+            }
+          : event === undefined
+            ? { key: 'no-event', heading: 'No event set' }
+            : {
+                key: event.slug,
+                heading: event.name,
+                ...(event.date === null ? {} : { detail: event.date }),
+              };
+      const group = groups.get(label.key) ?? { ...label, frames: [] };
+      group.frames.push(found);
+      groups.set(label.key, group);
+    }
+    const all = [...groups.values()];
+    return [
+      ...all.filter((group) => group.key !== 'no-event'),
+      ...all.filter((group) => group.key === 'no-event'),
+    ];
   }
 
   /** Prepares a frame's export as the service does: refused if hidden or with no scan. */

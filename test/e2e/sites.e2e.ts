@@ -2,7 +2,7 @@ import { fixtureSets } from '../../apps/backend/test/support/lab-scans.ts';
 import { expect, test } from './support/isolated-test.ts';
 import { createRoll } from './support/journeys.ts';
 
-test('sites: make one, choose its frames by a rule, exclude one with its ×, rename it, find it all kept after a reload, and delete it (D91)', async ({
+test('sites: make one, preview its frames by roll and event, choose them by a rule, exclude one with its ×, rename it, find it all kept after a reload, and delete it (D91)', async ({
   page,
 }) => {
   await createRoll(page, '2026-052', { scans: fixtureSets.headToTail });
@@ -20,6 +20,16 @@ test('sites: make one, choose its frames by a rule, exclude one with its ×, ren
   ).toBeVisible();
   await expect(page).toHaveURL(/\/sites\/iceland-highlights$/);
   await expect(page.getByText('6 frames match')).toBeVisible();
+
+  // The preview groups the frames by roll, or by event: these are in none.
+  await expect(
+    page.getByRole('heading', { name: '2026-052 · 6 frames' }),
+  ).toBeVisible();
+  await page.getByRole('radio', { name: 'Event' }).check();
+  await expect(
+    page.getByRole('heading', { name: 'No event set · 6 frames' }),
+  ).toBeVisible();
+  await page.getByRole('radio', { name: 'Roll' }).check();
 
   // The × excludes a frame: greyed in its place, and not counted.
   await page

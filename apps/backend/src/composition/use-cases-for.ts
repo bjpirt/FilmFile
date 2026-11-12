@@ -110,7 +110,7 @@ export function useCasesFor({
   SiteUseCases &
   BuiltSiteUseCases &
   SettingsUseCases {
-  const searchFrames = new SearchFrames(rolls, settings);
+  const searchFrames = new SearchFrames(rolls, settings, events);
   const makeQuickExport = new MakeQuickExport(
     rolls,
     settings,

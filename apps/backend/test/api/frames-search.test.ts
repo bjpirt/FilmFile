@@ -184,6 +184,83 @@ describe('POST /api/frames/search', () => {
     ).toEqual([one]);
   });
 
+  test('groups the frames by roll, under its number and name, in the order of each roll’s first frame', async () => {
+    const later = await aRoll({ roll: '2026-002', shot: '2026-09' });
+    const earlier = await aRoll({
+      roll: '2026-001',
+      name: 'Westfjords',
+      shot: '2026-03',
+    });
+    const a = await aFrame(later);
+    const b = await aFrame(earlier);
+    const c = await aFrame(earlier);
+
+    const body = searchFramesResponse.parse(
+      await (await search({ groupBy: 'roll' })).json(),
+    );
+
+    expect(body.groups).toEqual([
+      {
+        key: earlier,
+        heading: '2026-001 Westfjords',
+        frames: [
+          { rollId: earlier, frameId: b, excluded: false },
+          { rollId: earlier, frameId: c, excluded: false },
+        ],
+      },
+      {
+        key: later,
+        heading: '2026-002',
+        frames: [{ rollId: later, frameId: a, excluded: false }],
+      },
+    ]);
+    expect(body.count).toBe(3);
+  });
+
+  test('groups the frames by event, with its date, and those in no event last under "No event set"', async () => {
+    await post('/api/events', { name: 'Iceland', date: '2026-09' });
+    const roll = await aRoll({ roll: '2026-001', event: 'iceland' });
+    const loose = await aRoll({ roll: '2026-002', shot: '2025' });
+    const inIceland = await aFrame(roll);
+    const inNone = await aFrame(loose);
+    const markedNone = await aFrame(roll, { event: false });
+
+    const body = searchFramesResponse.parse(
+      await (
+        await search({
+          groupBy: 'event',
+          excluded: [{ rollId: roll, frameId: inIceland }],
+        })
+      ).json(),
+    );
+
+    expect(body.groups).toEqual([
+      {
+        key: 'iceland',
+        heading: 'Iceland',
+        detail: 'Sep 2026',
+        frames: [{ rollId: roll, frameId: inIceland, excluded: true }],
+      },
+      {
+        key: 'no-event',
+        heading: 'No event set',
+        frames: [
+          { rollId: loose, frameId: inNone, excluded: false },
+          { rollId: roll, frameId: markedNone, excluded: false },
+        ],
+      },
+    ]);
+  });
+
+  test('gives no groups unless asked', async () => {
+    const roll = await aRoll({ roll: '2026-001' });
+    await aFrame(roll);
+
+    const body: unknown = await (await search({})).json();
+
+    expect(body).not.toHaveProperty('groups');
+  });
+
   test.each([
     ['an unknown rule', { rules: [{ kind: 'colour', is: 'red' }] }],
     ['a rating of six stars', { rules: [{ kind: 'rating', atLeast: 6 }] }],

@@ -10,16 +10,25 @@ import {
 } from '../../../domain/selections/frame-facts.ts';
 import { matchSelection } from '../../../domain/selections/match-frame.ts';
 import type { Selection } from '../../../domain/selections/selection.ts';
+import {
+  eventGroupLabel,
+  rollGroupLabel,
+} from '../../../domain/sites/group-labels.ts';
+import type { GroupLabel } from '../../../domain/sites/site-photo.ts';
 import { compareShotOrder } from '../../../domain/selections/shot-order.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
+import type { EventRepository } from '../../ports/event-repository.ts';
 import type { RollRepository } from '../../ports/roll-repository.ts';
 import type { SettingsRepository } from '../../ports/settings-repository.ts';
 
-/** A frame the rules find, and whether it's excluded by hand. */
+/** A frame the rules find, whether it's excluded by hand, and the headings it's grouped under. */
 export interface FoundFrame {
   readonly rollId: FrameFacts['rollId'];
   readonly frameId: FrameFacts['frameId'];
   readonly excluded: boolean;
+  readonly roll: GroupLabel;
+  /** Absent when the frame is in no event, or its event has gone. */
+  readonly event?: GroupLabel;
 }
 
 /**
@@ -31,10 +40,16 @@ export interface FoundFrame {
 export class SearchFrames {
   readonly #rolls: RollRepository;
   readonly #settings: SettingsRepository;
+  readonly #events: EventRepository;
 
-  constructor(rolls: RollRepository, settings: SettingsRepository) {
+  constructor(
+    rolls: RollRepository,
+    settings: SettingsRepository,
+    events: EventRepository,
+  ) {
     this.#rolls = rolls;
     this.#settings = settings;
+    this.#events = events;
   }
 
   async execute(
@@ -43,7 +58,13 @@ export class SearchFrames {
   ): Promise<readonly FoundFrame[]> {
     const settings = (await this.#settings.get(ctx))?.settings;
     const { rolls } = await this.#rolls.list(ctx);
-    const found: { facts: FrameFacts; excluded: boolean }[] = [];
+    const events = new Map(
+      (await this.#events.list(ctx)).map((event) => [
+        event.slug,
+        eventGroupLabel(event),
+      ]),
+    );
+    const found: { facts: FrameFacts; frame: FoundFrame }[] = [];
     for (const roll of rolls) {
       for (const frame of roll.frames) {
         const facts = frameFactsOf(
@@ -57,16 +78,23 @@ export class SearchFrames {
         );
         const match = matchSelection(input.selection, facts);
         if (match !== undefined) {
-          found.push({ facts, excluded: match === 'excluded' });
+          const event =
+            facts.event === undefined ? undefined : events.get(facts.event);
+          found.push({
+            facts,
+            frame: {
+              rollId: facts.rollId,
+              frameId: facts.frameId,
+              excluded: match === 'excluded',
+              roll: rollGroupLabel(roll),
+              ...(event === undefined ? {} : { event }),
+            },
+          });
         }
       }
     }
     return found
       .sort((a, b) => compareShotOrder(a.facts, b.facts))
-      .map(({ facts, excluded }) => ({
-        rollId: facts.rollId,
-        frameId: facts.frameId,
-        excluded,
-      }));
+      .map(({ frame }) => frame);
   }
 }
