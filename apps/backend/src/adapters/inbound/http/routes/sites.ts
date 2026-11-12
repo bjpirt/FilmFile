@@ -7,8 +7,10 @@ import {
   createSiteRequest,
   site,
   siteIfMatchHeader,
+  siteBuildProgress,
   siteList,
   siteParams,
+  siteStatus,
   updateSiteRequest,
 } from '@filmfile/contracts/sites';
 import type { VersionedSite } from '../../../../application/ports/site-repository.ts';
@@ -16,6 +18,7 @@ import type { CreateSite } from '../../../../application/use-cases/sites/create-
 import type { DeleteSite } from '../../../../application/use-cases/sites/delete-site.ts';
 import type { GetSite } from '../../../../application/use-cases/sites/get-site.ts';
 import type { ListSites } from '../../../../application/use-cases/sites/list-sites.ts';
+import type { SiteBuilds } from '../../../../application/use-cases/sites/site-builds.ts';
 import type { UpdateSite } from '../../../../application/use-cases/sites/update-site.ts';
 import type { ArchiveContext } from '../../../../domain/shared/archive-context.ts';
 import { isSlug } from '../../../../domain/shared/slug.ts';
@@ -121,7 +124,50 @@ const deleteSite = createRoute({
   },
 });
 
+const startBuild = createRoute({
+  method: 'post',
+  path: '/{slug}/build',
+  summary: 'Build a site',
+  description:
+    'Starts writing the site into Sites/<slug>/ in the background, from the frames its selection finds now, making again only the images whose inputs changed. Follow it with the status. A build already running is followed instead of started again.',
+  request: { params: siteParams },
+  responses: {
+    202: json(siteBuildProgress, 'The build, running.'),
+    404: json(errorResponse, 'There is no site with that slug.'),
+    422: json(
+      invalidRequestResponse,
+      'Sites/<slug> holds something that is not a built site, and is left alone.',
+    ),
+  },
+});
+
+const getStatus = createRoute({
+  method: 'get',
+  path: '/{slug}/status',
+  summary: 'Whether a site is built and up to date',
+  description:
+    'Compares the built site with what it would be built from now, and gives how the latest build went.',
+  request: { params: siteParams },
+  responses: {
+    200: json(siteStatus, 'Where the site stands.'),
+    404: json(errorResponse, 'There is no site with that slug.'),
+  },
+});
+
+const cancelBuild = createRoute({
+  method: 'delete',
+  path: '/{slug}/build',
+  summary: 'Stop building a site',
+  description: 'Stops after the image in progress, leaving the site as it was.',
+  request: { params: siteParams },
+  responses: {
+    204: { description: 'Asked to stop.' },
+    404: json(errorResponse, 'That site is not being built.'),
+  },
+});
+
 export interface SiteUseCases {
+  readonly siteBuilds: SiteBuilds;
   readonly listSites: ListSites;
   readonly createSite: CreateSite;
   readonly getSite: GetSite;
@@ -135,6 +181,12 @@ function siteBody({ site }: VersionedSite) {
     slug: site.slug,
     name: site.name,
     selection: selectionBody(site.selection),
+    presentation: {
+      title: site.presentation.title,
+      intro: site.presentation.intro,
+      groupBy: site.presentation.groupBy,
+      captions: [...site.presentation.captions],
+    },
   };
 }
 
@@ -185,7 +237,7 @@ export function siteRoutes({
     if (ifMatch === undefined) {
       return c.json({ error: 'send the site’s ETag as If-Match' }, 428);
     }
-    const { name, selection: wanted } = c.req.valid('json');
+    const { name, selection: wanted, presentation } = c.req.valid('json');
     const selection = wanted === undefined ? undefined : selectionOf(wanted);
     if (wanted !== undefined && selection === undefined) {
       return c.json(
@@ -203,6 +255,7 @@ export function siteRoutes({
       expectedVersion: versionFrom(ifMatch),
       name,
       selection,
+      presentation,
     });
     if (!updated.ok) {
       return domainErrorResponse(c, updated.error);
@@ -220,6 +273,39 @@ export function siteRoutes({
     return deleted.ok
       ? c.body(null, 204)
       : domainErrorResponse(c, deleted.error);
+  });
+
+  routes.openapi(startBuild, async (c) => {
+    const { slug } = c.req.valid('param');
+    if (!isSlug(slug)) {
+      return c.json(notFound, 404);
+    }
+    const started = await useCases.siteBuilds.start(ctx, { slug });
+    return started.ok
+      ? c.json(started.value, 202)
+      : domainErrorResponse(c, started.error);
+  });
+
+  routes.openapi(getStatus, async (c) => {
+    const { slug } = c.req.valid('param');
+    if (!isSlug(slug)) {
+      return c.json(notFound, 404);
+    }
+    const status = await useCases.siteBuilds.status(ctx, { slug });
+    return status.ok
+      ? c.json({ ...status.value, build: status.value.build ?? null }, 200)
+      : domainErrorResponse(c, status.error);
+  });
+
+  routes.openapi(cancelBuild, (c) => {
+    const { slug } = c.req.valid('param');
+    if (!isSlug(slug)) {
+      return c.json(notFound, 404);
+    }
+    const cancelled = useCases.siteBuilds.cancel({ slug });
+    return cancelled.ok
+      ? c.body(null, 204)
+      : domainErrorResponse(c, cancelled.error);
   });
 
   return routes;

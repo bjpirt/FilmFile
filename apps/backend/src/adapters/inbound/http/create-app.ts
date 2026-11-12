@@ -14,6 +14,10 @@ import { settingsRoutes, type SettingsUseCases } from './routes/settings.ts';
 import { exportRoutes, type ExportUseCases } from './routes/exports.ts';
 import { eventRoutes, type EventUseCases } from './routes/events.ts';
 import { frameRoutes, type FrameSelectionUseCases } from './routes/frames.ts';
+import {
+  builtSiteRoutes,
+  type BuiltSiteUseCases,
+} from './routes/built-sites.ts';
 import { siteRoutes, type SiteUseCases } from './routes/sites.ts';
 import { rollRoutes, type RollUseCases } from './routes/rolls.ts';
 import { uiRoutes } from './routes/ui.ts';
@@ -40,6 +44,7 @@ export function createApp(config: {
     ExportUseCases &
     FrameSelectionUseCases &
     SiteUseCases &
+    BuiltSiteUseCases &
     SettingsUseCases;
   readonly uiPath?: string;
   /** Whether exports can be written into a folder the desktop app chooses (D100). */
@@ -65,6 +70,7 @@ export function createApp(config: {
   app.route('/api/exports', exportRoutes(config));
   app.route('/api/frames', frameRoutes(config));
   app.route('/api/sites', siteRoutes(config));
+  app.route('/built-sites', builtSiteRoutes(config));
   app.route('/api/settings', settingsRoutes(config));
   app.doc31('/api/openapi.json', {
     openapi: '3.1.0',

@@ -75,6 +75,12 @@ describe('POST /api/sites', () => {
       slug: 'iceland-highlights',
       name: 'Iceland highlights',
       selection: { rules: [], pinned: [], hidden: [] },
+      presentation: {
+        title: null,
+        intro: '',
+        groupBy: 'nothing',
+        captions: ['title'],
+      },
     });
     expect(response.headers.get('ETag')).toMatch(/^"[0-9a-f]{64}"$/);
     expect(
@@ -213,6 +219,40 @@ describe('PATCH /api/sites/{slug}', () => {
     const { slug } = await aSite('Iceland');
 
     expect((await patch(slug, { name: 'Iceland 2026' })).status).toBe(428);
+  });
+
+  test('saves how the site is presented, and gives it back', async () => {
+    const { slug, etag } = await aSite('Iceland');
+    const presentation = {
+      title: 'Iceland, in September',
+      intro: 'Two weeks.\n\nShot on Portra.',
+      groupBy: 'event',
+      captions: ['title', 'shot'],
+    };
+
+    const response = await patch(slug, { presentation }, etag);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ presentation });
+    expect(await (await request(`/api/sites/${slug}`)).json()).toMatchObject({
+      presentation,
+    });
+  });
+
+  test.each([
+    [
+      'an unknown way to group',
+      { title: null, intro: '', groupBy: 'colour', captions: [] },
+    ],
+    [
+      'an unknown caption',
+      { title: null, intro: '', groupBy: 'roll', captions: ['gps'] },
+    ],
+    ['an empty title', { title: '', intro: '', groupBy: 'roll', captions: [] }],
+  ])('refuses a presentation with %s', async (_why, presentation) => {
+    const { slug, etag } = await aSite('Iceland');
+
+    expect((await patch(slug, { presentation }, etag)).status).toBe(422);
   });
 
   test('a new name makes a new slug, and the site moves to it', async () => {

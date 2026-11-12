@@ -13,7 +13,10 @@ import type { FrameId, RollId } from '../../../domain/shared/ids.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
 import { sha256Hex } from '../../../domain/shared/sha256-hex.ts';
 import type { Slug } from '../../../domain/shared/slug.ts';
-import { planSiteBuild } from '../../../domain/sites/plan-site-build.ts';
+import {
+  planSiteBuild,
+  type SiteStatus,
+} from '../../../domain/sites/plan-site-build.ts';
 import { renderSite } from '../../../domain/sites/render-site.ts';
 import {
   siteImageInputsText,
@@ -113,6 +116,26 @@ export class BuildSite {
     this.#folders = folders;
   }
 
+  /**
+   * Whether the site as built matches what it would be built from now: not
+   * built, up to date, or out of date and why. Nothing is made or written.
+   */
+  async status(
+    ctx: ArchiveContext,
+    input: Pick<BuildSiteInput, 'slug' | 'frames' | 'options'>,
+  ): Promise<SiteStatus | { readonly state: 'in-the-way' }> {
+    const state = await this.#folders.inspect(ctx, input.slug);
+    if (state.kind === 'in-the-way') {
+      return { state: 'in-the-way' };
+    }
+    const { photos } = await this.#gather(ctx, input);
+    return planSiteBuild(
+      state.kind === 'built' ? state.manifest : undefined,
+      photos,
+      input.options,
+    ).status;
+  }
+
   async execute(
     ctx: ArchiveContext,
     input: BuildSiteInput,
@@ -187,7 +210,7 @@ export class BuildSite {
   }
 
   /** What each frame is on the page, and the images to make for it. */
-  async #gather(ctx: ArchiveContext, input: BuildSiteInput) {
+  async #gather(ctx: ArchiveContext, input: Pick<BuildSiteInput, 'frames'>) {
     const settings = (await this.#settings.get(ctx))?.settings;
     const photos: SitePhoto[] = [];
     const jobs: ImageJob[] = [];

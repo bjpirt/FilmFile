@@ -3,6 +3,19 @@ import { groupPhotos, type PhotoGroup } from './group-photos.ts';
 import { captionOrder, type SiteOptions } from './site-options.ts';
 import type { SitePhoto } from './site-photo.ts';
 
+/** A photo's shape as a number, to four places: its width over its height. */
+export function shapeOf(photo: SitePhoto): number {
+  return Math.round((photo.width / photo.height) * 10000) / 10000;
+}
+
+/**
+ * The class a photo's shape is set by: not an inline style, so the page works
+ * under a strict content security policy wherever it's put.
+ */
+export function shapeClass(photo: SitePhoto): string {
+  return `shape-${String(Math.round(shapeOf(photo) * 10000))}`;
+}
+
 /** What the page says when no frames match. */
 export const noPhotosText = 'This site has no photos yet.';
 
@@ -22,14 +35,13 @@ function photoHtml(photo: SitePhoto, options: SiteOptions): string {
   if (widest === undefined) {
     return '';
   }
-  const shape = Math.round((photo.width / photo.height) * 10000) / 10000;
   const srcset = photo.images
     .map((image) => `${escapeHtml(image.src)} ${String(image.width)}w`)
     .join(', ');
   const caption = captionOf(photo, options);
   const figcaption =
     caption === '' ? '' : `<figcaption>${escapeHtml(caption)}</figcaption>`;
-  return `<figure class="photo" style="--shape: ${String(shape)}"><a href="${escapeHtml(widest.src)}"><img src="${escapeHtml(photo.images[0]?.src ?? widest.src)}" srcset="${srcset}" sizes="${sizes}" width="${String(photo.width)}" height="${String(photo.height)}" alt="${escapeHtml(photo.alt)}" loading="lazy"></a>${figcaption}</figure>`;
+  return `<figure class="photo ${shapeClass(photo)}"><a href="${escapeHtml(widest.src)}"><img src="${escapeHtml(photo.images[0]?.src ?? widest.src)}" srcset="${srcset}" sizes="${sizes}" width="${String(photo.width)}" height="${String(photo.height)}" alt="${escapeHtml(photo.alt)}" loading="lazy"></a>${figcaption}</figure>`;
 }
 
 function groupHtml(group: PhotoGroup, options: SiteOptions): string {

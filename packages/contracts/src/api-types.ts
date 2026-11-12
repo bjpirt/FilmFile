@@ -2405,6 +2405,147 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/sites/{slug}/build": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Build a site
+         * @description Starts writing the site into Sites/<slug>/ in the background, from the frames its selection finds now, making again only the images whose inputs changed. Follow it with the status. A build already running is followed instead of started again.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The build, running. */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SiteBuildProgress"];
+                    };
+                };
+                /** @description There is no site with that slug. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Sites/<slug> holds something that is not a built site, and is left alone. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        /**
+         * Stop building a site
+         * @description Stops after the image in progress, leaving the site as it was.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Asked to stop. */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description That site is not being built. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sites/{slug}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether a site is built and up to date
+         * @description Compares the built site with what it would be built from now, and gives how the latest build went.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Where the site stands. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SiteStatus"];
+                    };
+                };
+                /** @description There is no site with that slug. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings": {
         parameters: {
             query?: never;
@@ -3235,16 +3376,64 @@ export interface components {
             /** @example Iceland highlights */
             name: string;
             selection: components["schemas"]["FrameSelection"];
+            presentation: components["schemas"]["SitePresentation"];
+        };
+        SitePresentation: {
+            /** @description The page's heading; null uses the site's name. */
+            title: string | null;
+            /** @description Text under the heading; a blank line starts a new paragraph. */
+            intro: string;
+            /**
+             * @description What the photos are split under.
+             * @enum {string}
+             */
+            groupBy: "nothing" | "roll" | "event";
+            /** @description Which details appear under each photo. */
+            captions: ("title" | "shot" | "camera" | "lens" | "film")[];
         };
         CreateSiteRequest: {
             /** @description What the site is called; its slug is made from it. A new site has every frame until rules are set. */
             name: string;
         };
-        /** @description The details to change. A detail left out stays as it is; a selection replaces the whole one. */
+        /** @description The details to change. A detail left out stays as it is; a selection or presentation replaces the whole one. */
         UpdateSiteRequest: {
             /** @description A new name, which changes the slug. */
             name?: string;
             selection?: components["schemas"]["FrameSelection"];
+            presentation?: components["schemas"]["SitePresentation"];
+        };
+        SiteBuildProgress: {
+            /** @enum {string} */
+            state: "running" | "done" | "cancelled" | "failed";
+            /** @description Images dealt with so far, made or brought across. */
+            done: number;
+            total: number;
+            /** @description Photos on the built site. */
+            photos: number;
+            /** @description Frames left out: hidden, gone from the archive or with no scan. */
+            leftOut: number;
+            imagesMade: number;
+            imagesUnchanged: number;
+        };
+        SiteStatus: {
+            /** @enum {string} */
+            freshness: "not-built" | "up-to-date" | "out-of-date" | "in-the-way";
+            /** @description In words: "Not built yet", "Up to date" or "Out of date: 3 frames added, 1 removed, 2 changed". */
+            message: string;
+            /** @description How the latest build since the service started went, if there was one. */
+            build: {
+                /** @enum {string} */
+                state: "running" | "done" | "cancelled" | "failed";
+                /** @description Images dealt with so far, made or brought across. */
+                done: number;
+                total: number;
+                /** @description Photos on the built site. */
+                photos: number;
+                /** @description Frames left out: hidden, gone from the archive or with no scan. */
+                leftOut: number;
+                imagesMade: number;
+                imagesUnchanged: number;
+            } | null;
         };
         Settings: {
             id: string;

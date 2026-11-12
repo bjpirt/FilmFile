@@ -5,7 +5,7 @@ import type {
 } from '../../../domain/shared/domain-error.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
 import { slugFor } from '../../../domain/shared/slug.ts';
-import type { Site } from '../../../domain/sites/site.ts';
+import { defaultPresentation, type Site } from '../../../domain/sites/site.ts';
 import type { IdGenerator } from '../../ports/id-generator.ts';
 import type {
   SiteRepository,
@@ -42,6 +42,7 @@ export class CreateSite {
       slug,
       name,
       selection: { rules: [], pinned: [], hidden: [] },
+      presentation: defaultPresentation,
     };
     const created = await this.#sites.create(ctx, site);
     return created.ok ? ok({ site, version: created.value }) : created;

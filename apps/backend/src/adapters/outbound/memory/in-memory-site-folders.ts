@@ -45,6 +45,22 @@ export class InMemorySiteFolders implements SiteFolders {
     );
   }
 
+  read(
+    _ctx: ArchiveContext,
+    slug: Slug,
+    relativePath: string,
+  ): Promise<Uint8Array | undefined> {
+    if (!isSafe(relativePath)) {
+      return Promise.reject(
+        new Error(`unsafe path: ${JSON.stringify(relativePath)}`),
+      );
+    }
+    const file = this.sites.get(slug)?.files.get(relativePath);
+    return Promise.resolve(
+      typeof file === 'string' ? new TextEncoder().encode(file) : file,
+    );
+  }
+
   begin(_ctx: ArchiveContext, slug: Slug): Promise<SiteBuild> {
     const before = this.sites.get(slug);
     const files = new Map<string, string | Uint8Array>();

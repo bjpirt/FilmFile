@@ -2,9 +2,11 @@ import type { SettingsUseCases } from '../adapters/inbound/http/routes/settings.
 import type { EquipmentUseCases } from '../adapters/inbound/http/routes/equipment.ts';
 import type { EventUseCases } from '../adapters/inbound/http/routes/events.ts';
 import type { FrameSelectionUseCases } from '../adapters/inbound/http/routes/frames.ts';
+import type { BuiltSiteUseCases } from '../adapters/inbound/http/routes/built-sites.ts';
 import type { SiteUseCases } from '../adapters/inbound/http/routes/sites.ts';
 import type { ExportUseCases } from '../adapters/inbound/http/routes/exports.ts';
 import type { RollUseCases } from '../adapters/inbound/http/routes/rolls.ts';
+import type { SiteFolders } from '../application/ports/site-folders.ts';
 import type { SiteRepository } from '../application/ports/site-repository.ts';
 import type { SettingsRepository } from '../application/ports/settings-repository.ts';
 import type { BlobStore } from '../application/ports/blob-store.ts';
@@ -22,6 +24,9 @@ import type { RollRepository } from '../application/ports/roll-repository.ts';
 import { FolderExports } from '../application/use-cases/exports/folder-exports.ts';
 import { MakeQuickExport } from '../application/use-cases/exports/make-quick-export.ts';
 import { PrepareQuickExport } from '../application/use-cases/exports/prepare-quick-export.ts';
+import { BuildSite } from '../application/use-cases/sites/build-site.ts';
+import { GetBuiltSiteFile } from '../application/use-cases/sites/get-built-site-file.ts';
+import { SiteBuilds } from '../application/use-cases/sites/site-builds.ts';
 import { CreateSite } from '../application/use-cases/sites/create-site.ts';
 import { DeleteSite } from '../application/use-cases/sites/delete-site.ts';
 import { GetSite } from '../application/use-cases/sites/get-site.ts';
@@ -72,6 +77,7 @@ export interface Adapters {
   readonly previews: PreviewProvider;
   readonly renderer: ImageRenderer;
   readonly sites: SiteRepository;
+  readonly siteFolders: SiteFolders;
   readonly tickets: ExportTickets;
   /** The desktop app, which can ask for a folder to export into (D100); none when there isn't one. */
   readonly destination?: ExportDestination | undefined;
@@ -93,6 +99,7 @@ export function useCasesFor({
   tickets,
   destination,
   sites,
+  siteFolders,
   ids,
   clock,
 }: Adapters): RollUseCases &
@@ -101,6 +108,7 @@ export function useCasesFor({
   ExportUseCases &
   FrameSelectionUseCases &
   SiteUseCases &
+  BuiltSiteUseCases &
   SettingsUseCases {
   const searchFrames = new SearchFrames(rolls, settings);
   const makeQuickExport = new MakeQuickExport(
@@ -139,6 +147,20 @@ export function useCasesFor({
     makeQuickExport,
     folderExports: new FolderExports(rolls, makeQuickExport, destination),
     searchFrames,
+    siteBuilds: new SiteBuilds(
+      sites,
+      searchFrames,
+      new BuildSite(
+        rolls,
+        settings,
+        equipment,
+        events,
+        blobs,
+        renderer,
+        siteFolders,
+      ),
+    ),
+    getBuiltSiteFile: new GetBuiltSiteFile(siteFolders),
     listSites: new ListSites(sites, searchFrames),
     createSite: new CreateSite(sites, ids),
     getSite: new GetSite(sites),

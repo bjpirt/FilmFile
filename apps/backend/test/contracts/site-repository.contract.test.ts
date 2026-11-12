@@ -4,6 +4,7 @@ import { expect, test } from 'vitest';
 import type { SiteRepository } from '../../src/application/ports/site-repository.ts';
 import { FilesystemSiteRepository } from '../../src/adapters/outbound/filesystem/filesystem-site-repository.ts';
 import { InMemorySiteRepository } from '../../src/adapters/outbound/memory/in-memory-site-repository.ts';
+import { defaultPresentation } from '../../src/domain/sites/site.ts';
 import { isSiteId } from '../../src/domain/shared/ids.ts';
 import { isSlug } from '../../src/domain/shared/slug.ts';
 import { ctx } from '../support/builders.ts';
@@ -27,6 +28,7 @@ const site = {
   slug: checked('iceland', isSlug),
   name: 'Iceland',
   selection: { rules: [], pinned: [], hidden: [] },
+  presentation: defaultPresentation,
 };
 
 test('FilesystemSiteRepository writes the same bytes each time, and leaves them alone when nothing changed', async () => {
@@ -70,4 +72,17 @@ test('FilesystemSiteRepository skips a file in sites/ that is not named as a slu
   await writeFile(path.join(archive.path(), 'sites', 'Not A Slug.json'), '{}');
 
   expect((await sites.list(ctx)).map((s) => s.slug)).toEqual(['iceland']);
+});
+
+test('FilesystemSiteRepository leaves a plain site’s file without a presentation, and reads an older file as plain', async () => {
+  const sites: SiteRepository = new FilesystemSiteRepository(archive.path());
+  await sites.create(ctx, site);
+  const file = path.join(archive.path(), 'sites', 'iceland.json');
+
+  expect(JSON.parse(await readFile(file, 'utf8'))).not.toHaveProperty(
+    'presentation',
+  );
+  expect((await sites.get(ctx, site.slug))?.site.presentation).toEqual(
+    defaultPresentation,
+  );
 });

@@ -37,6 +37,16 @@ export interface SiteBuild {
  */
 export interface SiteFolders {
   inspect(ctx: ArchiveContext, slug: Slug): Promise<SiteFolderState>;
+  /**
+   * A file of the built site, for showing it, or undefined if there isn't
+   * one. Refuses a path that would leave the site's folder.
+   */
+  read(
+    ctx: ArchiveContext,
+    slug: Slug,
+    relativePath: string,
+  ): Promise<Uint8Array | undefined>;
+
   /** Starts a build; never touches the built site until `commit`. */
   begin(ctx: ArchiveContext, slug: Slug): Promise<SiteBuild>;
 }

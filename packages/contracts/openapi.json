@@ -2195,14 +2195,68 @@
           },
           "selection": {
             "$ref": "#/components/schemas/FrameSelection"
+          },
+          "presentation": {
+            "$ref": "#/components/schemas/SitePresentation"
           }
         },
         "required": [
           "id",
           "slug",
           "name",
-          "selection"
+          "selection",
+          "presentation"
         ]
+      },
+      "SitePresentation": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "The page's heading; null uses the site's name."
+          },
+          "intro": {
+            "type": "string",
+            "maxLength": 5000,
+            "description": "Text under the heading; a blank line starts a new paragraph."
+          },
+          "groupBy": {
+            "type": "string",
+            "enum": [
+              "nothing",
+              "roll",
+              "event"
+            ],
+            "description": "What the photos are split under."
+          },
+          "captions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "title",
+                "shot",
+                "camera",
+                "lens",
+                "film"
+              ]
+            },
+            "maxItems": 5,
+            "description": "Which details appear under each photo."
+          }
+        },
+        "required": [
+          "title",
+          "intro",
+          "groupBy",
+          "captions"
+        ],
+        "additionalProperties": false
       },
       "CreateSiteRequest": {
         "type": "object",
@@ -2230,10 +2284,128 @@
           },
           "selection": {
             "$ref": "#/components/schemas/FrameSelection"
+          },
+          "presentation": {
+            "$ref": "#/components/schemas/SitePresentation"
           }
         },
         "additionalProperties": false,
-        "description": "The details to change. A detail left out stays as it is; a selection replaces the whole one."
+        "description": "The details to change. A detail left out stays as it is; a selection or presentation replaces the whole one."
+      },
+      "SiteBuildProgress": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "running",
+              "done",
+              "cancelled",
+              "failed"
+            ]
+          },
+          "done": {
+            "type": "integer",
+            "description": "Images dealt with so far, made or brought across."
+          },
+          "total": {
+            "type": "integer"
+          },
+          "photos": {
+            "type": "integer",
+            "description": "Photos on the built site."
+          },
+          "leftOut": {
+            "type": "integer",
+            "description": "Frames left out: hidden, gone from the archive or with no scan."
+          },
+          "imagesMade": {
+            "type": "integer"
+          },
+          "imagesUnchanged": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "state",
+          "done",
+          "total",
+          "photos",
+          "leftOut",
+          "imagesMade",
+          "imagesUnchanged"
+        ]
+      },
+      "SiteStatus": {
+        "type": "object",
+        "properties": {
+          "freshness": {
+            "type": "string",
+            "enum": [
+              "not-built",
+              "up-to-date",
+              "out-of-date",
+              "in-the-way"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": "In words: \"Not built yet\", \"Up to date\" or \"Out of date: 3 frames added, 1 removed, 2 changed\"."
+          },
+          "build": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "running",
+                  "done",
+                  "cancelled",
+                  "failed"
+                ]
+              },
+              "done": {
+                "type": "integer",
+                "description": "Images dealt with so far, made or brought across."
+              },
+              "total": {
+                "type": "integer"
+              },
+              "photos": {
+                "type": "integer",
+                "description": "Photos on the built site."
+              },
+              "leftOut": {
+                "type": "integer",
+                "description": "Frames left out: hidden, gone from the archive or with no scan."
+              },
+              "imagesMade": {
+                "type": "integer"
+              },
+              "imagesUnchanged": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "state",
+              "done",
+              "total",
+              "photos",
+              "leftOut",
+              "imagesMade",
+              "imagesUnchanged"
+            ],
+            "description": "How the latest build since the service started went, if there was one."
+          }
+        },
+        "required": [
+          "freshness",
+          "message",
+          "build"
+        ]
       },
       "Settings": {
         "type": "object",
@@ -4872,6 +5044,130 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sites/{slug}/build": {
+      "post": {
+        "summary": "Build a site",
+        "description": "Starts writing the site into Sites/<slug>/ in the background, from the frames its selection finds now, making again only the images whose inputs changed. Follow it with the status. A build already running is followed instead of started again.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "example": "nikon-fe"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "The build, running.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteBuildProgress"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "There is no site with that slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Sites/<slug> holds something that is not a built site, and is left alone.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Stop building a site",
+        "description": "Stops after the image in progress, leaving the site as it was.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "example": "nikon-fe"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Asked to stop."
+          },
+          "404": {
+            "description": "That site is not being built.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sites/{slug}/status": {
+      "get": {
+        "summary": "Whether a site is built and up to date",
+        "description": "Compares the built site with what it would be built from now, and gives how the latest build went.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "example": "nikon-fe"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Where the site stands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SiteStatus"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "There is no site with that slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }

@@ -1,4 +1,4 @@
-import { renderSitePage } from './render-site-page.ts';
+import { renderSitePage, shapeClass, shapeOf } from './render-site-page.ts';
 import type { SiteOptions } from './site-options.ts';
 import type { SitePhoto } from './site-photo.ts';
 import { siteScript } from './site-script.ts';
@@ -8,6 +8,19 @@ import { siteStylesheet } from './site-stylesheet.ts';
 export interface SiteFile {
   readonly path: string;
   readonly content: string;
+}
+
+/** The stylesheet, with a rule for each shape of photo on the page. */
+function stylesheetFor(photos: readonly SitePhoto[]): string {
+  const shapes = new Map(
+    photos.map((photo) => [shapeClass(photo), shapeOf(photo)]),
+  );
+  const rules = [...shapes]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, shape]) => `.${name} {\n  --shape: ${String(shape)};\n}\n`);
+  return rules.length === 0
+    ? siteStylesheet
+    : `${siteStylesheet}\n/* The shape of each photo, as width over height. */\n${rules.join('')}`;
 }
 
 /**
@@ -21,7 +34,7 @@ export function renderSite(
 ): SiteFile[] {
   return [
     { path: 'index.html', content: renderSitePage(photos, options) },
-    { path: 'assets/site.css', content: siteStylesheet },
+    { path: 'assets/site.css', content: stylesheetFor(photos) },
     { path: 'assets/site.js', content: siteScript },
   ];
 }

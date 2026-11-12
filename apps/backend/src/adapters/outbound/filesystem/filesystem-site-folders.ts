@@ -79,6 +79,23 @@ export class FilesystemSiteFolders implements SiteFolders {
     }
   }
 
+  async read(
+    _ctx: ArchiveContext,
+    slug: Slug,
+    relativePath: string,
+  ): Promise<Uint8Array | undefined> {
+    const file = safePath(this.#sites, slug, ...relativePath.split('/'));
+    try {
+      return new Uint8Array(await readFile(file));
+    } catch (error) {
+      // Not there, or a folder: nothing to show.
+      if (hasErrorCode(error, 'ENOENT') || hasErrorCode(error, 'EISDIR')) {
+        return undefined;
+      }
+      throw error;
+    }
+  }
+
   async begin(_ctx: ArchiveContext, slug: Slug): Promise<SiteBuild> {
     const site = safePath(this.#sites, slug);
     const staging = safePath(this.#sites, `.${slug}.building-${randomUUID()}`);

@@ -115,6 +115,35 @@ export function siteFoldersContract(
       expect(await read(slug, 'images/b.jpg')).toBeUndefined();
     });
 
+    test('reads a file of the built site, and says there is none that is not', async () => {
+      const { folders } = make();
+      const build = await folders.begin(ctx, slug);
+      await build.writeFile('assets/site.css', 'p {}');
+      await build.writeImage('images/a.jpg', bytes('jpeg a'));
+      await build.commit(manifest);
+
+      expect(
+        new TextDecoder().decode(
+          await folders.read(ctx, slug, 'assets/site.css'),
+        ),
+      ).toBe('p {}');
+      expect(await folders.read(ctx, slug, 'images/a.jpg')).toEqual(
+        bytes('jpeg a'),
+      );
+      expect(await folders.read(ctx, slug, 'images/none.jpg')).toBeUndefined();
+      expect(await folders.read(ctx, slug, 'images')).toBeUndefined();
+      expect(
+        await folders.read(ctx, checked('other', isSlug), 'index.html'),
+      ).toBeUndefined();
+    });
+
+    test('refuses to read a path that would leave the site’s folder', async () => {
+      const { folders } = make();
+
+      await expect(folders.read(ctx, slug, '../x')).rejects.toThrow();
+      await expect(folders.read(ctx, slug, 'a/../../x')).rejects.toThrow();
+    });
+
     test('says a folder holding something else is in the way', async () => {
       const { folders, putSomethingElse } = make();
       await putSomethingElse(slug);

@@ -10,7 +10,7 @@ import {
   type SiteId,
 } from '../../../domain/shared/ids.ts';
 import { isSlug, type Slug } from '../../../domain/shared/slug.ts';
-import type { Site } from '../../../domain/sites/site.ts';
+import { defaultPresentation, type Site } from '../../../domain/sites/site.ts';
 
 // The persistence model for a site: Library/sites/<slug>.json. The slug is
 // the file name, so the file holds only the rest. Frames are named by roll
@@ -60,6 +60,13 @@ const storedRule = z.discriminatedUnion('kind', [
 
 const storedFrame = z.object({ roll: rollIdValue, frame: frameIdValue });
 
+const storedPresentation = z.object({
+  title: z.string().min(1).nullable(),
+  intro: z.string(),
+  groupBy: z.enum(['nothing', 'roll', 'event']),
+  captions: z.array(z.enum(['title', 'shot', 'camera', 'lens', 'film'])),
+});
+
 const storedSite = z.object({
   schema: z.literal(currentSchema),
   id: z.custom<SiteId>(
@@ -72,13 +79,17 @@ const storedSite = z.object({
     pinned: z.array(storedFrame),
     hidden: z.array(storedFrame),
   }),
+  // Only stored once it differs from the plain default, so older files read as plain.
+  presentation: storedPresentation.optional(),
 });
 
 type SiteDetails = Omit<Site, 'slug'>;
 
 /** The site's details in a site file's text; throws if the file isn't one. */
 export function parseSiteFile(text: string): SiteDetails {
-  const { id, name, selection } = storedSite.parse(JSON.parse(text));
+  const { id, name, selection, presentation } = storedSite.parse(
+    JSON.parse(text),
+  );
   const frames = (list: typeof selection.pinned) =>
     list.map(({ roll, frame }) => ({ rollId: roll, frameId: frame }));
   return {
@@ -89,6 +100,7 @@ export function parseSiteFile(text: string): SiteDetails {
       pinned: frames(selection.pinned),
       hidden: frames(selection.hidden),
     },
+    presentation: presentation ?? defaultPresentation,
   };
 }
 
@@ -124,6 +136,9 @@ function storedFramesOf(
   return list.map(({ rollId, frameId }) => ({ roll: rollId, frame: frameId }));
 }
 
+const isDefault = (presentation: SiteDetails['presentation']): boolean =>
+  JSON.stringify(presentation) === JSON.stringify(defaultPresentation);
+
 /** A site as file text: keys in a fixed order, two-space indent, trailing newline. */
 export function siteFileContent(site: SiteDetails): string {
   const stored: z.input<typeof storedSite> = {
@@ -135,6 +150,16 @@ export function siteFileContent(site: SiteDetails): string {
       pinned: storedFramesOf(site.selection.pinned),
       hidden: storedFramesOf(site.selection.hidden),
     },
+    ...(isDefault(site.presentation)
+      ? {}
+      : {
+          presentation: {
+            title: site.presentation.title,
+            intro: site.presentation.intro,
+            groupBy: site.presentation.groupBy,
+            captions: [...site.presentation.captions],
+          },
+        }),
   };
   return `${JSON.stringify(stored, null, 2)}\n`;
 }

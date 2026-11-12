@@ -5,6 +5,27 @@ import { slug } from './slug.ts';
 
 // Request and response shapes for sites (D91): a name and a selection of frames.
 
+const siteTitle = z.string().trim().min(1).max(100);
+
+export const sitePresentation = z
+  .strictObject({
+    title: siteTitle.nullable().meta({
+      description: "The page's heading; null uses the site's name.",
+    }),
+    intro: z.string().max(5000).meta({
+      description:
+        'Text under the heading; a blank line starts a new paragraph.',
+    }),
+    groupBy: z.enum(['nothing', 'roll', 'event']).meta({
+      description: 'What the photos are split under.',
+    }),
+    captions: z
+      .array(z.enum(['title', 'shot', 'camera', 'lens', 'film']))
+      .max(5)
+      .meta({ description: 'Which details appear under each photo.' }),
+  })
+  .meta({ id: 'SitePresentation' });
+
 export const site = z
   .object({
     id: ulid,
@@ -13,6 +34,7 @@ export const site = z
     }),
     name: z.string().meta({ example: 'Iceland highlights' }),
     selection: frameSelection,
+    presentation: sitePresentation,
   })
   .meta({ id: 'Site' });
 
@@ -46,12 +68,44 @@ export const updateSiteRequest = z
       description: 'A new name, which changes the slug.',
     }),
     selection: frameSelection.optional(),
+    presentation: sitePresentation.optional(),
   })
   .meta({
     id: 'UpdateSiteRequest',
     description:
-      'The details to change. A detail left out stays as it is; a selection replaces the whole one.',
+      'The details to change. A detail left out stays as it is; a selection or presentation replaces the whole one.',
   });
+
+export const siteBuildProgress = z
+  .object({
+    state: z.enum(['running', 'done', 'cancelled', 'failed']),
+    done: z.number().int().meta({
+      description: 'Images dealt with so far, made or brought across.',
+    }),
+    total: z.number().int(),
+    photos: z.number().int().meta({ description: 'Photos on the built site.' }),
+    leftOut: z.number().int().meta({
+      description:
+        'Frames left out: hidden, gone from the archive or with no scan.',
+    }),
+    imagesMade: z.number().int(),
+    imagesUnchanged: z.number().int(),
+  })
+  .meta({ id: 'SiteBuildProgress' });
+
+export const siteStatus = z
+  .object({
+    freshness: z.enum(['not-built', 'up-to-date', 'out-of-date', 'in-the-way']),
+    message: z.string().meta({
+      description:
+        'In words: "Not built yet", "Up to date" or "Out of date: 3 frames added, 1 removed, 2 changed".',
+    }),
+    build: siteBuildProgress.nullable().meta({
+      description:
+        'How the latest build since the service started went, if there was one.',
+    }),
+  })
+  .meta({ id: 'SiteStatus' });
 
 export const siteParams = z.object({ slug });
 
@@ -65,3 +119,6 @@ export const siteIfMatchHeader = z.object({
 
 export type Site = z.infer<typeof site>;
 export type SiteSummary = z.infer<typeof siteSummary>;
+
+export type SiteStatus = z.infer<typeof siteStatus>;
+export type SiteBuildProgress = z.infer<typeof siteBuildProgress>;

@@ -74,7 +74,18 @@ test('links each photo to its widest image and offers all sizes', () => {
     'srcset="images/1-640.jpg 640w, images/1-1600.jpg 1600w"',
   );
   expect(html).toContain('alt="Frame 1"');
-  expect(html).toContain('--shape: 1.4995');
+  expect(html).toContain('class="photo shape-14995"');
+  expect(html).not.toContain('style=');
+});
+
+test('sets a photo’s shape in the stylesheet, once for each shape', () => {
+  const css = renderSite(
+    [aPhoto('1'), aPhoto('2'), aPhoto('3', { width: 1000, height: 1000 })],
+    options,
+  ).find((file) => file.path === 'assets/site.css')?.content;
+  expect(css).toContain('.shape-14995 {\n  --shape: 1.4995;\n}');
+  expect(css).toContain('.shape-10000 {\n  --shape: 1;\n}');
+  expect(css?.match(/\.shape-14995 \{/g)).toHaveLength(1);
 });
 
 test('uses only relative links, so it works from any folder', () => {

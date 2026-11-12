@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import type { SiteRepository } from '../../src/application/ports/site-repository.ts';
 import { isFrameId, isRollId, isSiteId } from '../../src/domain/shared/ids.ts';
 import { isSlug } from '../../src/domain/shared/slug.ts';
-import type { Site } from '../../src/domain/sites/site.ts';
+import { defaultPresentation, type Site } from '../../src/domain/sites/site.ts';
 import { ctx } from '../support/builders.ts';
 import { checked } from '../support/checked.ts';
 
@@ -14,6 +14,7 @@ function aSite(name: string, over: Partial<Site> = {}): Site {
     slug: slug(name.toLowerCase().replaceAll(' ', '-')),
     name,
     selection: { rules: [], pinned: [], hidden: [] },
+    presentation: defaultPresentation,
     ...over,
   };
 }
@@ -62,6 +63,25 @@ export function siteRepositoryContract(
       expect((await sites.create(ctx, site)).ok).toBe(true);
 
       expect((await sites.get(ctx, site.slug))?.site).toEqual(site);
+    });
+
+    test('keeps how a site is presented, and a plain site stays plain', async () => {
+      const sites = make();
+      const shown = aSite('Iceland', {
+        presentation: {
+          title: 'Iceland, in September',
+          intro: 'Two weeks.',
+          groupBy: 'event',
+          captions: ['title', 'shot', 'camera'],
+        },
+      });
+      await sites.create(ctx, shown);
+      await sites.create(ctx, aSite('Norway'));
+
+      expect((await sites.get(ctx, shown.slug))?.site).toEqual(shown);
+      expect((await sites.get(ctx, slug('norway')))?.site.presentation).toEqual(
+        defaultPresentation,
+      );
     });
 
     test('lists the sites by name', async () => {

@@ -95,6 +95,8 @@ function anArchive() {
       }
       return withScan;
     },
+    status: (input: Parameters<BuildSite['status']>[1]) =>
+      build.status(ctx, input),
     build: (frames: readonly Frame[], over: Partial<BuildSiteInput> = {}) =>
       build.execute(ctx, {
         slug,
@@ -278,5 +280,56 @@ describe('BuildSite', () => {
     expect(
       text(archive.folders.sites.get(slug)?.files.get('index.html')),
     ).toContain('This site has no photos yet.');
+  });
+});
+
+describe('BuildSite status', () => {
+  test('says a site never built is not built, and one just built is up to date', async () => {
+    const archive = anArchive();
+    const one = await archive.addFrame(1);
+    const input = {
+      slug,
+      frames: [{ rollId: archive.roll.id, frameId: one.id }],
+      options,
+    };
+
+    expect(await archive.status(input)).toEqual({ state: 'not-built' });
+    await archive.build([one]);
+    expect(await archive.status(input)).toEqual({ state: 'up-to-date' });
+  });
+
+  test('says a site is out of date once a frame is added, and nothing is written', async () => {
+    const archive = anArchive();
+    const one = await archive.addFrame(1);
+    const two = await archive.addFrame(2);
+    await archive.build([one]);
+    const before = archive.folders.sites.get(slug);
+
+    const status = await archive.status({
+      slug,
+      frames: [one, two].map((frame) => ({
+        rollId: archive.roll.id,
+        frameId: frame.id,
+      })),
+      options,
+    });
+
+    expect(status).toMatchObject({
+      state: 'out-of-date',
+      changes: { added: [two.id] },
+    });
+    expect(archive.folders.sites.get(slug)).toBe(before);
+  });
+
+  test('says when a folder holding something else is in the way', async () => {
+    const archive = anArchive();
+    archive.folders.sites.set(slug, {
+      files: new Map([['notes.txt', 'mine']]),
+      manifest: undefined,
+    });
+
+    expect(await archive.status({ slug, frames: [], options })).toEqual({
+      state: 'in-the-way',
+    });
   });
 });
