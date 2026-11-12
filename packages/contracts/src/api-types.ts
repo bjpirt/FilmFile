@@ -2120,6 +2120,291 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the sites */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Every site by name, each with how many frames are on it now. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SiteList"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Add a site
+         * @description A new site has no rules, so every frame is on it. The response's ETag is the site's version.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateSiteRequest"];
+                };
+            };
+            responses: {
+                /** @description The new site. */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Site"];
+                    };
+                };
+                /** @description The body is not valid JSON. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description A site with the same slug already exists. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The body is not of the expected type. */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The request is invalid. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sites/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a site
+         * @description The response's ETag is the site's version, for If-Match.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The site. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Site"];
+                    };
+                };
+                /** @description There is no site with that slug. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The slug is not a slug. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Delete a site
+         * @description Takes the site's definition away: its file moves to the archive's deleted/ folder. A folder it built in Sites/ is left where it is.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The site is gone. */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description There is no site with that slug. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The slug is not a slug. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Change a site's name or selection
+         * @description Send the site's ETag as If-Match: the change is refused if the site has changed since. A new name makes a new slug, and the response says what it is. The response's ETag is the site's new version.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: {
+                    /** @description The site's ETag, from when it was read. */
+                    "if-match"?: string;
+                };
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateSiteRequest"];
+                };
+            };
+            responses: {
+                /** @description The updated site. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Site"];
+                    };
+                };
+                /** @description The body is not valid JSON. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description There is no site with that slug. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The site has changed since it was read, or another site has the new slug. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The body is not of the expected type. */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The request is invalid. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+                /** @description If-Match is missing. */
+                428: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/api/settings": {
         parameters: {
             query?: never;
@@ -2928,6 +3213,38 @@ export interface components {
             kind: "has";
             /** @enum {string} */
             version: "final" | "raw-scan";
+        };
+        SiteList: {
+            sites: components["schemas"]["SiteSummary"][];
+        };
+        SiteSummary: {
+            /** @example nikon-fe */
+            slug: string;
+            name: string;
+            /** @description How many frames are on the site now, worked out from the archive. */
+            frameCount: number;
+        };
+        Site: {
+            /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
+            id: string;
+            /**
+             * @description Made from the name; it changes when the name does.
+             * @example nikon-fe
+             */
+            slug: string;
+            /** @example Iceland highlights */
+            name: string;
+            selection: components["schemas"]["FrameSelection"];
+        };
+        CreateSiteRequest: {
+            /** @description What the site is called; its slug is made from it. A new site has every frame until rules are set. */
+            name: string;
+        };
+        /** @description The details to change. A detail left out stays as it is; a selection replaces the whole one. */
+        UpdateSiteRequest: {
+            /** @description A new name, which changes the slug. */
+            name?: string;
+            selection?: components["schemas"]["FrameSelection"];
         };
         Settings: {
             id: string;

@@ -16,7 +16,14 @@ export type DomainError =
   | ScanAlreadyInRoll;
 
 export type EntityKind =
-  'settings' | 'roll' | 'frame' | 'version' | 'equipment' | 'event' | 'export';
+  | 'settings'
+  | 'roll'
+  | 'frame'
+  | 'version'
+  | 'equipment'
+  | 'event'
+  | 'export'
+  | 'site';
 
 export interface NotFound {
   readonly kind: 'not-found';

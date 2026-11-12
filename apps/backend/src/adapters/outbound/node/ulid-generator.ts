@@ -3,10 +3,12 @@ import {
   isArchiveId,
   isFrameId,
   isRollId,
+  isSiteId,
   isVersionId,
   type ArchiveId,
   type FrameId,
   type RollId,
+  type SiteId,
   type VersionId,
 } from '../../../domain/shared/ids.ts';
 import { newUlid } from './new-ulid.ts';
@@ -37,5 +39,9 @@ export class UlidGenerator implements IdGenerator {
 
   newVersionId(): VersionId {
     return brandedUlid(isVersionId);
+  }
+
+  newSiteId(): SiteId {
+    return brandedUlid(isSiteId);
   }
 }

@@ -6,6 +6,7 @@ import { FilesystemEquipmentRepository } from '../adapters/outbound/filesystem/f
 import { FilesystemEventRepository } from '../adapters/outbound/filesystem/filesystem-event-repository.ts';
 import { FilesystemHoldingArea } from '../adapters/outbound/filesystem/filesystem-holding-area.ts';
 import { FilesystemBlobStore } from '../adapters/outbound/filesystem/filesystem-blob-store.ts';
+import { FilesystemSiteRepository } from '../adapters/outbound/filesystem/filesystem-site-repository.ts';
 import { FilesystemRollRepository } from '../adapters/outbound/filesystem/filesystem-roll-repository.ts';
 import { InMemoryExportTickets } from '../adapters/outbound/memory/in-memory-export-tickets.ts';
 import { ParentProcessExportDestination } from '../adapters/outbound/node/parent-process-export-destination.ts';
@@ -85,6 +86,7 @@ export function composeLocal(config: {
       inspector: new SharpImageInspector(maxPixels),
       previews: new SharpPreviewProvider(config.cachePath, maxPixels),
       renderer: new SharpImageRenderer(maxPixels),
+      sites: new FilesystemSiteRepository(config.archivePath),
       tickets: new InMemoryExportTickets(clock),
       destination,
       ids: config.ids ?? new UlidGenerator(),

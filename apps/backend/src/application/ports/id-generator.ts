@@ -2,6 +2,7 @@ import type {
   ArchiveId,
   FrameId,
   RollId,
+  SiteId,
   VersionId,
 } from '../../domain/shared/ids.ts';
 
@@ -11,4 +12,5 @@ export interface IdGenerator {
   newRollId(): RollId;
   newFrameId(): FrameId;
   newVersionId(): VersionId;
+  newSiteId(): SiteId;
 }

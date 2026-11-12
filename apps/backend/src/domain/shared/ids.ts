@@ -11,6 +11,7 @@ export type ArchiveId = Branded<'ArchiveId'>;
 export type RollId = Branded<'RollId'>;
 export type FrameId = Branded<'FrameId'>;
 export type VersionId = Branded<'VersionId'>;
+export type SiteId = Branded<'SiteId'>;
 
 const ulid = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 
@@ -27,6 +28,10 @@ export function isFrameId(value: string): value is FrameId {
 }
 
 export function isVersionId(value: string): value is VersionId {
+  return ulid.test(value);
+}
+
+export function isSiteId(value: string): value is SiteId {
   return ulid.test(value);
 }
 
@@ -60,4 +65,8 @@ export function parseVersionId(
   value: string,
 ): Result<VersionId, ValidationFailed> {
   return parseWith(isVersionId, value);
+}
+
+export function parseSiteId(value: string): Result<SiteId, ValidationFailed> {
+  return parseWith(isSiteId, value);
 }

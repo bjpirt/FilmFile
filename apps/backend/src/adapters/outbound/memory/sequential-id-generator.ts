@@ -3,10 +3,12 @@ import {
   isArchiveId,
   isFrameId,
   isRollId,
+  isSiteId,
   isVersionId,
   type ArchiveId,
   type FrameId,
   type RollId,
+  type SiteId,
   type VersionId,
 } from '../../../domain/shared/ids.ts';
 
@@ -40,5 +42,9 @@ export class SequentialIdGenerator implements IdGenerator {
 
   newVersionId(): VersionId {
     return this.#next(isVersionId);
+  }
+
+  newSiteId(): SiteId {
+    return this.#next(isSiteId);
   }
 }

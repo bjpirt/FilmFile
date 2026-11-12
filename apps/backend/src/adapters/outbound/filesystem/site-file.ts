@@ -1,0 +1,140 @@
+import { z } from 'zod';
+import type { Rule, Selection } from '../../../domain/selections/selection.ts';
+import { assertNever } from '../../../domain/shared/assert-never.ts';
+import {
+  isFrameId,
+  isRollId,
+  isSiteId,
+  type FrameId,
+  type RollId,
+  type SiteId,
+} from '../../../domain/shared/ids.ts';
+import { isSlug, type Slug } from '../../../domain/shared/slug.ts';
+import type { Site } from '../../../domain/sites/site.ts';
+
+// The persistence model for a site: Library/sites/<slug>.json. The slug is
+// the file name, so the file holds only the rest. Frames are named by roll
+// and frame ID (never by path), and a rule is its kind and its values.
+
+const currentSchema = 1;
+
+const slugValue = z.custom<Slug>(
+  (value) => typeof value === 'string' && isSlug(value),
+  'must be a slug',
+);
+const rollIdValue = z.custom<RollId>(
+  (value) => typeof value === 'string' && isRollId(value),
+  'must be a ULID',
+);
+const frameIdValue = z.custom<FrameId>(
+  (value) => typeof value === 'string' && isFrameId(value),
+  'must be a ULID',
+);
+const limitDate = z
+  .string()
+  .regex(
+    /^\d{4}(-\d{2}(-\d{2})?)?$/,
+    'must be like 2026, 2026-09 or 2026-09-14',
+  );
+
+const storedRule = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('rating'),
+    atLeast: z.union([
+      z.literal(1),
+      z.literal(2),
+      z.literal(3),
+      z.literal(4),
+      z.literal(5),
+    ]),
+  }),
+  z.object({ kind: z.literal('event'), events: z.array(slugValue) }),
+  z.object({ kind: z.literal('roll'), rolls: z.array(rollIdValue) }),
+  z.object({ kind: z.literal('camera'), cameras: z.array(slugValue) }),
+  z.object({ kind: z.literal('lens'), lenses: z.array(slugValue) }),
+  z.object({ kind: z.literal('film'), films: z.array(slugValue) }),
+  z.object({ kind: z.literal('shot-after'), date: limitDate }),
+  z.object({ kind: z.literal('shot-before'), date: limitDate }),
+  z.object({ kind: z.literal('has'), version: z.enum(['final', 'raw-scan']) }),
+]);
+
+const storedFrame = z.object({ roll: rollIdValue, frame: frameIdValue });
+
+const storedSite = z.object({
+  schema: z.literal(currentSchema),
+  id: z.custom<SiteId>(
+    (value) => typeof value === 'string' && isSiteId(value),
+    'must be a ULID',
+  ),
+  name: z.string().min(1),
+  selection: z.object({
+    rules: z.array(storedRule),
+    pinned: z.array(storedFrame),
+    hidden: z.array(storedFrame),
+  }),
+});
+
+type SiteDetails = Omit<Site, 'slug'>;
+
+/** The site's details in a site file's text; throws if the file isn't one. */
+export function parseSiteFile(text: string): SiteDetails {
+  const { id, name, selection } = storedSite.parse(JSON.parse(text));
+  const frames = (list: typeof selection.pinned) =>
+    list.map(({ roll, frame }) => ({ rollId: roll, frameId: frame }));
+  return {
+    id,
+    name,
+    selection: {
+      rules: selection.rules,
+      pinned: frames(selection.pinned),
+      hidden: frames(selection.hidden),
+    },
+  };
+}
+
+/** A rule as stored, its keys in a fixed order. */
+function storedRuleOf(rule: Rule): z.input<typeof storedRule> {
+  switch (rule.kind) {
+    case 'rating':
+      return { kind: 'rating', atLeast: rule.atLeast };
+    case 'event':
+      return { kind: 'event', events: [...rule.events] };
+    case 'roll':
+      return { kind: 'roll', rolls: [...rule.rolls] };
+    case 'camera':
+      return { kind: 'camera', cameras: [...rule.cameras] };
+    case 'lens':
+      return { kind: 'lens', lenses: [...rule.lenses] };
+    case 'film':
+      return { kind: 'film', films: [...rule.films] };
+    case 'shot-after':
+      return { kind: 'shot-after', date: rule.date };
+    case 'shot-before':
+      return { kind: 'shot-before', date: rule.date };
+    case 'has':
+      return { kind: 'has', version: rule.version };
+    default:
+      return assertNever(rule);
+  }
+}
+
+function storedFramesOf(
+  list: Selection['pinned'],
+): z.input<typeof storedFrame>[] {
+  return list.map(({ rollId, frameId }) => ({ roll: rollId, frame: frameId }));
+}
+
+/** A site as file text: keys in a fixed order, two-space indent, trailing newline. */
+export function siteFileContent(site: SiteDetails): string {
+  const stored: z.input<typeof storedSite> = {
+    schema: currentSchema,
+    id: site.id,
+    name: site.name,
+    selection: {
+      rules: site.selection.rules.map(storedRuleOf),
+      pinned: storedFramesOf(site.selection.pinned),
+      hidden: storedFramesOf(site.selection.hidden),
+    },
+  };
+  return `${JSON.stringify(stored, null, 2)}\n`;
+}

@@ -3,10 +3,12 @@ import {
   isArchiveId,
   isFrameId,
   isRollId,
+  isSiteId,
   isVersionId,
   parseArchiveId,
   parseFrameId,
   parseRollId,
+  parseSiteId,
   parseVersionId,
 } from './ids.ts';
 
@@ -17,6 +19,7 @@ describe.each([
   ['parseRollId', parseRollId],
   ['parseFrameId', parseFrameId],
   ['parseVersionId', parseVersionId],
+  ['parseSiteId', parseSiteId],
 ])('%s', (_name, parse) => {
   test('accepts a ULID', () => {
     expect(parse(ulid)).toEqual({ ok: true, value: ulid });
@@ -44,6 +47,7 @@ test.each([
   ['isRollId', isRollId],
   ['isFrameId', isFrameId],
   ['isVersionId', isVersionId],
+  ['isSiteId', isSiteId],
 ])('%s tells a ULID from anything else', (_name, isId) => {
   expect(isId(ulid)).toBe(true);
   expect(isId('2026-014')).toBe(false);
