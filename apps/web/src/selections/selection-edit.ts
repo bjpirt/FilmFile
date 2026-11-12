@@ -9,61 +9,44 @@ export interface FrameRef {
   readonly frameId: string;
 }
 
-/** A selection of every frame: no rules, nothing by hand. */
-export const everyFrame: FrameSelection = { rules: [], pinned: [], hidden: [] };
+/** A selection of every frame: no rules, nothing excluded. */
+export const everyFrame: FrameSelection = { rules: [], excluded: [] };
 
 const same = (a: FrameRef, b: FrameRef): boolean =>
   a.rollId === b.rollId && a.frameId === b.frameId;
 
-/** Just the roll and frame IDs, whatever else the caller's frame carries (the search's `why`). */
+/** Just the roll and frame IDs, whatever else the caller's frame carries (the search's `excluded`). */
 const refOf = (frame: FrameRef): FrameRef => ({
   rollId: frame.rollId,
   frameId: frame.frameId,
 });
 
-const without = (
-  list: readonly FrameRef[],
-  frame: FrameRef,
-): readonly FrameRef[] => list.filter((ref) => !same(ref, frame));
-
-/** "Always include": on the selection whatever the rules say; no longer left off. */
-export function pin(
+/** The × on a frame: off the selection, though the rules find it (D103). */
+export function exclude(
   selection: FrameSelection,
   frame: FrameRef,
 ): FrameSelection {
   return {
     ...selection,
-    pinned: [...without(selection.pinned, frame), refOf(frame)],
-    hidden: [...without(selection.hidden, frame)],
+    excluded: [...include(selection, frame).excluded, refOf(frame)],
   };
 }
 
-/** "Never include": off the selection whatever the rules say; no longer pinned. */
-export function leaveOff(
+/** The ↺ on an excluded frame: back to what the rules say. */
+export function include(
   selection: FrameSelection,
   frame: FrameRef,
 ): FrameSelection {
   return {
     ...selection,
-    pinned: [...without(selection.pinned, frame)],
-    hidden: [...without(selection.hidden, frame), refOf(frame)],
+    excluded: selection.excluded.filter((ref) => !same(ref, frame)),
   };
 }
 
-/** Back to what the rules say: neither pinned nor left off. */
-export function putBack(
+export const isExcluded = (
   selection: FrameSelection,
   frame: FrameRef,
-): FrameSelection {
-  return {
-    ...selection,
-    pinned: [...without(selection.pinned, frame)],
-    hidden: [...without(selection.hidden, frame)],
-  };
-}
-
-export const isPinned = (selection: FrameSelection, frame: FrameRef): boolean =>
-  selection.pinned.some((ref) => same(ref, frame));
+): boolean => selection.excluded.some((ref) => same(ref, frame));
 
 /** What a rule is called in "Add a rule ▾" and on the rule itself. */
 export const ruleLabels = {
@@ -173,10 +156,15 @@ export function searchable(selection: FrameSelection): FrameSelection {
   };
 }
 
-/** "24 frames match", "1 frame matches", "No frames match". */
-export function matchCount(count: number): string {
-  if (count === 0) {
-    return 'No frames match';
-  }
-  return count === 1 ? '1 frame matches' : `${String(count)} frames match`;
+/** "24 frames match", "1 frame matches", "No frames match", then ", 2 excluded" if any are. */
+export function matchCount(count: number, excluded: number): string {
+  const matching =
+    count === 0
+      ? 'No frames match'
+      : count === 1
+        ? '1 frame matches'
+        : `${String(count)} frames match`;
+  return excluded === 0
+    ? matching
+    : `${matching}, ${String(excluded)} excluded`;
 }

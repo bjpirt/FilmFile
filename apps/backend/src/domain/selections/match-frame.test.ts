@@ -3,7 +3,7 @@ import { isFrameId, isRollId } from '../shared/ids.ts';
 import { isSlug } from '../shared/slug.ts';
 import type { VersionKind } from '../rolls/version-kind.ts';
 import type { FrameFacts } from './frame-facts.ts';
-import { matchesRule, whyOnSelection } from './match-frame.ts';
+import { matchSelection, matchesRule } from './match-frame.ts';
 import type { Rule, Selection } from './selection.ts';
 import { compareShotOrder } from './shot-order.ts';
 
@@ -50,8 +50,7 @@ function aFrame(over: Partial<FrameFacts> = {}): FrameFacts {
 
 const rules = (...list: Rule[]): Selection => ({
   rules: list,
-  pinned: [],
-  hidden: [],
+  excluded: [],
 });
 
 describe('rules', () => {
@@ -128,7 +127,7 @@ describe('rules', () => {
 
 describe('selections', () => {
   test('with no rules every frame is on it', () => {
-    expect(whyOnSelection(rules(), aFrame())).toBe('rules');
+    expect(matchSelection(rules(), aFrame())).toBe('included');
   });
 
   test('a frame must meet every rule', () => {
@@ -137,39 +136,32 @@ describe('selections', () => {
       { kind: 'event', events: [slug('iceland')] },
     );
     expect(
-      whyOnSelection(selection, aFrame({ rating: 5, event: slug('iceland') })),
-    ).toBe('rules');
-    expect(whyOnSelection(selection, aFrame({ rating: 5 }))).toBeUndefined();
+      matchSelection(selection, aFrame({ rating: 5, event: slug('iceland') })),
+    ).toBe('included');
+    expect(matchSelection(selection, aFrame({ rating: 5 }))).toBeUndefined();
   });
 
-  test('a frame pinned is on it whatever the rules say', () => {
-    const selection: Selection = {
-      rules: [{ kind: 'rating', atLeast: 5 }],
-      pinned: [{ rollId, frameId: frameId(1) }],
-      hidden: [],
-    };
-    expect(whyOnSelection(selection, aFrame())).toBe('pinned');
-  });
-
-  test('a frame left off is never on it', () => {
+  test('a frame excluded by hand is found, but marked excluded', () => {
     const selection: Selection = {
       rules: [],
-      pinned: [],
-      hidden: [{ rollId, frameId: frameId(1) }],
+      excluded: [{ rollId, frameId: frameId(1) }],
     };
-    expect(whyOnSelection(selection, aFrame())).toBeUndefined();
-    expect(whyOnSelection(selection, aFrame({ frameId: frameId(2) }))).toBe(
-      'rules',
+    expect(matchSelection(selection, aFrame())).toBe('excluded');
+    expect(matchSelection(selection, aFrame({ frameId: frameId(2) }))).toBe(
+      'included',
     );
   });
 
-  test('a hidden frame is never on it, even pinned', () => {
+  test('an excluded frame the rules no longer find is not found', () => {
     const selection: Selection = {
-      rules: [],
-      pinned: [{ rollId, frameId: frameId(1) }],
-      hidden: [],
+      rules: [{ kind: 'rating', atLeast: 5 }],
+      excluded: [{ rollId, frameId: frameId(1) }],
     };
-    expect(whyOnSelection(selection, aFrame({ hidden: true }))).toBeUndefined();
+    expect(matchSelection(selection, aFrame())).toBeUndefined();
+  });
+
+  test('a hidden frame is never found, excluded or not', () => {
+    expect(matchSelection(rules(), aFrame({ hidden: true }))).toBeUndefined();
   });
 });
 

@@ -49,7 +49,12 @@ export function FrameSelectionEditor({
       {failed && (
         <p role="alert">Couldn't find the frames. Is the service running?</p>
       )}
-      {found !== undefined && <MatchCount count={found.count} />}
+      {found !== undefined && (
+        <MatchCount
+          count={found.count}
+          excluded={found.frames.filter((frame) => frame.excluded).length}
+        />
+      )}
       {found !== undefined && rolls.data !== undefined && (
         <SelectionGrid
           rolls={rolls.data.rolls}

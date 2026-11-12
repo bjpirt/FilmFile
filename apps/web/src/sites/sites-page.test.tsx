@@ -33,7 +33,7 @@ function renderPage(archive: FakeArchive) {
   );
 }
 
-const emptySelection = { rules: [], pinned: [], hidden: [] };
+const emptySelection = { rules: [], excluded: [] };
 
 test('lists the sites by name, each with how many frames are on it', async () => {
   const roll = aRoll('2026-001', {
@@ -56,7 +56,7 @@ test('lists the sites by name, each with how many frames are on it', async () =>
           name: 'Iceland',
           selection: {
             ...emptySelection,
-            hidden: [{ rollId: roll.id, frameId: frame?.id ?? '' }],
+            excluded: [{ rollId: roll.id, frameId: frame?.id ?? '' }],
           },
         },
       ],

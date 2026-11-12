@@ -3,12 +3,12 @@ import {
   choiceOf,
   choicesLeft,
   everyFrame,
+  exclude,
+  include,
+  isExcluded,
   isLimitDate,
-  leaveOff,
   matchCount,
   newRule,
-  pin,
-  putBack,
   ruleChoices,
   searchable,
 } from './selection-edit.ts';
@@ -16,36 +16,27 @@ import {
 const a = { rollId: 'R1', frameId: 'F1' };
 const b = { rollId: 'R1', frameId: 'F2' };
 
-describe('frames by hand', () => {
-  test('pinning a frame includes it, once', () => {
-    expect(pin(pin(everyFrame, a), a).pinned).toEqual([a]);
+describe('frames excluded by hand', () => {
+  test('excluding a frame adds it once', () => {
+    const twice = exclude(exclude(everyFrame, a), a);
+    expect(twice.excluded).toEqual([a]);
+    expect(isExcluded(twice, a)).toBe(true);
+    expect(isExcluded(twice, b)).toBe(false);
   });
 
-  test('a frame can’t be both: pinning takes it off the left-off list and the reverse', () => {
-    const left = leaveOff(everyFrame, a);
-    expect(left.hidden).toEqual([a]);
-    expect(pin(left, a)).toMatchObject({ pinned: [a], hidden: [] });
-    expect(leaveOff(pin(everyFrame, a), a)).toMatchObject({
-      pinned: [],
-      hidden: [a],
-    });
-  });
-
-  test('putting a frame back takes it off both lists and leaves the rest', () => {
-    const selection = leaveOff(pin(everyFrame, a), b);
-    expect(putBack(selection, b)).toMatchObject({ pinned: [a], hidden: [] });
-    expect(putBack(selection, a)).toMatchObject({ pinned: [], hidden: [b] });
+  test('including it again takes it off and leaves the rest', () => {
+    const both = exclude(exclude(everyFrame, a), b);
+    expect(include(both, a).excluded).toEqual([b]);
   });
 
   test('keeps only the IDs of a frame that carries more, as the search gives them', () => {
-    const found = { ...a, why: 'rules' };
-    expect(pin(everyFrame, found).pinned).toEqual([a]);
-    expect(leaveOff(everyFrame, found).hidden).toEqual([a]);
+    const found = { ...a, excluded: false };
+    expect(exclude(everyFrame, found).excluded).toEqual([a]);
   });
 
   test('keeps the rules', () => {
     const withRule = { ...everyFrame, rules: [newRule('rating')] };
-    expect(pin(withRule, a).rules).toEqual(withRule.rules);
+    expect(exclude(withRule, a).rules).toEqual(withRule.rules);
   });
 });
 
@@ -96,9 +87,12 @@ describe('rules', () => {
 });
 
 test.each([
-  [0, 'No frames match'],
-  [1, '1 frame matches'],
-  [24, '24 frames match'],
-])('counts %d as "%s"', (count, text) => {
-  expect(matchCount(count)).toBe(text);
+  [0, 0, 'No frames match'],
+  [1, 0, '1 frame matches'],
+  [24, 0, '24 frames match'],
+  [22, 2, '22 frames match, 2 excluded'],
+  [1, 1, '1 frame matches, 1 excluded'],
+  [0, 3, 'No frames match, 3 excluded'],
+])('counts %d with %d excluded as "%s"', (count, excluded, text) => {
+  expect(matchCount(count, excluded)).toBe(text);
 });

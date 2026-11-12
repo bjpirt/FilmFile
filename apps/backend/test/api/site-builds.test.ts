@@ -77,6 +77,25 @@ async function build(slug: string) {
 const siteFolder = (slug: string) => path.join(archive.folder(), 'Sites', slug);
 
 describe('POST /api/sites/{slug}/build', () => {
+  test('leaves out a frame excluded by hand (D103)', async () => {
+    const excluded = await aFrameWithAScan('1');
+    await aFrameWithAScan('2');
+    const slug = await aSite();
+    const etag =
+      (await request(`/api/sites/${slug}`)).headers.get('ETag') ?? '';
+    await request(`/api/sites/${slug}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'If-Match': etag },
+      body: JSON.stringify({
+        selection: { rules: [], excluded: [{ rollId, frameId: excluded }] },
+      }),
+    });
+
+    const status = await build(slug);
+
+    expect(status.build).toMatchObject({ state: 'done', photos: 1 });
+  });
+
   test('builds the site into Sites/<slug>/ from the frames it finds', async () => {
     await aFrameWithAScan('1');
     await aFrameWithAScan('2');

@@ -6,7 +6,6 @@ import {
   render,
   screen,
   waitFor,
-  within,
 } from '@testing-library/react';
 import { afterEach, expect, test } from 'vitest';
 import {
@@ -26,7 +25,7 @@ const aSite = {
   id: '01JC8Z7K3M00000000000000S1',
   slug: 'iceland',
   name: 'Iceland',
-  selection: { rules: [], pinned: [], hidden: [] },
+  selection: { rules: [], excluded: [] },
 };
 
 function archiveWith(extra: Parameters<typeof fakeArchive>[0] = {}) {
@@ -76,8 +75,7 @@ test('shows the rules the site already has', async () => {
           ...aSite,
           selection: {
             rules: [{ kind: 'rating', atLeast: 5 }],
-            pinned: [],
-            hidden: [],
+            excluded: [],
           },
         },
       ],
@@ -101,8 +99,7 @@ test('saves a rule straight away, against the version it was opened at', async (
     expect(lastUpdate(archive)).toEqual({
       selection: {
         rules: [{ kind: 'rating', atLeast: 4 }],
-        pinned: [],
-        hidden: [],
+        excluded: [],
       },
     });
   });
@@ -133,88 +130,46 @@ test('each change is saved against the version the last one left', async () => {
   ]);
 });
 
-test('"Always include" pins a frame and "Never include" leaves another off, each saved', async () => {
+test('the × on a frame excludes it, greyed in its place, and the ↺ includes it again, each saved', async () => {
   const archive = archiveWith();
   renderPage(archive);
   await screen.findByText('2 frames match');
 
   fireEvent.click(
-    screen.getByRole('button', {
-      name: 'Always include Roll 2026-001, frame 1',
-    }),
-  );
-  await screen.findByText('Always included');
-  fireEvent.click(
-    screen.getByRole('button', {
-      name: 'Never include Roll 2026-001, frame 2',
-    }),
+    screen.getByRole('button', { name: 'Exclude Roll 2026-001, frame 2' }),
   );
 
+  expect(await screen.findByText('1 frame matches, 1 excluded')).toBeTruthy();
   await waitFor(() => {
-    expect(screen.getByText('1 frame matches')).toBeTruthy();
-  });
-  expect(archive.sites[0]?.selection).toMatchObject({
-    pinned: [{ frameId: '01JC8Z7K3M00000000000F0001' }],
-    hidden: [{ frameId: '01JC8Z7K3M00000000000F0002' }],
-  });
-});
-
-test('a frame pinned can be un-pinned from the frame itself', async () => {
-  const archive = archiveWith();
-  renderPage(archive);
-  await screen.findByText('2 frames match');
-  fireEvent.click(
-    screen.getByRole('button', {
-      name: 'Always include Roll 2026-001, frame 1',
-    }),
-  );
-
-  fireEvent.click(
-    await screen.findByRole('button', {
-      name: "Don't always include Roll 2026-001, frame 1",
-    }),
-  );
-
-  await waitFor(() => {
-    expect(screen.queryByText('Always included')).toBeNull();
-  });
-  expect(archive.sites[0]?.selection.pinned).toEqual([]);
-});
-
-test('lists the frames left off as "Hidden: 1", each with a way to put it back', async () => {
-  const archive = archiveWith({
-    sites: [
+    expect(archive.sites[0]?.selection.excluded).toEqual([
       {
-        ...aSite,
-        selection: {
-          rules: [],
-          pinned: [],
-          hidden: [
-            {
-              rollId: '01JC8Z7K3M0000000002026001',
-              frameId: '01JC8Z7K3M00000000000F0002',
-            },
-          ],
-        },
+        rollId: '01JC8Z7K3M0000000002026001',
+        frameId: '01JC8Z7K3M00000000000F0002',
       },
-    ],
+    ]);
   });
-  renderPage(archive);
+  const frame = screen.getByRole('link', { name: 'Roll 2026-001, frame 2' });
+  expect(frame.closest('li')?.className).toContain('excluded');
 
-  expect(await screen.findByText('Hidden: 1')).toBeTruthy();
-  expect(await screen.findByText('1 frame matches')).toBeTruthy();
-  const hidden = screen.getByRole('region', { name: 'Frames left off' });
   fireEvent.click(
-    within(hidden).getByRole('button', {
-      name: 'Put back Roll 2026-001, frame 2',
+    screen.getByRole('button', {
+      name: 'Include Roll 2026-001, frame 2 again',
     }),
   );
 
-  await waitFor(() => {
-    expect(screen.queryByText(/^Hidden:/)).toBeNull();
-  });
   expect(await screen.findByText('2 frames match')).toBeTruthy();
-  expect(archive.sites[0]?.selection.hidden).toEqual([]);
+  await waitFor(() => {
+    expect(archive.sites[0]?.selection.excluded).toEqual([]);
+  });
+});
+
+test('has no "Always include", "Never include" or list of hidden frames', async () => {
+  renderPage(archiveWith());
+  await screen.findByText('2 frames match');
+
+  expect(screen.queryByRole('button', { name: /Always include/ })).toBeNull();
+  expect(screen.queryByRole('button', { name: /Never include/ })).toBeNull();
+  expect(screen.queryByText(/^Hidden:/)).toBeNull();
 });
 
 test('renames the site, and the address follows its new slug', async () => {

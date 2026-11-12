@@ -42,8 +42,7 @@ async function aFrame(
 const search = (selection: Record<string, unknown>) =>
   post('/api/frames/search', {
     rules: [],
-    pinned: [],
-    hidden: [],
+    excluded: [],
     ...selection,
   });
 
@@ -51,7 +50,9 @@ async function found(selection: Record<string, unknown>): Promise<string[]> {
   const body = searchFramesResponse.parse(
     await (await search(selection)).json(),
   );
-  return body.frames.map((frame) => frame.frameId);
+  return body.frames
+    .filter((frame) => !frame.excluded)
+    .map((frame) => frame.frameId);
 }
 
 describe('POST /api/frames/search', () => {
@@ -66,8 +67,8 @@ describe('POST /api/frames/search', () => {
     expect(await response.json()).toEqual({
       count: 2,
       frames: [
-        { rollId: roll, frameId: one, why: 'rules' },
-        { rollId: roll, frameId: two, why: 'rules' },
+        { rollId: roll, frameId: one, excluded: false },
+        { rollId: roll, frameId: two, excluded: false },
       ],
     });
   });
@@ -123,53 +124,63 @@ describe('POST /api/frames/search', () => {
     ).toEqual([august, september]);
   });
 
-  test('includes a pinned frame whatever the rules say, and says so', async () => {
-    const roll = await aRoll({ roll: '2026-001' });
-    const rated = await aFrame(roll, { rating: 5 });
-    const pinned = await aFrame(roll);
-
-    const response = await search({
-      rules: [{ kind: 'rating', atLeast: 5 }],
-      pinned: [{ rollId: roll, frameId: pinned }],
-    });
-
-    expect(await response.json()).toEqual({
-      count: 2,
-      frames: [
-        { rollId: roll, frameId: rated, why: 'rules' },
-        { rollId: roll, frameId: pinned, why: 'pinned' },
-      ],
-    });
-  });
-
-  test('leaves out a frame left off by hand', async () => {
+  test('finds a frame excluded by hand, marked, and leaves it out of the count', async () => {
     const roll = await aRoll({ roll: '2026-001' });
     const one = await aFrame(roll);
     const two = await aFrame(roll);
 
-    expect(await found({ hidden: [{ rollId: roll, frameId: one }] })).toEqual([
-      two,
+    const response = await search({
+      excluded: [{ rollId: roll, frameId: one }],
+    });
+
+    expect(await response.json()).toEqual({
+      count: 1,
+      frames: [
+        { rollId: roll, frameId: one, excluded: true },
+        { rollId: roll, frameId: two, excluded: false },
+      ],
+    });
+  });
+
+  test('does not find an excluded frame the rules no longer find', async () => {
+    const roll = await aRoll({ roll: '2026-001' });
+    const rated = await aFrame(roll, { rating: 5 });
+    const unrated = await aFrame(roll);
+
+    const body = searchFramesResponse.parse(
+      await (
+        await search({
+          rules: [{ kind: 'rating', atLeast: 5 }],
+          excluded: [{ rollId: roll, frameId: unrated }],
+        })
+      ).json(),
+    );
+
+    expect(body.frames).toEqual([
+      { rollId: roll, frameId: rated, excluded: false },
     ]);
   });
 
-  test('never finds a hidden frame, even a pinned one', async () => {
+  test('never finds a hidden frame, excluded or not', async () => {
     const roll = await aRoll({ roll: '2026-001' });
-    await aFrame(roll);
+    const shown = await aFrame(roll);
     const hidden = await aFrame(roll, { hidden: true });
 
-    expect(
-      await found({ pinned: [{ rollId: roll, frameId: hidden }] }),
-    ).toHaveLength(1);
+    const body = searchFramesResponse.parse(
+      await (
+        await search({ excluded: [{ rollId: roll, frameId: hidden }] })
+      ).json(),
+    );
+
+    expect(body.frames.map((frame) => frame.frameId)).toEqual([shown]);
   });
 
-  test('skips a pinned frame that is no longer there', async () => {
+  test('ignores an excluded frame that is no longer there', async () => {
     const roll = await aRoll({ roll: '2026-001' });
     const one = await aFrame(roll);
 
     expect(
-      await found({
-        pinned: [{ rollId: roll, frameId: '0'.repeat(26) }],
-      }),
+      await found({ excluded: [{ rollId: roll, frameId: '0'.repeat(26) }] }),
     ).toEqual([one]);
   });
 
@@ -185,7 +196,8 @@ describe('POST /api/frames/search', () => {
       'a badly made slug',
       { rules: [{ kind: 'event', events: ['Not A Slug'] }] },
     ],
-    ['a missing list', { rules: [], pinned: undefined }],
+    ['a missing list', { rules: [], excluded: undefined }],
+    ['pinned frames, which selections no longer have (D103)', { pinned: [] }],
   ])('refuses %s', async (_name, selection) => {
     expect((await search(selection)).status).toBe(422);
   });

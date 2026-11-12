@@ -1950,9 +1950,31 @@ textarea {
   font-weight: 600;
 }
 
-.always-included {
-  color: var(--accent);
-  font-size: 0.85rem;
+/* A frame's × or ↺ on a site's page (D103): always there, so it works by touch too. */
+.selection-grid li {
+  position: relative;
+}
+
+.exclude-frame {
+  align-items: center;
+  background: rgb(0 0 0 / 60%);
+  border-color: transparent;
+  display: flex;
+  font-size: 1rem;
+  justify-content: center;
+  line-height: 1;
+  min-height: 0;
+  padding: 0;
+  position: absolute;
+  right: var(--space-1);
+  top: var(--space-1);
+  height: 1.75rem;
+  width: 1.75rem;
+}
+
+.selection-grid li.excluded img {
+  filter: grayscale(1);
+  opacity: 0.35;
 }
 
 /* Sites (FF-119) */
@@ -1981,31 +2003,6 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-}
-
-.frame-choices {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.frame-choices button,
-.hidden-frame button {
-  font-size: 0.85rem;
-  min-height: 2rem;
-}
-
-.hidden-frames {
-  margin-top: var(--space-6);
-}
-
-.hidden-count {
-  color: var(--text-muted);
-  font-weight: 600;
-}
-
-.hidden-frame img {
-  opacity: 0.5;
 }
 
 /* Building a site (FF-120) */

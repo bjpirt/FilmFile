@@ -74,7 +74,7 @@ describe('POST /api/sites', () => {
       id: created.id,
       slug: 'iceland-highlights',
       name: 'Iceland highlights',
-      selection: { rules: [], pinned: [], hidden: [] },
+      selection: { rules: [], excluded: [] },
       presentation: {
         groupBy: 'nothing',
         captions: ['title'],
@@ -123,8 +123,7 @@ describe('GET /api/sites', () => {
       {
         selection: {
           rules: [],
-          pinned: [],
-          hidden: [{ rollId, frameId: frameIds[0] }],
+          excluded: [{ rollId, frameId: frameIds[0] }],
         },
       },
       iceland.etag,
@@ -167,8 +166,7 @@ describe('PATCH /api/sites/{slug}', () => {
       { kind: 'rating', atLeast: 4 },
       { kind: 'shot-after', date: '2026-09' },
     ],
-    pinned: [],
-    hidden: [],
+    excluded: [],
   };
 
   test('saves a selection against the ETag, with a new ETag', async () => {
@@ -294,7 +292,7 @@ describe('PATCH /api/sites/{slug}', () => {
   test.each([
     [
       'a rule that does not exist',
-      { selection: { rules: [{ kind: 'colour' }], pinned: [], hidden: [] } },
+      { selection: { rules: [{ kind: 'colour' }], excluded: [] } },
     ],
     ['a name with nothing in it', { name: '!!!' }],
     ['a field it does not have', { colour: 'red' }],

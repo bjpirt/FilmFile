@@ -25,7 +25,7 @@ const aSite = {
   id: '01JC8Z7K3M00000000000000S1',
   slug: 'iceland',
   name: 'Iceland',
-  selection: { rules: [], pinned: [], hidden: [] },
+  selection: { rules: [], excluded: [] },
 };
 
 function archiveWith(extra: Parameters<typeof fakeArchive>[0] = {}) {

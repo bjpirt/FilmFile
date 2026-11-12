@@ -27,15 +27,13 @@ export type Rule =
 export type RuleKind = Rule['kind'];
 
 /**
- * Which frames: those meeting every rule, plus those `pinned` ("Always
- * include"), minus those `hidden` ("Never include"), which override the
- * rules. With none pinned or hidden it is its rules alone.
+ * Which frames: those meeting every rule, minus those `excluded` by hand
+ * (D103). There is no way to include a frame the rules don't find.
  */
 export interface Selection {
   readonly rules: readonly Rule[];
-  readonly pinned: readonly FrameRef[];
-  readonly hidden: readonly FrameRef[];
+  readonly excluded: readonly FrameRef[];
 }
 
-/** Why a frame is on a selection. */
-export type WhyOnSelection = 'rules' | 'pinned';
+/** A frame the rules find: on the selection, or excluded from it by hand. */
+export type SelectionMatch = 'included' | 'excluded';

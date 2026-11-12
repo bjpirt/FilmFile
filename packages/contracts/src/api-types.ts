@@ -2079,7 +2079,7 @@ export interface paths {
         put?: never;
         /**
          * Find the frames on a selection
-         * @description Works out, from the archive as it is now, which frames meet the rules (and are pinned, and not left off), in shot order. Nothing is saved.
+         * @description Works out, from the archive as it is now, which frames meet the rules, in shot order, each marked if it is excluded by hand; the count leaves the excluded out. Nothing is saved.
          */
         post: {
             parameters: {
@@ -3281,7 +3281,7 @@ export interface components {
             /** @description Frames that could not be made, listed in a skipped.txt in the folder. */
             leftOut: number;
         };
-        /** @description The matching frames in shot order, and how many. */
+        /** @description The frames the rules find in shot order, the excluded marked, and how many are not excluded. */
         SearchFramesResponse: {
             count: number;
             frames: {
@@ -3289,25 +3289,15 @@ export interface components {
                 rollId: string;
                 /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
                 frameId: string;
-                /**
-                 * @description Why it is on the selection.
-                 * @enum {string}
-                 */
-                why: "rules" | "pinned";
+                /** @description Excluded by hand: found by the rules but not on it. */
+                excluded: boolean;
             }[];
         };
-        /** @description Which frames: those meeting every rule (all of them with no rules), plus those pinned, minus those left off. A hidden frame is never on one. */
+        /** @description Which frames: those meeting every rule (all of them with no rules), minus those excluded by hand. A hidden frame is never on one. */
         FrameSelection: {
             rules: components["schemas"]["SelectionRule"][];
-            /** @description Frames always included, whatever the rules say ("Always include"). */
-            pinned: {
-                /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
-                rollId: string;
-                /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
-                frameId: string;
-            }[];
-            /** @description Frames never included ("Never include"). */
-            hidden: {
+            /** @description Frames the rules find that are left off by hand (the × on a frame, D103). */
+            excluded: {
                 /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */
                 rollId: string;
                 /** @example 01M6EAAP694BKWR9HZ4N5Z54XD */

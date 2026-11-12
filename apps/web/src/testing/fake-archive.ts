@@ -970,32 +970,24 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   }
 
   /**
-   * The frames on a selection as the fake knows them: every frame that isn't
-   * hidden, minus those left off, with those pinned marked. Rules aren't
-   * matched (the service's tests do that).
+   * The frames a selection finds as the fake knows them: every frame that
+   * isn't hidden, those excluded by hand marked. Rules aren't matched (the
+   * service's tests do that).
    */
   function framesOn(selection: {
-    readonly pinned: readonly { rollId: string; frameId: string }[];
-    readonly hidden: readonly { rollId: string; frameId: string }[];
+    readonly excluded: readonly { rollId: string; frameId: string }[];
   }) {
-    const is = (
-      list: readonly { rollId: string; frameId: string }[],
-      r: string,
-      f: string,
-    ) => list.some((ref) => ref.rollId === r && ref.frameId === f);
-    return rolls
-      .flatMap((roll) =>
-        roll.frames
-          .filter((frame) => !frame.hidden)
-          .map((frame) => ({ rollId: roll.id, frameId: frame.id })),
-      )
-      .filter(({ rollId, frameId }) => !is(selection.hidden, rollId, frameId))
-      .map((ref) => ({
-        ...ref,
-        why: is(selection.pinned, ref.rollId, ref.frameId)
-          ? ('pinned' as const)
-          : ('rules' as const),
-      }));
+    return rolls.flatMap((roll) =>
+      roll.frames
+        .filter((frame) => !frame.hidden)
+        .map((frame) => ({
+          rollId: roll.id,
+          frameId: frame.id,
+          excluded: selection.excluded.some(
+            (ref) => ref.rollId === roll.id && ref.frameId === frame.id,
+          ),
+        })),
+    );
   }
 
   /** Building a site and asking how it stands, as the service answers. */
@@ -1070,7 +1062,9 @@ export function fakeArchive(contents: ArchiveContents = {}) {
             .map((site) => ({
               slug: site.slug,
               name: site.name,
-              frameCount: framesOn(site.selection).length,
+              frameCount: framesOn(site.selection).filter(
+                (frame) => !frame.excluded,
+              ).length,
             })),
         });
       }
@@ -1082,7 +1076,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         id: newId(),
         slug: slugFor(body.value.name),
         name: body.value.name,
-        selection: { rules: [], pinned: [], hidden: [] },
+        selection: { rules: [], excluded: [] },
         presentation: plainPresentation,
       };
       if (sites.some((site) => site.slug === made.slug)) {
@@ -1163,8 +1157,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
 
   /**
    * Finds frames as the service does, except that it doesn't match rules (the
-   * service's tests do): every frame that isn't hidden, minus those left off,
-   * with those pinned marked. What it was asked is in `searches`.
+   * service's tests do): every frame that isn't hidden, those excluded by
+   * hand marked and not counted. What it was asked is in `searches`.
    */
   async function searchFrames(request: Request): Promise<Response> {
     const body = await bodyOf(request, frameSelection);
@@ -1173,7 +1167,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     }
     searches.push(body.value);
     const frames = framesOn(body.value);
-    return Response.json({ count: frames.length, frames });
+    const count = frames.filter((frame) => !frame.excluded).length;
+    return Response.json({ count, frames });
   }
 
   /** Prepares a frame's export as the service does: refused if hidden or with no scan. */

@@ -74,8 +74,9 @@ const storedSite = z.object({
   name: z.string().min(1),
   selection: z.object({
     rules: z.array(storedRule),
-    pinned: z.array(storedFrame),
-    hidden: z.array(storedFrame),
+    // Older files had `pinned` and `hidden` instead (D103); they aren't
+    // migrated, but default to nothing excluded so such a site still opens.
+    excluded: z.array(storedFrame).default([]),
   }),
   // Only stored once it differs from the plain default, so older files read as plain.
   presentation: storedPresentation.optional(),
@@ -88,15 +89,15 @@ export function parseSiteFile(text: string): SiteDetails {
   const { id, name, selection, presentation } = storedSite.parse(
     JSON.parse(text),
   );
-  const frames = (list: typeof selection.pinned) =>
-    list.map(({ roll, frame }) => ({ rollId: roll, frameId: frame }));
   return {
     id,
     name,
     selection: {
       rules: selection.rules,
-      pinned: frames(selection.pinned),
-      hidden: frames(selection.hidden),
+      excluded: selection.excluded.map(({ roll, frame }) => ({
+        rollId: roll,
+        frameId: frame,
+      })),
     },
     presentation: presentation ?? defaultPresentation,
   };
@@ -129,7 +130,7 @@ function storedRuleOf(rule: Rule): z.input<typeof storedRule> {
 }
 
 function storedFramesOf(
-  list: Selection['pinned'],
+  list: Selection['excluded'],
 ): z.input<typeof storedFrame>[] {
   return list.map(({ rollId, frameId }) => ({ roll: rollId, frame: frameId }));
 }
@@ -145,8 +146,7 @@ export function siteFileContent(site: SiteDetails): string {
     name: site.name,
     selection: {
       rules: site.selection.rules.map(storedRuleOf),
-      pinned: storedFramesOf(site.selection.pinned),
-      hidden: storedFramesOf(site.selection.hidden),
+      excluded: storedFramesOf(site.selection.excluded),
     },
     ...(isDefault(site.presentation)
       ? {}

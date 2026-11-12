@@ -1,6 +1,6 @@
 import { assertNever } from '../shared/assert-never.ts';
 import type { FrameFacts } from './frame-facts.ts';
-import type { FrameRef, Rule, Selection, WhyOnSelection } from './selection.ts';
+import type { FrameRef, Rule, Selection, SelectionMatch } from './selection.ts';
 
 const isIn = <T>(values: readonly T[], value: T | undefined): boolean =>
   value !== undefined && values.includes(value);
@@ -51,21 +51,19 @@ const isRef = (refs: readonly FrameRef[], frame: FrameFacts): boolean =>
   );
 
 /**
- * Whether a frame is on a selection, and why. A hidden frame (D99) is never
- * on one; one left off by hand isn't; one included by hand is, whatever the
- * rules say; otherwise it must meet every rule (none: every frame).
+ * Whether the rules find a frame, and if so whether it's on the selection or
+ * excluded by hand (D103). A frame must meet every rule (none: every frame);
+ * a hidden frame (D99) is never found.
  */
-export function whyOnSelection(
+export function matchSelection(
   selection: Selection,
   frame: FrameFacts,
-): WhyOnSelection | undefined {
-  if (frame.hidden || isRef(selection.hidden, frame)) {
+): SelectionMatch | undefined {
+  if (
+    frame.hidden ||
+    !selection.rules.every((rule) => matchesRule(rule, frame))
+  ) {
     return undefined;
   }
-  if (isRef(selection.pinned, frame)) {
-    return 'pinned';
-  }
-  return selection.rules.every((rule) => matchesRule(rule, frame))
-    ? 'rules'
-    : undefined;
+  return isRef(selection.excluded, frame) ? 'excluded' : 'included';
 }

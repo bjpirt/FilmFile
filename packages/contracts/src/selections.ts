@@ -65,18 +65,15 @@ const frameRef = z.strictObject({ rollId: ulid, frameId: ulid });
 export const frameSelection = z
   .strictObject({
     rules: z.array(selectionRule).max(50),
-    pinned: z.array(frameRef).max(5000).meta({
+    excluded: z.array(frameRef).max(5000).meta({
       description:
-        'Frames always included, whatever the rules say ("Always include").',
-    }),
-    hidden: z.array(frameRef).max(5000).meta({
-      description: 'Frames never included ("Never include").',
+        'Frames the rules find that are left off by hand (the × on a frame, D103).',
     }),
   })
   .meta({
     id: 'FrameSelection',
     description:
-      'Which frames: those meeting every rule (all of them with no rules), plus those pinned, minus those left off. A hidden frame is never on one.',
+      'Which frames: those meeting every rule (all of them with no rules), minus those excluded by hand. A hidden frame is never on one.',
   });
 
 export const searchFramesResponse = z
@@ -86,15 +83,16 @@ export const searchFramesResponse = z
       z.object({
         rollId: ulid,
         frameId: ulid,
-        why: z.enum(['rules', 'pinned']).meta({
-          description: 'Why it is on the selection.',
+        excluded: z.boolean().meta({
+          description: 'Excluded by hand: found by the rules but not on it.',
         }),
       }),
     ),
   })
   .meta({
     id: 'SearchFramesResponse',
-    description: 'The matching frames in shot order, and how many.',
+    description:
+      'The frames the rules find in shot order, the excluded marked, and how many are not excluded.',
   });
 
 export type SelectionRule = z.infer<typeof selectionRule>;

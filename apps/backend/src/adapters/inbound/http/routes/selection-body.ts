@@ -13,7 +13,7 @@ type Body = FrameSelection;
 export function selectionOf(body: Body): Selection | undefined {
   const slugs = (values: readonly string[]): Slug[] | undefined =>
     values.every(isSlug) ? values.filter(isSlug) : undefined;
-  const refs = (list: Body['pinned']): FrameRef[] | undefined => {
+  const refs = (list: Body['excluded']): FrameRef[] | undefined => {
     const out: FrameRef[] = [];
     for (const { rollId, frameId } of list) {
       if (!isRollId(rollId) || !isFrameId(frameId)) {
@@ -73,11 +73,8 @@ export function selectionOf(body: Body): Selection | undefined {
       }
     }
   }
-  const pinned = refs(body.pinned);
-  const hidden = refs(body.hidden);
-  return pinned === undefined || hidden === undefined
-    ? undefined
-    : { rules, pinned, hidden };
+  const excluded = refs(body.excluded);
+  return excluded === undefined ? undefined : { rules, excluded };
 }
 
 /** A selection as the API says it, in the order it's kept. */
@@ -102,11 +99,7 @@ export function selectionBody(selection: Selection): FrameSelection {
           return rule;
       }
     }),
-    pinned: selection.pinned.map(({ rollId, frameId }) => ({
-      rollId,
-      frameId,
-    })),
-    hidden: selection.hidden.map(({ rollId, frameId }) => ({
+    excluded: selection.excluded.map(({ rollId, frameId }) => ({
       rollId,
       frameId,
     })),

@@ -13,7 +13,7 @@ function aSite(name: string, over: Partial<Site> = {}): Site {
     id: checked('01JD8M2KZXQ4T6V8W0Y1A3C5E7', isSiteId),
     slug: slug(name.toLowerCase().replaceAll(' ', '-')),
     name,
-    selection: { rules: [], pinned: [], hidden: [] },
+    selection: { rules: [], excluded: [] },
     presentation: defaultPresentation,
     ...over,
   };
@@ -31,13 +31,11 @@ const fullSelection: Site['selection'] = {
     { kind: 'shot-before', date: '2026-09-30' },
     { kind: 'has', version: 'final' },
   ],
-  pinned: [
+  excluded: [
     {
       rollId: checked('01JD8M2KZXQ4T6V8W0Y1A3C5E8', isRollId),
       frameId: checked('01JD8M2KZXQ4T6V8W0Y1A3C5E9', isFrameId),
     },
-  ],
-  hidden: [
     {
       rollId: checked('01JD8M2KZXQ4T6V8W0Y1A3C5E8', isRollId),
       frameId: checked('01JD8M2KZXQ4T6V8W0Y1A3C5EA', isFrameId),

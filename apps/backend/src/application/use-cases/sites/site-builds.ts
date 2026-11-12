@@ -74,7 +74,9 @@ export class SiteBuilds {
     const found = await this.#search.execute(ctx, {
       selection: site.selection,
     });
-    return found.map(({ rollId, frameId }) => ({ rollId, frameId }));
+    return found
+      .filter((frame) => !frame.excluded)
+      .map(({ rollId, frameId }) => ({ rollId, frameId }));
   }
 
   /** Starts building the site, or gives the build already running. Refused if `Sites/<slug>` holds something else. */

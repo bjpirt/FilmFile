@@ -27,7 +27,7 @@ const site = {
   id: checked('01JD8M2KZXQ4T6V8W0Y1A3C5E7', isSiteId),
   slug: checked('iceland', isSlug),
   name: 'Iceland',
-  selection: { rules: [], pinned: [], hidden: [] },
+  selection: { rules: [], excluded: [] },
   presentation: defaultPresentation,
 };
 

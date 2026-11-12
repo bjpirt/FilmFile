@@ -44,9 +44,9 @@ test('build a site: make one of two rolls’ frames, build it, open it in the br
   await expect(site.getByRole('dialog')).toHaveCount(0);
   await site.close();
 
-  // Leave a frame off: out of date; building again makes no new image.
+  // Exclude a frame: out of date; building again makes no new image.
   await page
-    .getByRole('button', { name: 'Never include Roll 2026-053, frame 2' })
+    .getByRole('button', { name: 'Exclude Roll 2026-053, frame 2' })
     .click();
   await expect(page.getByText('Out of date: 1 removed')).toBeVisible();
   await page.getByRole('button', { name: 'Build site' }).click();

@@ -41,7 +41,7 @@ export class CreateSite {
       id: this.#ids.newSiteId(),
       slug,
       name,
-      selection: { rules: [], pinned: [], hidden: [] },
+      selection: { rules: [], excluded: [] },
       presentation: defaultPresentation,
     };
     const created = await this.#sites.create(ctx, site);

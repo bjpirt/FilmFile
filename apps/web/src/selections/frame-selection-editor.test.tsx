@@ -18,7 +18,7 @@ import {
   type FakeArchive,
 } from '../testing/fake-archive.ts';
 import { FrameSelectionEditor } from './frame-selection-editor.tsx';
-import { everyFrame, leaveOff, pin } from './selection-edit.ts';
+import { everyFrame, exclude } from './selection-edit.ts';
 
 afterEach(cleanup);
 
@@ -53,24 +53,14 @@ function Harness({
       {...(withActions
         ? {
             frameActions: (frame) => (
-              <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelection(pin(selection, frame));
-                  }}
-                >
-                  Always include {frame.frameId.slice(-4)}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelection(leaveOff(selection, frame));
-                  }}
-                >
-                  Never include {frame.frameId.slice(-4)}
-                </button>
-              </>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelection(exclude(selection, frame));
+                }}
+              >
+                Exclude {frame.frameId.slice(-4)}
+              </button>
             ),
           }
         : {})}
@@ -314,21 +304,20 @@ test('has rules need no value, and each has its own remove button', async () => 
   });
 });
 
-test('puts a page’s own actions on each frame, and marks the ones always included', async () => {
+test('puts a page’s own actions on each frame, and greys out the excluded, still in their place', async () => {
   const archive = aTwoRollArchive();
   show(archive, everyFrame, true);
   await screen.findByText('3 frames match');
 
-  fireEvent.click(screen.getByRole('button', { name: 'Always include 0002' }));
-  await screen.findByText('Always included');
-  expect(lastSearch(archive)).toMatchObject({
-    pinned: [{ frameId: '01JC8Z7K3M00000000000F0002' }],
-  });
+  fireEvent.click(screen.getByRole('button', { name: 'Exclude 0002' }));
 
-  fireEvent.click(screen.getByRole('button', { name: 'Never include 0001' }));
-  await waitFor(() => {
-    expect(screen.getByText('2 frames match')).toBeTruthy();
+  expect(await screen.findByText('2 frames match, 1 excluded')).toBeTruthy();
+  expect(lastSearch(archive)).toMatchObject({
+    excluded: [{ frameId: '01JC8Z7K3M00000000000F0002' }],
   });
+  const excluded = screen.getByRole('link', { name: 'Roll 2026-001, frame 2' });
+  expect(excluded.closest('li')?.className).toContain('excluded');
+  expect(screen.getAllByRole('link')).toHaveLength(3);
 });
 
 test('says so when the frames cannot be found', async () => {

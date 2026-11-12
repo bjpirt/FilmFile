@@ -29,7 +29,7 @@ export class ListSites {
       listed.push({
         slug: site.slug,
         name: site.name,
-        frameCount: found.length,
+        frameCount: found.filter((frame) => !frame.excluded).length,
       });
     }
     return listed;

@@ -5,13 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type SubmitEvent } from 'react';
 import { navigate } from '../routing.tsx';
 import { FrameSelectionEditor } from '../selections/frame-selection-editor.tsx';
-import { HiddenFramesList } from '../selections/hidden-frames-list.tsx';
-import {
-  isPinned,
-  leaveOff,
-  pin,
-  putBack,
-} from '../selections/selection-edit.ts';
+import { exclude, include } from '../selections/selection-edit.ts';
 import { useFrameSearch } from '../selections/use-frame-search.ts';
 import { BuildPanel } from './build-panel.tsx';
 import { PresentationFields } from './presentation-fields.tsx';
@@ -32,16 +26,6 @@ function SiteEditor({
   const [name, setName] = useState(loaded.name);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteFailed, setDeleteFailed] = useState(false);
-  const rolls = useQuery({
-    queryKey: ['rolls'],
-    queryFn: async () => {
-      const { data } = await api.GET('/api/rolls');
-      if (data === undefined) {
-        throw new Error("Couldn't load the rolls.");
-      }
-      return data;
-    },
-  });
   const found = useFrameSearch(api, site.selection).found;
   const saver = useSiteSaver({
     api,
@@ -177,55 +161,37 @@ function SiteEditor({
         api={api}
         selection={site.selection}
         change={select}
-        frameActions={(frame, frameName) => (
-          <div className="frame-choices">
-            {isPinned(site.selection, frame) ? (
-              <button
-                type="button"
-                aria-label={`Don't always include ${frameName}`}
-                onClick={() => {
-                  select(putBack(site.selection, frame));
-                }}
-              >
-                Don't always include
-              </button>
-            ) : (
-              <button
-                type="button"
-                aria-label={`Always include ${frameName}`}
-                onClick={() => {
-                  select(pin(site.selection, frame));
-                }}
-              >
-                Always include
-              </button>
-            )}
+        frameActions={(frame, frameName) =>
+          frame.excluded ? (
             <button
               type="button"
-              aria-label={`Never include ${frameName}`}
+              className="exclude-frame"
+              aria-label={`Include ${frameName} again`}
               onClick={() => {
-                select(leaveOff(site.selection, frame));
+                select(include(site.selection, frame));
               }}
             >
-              Never include
+              ↺
             </button>
-          </div>
-        )}
+          ) : (
+            <button
+              type="button"
+              className="exclude-frame"
+              aria-label={`Exclude ${frameName}`}
+              onClick={() => {
+                select(exclude(site.selection, frame));
+              }}
+            >
+              ×
+            </button>
+          )
+        }
       />
-      {rolls.data !== undefined && (
-        <HiddenFramesList
-          rolls={rolls.data.rolls}
-          hidden={site.selection.hidden}
-          putBack={(frame) => {
-            select(putBack(site.selection, frame));
-          }}
-        />
-      )}
     </section>
   );
 }
 
-/** A site's page (D91): its name, and the frames on it, found by rules and by hand. */
+/** A site's page (D91): its name, and the frames on it, found by rules, less those excluded by hand (D103). */
 export function SitePage({
   api,
   slug,

@@ -15,7 +15,7 @@ const searchFrames = createRoute({
   path: '/search',
   summary: 'Find the frames on a selection',
   description:
-    'Works out, from the archive as it is now, which frames meet the rules (and are pinned, and not left off), in shot order. Nothing is saved.',
+    'Works out, from the archive as it is now, which frames meet the rules, in shot order, each marked if it is excluded by hand; the count leaves the excluded out. Nothing is saved.',
   middleware: [requireContentType('application/json')] as const,
   request: {
     body: {
@@ -61,7 +61,8 @@ export function frameRoutes({
       );
     }
     const found = await useCases.searchFrames.execute(ctx, { selection });
-    return c.json({ count: found.length, frames: [...found] }, 200);
+    const count = found.filter((frame) => !frame.excluded).length;
+    return c.json({ count, frames: [...found] }, 200);
   });
 
   return routes;

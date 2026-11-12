@@ -7,19 +7,25 @@ import { matchCount } from './selection-edit.ts';
 
 export type FoundFrame = SearchFramesResponse['frames'][number];
 
-/** "24 frames match". */
-export function MatchCount({ count }: { readonly count: number }) {
+/** "24 frames match", or "22 frames match, 2 excluded". */
+export function MatchCount({
+  count,
+  excluded,
+}: {
+  readonly count: number;
+  readonly excluded: number;
+}) {
   return (
     <p className="match-count" role="status">
-      {matchCount(count)}
+      {matchCount(count, excluded)}
     </p>
   );
 }
 
 /**
  * The frames found, as thumbnails in the order given, each opening the frame
- * in its roll. A page can put its own actions on each; one pinned by hand is
- * marked "Always included".
+ * in its roll. A page can put its own actions on each; one excluded by hand
+ * stays in its place, greyed (D103).
  */
 export function SelectionGrid({
   rolls,
@@ -41,13 +47,13 @@ export function SelectionGrid({
         }
         const name = `Roll ${roll.roll}, frame ${frame.number ?? 'with no number'}`;
         return (
-          <li key={`${found.rollId}-${found.frameId}`}>
+          <li
+            key={`${found.rollId}-${found.frameId}`}
+            className={found.excluded ? 'excluded' : undefined}
+          >
             <Link to={`/rolls/${roll.id}/frames/${frame.id}`} aria-label={name}>
               <Thumbnail rollId={roll.id} frame={frame} decorative />
             </Link>
-            {found.why === 'pinned' && (
-              <span className="always-included">Always included</span>
-            )}
             {actions?.(found, name)}
           </li>
         );
