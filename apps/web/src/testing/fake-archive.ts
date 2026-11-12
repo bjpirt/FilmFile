@@ -30,6 +30,7 @@ import {
   folderExportRequest,
   quickExportRequest,
 } from '@filmfile/contracts/exports';
+import { frameSelection } from '@filmfile/contracts/selections';
 import {
   createSettingsRequest,
   updateSettingsRequest,
@@ -225,6 +226,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   const rollUpdates: unknown[] = [];
   /** The body of every request to export a frame once. */
   const quickExports: unknown[] = [];
+  const searches: unknown[] = [];
   /** The body of every request to export into a folder, and the exports cancelled. */
   const folderExports: unknown[] = [];
   const folderExportsCancelled: string[] = [];
@@ -919,6 +921,38 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     });
   }
 
+  /**
+   * Finds frames as the service does, except that it doesn't match rules (the
+   * service's tests do): every frame that isn't hidden, minus those left off,
+   * with those pinned marked. What it was asked is in `searches`.
+   */
+  async function searchFrames(request: Request): Promise<Response> {
+    const body = await bodyOf(request, frameSelection);
+    if (!body.ok) {
+      return body.response;
+    }
+    searches.push(body.value);
+    const is = (
+      list: readonly { rollId: string; frameId: string }[],
+      r: string,
+      f: string,
+    ) => list.some((ref) => ref.rollId === r && ref.frameId === f);
+    const frames = rolls
+      .flatMap((roll) =>
+        roll.frames
+          .filter((frame) => !frame.hidden)
+          .map((frame) => ({ rollId: roll.id, frameId: frame.id })),
+      )
+      .filter(({ rollId, frameId }) => !is(body.value.hidden, rollId, frameId))
+      .map((ref) => ({
+        ...ref,
+        why: is(body.value.pinned, ref.rollId, ref.frameId)
+          ? ('pinned' as const)
+          : ('rules' as const),
+      }));
+    return Response.json({ count: frames.length, frames });
+  }
+
   /** Prepares a frame's export as the service does: refused if hidden or with no scan. */
   async function quickExport(request: Request): Promise<Response> {
     const body = await bodyOf(request, quickExportRequest);
@@ -981,6 +1015,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         return rest[0] === 'folder'
           ? folderExport(request, rest[1])
           : quickExport(request);
+      case 'frames':
+        return searchFrames(request);
       case 'health':
         return Response.json({
           status: 'ok',
@@ -1041,6 +1077,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     uploads,
     deleted,
     quickExports,
+    searches,
     folderExports,
     folderExportsCancelled,
     /** Stops answering, as a stopped service behind a proxy would: every request gets a 502. */

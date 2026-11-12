@@ -96,3 +96,7 @@ export const searchFramesResponse = z
     id: 'SearchFramesResponse',
     description: 'The matching frames in shot order, and how many.',
   });
+
+export type SelectionRule = z.infer<typeof selectionRule>;
+export type FrameSelection = z.infer<typeof frameSelection>;
+export type SearchFramesResponse = z.infer<typeof searchFramesResponse>;
