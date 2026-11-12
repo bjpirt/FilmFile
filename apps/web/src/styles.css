@@ -1908,6 +1908,12 @@ textarea {
   gap: var(--space-2);
 }
 
+/* A checkbox in a list of choices is only as tall as itself, not a control's 2.5rem, so the list stays close. */
+.rule-choices input[type='checkbox'] {
+  margin: 0;
+  min-height: 0;
+}
+
 .rule-choices {
   border: 0;
   display: flex;
@@ -1977,11 +1983,6 @@ textarea {
   gap: var(--space-1);
 }
 
-.save-state {
-  color: var(--text-muted);
-  font-size: 0.85rem;
-}
-
 .frame-choices {
   display: flex;
   flex-wrap: wrap;
@@ -2021,7 +2022,6 @@ textarea {
   padding: var(--space-4);
 }
 
-.presentation h2,
 .build-panel h2 {
   font-size: 1.1rem;
   margin: 0;

@@ -5,17 +5,8 @@ import { slug } from './slug.ts';
 
 // Request and response shapes for sites (D91): a name and a selection of frames.
 
-const siteTitle = z.string().trim().min(1).max(100);
-
 export const sitePresentation = z
   .strictObject({
-    title: siteTitle.nullable().meta({
-      description: "The page's heading; null uses the site's name.",
-    }),
-    intro: z.string().max(5000).meta({
-      description:
-        'Text under the heading; a blank line starts a new paragraph.',
-    }),
     groupBy: z.enum(['nothing', 'roll', 'event']).meta({
       description: 'What the photos are split under.',
     }),

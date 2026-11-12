@@ -16,21 +16,15 @@ export interface Site {
   readonly presentation: SitePresentation;
 }
 
-/** How a site is shown when it's built (FF-120). */
+/** How a site is shown when it's built (FF-120); its title is its name (FF-179). */
 export interface SitePresentation {
-  /** The page's heading; null uses the site's name. */
-  readonly title: string | null;
-  /** Text under the heading. */
-  readonly intro: string;
   readonly groupBy: GroupBy;
   /** Which details a caption shows. */
   readonly captions: readonly CaptionField[];
 }
 
-/** A site shown plainly: its name, no intro, one grid, each photo's title. */
+/** A site shown plainly: one grid, each photo's title. */
 export const defaultPresentation: SitePresentation = {
-  title: null,
-  intro: '',
   groupBy: 'nothing',
   captions: ['title'],
 };

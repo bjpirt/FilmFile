@@ -39,11 +39,10 @@ interface Job {
   readonly controller: AbortController;
 }
 
-/** What a site is built with: its presentation, the title being its name unless changed. */
+/** What a site is built with: its presentation, titled with its name (FF-179). */
 function optionsOf(site: Site): SiteOptions {
   return {
-    title: site.presentation.title ?? site.name,
-    intro: site.presentation.intro,
+    title: site.name,
     groupBy: site.presentation.groupBy,
     captions: site.presentation.captions,
   };

@@ -107,7 +107,9 @@ test('saves a rule straight away, against the version it was opened at', async (
     });
   });
   expect(archive.ifMatches).toEqual(['"v1"']);
-  expect(await screen.findByText('Saved')).toBeTruthy();
+  // Saved quietly, as the rest of the app saves; only a failure is said.
+  expect(screen.queryByText('Saved')).toBeNull();
+  expect(screen.queryByText('Saving…')).toBeNull();
 });
 
 test('each change is saved against the version the last one left', async () => {

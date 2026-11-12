@@ -7,7 +7,6 @@ import { isFrameId, type FrameId } from '../shared/ids.ts';
 
 const options: SiteOptions = {
   title: 'Iceland highlights',
-  intro: '',
   groupBy: 'nothing',
   captions: ['title'],
 };
@@ -56,11 +55,10 @@ test('writes the page, its stylesheet and script', () => {
   ]);
 });
 
-test('shows the title and the intro, a paragraph at each blank line', () => {
-  const html = page([aPhoto('1')], { intro: 'First part.\n\nSecond part.' });
+test('shows the title as the heading and the page title', () => {
+  const html = page([aPhoto('1')]);
   expect(html).toContain('<title>Iceland highlights</title>');
   expect(html).toContain('<h1>Iceland highlights</h1>');
-  expect(html).toContain('<p>First part.</p><p>Second part.</p>');
 });
 
 test('says so when there are no photos', () => {
@@ -130,10 +128,9 @@ test('escapes every word that came from the archive', () => {
     alt: '"><script>x</script>',
     details: { title: '<b>Bold</b>' },
   });
-  const html = page([photo], { title: 'A & B', intro: '<i>hi</i>' });
+  const html = page([photo], { title: 'A & B' });
   expect(html).not.toContain('<script>x');
   expect(html).not.toContain('<b>Bold');
-  expect(html).not.toContain('<i>hi');
   expect(html).toContain('<h1>A &amp; B</h1>');
 });
 

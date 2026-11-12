@@ -221,7 +221,6 @@ Getting frames out as files, simplest first, all through one Export dialog (D97)
 
 A site is a saved description of which frames to share (a selection of frames, shared with exports, D93) and how to present them, built whenever you like into a self-contained static website in `Sites/<site>/`, always from the archive as it is, and made again only where something changed (D91, D92). It comes after exports (group 12), whose image rendering it shares. Putting a built site on the web is a separate step.
 
-- [ ] [FF-179 A site's name is its title, and it has no intro](tasks/FF-179.md): one name for a site, used as its page title, and no intro text.
 - [ ] [FF-181 Exclude a frame from a site with an ×](tasks/FF-181.md): an × on a frame greys it out and excludes it from the site, replacing always and never include.
 - [ ] [FF-182 Preview a site's frames grouped by roll or event](tasks/FF-182.md): the frames a site finds, grouped by roll or event with a switch, each group folding, as the built site groups them.
 - [ ] [FF-183 Browse a site by roll, event or both, as cards](tasks/FF-183.md): a built site of cards for events or rolls, or both with a menu, each opening its own page of photos.
@@ -230,6 +229,7 @@ A site is a saved description of which frames to share (a selection of frames, s
 - [ ] [later] [FF-121 Publish a site](tasks/FF-121.md): upload a built site to S3 or Cloudflare R2, and take it down again.
 - [ ] [later] [FF-162 Make a site or export from the Browse filters](tasks/FF-162.md): start one from the rolls page's filters.
 - [ ] [later] [FF-187 Use your own site template](tasks/FF-187.md): build a site with a template of your own, chosen on its page.
+- [x] [FF-179 A site's name is its title, and it has no intro](tasks/FF-179.md)
 - [x] [FF-120 Build a site](tasks/FF-120.md)
 - [x] [FF-119 Sites](tasks/FF-119.md)
 - [x] [FF-177 Frame selections](tasks/FF-177.md)

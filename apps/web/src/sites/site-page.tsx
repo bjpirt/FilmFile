@@ -15,15 +15,7 @@ import {
 import { useFrameSearch } from '../selections/use-frame-search.ts';
 import { BuildPanel } from './build-panel.tsx';
 import { PresentationFields } from './presentation-fields.tsx';
-import { useSiteSaver, type SaveState } from './use-site-saver.ts';
-
-const messages: Readonly<Record<SaveState, string | undefined>> = {
-  saved: 'Saved',
-  saving: 'Saving…',
-  conflict: undefined,
-  'name-taken': undefined,
-  failed: undefined,
-};
+import { useSiteSaver } from './use-site-saver.ts';
 
 /** A site opened, once it has loaded: its name and its selection, every change saved as it's made. */
 function SiteEditor({
@@ -174,17 +166,13 @@ function SiteEditor({
       {saver.state === 'failed' && (
         <p role="alert">Couldn't save the site. Is the service running?</p>
       )}
-      {messages[saver.state] !== undefined && (
-        <p className="save-state" role="status">
-          {messages[saver.state]}
-        </p>
-      )}
-      <PresentationFields
-        presentation={site.presentation}
-        siteName={site.name}
-        change={present}
+      <PresentationFields presentation={site.presentation} change={present} />
+      <BuildPanel
+        api={api}
+        slug={site.slug}
+        frameCount={found?.count}
+        saving={saver.state === 'saving'}
       />
-      <BuildPanel api={api} slug={site.slug} frameCount={found?.count} />
       <FrameSelectionEditor
         api={api}
         selection={site.selection}

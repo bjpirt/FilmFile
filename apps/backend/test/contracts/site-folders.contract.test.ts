@@ -83,7 +83,7 @@ test('FilesystemSiteFolders leaves nothing but the site in Sites/ after a build,
   await build.writeFile('index.html', 'x');
   await build.commit({
     version: 1,
-    options: { title: 't', intro: '', groupBy: 'nothing', captions: [] },
+    options: { title: 't', groupBy: 'nothing', captions: [] },
     photos: [],
   });
 

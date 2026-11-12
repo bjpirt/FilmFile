@@ -6,10 +6,8 @@ export type CaptionField = 'title' | 'shot' | 'camera' | 'lens' | 'film';
 
 /** The choices a site is built with. */
 export interface SiteOptions {
-  /** The page's heading and title. */
+  /** The page's heading and title: the site's name (FF-179). */
   readonly title: string;
-  /** Text under the heading; a blank line starts a new paragraph. */
-  readonly intro: string;
   readonly groupBy: GroupBy;
   /** Which details a caption shows, always in the order of {@link captionOrder}. */
   readonly captions: readonly CaptionField[];

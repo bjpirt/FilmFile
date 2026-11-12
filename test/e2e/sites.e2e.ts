@@ -36,7 +36,6 @@ test('sites: make one, choose its frames by a rule and by hand, rename it, find 
   await page.getByRole('button', { name: 'Add a rule ▾' }).click();
   await page.getByRole('menuitem', { name: 'Rated at least' }).click();
   await expect(page.getByText('1 frame matches')).toBeVisible();
-  await expect(page.getByText('Saved')).toBeVisible();
 
   // Renaming moves the address; reloading finds everything kept.
   await page.getByLabel('Name').fill('Iceland 2026');

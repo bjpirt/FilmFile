@@ -190,7 +190,7 @@ describe('POST /api/sites/{slug}/build', () => {
     ).toContain('This site has no photos yet.');
   });
 
-  test('uses the site’s presentation: its title, intro, grouping and captions', async () => {
+  test('uses the site’s name as its title, with no intro, and its grouping and captions', async () => {
     await aFrameWithAScan('1');
     const slug = await aSite();
     const etag =
@@ -200,8 +200,6 @@ describe('POST /api/sites/{slug}/build', () => {
       headers: { 'Content-Type': 'application/json', 'If-Match': etag },
       body: JSON.stringify({
         presentation: {
-          title: 'Iceland, in September',
-          intro: 'Two weeks.',
           groupBy: 'roll',
           captions: ['shot'],
         },
@@ -214,8 +212,9 @@ describe('POST /api/sites/{slug}/build', () => {
       path.join(siteFolder(slug), 'index.html'),
       'utf8',
     );
-    expect(page).toContain('<h1>Iceland, in September</h1>');
-    expect(page).toContain('<p>Two weeks.</p>');
+    expect(page).toContain('<title>Iceland highlights</title>');
+    expect(page).toContain('<h1>Iceland highlights</h1>');
+    expect(page).not.toContain('class="intro"');
     expect(page).toContain('<h2>2026-014</h2>');
     expect(page).toContain('<figcaption>12 Sep 2026</figcaption>');
   });
@@ -246,6 +245,25 @@ describe('GET /api/sites/{slug}/status', () => {
     );
     expect(second.freshness).toBe('out-of-date');
     expect(second.message).toBe('Out of date: 1 frame added');
+  });
+
+  test('says a site renamed within its slug is out of date, as its title is its name', async () => {
+    await aFrameWithAScan('1');
+    const slug = await aSite('Iceland');
+    await build(slug);
+    const etag =
+      (await request(`/api/sites/${slug}`)).headers.get('ETag') ?? '';
+
+    await request(`/api/sites/${slug}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'If-Match': etag },
+      body: JSON.stringify({ name: 'ICELAND' }),
+    });
+
+    const status = siteStatus.parse(
+      await (await request(`/api/sites/${slug}/status`)).json(),
+    );
+    expect(status.freshness).toBe('out-of-date');
   });
 
   test('says there is no such site', async () => {

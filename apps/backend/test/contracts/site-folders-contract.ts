@@ -12,7 +12,6 @@ const manifest: SiteManifest = {
   version: 1,
   options: {
     title: 'Iceland',
-    intro: 'Two weeks.',
     groupBy: 'event',
     captions: ['title', 'shot'],
   },

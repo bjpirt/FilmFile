@@ -61,8 +61,6 @@ const storedRule = z.discriminatedUnion('kind', [
 const storedFrame = z.object({ roll: rollIdValue, frame: frameIdValue });
 
 const storedPresentation = z.object({
-  title: z.string().min(1).nullable(),
-  intro: z.string(),
   groupBy: z.enum(['nothing', 'roll', 'event']),
   captions: z.array(z.enum(['title', 'shot', 'camera', 'lens', 'film'])),
 });
@@ -154,8 +152,6 @@ export function siteFileContent(site: SiteDetails): string {
       ? {}
       : {
           presentation: {
-            title: site.presentation.title,
-            intro: site.presentation.intro,
             groupBy: site.presentation.groupBy,
             captions: [...site.presentation.captions],
           },

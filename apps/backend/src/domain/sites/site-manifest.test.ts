@@ -5,7 +5,6 @@ const manifest: SiteManifest = {
   version: 1,
   options: {
     title: 'Iceland',
-    intro: '',
     groupBy: 'roll',
     captions: ['title'],
   },

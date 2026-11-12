@@ -18,7 +18,6 @@ const storedManifest = z.object({
   version: z.literal(1),
   options: z.object({
     title: z.string(),
-    intro: z.string(),
     groupBy: z.enum(['nothing', 'roll', 'event']),
     captions: z.array(z.enum(['title', 'shot', 'camera', 'lens', 'film'])),
   }),

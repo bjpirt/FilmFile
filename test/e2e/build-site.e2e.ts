@@ -17,8 +17,8 @@ test('build a site: make one of two rolls’ frames, build it, open it in the br
   await expect(page.getByRole('link', { name: 'Open site' })).toHaveCount(0);
 
   // Group the photos by roll before building.
+  // "Build site" waits until the choice is saved, so the build uses it.
   await page.getByLabel('Group by').selectOption({ label: 'Roll' });
-  await expect(page.getByText('Saved')).toBeVisible();
 
   await page.getByRole('button', { name: 'Build site' }).click();
   await expect(

@@ -3379,10 +3379,6 @@ export interface components {
             presentation: components["schemas"]["SitePresentation"];
         };
         SitePresentation: {
-            /** @description The page's heading; null uses the site's name. */
-            title: string | null;
-            /** @description Text under the heading; a blank line starts a new paragraph. */
-            intro: string;
             /**
              * @description What the photos are split under.
              * @enum {string}

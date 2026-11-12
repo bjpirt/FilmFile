@@ -52,8 +52,6 @@ function renderPage(archive: FakeArchive) {
   );
 }
 
-const lastUpdate = (archive: FakeArchive) => archive.siteUpdates.at(-1)?.body;
-
 test('says a site never built is "Not built yet", with no way to open it', async () => {
   renderPage(archiveWith());
 
@@ -208,78 +206,47 @@ test('Cancel on the empty-site question builds nothing', async () => {
   expect(archive.siteBuilds).toEqual([]);
 });
 
-test('shows how the site is presented: the title shown is its name until changed', async () => {
+test('shows how the site is presented, with no page title or intro, as its name is its title', async () => {
   renderPage(archiveWith());
 
-  const title = await screen.findByLabelText<HTMLInputElement>('Page title');
-  expect(title.value).toBe('');
-  expect(title.placeholder).toBe('Iceland');
-  expect(screen.getByLabelText<HTMLSelectElement>('Group by').value).toBe(
-    'nothing',
-  );
+  expect(
+    await screen.findByLabelText<HTMLSelectElement>('Group by'),
+  ).toHaveProperty('value', 'nothing');
+  expect(screen.queryByLabelText('Page title')).toBeNull();
+  expect(screen.queryByLabelText('Intro')).toBeNull();
   expect(screen.getByLabelText<HTMLInputElement>('Title').checked).toBe(true);
   expect(screen.getByLabelText<HTMLInputElement>('Camera').checked).toBe(false);
 });
 
-test('saves the title and the intro when you leave them, and a choice at once', async () => {
+test('saves a choice at once', async () => {
   const archive = archiveWith();
   renderPage(archive);
 
-  const title = await screen.findByLabelText('Page title');
-  fireEvent.change(title, { target: { value: 'Iceland, in September' } });
-  expect(lastUpdate(archive)).toBeUndefined();
-  fireEvent.blur(title);
-  await waitFor(() => {
-    expect(lastUpdate(archive)).toMatchObject({
-      presentation: { title: 'Iceland, in September' },
-    });
-  });
-
-  fireEvent.change(screen.getByLabelText('Intro'), {
-    target: { value: 'Two weeks.' },
-  });
-  fireEvent.blur(screen.getByLabelText('Intro'));
-  await waitFor(() => {
-    expect(lastUpdate(archive)).toMatchObject({
-      presentation: { title: 'Iceland, in September', intro: 'Two weeks.' },
-    });
-  });
-
-  fireEvent.change(screen.getByLabelText('Group by'), {
+  fireEvent.change(await screen.findByLabelText('Group by'), {
     target: { value: 'event' },
   });
   fireEvent.click(screen.getByLabelText('Camera'));
   await waitFor(() => {
     expect(archive.sites[0]?.presentation).toEqual({
-      title: 'Iceland, in September',
-      intro: 'Two weeks.',
       groupBy: 'event',
       captions: ['title', 'camera'],
     });
   });
 });
 
-test('an emptied title goes back to the site’s name', async () => {
-  const archive = archiveWith({
-    sites: [
-      {
-        ...aSite,
-        presentation: {
-          title: 'Iceland, in September',
-          intro: '',
-          groupBy: 'nothing',
-          captions: ['title'],
-        },
-      },
-    ],
-  });
+test('"Build site" waits while a change is being saved, so a build never uses old settings', async () => {
+  const archive = archiveWith();
   renderPage(archive);
+  const buildButton = await screen.findByRole('button', { name: 'Build site' });
+  const release = archive.holdSiteUpdates();
 
-  const title = await screen.findByLabelText('Page title');
-  fireEvent.change(title, { target: { value: '' } });
-  fireEvent.blur(title);
+  fireEvent.click(screen.getByLabelText('Camera'));
 
   await waitFor(() => {
-    expect(archive.sites[0]?.presentation.title).toBeNull();
+    expect(buildButton).toHaveProperty('disabled', true);
+  });
+  release();
+  await waitFor(() => {
+    expect(buildButton).toHaveProperty('disabled', false);
   });
 });

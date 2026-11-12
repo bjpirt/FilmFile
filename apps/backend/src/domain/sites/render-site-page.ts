@@ -59,20 +59,8 @@ function groupHtml(group: PhotoGroup, options: SiteOptions): string {
   return `<section class="group">${heading}<div class="grid">\n${photos}\n</div></section>`;
 }
 
-function introHtml(intro: string): string {
-  const paragraphs = intro
-    .split(/\n\s*\n/)
-    .map((paragraph) => paragraph.trim())
-    .filter((paragraph) => paragraph !== '');
-  return paragraphs.length === 0
-    ? ''
-    : `<div class="intro">${paragraphs
-        .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
-        .join('')}</div>`;
-}
-
 /**
- * The site's one page: its title and intro, then the photos as a grid,
+ * The site's one page: its name as its title, then the photos as a grid,
  * split under headings when grouped. Every link is relative, so it works from
  * any folder or address, and opened straight from the folder.
  */
@@ -96,7 +84,7 @@ export function renderSitePage(
 </head>
 <body>
 <main class="page">
-<header class="site-header"><h1>${title}</h1>${introHtml(options.intro)}</header>
+<header class="site-header"><h1>${title}</h1></header>
 ${body}
 </main>
 <dialog id="lightbox" aria-label="Photo">

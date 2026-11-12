@@ -19,11 +19,14 @@ export function BuildPanel({
   api,
   slug,
   frameCount,
+  saving,
 }: {
   readonly api: ApiClient;
   readonly slug: string;
   /** How many frames are on the site now; undefined until known. */
   readonly frameCount: number | undefined;
+  /** A change is being saved: building now would use the settings before it. */
+  readonly saving: boolean;
 }) {
   const [confirmingEmpty, setConfirmingEmpty] = useState(false);
   const [problem, setProblem] = useState<string | undefined>(undefined);
@@ -134,7 +137,7 @@ export function BuildPanel({
             <button
               type="button"
               className="primary"
-              disabled={freshness === 'in-the-way'}
+              disabled={saving || freshness === 'in-the-way'}
               onClick={() => {
                 if (frameCount === 0) {
                   setConfirmingEmpty(true);

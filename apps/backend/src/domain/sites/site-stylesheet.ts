@@ -56,11 +56,6 @@ h1 {
   margin: 0 0 var(--space-3);
 }
 
-.intro p {
-  color: var(--text-muted);
-  margin: 0 0 var(--space-3);
-}
-
 .group {
   margin-bottom: var(--space-6);
 }

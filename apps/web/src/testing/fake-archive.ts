@@ -230,10 +230,8 @@ async function bodyOf<T>(
   };
 }
 
-/** How a site is shown when nothing is said: its name, no intro, one grid, each photo's title. */
+/** How a site is shown when nothing is said: one grid, each photo's title. */
 export const plainPresentation: Site['presentation'] = {
-  title: null,
-  intro: '',
   groupBy: 'nothing',
   captions: ['title'],
 };
@@ -275,6 +273,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   let building: string | undefined;
   /** Every change to a site: which one, and what was sent. */
   const siteUpdates: { slug: string; body: unknown }[] = [];
+  /** While set, a change to a site waits for it before it's answered. */
+  let siteUpdatesHeld: Promise<undefined> | undefined;
   /** The body of every request to export into a folder, and the exports cancelled. */
   const folderExports: unknown[] = [];
   const folderExportsCancelled: string[] = [];
@@ -1116,6 +1116,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     if (savesFail) {
       return new Response('', { status: 500 });
     }
+    await siteUpdatesHeld;
     const refused = checkIfMatch(request, key);
     if (refused !== undefined) {
       return Response.json(
@@ -1304,6 +1305,15 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     searches,
     sites,
     siteUpdates,
+    /** Holds every change to a site until the function returned is called. */
+    holdSiteUpdates(): () => void {
+      const held = Promise.withResolvers<undefined>();
+      siteUpdatesHeld = held.promise;
+      return () => {
+        siteUpdatesHeld = undefined;
+        held.resolve(undefined);
+      };
+    },
     siteBuilds,
     siteBuildsCancelled,
     /** Changes how a site stands, as an edit elsewhere would. */

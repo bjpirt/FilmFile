@@ -2211,20 +2211,6 @@
       "SitePresentation": {
         "type": "object",
         "properties": {
-          "title": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "minLength": 1,
-            "maxLength": 100,
-            "description": "The page's heading; null uses the site's name."
-          },
-          "intro": {
-            "type": "string",
-            "maxLength": 5000,
-            "description": "Text under the heading; a blank line starts a new paragraph."
-          },
           "groupBy": {
             "type": "string",
             "enum": [
@@ -2251,8 +2237,6 @@
           }
         },
         "required": [
-          "title",
-          "intro",
           "groupBy",
           "captions"
         ],

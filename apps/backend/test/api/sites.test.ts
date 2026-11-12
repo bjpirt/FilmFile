@@ -76,8 +76,6 @@ describe('POST /api/sites', () => {
       name: 'Iceland highlights',
       selection: { rules: [], pinned: [], hidden: [] },
       presentation: {
-        title: null,
-        intro: '',
         groupBy: 'nothing',
         captions: ['title'],
       },
@@ -224,8 +222,6 @@ describe('PATCH /api/sites/{slug}', () => {
   test('saves how the site is presented, and gives it back', async () => {
     const { slug, etag } = await aSite('Iceland');
     const presentation = {
-      title: 'Iceland, in September',
-      intro: 'Two weeks.\n\nShot on Portra.',
       groupBy: 'event',
       captions: ['title', 'shot'],
     };
@@ -240,15 +236,16 @@ describe('PATCH /api/sites/{slug}', () => {
   });
 
   test.each([
+    ['an unknown way to group', { groupBy: 'colour', captions: [] }],
+    ['an unknown caption', { groupBy: 'roll', captions: ['gps'] }],
     [
-      'an unknown way to group',
-      { title: null, intro: '', groupBy: 'colour', captions: [] },
+      'a title, which is now the name (FF-179)',
+      { title: 'Iceland', groupBy: 'roll', captions: [] },
     ],
     [
-      'an unknown caption',
-      { title: null, intro: '', groupBy: 'roll', captions: ['gps'] },
+      'an intro, which sites no longer have (FF-179)',
+      { intro: 'Two weeks.', groupBy: 'roll', captions: [] },
     ],
-    ['an empty title', { title: '', intro: '', groupBy: 'roll', captions: [] }],
   ])('refuses a presentation with %s', async (_why, presentation) => {
     const { slug, etag } = await aSite('Iceland');
 
