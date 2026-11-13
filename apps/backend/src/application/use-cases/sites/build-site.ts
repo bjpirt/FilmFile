@@ -222,11 +222,16 @@ export class BuildSite {
   /** What each frame is on the page, and the images to make for it. */
   async #gather(ctx: ArchiveContext, input: Pick<BuildSiteInput, 'frames'>) {
     const settings = (await this.#settings.get(ctx))?.settings;
+    // Every roll read once: reading rolls one by one costs a pass over the
+    // archive each, which a site of hundreds of frames can't afford.
+    const rolls = new Map(
+      (await this.#rolls.list(ctx)).rolls.map((roll) => [roll.id, roll]),
+    );
     const photos: SitePhoto[] = [];
     const jobs: ImageJob[] = [];
     let leftOut = 0;
     for (const { rollId, frameId } of input.frames) {
-      const roll = (await this.#rolls.get(ctx, rollId))?.roll;
+      const roll = rolls.get(rollId);
       const frame = roll?.frames.find((f) => f.id === frameId);
       const version = frame === undefined ? undefined : shown(frame);
       if (
