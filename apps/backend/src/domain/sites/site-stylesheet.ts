@@ -157,10 +157,11 @@ a:hover {
   padding-top: var(--space-5);
 }
 
-/* The header's way home from any other page. */
+/* The header's way home from any other page, on its right even with no title. */
 .all-events {
   color: var(--text-muted);
   font-size: 0.875rem;
+  margin-left: auto;
 }
 
 /* An event's page: its name large, its date and count beside it. */
@@ -319,13 +320,12 @@ h1 {
   width: auto;
 }
 
+/* Room either side for Previous and Next, outside the photo. */
 .frame-stage {
-  align-items: center;
   display: flex;
-  gap: var(--space-3);
   justify-content: center;
   margin: var(--space-5) 0 var(--space-4);
-  position: relative;
+  padding-inline: 3.5rem;
 }
 
 .frame-stage img {
@@ -339,16 +339,40 @@ h1 {
   width: auto;
 }
 
+.frame-photo {
+  position: relative;
+}
+
+/* Previous and Next, level with the middle of the photo, just outside it. */
 .step {
   color: var(--text);
   font-size: 2.5rem;
   line-height: 1;
   padding: var(--space-3);
+  position: absolute;
   text-decoration: none;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.step.previous {
+  right: 100%;
+}
+
+.step.next {
+  left: 100%;
 }
 
 .step:hover {
   color: var(--text-muted);
+}
+
+/* The photo and its caption line together, as wide as the photo. */
+.frame-figure {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  min-width: 0;
 }
 
 .frame-info {
@@ -356,8 +380,9 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 0 var(--space-4);
-  margin: 0 auto;
-  max-width: 60rem;
+  margin-top: var(--space-2);
+  /* Takes the photo's width, never widens the figure past it. */
+  contain: inline-size;
 }
 
 .caption {
@@ -368,39 +393,14 @@ h1 {
   color: var(--text-muted);
 }
 
-/* The small icon that shows and hides the details. */
-.info-toggle {
-  background: none;
-  border: 0;
-  color: var(--text-muted);
-  cursor: pointer;
-  display: flex;
-  margin-left: auto;
-  min-height: 44px;
-  min-width: 44px;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
-
-.info-toggle:hover,
-.info-toggle[aria-expanded='true'] {
-  color: var(--text);
-}
-
+/* The details, always shown, each a small grey label over its value. */
 .frame-details {
-  border-top: 1px solid var(--rule);
   display: grid;
   flex-basis: 100%;
   font-size: 0.8125rem;
-  gap: var(--space-4) var(--space-5);
+  gap: var(--space-3) var(--space-5);
   grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
-  margin: var(--space-2) 0 0;
-  padding-top: var(--space-4);
-}
-
-.frame-details[hidden] {
-  display: none;
+  margin: var(--space-3) 0 0;
 }
 
 .frame-details dt {
@@ -450,6 +450,10 @@ h1 {
     font-size: 1.5rem;
   }
 
+  .frame-figure {
+    width: 100%;
+  }
+
   .frame-stage img {
     max-height: none;
     width: 100%;
@@ -459,20 +463,24 @@ h1 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .frame-stage {
+    padding-inline: 0;
+  }
+
+  /* Over the photo's edges, since there's no room beside it. */
   .step {
     background: rgb(255 255 255 / 70%);
     font-size: 1.75rem;
     padding: var(--space-2) var(--space-3);
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
   }
 
   .step.previous {
     left: var(--space-2);
+    right: auto;
   }
 
   .step.next {
+    left: auto;
     right: var(--space-2);
   }
 }

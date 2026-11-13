@@ -86,7 +86,6 @@ describe('the files', () => {
       'events/_no-event-2026/2-F2.html',
       'assets/site.css',
       'assets/site.js',
-      'assets/no-script.css',
     ]);
   });
 
@@ -95,7 +94,6 @@ describe('the files', () => {
       'index.html',
       'assets/site.css',
       'assets/site.js',
-      'assets/no-script.css',
     ]);
     expect(file([], 'index.html')).toContain(noPhotosText);
   });
@@ -436,7 +434,7 @@ describe('a frame’s page', () => {
     expect(strip).toBeLessThan(stage);
   });
 
-  test('writes the title in bold and the date shot under the photo, as chosen, and no line with neither', () => {
+  test('writes the title in bold, with the date shot, under the photo, only when it has a title and Title is ticked', () => {
     const photo = aPhoto('1', {
       details: { title: 'Black beach', shot: 'Sep 2026', camera: 'Leica M6' },
     });
@@ -445,17 +443,20 @@ describe('a frame’s page', () => {
     ).toContain(
       '<p class="caption"><strong>Black beach</strong> <span>· Sep 2026</span></p>',
     );
-    expect(framePage('1', [photo], { captions: ['shot'] })).toContain(
-      '<p class="caption"><span>Sep 2026</span></p>',
+    expect(framePage('1', [photo], { captions: ['title'] })).toContain(
+      '<p class="caption"><strong>Black beach</strong></p>',
     );
     expect(
+      framePage('1', [photo], { captions: ['shot', 'camera'] }),
+    ).not.toContain('class="caption"');
+    expect(
       framePage('1', [aPhoto('1', { details: { shot: '12 Sep 2026' } })], {
-        captions: ['title', 'camera'],
+        captions: ['title', 'shot'],
       }),
     ).not.toContain('class="caption"');
   });
 
-  test('has the other details chosen behind a small icon, hidden until it’s pressed', () => {
+  test('shows the other details chosen under it, always, each a label and its value', () => {
     const photo = aPhoto('1', {
       details: {
         shot: '12 Sep 2026',
@@ -468,26 +469,46 @@ describe('a frame’s page', () => {
       captions: ['film', 'camera', 'lens'],
     });
     expect(html).toContain(
-      '<button class="info-toggle" type="button" aria-expanded="false" aria-controls="frame-details" aria-label="Details">',
+      '<dl class="frame-details"><div><dt>Camera</dt><dd>Leica M6</dd></div><div><dt>Lens</dt><dd>Summicron 50</dd></div><div><dt>Film stock</dt><dd>Portra 400</dd></div></dl>',
+    );
+    expect(html).not.toContain('hidden');
+    expect(html).not.toContain('<button');
+    expect(html).not.toContain('noscript');
+  });
+
+  test('with no title, the date shot is the first of the details', () => {
+    const html = framePage(
+      '1',
+      [aPhoto('1', { details: { shot: '12 Sep 2026', camera: 'Leica M6' } })],
+      { captions: ['title', 'shot', 'camera'] },
     );
     expect(html).toContain(
-      '<dl class="frame-details" id="frame-details" hidden><div><dt>Camera</dt><dd>Leica M6</dd></div><div><dt>Lens</dt><dd>Summicron 50</dd></div><div><dt>Film stock</dt><dd>Portra 400</dd></div></dl>',
-    );
-    expect(html).toContain(
-      '<noscript><link rel="stylesheet" href="../../assets/no-script.css"></noscript>',
+      '<dl class="frame-details"><div><dt>Date shot</dt><dd>12 Sep 2026</dd></div><div><dt>Camera</dt><dd>Leica M6</dd></div></dl>',
     );
   });
 
-  test('has no details icon when none of the details chosen is known', () => {
+  test('keeps the caption and details with the photo, in one figure, as wide as the photo, and none when nothing is known', () => {
     const html = framePage(
       '1',
-      [aPhoto('1', { details: { shot: '12 Sep 2026' } })],
-      {
-        captions: ['title', 'camera'],
-      },
+      [
+        aPhoto('1', {
+          details: {
+            title: 'Black beach',
+            shot: '12 Sep 2026',
+            camera: 'Leica M6',
+          },
+        }),
+      ],
+      { captions: ['title', 'camera'] },
     );
-    expect(html).not.toContain('info-toggle');
-    expect(html).not.toContain('frame-details');
+    expect(html).toMatch(
+      /<figure class="frame-figure"><div class="frame-photo"><img [^>]*><\/div><figcaption class="frame-info"><p class="caption"><strong>Black beach<\/strong><\/p><dl class="frame-details">.*<\/dl><\/figcaption><\/figure>/,
+    );
+    expect(
+      framePage('1', [aPhoto('1', { details: { shot: '12 Sep 2026' } })]),
+    ).toMatch(
+      /<figure class="frame-figure"><div class="frame-photo"><img [^>]*><\/div><\/figure>/,
+    );
   });
 
   test('has the script that steps by key and swipe, from the folder two up', () => {
@@ -506,12 +527,6 @@ describe('a frame’s page', () => {
     );
     expect(html).toContain('<p class="place">1 / 1</p>');
   });
-});
-
-test('has a stylesheet for when scripts are off, which shows a frame’s details', () => {
-  expect(file([aPhoto('1')], 'assets/no-script.css')).toContain(
-    '.frame-details[hidden]',
-  );
 });
 
 test('sets a photo’s shape in the stylesheet, once for each shape', () => {

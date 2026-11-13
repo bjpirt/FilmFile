@@ -272,7 +272,7 @@ describe('POST /api/sites/{slug}/build', () => {
         path.join(siteFolder(slug), await aFramePage(slug)),
         'utf8',
       ),
-    ).toContain('<p class="caption"><span>12 Sep 2026</span></p>');
+    ).toContain('<dt>Date shot</dt><dd>12 Sep 2026</dd>');
   });
 
   test('with rebuild=all, makes every image again even when the site is up to date (FF-191)', async () => {

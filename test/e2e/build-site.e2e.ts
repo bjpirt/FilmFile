@@ -20,10 +20,6 @@ test('build a site: make one of two rolls’ frames, build it, open it in the br
   await page.getByRole('button', { name: 'Add site' }).click();
   await expect(page.getByText('12 frames match')).toBeVisible();
   await expect(page.getByText('Not built yet')).toBeVisible();
-  await page
-    .getByRole('group', { name: 'Details to show' })
-    .getByLabel('Camera')
-    .check();
   // Its own title and copyright notice, apart from its name (D108).
   await page.getByLabel('Site title').fill('Iceland in September');
   await page.getByLabel('Copyright notice').fill('© The journeys');
@@ -69,14 +65,10 @@ test('build a site: make one of two rolls’ frames, build it, open it in the br
   await expect(site.getByRole('link', { name: 'Previous frame' })).toHaveCount(
     0,
   );
-  // Its camera is behind the details icon, hidden until it's pressed (FF-190).
-  await expect(site.getByText('Olympus OM-2')).toBeHidden();
-  await site.getByRole('button', { name: 'Details' }).click();
+  // Its camera is shown under it, as a new site shows camera, lens and film.
   await expect(site.getByText('Olympus OM-2')).toBeVisible();
   await site.keyboard.press('ArrowRight');
   await expect(site.getByText('2 / 6')).toBeVisible();
-  // Shown details stay shown on the next frame.
-  await expect(site.getByText('Olympus OM-2')).toBeVisible();
   // On a phone the filmstrip scrolls so the frame shown is in its middle
   // (as near as it can: not the last few, at the strip's end).
   await site.setViewportSize({ width: 320, height: 640 });

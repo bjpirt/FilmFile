@@ -230,11 +230,11 @@ async function bodyOf<T>(
   };
 }
 
-/** How a site is shown when nothing is said: no title, the archive's copyright, each photo's title. */
+/** How a site is shown when nothing is said: no title, the archive's copyright, each photo's camera, lens and film stock. */
 export const plainPresentation: Site['presentation'] = {
   title: '',
   copyright: null,
-  captions: ['title'],
+  captions: ['camera', 'lens', 'film'],
 };
 
 export function fakeArchive(contents: ArchiveContents = {}) {

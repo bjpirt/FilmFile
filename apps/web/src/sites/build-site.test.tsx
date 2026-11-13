@@ -213,20 +213,28 @@ test('shows how the site is presented: the details to show, and no Organise by, 
   expect(screen.queryByLabelText('Group by')).toBeNull();
   expect(screen.queryByLabelText('Page title')).toBeNull();
   expect(screen.queryByLabelText('Intro')).toBeNull();
-  expect(screen.getByLabelText<HTMLInputElement>('Title').checked).toBe(true);
-  expect(screen.getByLabelText<HTMLInputElement>('Camera').checked).toBe(false);
+  // A frame's camera, lens and film stock at first; most frames have no title.
+  expect(screen.getByLabelText<HTMLInputElement>('Title').checked).toBe(false);
+  expect(screen.getByLabelText<HTMLInputElement>('Date shot').checked).toBe(
+    false,
+  );
+  expect(screen.getByLabelText<HTMLInputElement>('Camera').checked).toBe(true);
+  expect(screen.getByLabelText<HTMLInputElement>('Lens').checked).toBe(true);
+  expect(screen.getByLabelText<HTMLInputElement>('Film stock').checked).toBe(
+    true,
+  );
 });
 
 test('saves a choice at once', async () => {
   const archive = archiveWith();
   renderPage(archive);
 
-  fireEvent.click(await screen.findByLabelText('Camera'));
+  fireEvent.click(await screen.findByLabelText('Title'));
   await waitFor(() => {
     expect(archive.sites[0]?.presentation).toEqual({
       title: '',
       copyright: null,
-      captions: ['title', 'camera'],
+      captions: ['camera', 'lens', 'film', 'title'],
     });
   });
 });
@@ -385,6 +393,6 @@ test('leaving a field unchanged saves nothing', async () => {
   expect(archive.sites[0]?.presentation).toEqual({
     title: '',
     copyright: null,
-    captions: ['title'],
+    captions: ['camera', 'lens', 'film'],
   });
 });

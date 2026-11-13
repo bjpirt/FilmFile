@@ -1,8 +1,7 @@
 /**
  * A frame's page (D105): a few lines of plain JavaScript, no dependencies.
  * Every link works without it; it adds the arrow keys and Esc, swiping on a
- * phone, scrolls the filmstrip to the frame shown, and shows and hides the
- * frame's details from their icon, remembering it from frame to frame (D107).
+ * phone, and scrolls the filmstrip to the frame shown.
  */
 export const siteScript = `(function () {
   function follow(selector) {
@@ -29,27 +28,6 @@ export const siteScript = `(function () {
       startX = null;
       if (Math.abs(moved) > 50) follow(moved < 0 ? '.step.next' : '.step.previous');
     });
-  }
-
-  // The details start hidden; once shown, they stay shown on the next frame.
-  var toggle = document.querySelector('.info-toggle');
-  var details = document.getElementById('frame-details');
-  function showDetails(shown) {
-    details.hidden = !shown;
-    toggle.setAttribute('aria-expanded', String(shown));
-    try {
-      sessionStorage.setItem('filmfile.details', shown ? 'shown' : '');
-    } catch (error) {}
-  }
-  if (toggle && details) {
-    toggle.addEventListener('click', function () {
-      showDetails(details.hidden);
-      // On a short screen they open below the fold: bring them into view.
-      if (!details.hidden) details.scrollIntoView({ block: 'nearest' });
-    });
-    try {
-      if (sessionStorage.getItem('filmfile.details') === 'shown') showDetails(true);
-    } catch (error) {}
   }
 
   // The frame shown in the middle of the filmstrip: sideways only, so opening

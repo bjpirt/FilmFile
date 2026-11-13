@@ -25,8 +25,6 @@ export function sitePageShell(page: {
   readonly root: string;
   /** The home page names the site as its heading; another page has its own. */
   readonly nameIsHeading: boolean;
-  /** Anything more in the head, such as a frame page's stylesheet for when scripts are off. */
-  readonly head?: string;
   /** Anything on the header's other side, such as the home page's counts. */
   readonly aside?: string;
   readonly body: string;
@@ -49,7 +47,7 @@ export function sitePageShell(page: {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(page.title)}</title>
 <link rel="stylesheet" href="${page.root}assets/site.css">
-${page.head ?? ''}</head>
+</head>
 <body>
 <header class="site-header">${name}${page.aside ?? ''}</header>
 <main class="page">

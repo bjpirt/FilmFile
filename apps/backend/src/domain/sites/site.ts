@@ -30,9 +30,9 @@ export interface SitePresentation {
   readonly captions: readonly CaptionField[];
 }
 
-/** A site shown plainly: no title, the archive's copyright, each photo's title. */
+/** A site shown plainly: no title, the archive's copyright, each photo's camera, lens and film stock. */
 export const defaultPresentation: SitePresentation = {
   title: '',
   copyright: null,
-  captions: ['title'],
+  captions: ['camera', 'lens', 'film'],
 };

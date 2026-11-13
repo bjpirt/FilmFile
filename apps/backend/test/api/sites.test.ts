@@ -75,7 +75,11 @@ describe('POST /api/sites', () => {
       slug: 'iceland-highlights',
       name: 'Iceland highlights',
       selection: { rules: [], excluded: [] },
-      presentation: { title: '', copyright: null, captions: ['title'] },
+      presentation: {
+        title: '',
+        copyright: null,
+        captions: ['camera', 'lens', 'film'],
+      },
     });
     expect(response.headers.get('ETag')).toMatch(/^"[0-9a-f]{64}"$/);
     expect(

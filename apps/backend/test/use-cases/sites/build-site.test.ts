@@ -156,7 +156,6 @@ describe('BuildSite', () => {
       expect.stringMatching(/^events\/_no-event\/2-[0-9A-Z]{8}\.html$/),
       'assets/site.css',
       'assets/site.js',
-      'assets/no-script.css',
       'site.json',
     ]);
     expect(paths.filter((p) => p.startsWith('images/'))).toHaveLength(8);
