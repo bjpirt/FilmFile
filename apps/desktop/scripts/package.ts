@@ -85,6 +85,13 @@ async function bundle(input: string, file: string, external: string[]) {
   });
 }
 
+// The app is built for the machine building it: pnpm installs only this
+// machine's sharp binaries, and those are what gets copied in (FF-161).
+const arch = process.arch;
+if (arch !== 'arm64' && arch !== 'x64') {
+  throw new Error(`FilmFile can't be packaged on a ${arch} Mac.`);
+}
+
 await rm(out, { recursive: true, force: true });
 await mkdir(stage, { recursive: true });
 
@@ -120,7 +127,7 @@ const [appFolder] = await packager({
   out,
   name: 'FilmFile',
   platform: 'darwin',
-  arch: 'arm64',
+  arch,
   electronVersion,
   icon: path.join(desktop, 'build', 'icon.icns'),
   appBundleId: 'app.filmfile.desktop',

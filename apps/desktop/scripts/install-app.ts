@@ -10,7 +10,7 @@ const built = path.resolve(
   import.meta.dirname,
   '..',
   'out',
-  'FilmFile-darwin-arm64',
+  `FilmFile-darwin-${process.arch}`,
   'FilmFile.app',
 );
 const installed = '/Applications/FilmFile.app';

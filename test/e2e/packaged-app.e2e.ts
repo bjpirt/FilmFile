@@ -18,7 +18,7 @@ import { createRoll } from './support/journeys.ts';
 // Skipped until the app is built.
 
 const binary = path.resolve(
-  'apps/desktop/out/FilmFile-darwin-arm64/FilmFile.app/Contents/MacOS/FilmFile',
+  `apps/desktop/out/FilmFile-darwin-${process.arch}/FilmFile.app/Contents/MacOS/FilmFile`,
 );
 const origin = 'http://127.0.0.1:4313';
 
