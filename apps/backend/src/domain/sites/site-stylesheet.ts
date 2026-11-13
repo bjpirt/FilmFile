@@ -1,24 +1,22 @@
 /**
- * The site's look is the app's light table (D21): dark, photo first, the same
- * colours, spacing and type. It uses system fonts, since a site loads nothing
- * from the internet.
+ * The site's look (D107): graphic and minimal, white with black type and thin
+ * rules, large bold headings, and no colour but the photos. It uses system
+ * fonts, since a site loads nothing from the internet.
  */
 export const siteStylesheet = `:root {
-  --bg: #111214;
-  --surface: #1b1d21;
-  --border: #2a2d33;
-  --text: #e8e6e3;
-  --text-muted: #9a9ea6;
-  --accent: #f2a93b;
-  --placeholder: #24272c;
+  --bg: #ffffff;
+  --text: #111111;
+  --text-muted: #6b6b6b;
+  --rule: #111111;
+  --line: #e0e0e0;
+  --placeholder: #e6e6e6;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
   --space-5: 1.5rem;
-  --space-6: 2rem;
-  --radius: 6px;
-  --font-text: Inter, system-ui, sans-serif;
-  color-scheme: dark;
+  --space-6: 2.5rem;
+  --font-text: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  color-scheme: light;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-text);
@@ -32,123 +30,163 @@ body {
 
 a {
   color: inherit;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #555555;
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--text);
   outline-offset: 2px;
 }
 
+.site-header,
 .page {
+  box-sizing: border-box;
   margin: 0 auto;
-  max-width: 90rem;
-  padding: var(--space-6) var(--space-4);
+  max-width: 75rem;
+  padding-inline: var(--space-6);
 }
 
 .site-header {
   align-items: baseline;
-  border-bottom: 1px solid var(--border);
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3) var(--space-5);
   justify-content: space-between;
-  padding: var(--space-4);
+  padding-top: var(--space-6);
 }
 
 .site-name {
   font-size: 1.25rem;
-  font-weight: 600;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   margin: 0;
 }
 
-.site-name a {
-  text-decoration: none;
-}
-
-/* "Events | Rolls" with Both (D104): the view shown in the accent colour. */
-.views {
-  display: flex;
-  gap: var(--space-4);
-}
-
-.views a {
+.site-count {
   color: var(--text-muted);
-  text-decoration: none;
+  font-size: 0.875rem;
+  margin: 0;
 }
 
-.views a[aria-current='page'] {
-  color: var(--accent);
+.page {
+  padding-bottom: 4rem;
+  padding-top: 3.5rem;
 }
 
-h1 {
-  font-size: 1.75rem;
-  font-weight: 600;
-  margin: 0 0 var(--space-2);
-}
-
-.back {
+.empty {
   color: var(--text-muted);
-  display: inline-block;
-  margin-bottom: var(--space-3);
-  text-decoration: none;
 }
 
-.group-meta {
-  color: var(--text-muted);
+/* The home page: a section for each year, its heading large over a rule. */
+.year {
+  margin-bottom: 4.5rem;
+}
+
+.year h2 {
+  border-bottom: 1px solid var(--rule);
+  font-size: clamp(4.5rem, 10vw, 7.5rem);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 0.85;
   margin: 0 0 var(--space-5);
+  padding-bottom: var(--space-4);
 }
 
-/* A card for each roll or event, as on the app's rolls and events pages. */
 .cards {
   display: grid;
-  gap: var(--space-4);
-  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: var(--space-6) var(--space-5);
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
+/* A card: the cover across, then the name and, beside it, the month and count. */
 .card a {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  display: block;
-  overflow: hidden;
-  text-decoration: none;
-}
-
-.card a:hover {
-  border-color: var(--text-muted);
-}
-
-.peek {
-  background: #0b0c0d;
+  align-items: baseline;
   display: grid;
-  gap: 2px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
-.peek img,
-.peek-empty {
-  aspect-ratio: 3 / 2;
+.cover {
+  aspect-ratio: 4 / 5;
   background: var(--placeholder);
   display: block;
+  grid-column: 1 / -1;
+  height: auto;
   object-fit: cover;
   width: 100%;
 }
 
-.card h2 {
-  font-size: 1.1rem;
-  font-weight: 600;
+.card a:hover .cover {
+  opacity: 0.85;
+}
+
+.card h3 {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   margin: 0;
-  padding: var(--space-3) var(--space-4) 0;
 }
 
 .card p {
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: 0.8125rem;
   margin: 0;
-  padding: var(--space-2) var(--space-4) var(--space-4);
+  white-space: nowrap;
+}
+
+/* The rolls, kept small at the foot (D107). */
+.by-roll {
+  border-top: 1px solid var(--line);
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  padding-top: var(--space-5);
+}
+
+.by-roll h2 {
+  color: var(--text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  margin: 0 0 var(--space-3);
+}
+
+.by-roll ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  line-height: 1.8;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* A roll's or event's page. */
+h1 {
+  font-size: clamp(3rem, 9vw, 7rem);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 0.9;
+  margin: 0 0 var(--space-3);
+}
+
+.back {
+  color: var(--text-muted);
+  display: inline-block;
+  font-size: 0.875rem;
+  margin-bottom: var(--space-4);
+}
+
+.group-meta {
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.875rem;
+  margin: 0 0 var(--space-6);
+  padding-bottom: var(--space-5);
 }
 
 /* Rows that fill the width: each photo grows in proportion to its shape. */
@@ -176,24 +214,13 @@ h1 {
 .photo img {
   aspect-ratio: var(--shape);
   background: var(--placeholder);
-  border-radius: var(--radius);
   display: block;
   height: auto;
   width: 100%;
 }
 
 .photo a:hover img {
-  outline: 2px solid var(--accent);
-}
-
-.photo figcaption {
-  color: var(--text-muted);
-  font-size: 0.85rem;
-  padding-top: var(--space-2);
-}
-
-.empty {
-  color: var(--text-muted);
+  opacity: 0.85;
 }
 
 /* A frame's page (D105): the photo as large as the screen allows, between
@@ -224,7 +251,6 @@ h1 {
 }
 
 .frame-stage img {
-  border-radius: var(--radius);
   display: block;
   height: auto;
   /* Room for the header, the bar, the caption and the filmstrip. */
@@ -236,7 +262,7 @@ h1 {
 }
 
 .step {
-  color: var(--text-muted);
+  color: var(--text);
   font-size: 2.5rem;
   line-height: 1;
   padding: var(--space-3);
@@ -244,7 +270,7 @@ h1 {
 }
 
 .step:hover {
-  color: var(--accent);
+  color: var(--text-muted);
 }
 
 .caption {
@@ -264,7 +290,7 @@ h1 {
 
 .filmstrip a {
   flex: none;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 .filmstrip a:hover,
@@ -273,27 +299,53 @@ h1 {
 }
 
 .filmstrip a[aria-current='page'] img {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--text);
 }
 
 .filmstrip img {
   background: var(--placeholder);
-  border-radius: 3px;
   display: block;
   height: 4rem;
   width: auto;
 }
 
-/* On a phone the photo takes the whole width, with small arrows over its edges. */
+/* On a phone: two cards to a row, and the photo the whole width with small
+   arrows over its edges. */
 @media (max-width: 40rem) {
+  .site-header,
+  .page {
+    padding-inline: var(--space-4);
+  }
+
+  .site-header {
+    padding-top: var(--space-5);
+  }
+
+  .page {
+    padding-top: var(--space-6);
+  }
+
+  .year h2 {
+    font-size: 4.5rem;
+  }
+
+  .cards {
+    gap: var(--space-5) var(--space-3);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .card a {
+    gap: var(--space-2);
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .frame-stage img {
     max-height: none;
     width: 100%;
   }
 
   .step {
-    background: rgb(0 0 0 / 45%);
-    border-radius: var(--radius);
+    background: rgb(255 255 255 / 70%);
     font-size: 1.75rem;
     padding: var(--space-2) var(--space-3);
     position: absolute;

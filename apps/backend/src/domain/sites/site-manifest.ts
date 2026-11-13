@@ -8,6 +8,8 @@ import type { SitePhoto } from './site-photo.ts';
  */
 export interface SiteManifest {
   readonly version: 1;
+  /** The version of the site's design it was built with (`siteDesign`). */
+  readonly design: number;
   readonly options: SiteOptions;
   readonly photos: readonly SitePhoto[];
 }

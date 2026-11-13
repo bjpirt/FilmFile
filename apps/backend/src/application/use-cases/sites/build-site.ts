@@ -23,6 +23,7 @@ import {
   siteImageInputsText,
   siteImagePath,
 } from '../../../domain/sites/site-image-name.ts';
+import { siteDesign } from '../../../domain/sites/site-design.ts';
 import { siteImageSizes } from '../../../domain/sites/site-image-sizes.ts';
 import type { SiteManifest } from '../../../domain/sites/site-manifest.ts';
 import type { SiteOptions } from '../../../domain/sites/site-options.ts';
@@ -181,6 +182,7 @@ export class BuildSite {
       }
       const manifest: SiteManifest = {
         version: 1,
+        design: siteDesign,
         options: input.options,
         photos,
       };

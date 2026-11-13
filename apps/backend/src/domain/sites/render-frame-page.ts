@@ -1,7 +1,7 @@
 import { escapeHtml } from './escape-html.ts';
 import type { SiteGroup } from './site-groups.ts';
 import { captionOrder, type SiteOptions } from './site-options.ts';
-import { sitePageShell, type SiteView } from './site-page-shell.ts';
+import { sitePageShell } from './site-page-shell.ts';
 import type { SitePhoto } from './site-photo.ts';
 
 /** A frame's page is two folders down: `rolls/<roll>/<frame>.html`. */
@@ -52,7 +52,6 @@ function filmstripHtml(group: SiteGroup, shown: SitePhoto): string {
 export function renderFramePage(
   group: SiteGroup,
   index: number,
-  view: SiteView,
   options: SiteOptions,
 ): string {
   const photo = group.photos[index];
@@ -67,8 +66,6 @@ export function renderFramePage(
   return sitePageShell({
     title: `${photo.alt} · ${options.title}`,
     siteName: options.title,
-    organiseBy: options.organiseBy,
-    view,
     root,
     nameIsHeading: false,
     body: `<div class="frame-bar"><a class="back" href="../${escapeHtml(group.label.file)}.html">← ${escapeHtml(group.label.heading)}</a><p class="place">${String(index + 1)} of ${String(group.photos.length)}</p></div>

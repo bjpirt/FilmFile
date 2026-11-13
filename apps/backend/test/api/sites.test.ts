@@ -75,10 +75,7 @@ describe('POST /api/sites', () => {
       slug: 'iceland-highlights',
       name: 'Iceland highlights',
       selection: { rules: [], excluded: [] },
-      presentation: {
-        organiseBy: 'both',
-        captions: ['title'],
-      },
+      presentation: { captions: ['title'] },
     });
     expect(response.headers.get('ETag')).toMatch(/^"[0-9a-f]{64}"$/);
     expect(
@@ -219,10 +216,7 @@ describe('PATCH /api/sites/{slug}', () => {
 
   test('saves how the site is presented, and gives it back', async () => {
     const { slug, etag } = await aSite('Iceland');
-    const presentation = {
-      organiseBy: 'events',
-      captions: ['title', 'shot'],
-    };
+    const presentation = { captions: ['title', 'shot'] };
 
     const response = await patch(slug, { presentation }, etag);
 
@@ -233,20 +227,48 @@ describe('PATCH /api/sites/{slug}', () => {
     });
   });
 
+  test('reads a site saved with Organise by (D104), and drops it on the next save (D107)', async () => {
+    const { slug, etag } = await aSite('Iceland');
+    const saved: unknown = JSON.parse(await readFile(siteFile(slug), 'utf8'));
+    await writeFile(
+      siteFile(slug),
+      `${JSON.stringify({
+        ...(typeof saved === 'object' ? saved : {}),
+        presentation: { organiseBy: 'rolls', captions: ['shot'] },
+      })}\n`,
+    );
+
+    const read = await request(`/api/sites/${slug}`);
+    expect(await read.json()).toMatchObject({
+      presentation: { captions: ['shot'] },
+    });
+    expect(
+      (await patch(slug, { name: 'Iceland' }, read.headers.get('ETag') ?? etag))
+        .status,
+    ).toBe(200);
+    expect(JSON.parse(await readFile(siteFile(slug), 'utf8'))).toMatchObject({
+      presentation: { captions: ['shot'] },
+    });
+    expect(await readFile(siteFile(slug), 'utf8')).not.toContain('organiseBy');
+  });
+
   test.each([
-    ['an unknown way to organise', { organiseBy: 'colour', captions: [] }],
+    [
+      'Organise by, which sites no longer have (D107)',
+      { organiseBy: 'events', captions: [] },
+    ],
     [
       'Group by, which sites no longer have (D104)',
       { groupBy: 'roll', captions: [] },
     ],
-    ['an unknown caption', { organiseBy: 'rolls', captions: ['gps'] }],
+    ['an unknown caption', { captions: ['gps'] }],
     [
       'a title, which is now the name (FF-179)',
-      { title: 'Iceland', organiseBy: 'rolls', captions: [] },
+      { title: 'Iceland', captions: [] },
     ],
     [
       'an intro, which sites no longer have (FF-179)',
-      { intro: 'Two weeks.', organiseBy: 'rolls', captions: [] },
+      { intro: 'Two weeks.', captions: [] },
     ],
   ])('refuses a presentation with %s', async (_why, presentation) => {
     const { slug, etag } = await aSite('Iceland');

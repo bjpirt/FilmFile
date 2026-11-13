@@ -3,9 +3,9 @@ import { siteManifestJson, type SiteManifest } from './site-manifest.ts';
 
 const manifest: SiteManifest = {
   version: 1,
+  design: 2,
   options: {
     title: 'Iceland',
-    organiseBy: 'rolls',
     captions: ['title'],
   },
   photos: [],

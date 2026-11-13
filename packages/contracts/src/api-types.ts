@@ -3404,11 +3404,6 @@ export interface components {
             }[];
         };
         SitePresentation: {
-            /**
-             * @description Whether the built site is cards of its events, of its rolls, or both with a menu (D104).
-             * @enum {string}
-             */
-            organiseBy: "events" | "rolls" | "both";
             /** @description Which details appear under each photo. */
             captions: ("title" | "shot" | "camera" | "lens" | "film")[];
         };

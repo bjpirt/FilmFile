@@ -4,6 +4,7 @@ import {
   planSiteBuild,
   type SiteStatus,
 } from './plan-site-build.ts';
+import { siteDesign } from './site-design.ts';
 import type { SiteManifest } from './site-manifest.ts';
 import type { SiteOptions } from './site-options.ts';
 import type { SitePhoto } from './site-photo.ts';
@@ -11,7 +12,6 @@ import { isFrameId, type FrameId } from '../shared/ids.ts';
 
 const options: SiteOptions = {
   title: 'Iceland',
-  organiseBy: 'both',
   captions: ['title'],
 };
 
@@ -39,6 +39,7 @@ function aPhoto(name: string, hash = 'a', title = ''): SitePhoto {
 
 const built = (...photos: SitePhoto[]): SiteManifest => ({
   version: 1,
+  design: siteDesign,
   options,
   photos,
 });
@@ -92,6 +93,7 @@ test('a frame added, one removed and one changed are named, and only the new ima
       changed: [frameId('3')],
       reordered: false,
       optionsChanged: false,
+      designChanged: false,
     },
   });
   expect(plan.imagesToMake).toEqual(['images/3-b.jpg', 'images/4-a.jpg']);
@@ -121,9 +123,20 @@ test('different options are out of date', () => {
   const photos = [aPhoto('1')];
   const plan = planSiteBuild(built(...photos), photos, {
     ...options,
-    organiseBy: 'rolls',
+    captions: ['title', 'camera'],
   });
   expect(describeSiteStatus(plan.status)).toBe('Out of date: options changed');
+});
+
+test('a site built with an earlier design is out of date, and needs no image made', () => {
+  const photos = [aPhoto('1')];
+  const plan = planSiteBuild(
+    { ...built(...photos), design: siteDesign - 1 },
+    photos,
+    options,
+  );
+  expect(describeSiteStatus(plan.status)).toBe('Out of date: design changed');
+  expect(plan.imagesToMake).toEqual([]);
 });
 
 test.each<[SiteStatus, string]>([
@@ -138,6 +151,7 @@ test.each<[SiteStatus, string]>([
         changed: [frameId('5'), frameId('6')],
         reordered: false,
         optionsChanged: false,
+        designChanged: false,
       },
     },
     'Out of date: 3 frames added, 1 removed, 2 changed',

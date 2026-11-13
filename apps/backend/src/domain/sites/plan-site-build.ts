@@ -1,4 +1,5 @@
 import type { FrameId } from '../shared/ids.ts';
+import { siteDesign } from './site-design.ts';
 import type { SiteManifest } from './site-manifest.ts';
 import type { SiteOptions } from './site-options.ts';
 import type { SitePhoto } from './site-photo.ts';
@@ -12,6 +13,8 @@ export interface SiteChanges {
   /** The frames are the same but their order isn't. */
   readonly reordered: boolean;
   readonly optionsChanged: boolean;
+  /** It was built with an earlier version of the site's design. */
+  readonly designChanged: boolean;
 }
 
 export type SiteStatus =
@@ -65,6 +68,7 @@ function compare(
       .map((photo) => photo.frame),
     reordered: sharedBefore.join() !== sharedNow.join(),
     optionsChanged: canonicalJson(built.options) !== canonicalJson(options),
+    designChanged: built.design !== siteDesign,
   };
 }
 
@@ -73,7 +77,8 @@ const nothingChanged = (changes: SiteChanges): boolean =>
   changes.removed.length === 0 &&
   changes.changed.length === 0 &&
   !changes.reordered &&
-  !changes.optionsChanged;
+  !changes.optionsChanged &&
+  !changes.designChanged;
 
 /**
  * Compares the site as it was built (its `site.json`, absent if it hasn't
@@ -116,14 +121,21 @@ export function describeSiteStatus(status: SiteStatus): string {
     case 'up-to-date':
       return 'Up to date';
     case 'out-of-date': {
-      const { added, removed, changed, reordered, optionsChanged } =
-        status.changes;
+      const {
+        added,
+        removed,
+        changed,
+        reordered,
+        optionsChanged,
+        designChanged,
+      } = status.changes;
       const parts = [
         added.length > 0 ? `${plural(added.length, 'frame')} added` : '',
         removed.length > 0 ? `${String(removed.length)} removed` : '',
         changed.length > 0 ? `${String(changed.length)} changed` : '',
         reordered ? 'order changed' : '',
         optionsChanged ? 'options changed' : '',
+        designChanged ? 'design changed' : '',
       ].filter((part) => part !== '');
       return `Out of date: ${parts.join(', ')}`;
     }

@@ -2285,15 +2285,6 @@
       "SitePresentation": {
         "type": "object",
         "properties": {
-          "organiseBy": {
-            "type": "string",
-            "enum": [
-              "events",
-              "rolls",
-              "both"
-            ],
-            "description": "Whether the built site is cards of its events, of its rolls, or both with a menu (D104)."
-          },
           "captions": {
             "type": "array",
             "items": {
@@ -2311,7 +2302,6 @@
           }
         },
         "required": [
-          "organiseBy",
           "captions"
         ],
         "additionalProperties": false

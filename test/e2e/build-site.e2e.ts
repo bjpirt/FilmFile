@@ -2,10 +2,15 @@ import { fixtureSets } from '../../apps/backend/test/support/lab-scans.ts';
 import { expect, test } from './support/isolated-test.ts';
 import { createRoll } from './support/journeys.ts';
 
-test('build a site: make one of two rolls’ frames, build it, open it in the browser, find the cards, a roll’s photos and a frame’s page, then change it and build again (D92)', async ({
+test('build a site: make one of two rolls’ frames, build it, open it in the browser, find an event under its year, its photos, a frame’s page and a roll from the foot, then change it and build again (D92, D107)', async ({
   page,
 }) => {
-  await createRoll(page, '2026-053', { scans: fixtureSets.headToTail });
+  await createRoll(page, '2026-053', {
+    year: '2026',
+    month: 'September',
+    newEvent: 'Westfjords walk',
+    scans: fixtureSets.headToTail,
+  });
   await createRoll(page, '2026-054', { scans: fixtureSets.headToTail });
 
   await page.getByRole('link', { name: 'Sites' }).click();
@@ -24,26 +29,23 @@ test('build a site: make one of two rolls’ frames, build it, open it in the br
   ).toBeVisible();
   await expect(page.getByText('Up to date')).toBeVisible();
 
-  // Open it: the event cards, then the roll cards from the menu (D104).
+  // Open it: the events under their years, newest first (D107).
   const [site] = await Promise.all([
     page.context().waitForEvent('page'),
     page.getByRole('link', { name: 'Open site' }).click(),
   ]);
   await expect(site.getByRole('heading', { name: 'Iceland' })).toBeVisible();
   await expect(
-    site.getByRole('heading', { name: 'No event set' }),
+    site.getByRole('heading', { name: '2026', exact: true }),
   ).toBeVisible();
-  await site
-    .getByRole('navigation', { name: 'View by' })
-    .getByRole('link', { name: 'Rolls' })
-    .click();
-  await expect(site.getByRole('heading', { name: '2026-053' })).toBeVisible();
-  await expect(site.getByRole('heading', { name: '2026-054' })).toBeVisible();
-
-  // A roll's card opens its page of photos, and leads back.
-  await site.getByRole('link', { name: /^2026-053/ }).click();
   await expect(
-    site.getByRole('heading', { name: '2026-053', level: 1 }),
+    site.getByRole('heading', { name: /^Other photos/ }),
+  ).toBeVisible();
+
+  // An event's card opens its page of photos.
+  await site.getByRole('link', { name: /Westfjords walk/ }).click();
+  await expect(
+    site.getByRole('heading', { name: 'Westfjords walk', level: 1 }),
   ).toBeVisible();
   await expect(site.locator('.photo img')).toHaveCount(6);
   // A photo opens its own page with the filmstrip; → steps, Esc goes back (D105).
@@ -59,10 +61,16 @@ test('build a site: make one of two rolls’ frames, build it, open it in the br
   await expect(site.getByText('2 of 6')).toBeVisible();
   await site.keyboard.press('Escape');
   await expect(
-    site.getByRole('heading', { name: '2026-053', level: 1 }),
+    site.getByRole('heading', { name: 'Westfjords walk', level: 1 }),
   ).toBeVisible();
-  await site.getByRole('link', { name: '← All rolls' }).click();
-  await expect(site.getByRole('heading', { name: '2026-054' })).toBeVisible();
+  await site.getByRole('link', { name: '← All events' }).click();
+
+  // The rolls are listed at the foot, each leading to its page.
+  await site.getByRole('link', { name: '2026-054', exact: true }).click();
+  await expect(
+    site.getByRole('heading', { name: '2026-054', level: 1 }),
+  ).toBeVisible();
+  await expect(site.locator('.photo img')).toHaveCount(6);
   await site.close();
 
   // Exclude a frame: out of date; building again makes no new image.

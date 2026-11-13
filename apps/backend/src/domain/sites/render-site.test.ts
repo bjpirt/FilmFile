@@ -1,13 +1,12 @@
 import { describe, expect, test } from 'vitest';
 import { renderSite } from './render-site.ts';
-import { noPhotosText } from './render-cards-page.ts';
+import { noPhotosText } from './render-home-page.ts';
 import type { SiteOptions } from './site-options.ts';
 import type { GroupLabel, SitePhoto } from './site-photo.ts';
 import { isFrameId, type FrameId } from '../shared/ids.ts';
 
 const options: SiteOptions = {
   title: 'Iceland highlights',
-  organiseBy: 'both',
   captions: ['title'],
 };
 
@@ -73,18 +72,17 @@ function file(
 }
 
 describe('the files', () => {
-  test('with Both: the event cards as the index, the roll cards, a page for each event and roll, and the assets', () => {
+  test('the home page, a page for each event and each roll and for each frame in them, and the assets', () => {
     const photos = [
       aPhoto('1', { event: iceland }),
       aPhoto('2', { roll: norway }),
     ];
     expect(files(photos).map((made) => made.path)).toEqual([
       'index.html',
-      'rolls.html',
       'events/iceland.html',
       'events/iceland/1-F1.html',
-      'events/_no-event.html',
-      'events/_no-event/2-F2.html',
+      'events/_no-event-2026.html',
+      'events/_no-event-2026/2-F2.html',
       'rolls/2026-005-BBBBBBBB.html',
       'rolls/2026-005-BBBBBBBB/2-F2.html',
       'rolls/2026-004-AAAAAAAA.html',
@@ -94,43 +92,13 @@ describe('the files', () => {
     ]);
   });
 
-  test('with Rolls alone: the roll cards as the index, and a page for each roll', () => {
-    expect(
-      files([aPhoto('1', { event: iceland })], { organiseBy: 'rolls' }).map(
-        (made) => made.path,
-      ),
-    ).toEqual([
-      'index.html',
-      'rolls/2026-004-AAAAAAAA.html',
-      'rolls/2026-004-AAAAAAAA/1-F1.html',
-      'assets/site.css',
-      'assets/site.js',
-    ]);
-  });
-
-  test('with Events alone: the event cards as the index, and a page for each event', () => {
-    expect(
-      files([aPhoto('1', { event: iceland })], { organiseBy: 'events' }).map(
-        (made) => made.path,
-      ),
-    ).toEqual([
-      'index.html',
-      'events/iceland.html',
-      'events/iceland/1-F1.html',
-      'assets/site.css',
-      'assets/site.js',
-    ]);
-  });
-
-  test('with no photos, the cards pages say so and there are no other pages', () => {
+  test('with no photos, the home page says so and there are no other pages', () => {
     expect(files([]).map((made) => made.path)).toEqual([
       'index.html',
-      'rolls.html',
       'assets/site.css',
       'assets/site.js',
     ]);
     expect(file([], 'index.html')).toContain(noPhotosText);
-    expect(file([], 'rolls.html')).toContain(noPhotosText);
   });
 
   test('makes byte-identical files from the same inputs', () => {
@@ -142,104 +110,188 @@ describe('the files', () => {
       expect(made.content).not.toMatch(/(?:href|src)="(?:\/|https?:)/);
     }
   });
+
+  test('has no menu of views and no inline styles on any page', () => {
+    for (const made of files([aPhoto('1', { event: iceland })])) {
+      expect(made.content).not.toContain('class="views"');
+      if (made.path.endsWith('.html')) {
+        expect(made.content).not.toContain('style=');
+      }
+    }
+  });
 });
 
-describe('the cards', () => {
-  test('names the site, as its heading and title, on the index', () => {
-    const html = file([aPhoto('1')], 'index.html');
+const lake: GroupLabel = {
+  key: 'lake',
+  heading: 'Lake District',
+  detail: '14 Jul 2026',
+  file: 'lake',
+};
+const cornwall: GroupLabel = {
+  key: 'cornwall',
+  heading: 'Cornwall',
+  detail: 'Aug 2025',
+  file: 'cornwall',
+};
+
+/** The home page's sections, as their headings and the cards' headings in each. */
+function sectionsOf(html: string): { year: string; cards: string[] }[] {
+  return [...html.matchAll(/<section class="year">(.*?)<\/section>/gs)].map(
+    (section) => {
+      const body = section[1] ?? '';
+      return {
+        year: /<h2>([^<]*)<\/h2>/.exec(body)?.[1] ?? '',
+        cards: [...body.matchAll(/<h3>([^<]*)<\/h3>/g)].map((m) => m[1] ?? ''),
+      };
+    },
+  );
+}
+
+/** Iceland 2026 with no date of its own. */
+const noDate: GroupLabel = {
+  key: 'iceland',
+  heading: 'Iceland 2026',
+  file: 'iceland',
+};
+
+describe('the home page', () => {
+  test('names the site, as its heading and title, with how many events and photographs it has', () => {
+    const html = file(
+      [
+        aPhoto('1', { event: iceland }),
+        aPhoto('2', { event: lake }),
+        aPhoto('3'),
+      ],
+      'index.html',
+    );
     expect(html).toContain('<title>Iceland highlights</title>');
     expect(html).toContain(
       '<h1 class="site-name"><a href="index.html">Iceland highlights</a></h1>',
     );
+    expect(html).toContain(
+      '<p class="site-count">2 events · 3 photographs</p>',
+    );
+    expect(file([aPhoto('1', { event: iceland })], 'index.html')).toContain(
+      '<p class="site-count">1 event · 1 photograph</p>',
+    );
+    expect(file([aPhoto('1')], 'index.html')).toContain(
+      '<p class="site-count">1 photograph</p>',
+    );
   });
 
-  test('a card leads to its page and shows its name, its count and its date', () => {
+  test('puts the events under their years, newest first', () => {
     const html = file(
-      [aPhoto('1', { event: iceland }), aPhoto('2', { event: iceland })],
+      [
+        aPhoto('1', { event: cornwall, details: { shot: 'Aug 2025' } }),
+        aPhoto('2', { event: lake, details: { shot: '14 Jul 2026' } }),
+        aPhoto('3', { event: iceland }),
+      ],
       'index.html',
     );
-    expect(html).toContain('<a href="events/iceland.html">');
-    expect(html).toContain('<h2>Iceland 2026</h2>');
-    expect(html).toContain('<p>2 photos · Sep 2026</p>');
-  });
-
-  test('a roll’s card is dated by its first frame, and one photo is "1 photo"', () => {
-    const html = file(
-      [aPhoto('1', { details: { shot: '3 Mar 2026' } })],
-      'rolls.html',
-    );
-    expect(html).toContain('<h2>2026-004 Westfjords</h2>');
-    expect(html).toContain('<p>1 photo · 3 Mar 2026</p>');
-  });
-
-  test('shows its three highest rated photos, then the earliest, with empty places for fewer', () => {
-    const html = file(
-      [
-        aPhoto('1', { rating: 2 }),
-        aPhoto('2', { rating: 5 }),
-        aPhoto('3'),
-        aPhoto('4', { rating: 4 }),
-        aPhoto('5', { rating: 2 }),
-      ],
-      'rolls.html',
-    );
-    const peek = /<div class="peek"[^>]*>(.*?)<\/div>/s.exec(html)?.[1] ?? '';
-    expect(
-      [...peek.matchAll(/src="images\/(\d)-640\.jpg"/g)].map((m) => m[1]),
-    ).toEqual(['2', '4', '1']);
-
-    const few = file([aPhoto('1')], 'rolls.html');
-    expect(few.match(/class="peek-empty"/g)).toHaveLength(2);
-  });
-
-  test('puts the newest first, by the latest frame in each, undated last', () => {
-    const html = file(
-      [
-        aPhoto('1', { roll: westfjords }),
-        aPhoto('2', { roll: norway }),
-        aPhoto('3', { roll: westfjords }),
-        aPhoto('4', {
-          roll: { key: 'r3', heading: '2026-006', file: '2026-006-C' },
-          details: {},
-        }),
-      ],
-      'rolls.html',
-    );
-    const order = [...html.matchAll(/<h2>([^<]*)<\/h2>/g)].map((m) => m[1]);
-    expect(order).toEqual([
-      '2026-004 Westfjords',
-      '2026-005 Norway',
-      '2026-006',
+    expect(sectionsOf(html)).toEqual([
+      { year: '2026', cards: ['Iceland 2026', 'Lake District'] },
+      { year: '2025', cards: ['Cornwall'] },
     ]);
   });
 
-  test('frames in no event are on a "No event set" card, last', () => {
+  test('a card leads to its event’s page with its cover, its name, its month and its count', () => {
     const html = file(
-      [aPhoto('1'), aPhoto('2', { event: iceland })],
+      [aPhoto('1', { event: lake }), aPhoto('2', { event: lake })],
       'index.html',
     );
-    const order = [...html.matchAll(/<h2>([^<]*)<\/h2>/g)].map((m) => m[1]);
-    expect(order).toEqual(['Iceland 2026', 'No event set']);
+    expect(html).toContain(
+      '<li class="card"><a href="events/lake.html"><img class="cover" src="images/1-640.jpg" srcset="images/1-640.jpg 640w, images/1-1600.jpg 1600w" sizes="(max-width: 40rem) 90vw, 50vw" alt="" loading="lazy"><h3>Lake District</h3><p>Jul · 2 photos</p></a></li>',
+    );
+  });
+
+  test('an event known only by its year has no month, and one photo is "1 photo"', () => {
+    const html = file(
+      [aPhoto('1', { event: { ...iceland, detail: '2026' } })],
+      'index.html',
+    );
+    expect(html).toContain('<h3>Iceland 2026</h3><p>1 photo</p>');
+  });
+
+  test('an event’s cover is its highest rated photo, the earliest among equals', () => {
+    const html = file(
+      [
+        aPhoto('1', { event: iceland, rating: 2 }),
+        aPhoto('2', { event: iceland, rating: 4 }),
+        aPhoto('3', { event: iceland, rating: 4 }),
+      ],
+      'index.html',
+    );
+    expect(html).toContain('<img class="cover" src="images/2-640.jpg"');
+  });
+
+  test('an event with no date takes its year and month from its first frame', () => {
+    const html = file(
+      [aPhoto('1', { event: noDate, details: { shot: '3 Mar 2025' } })],
+      'index.html',
+    );
+    expect(sectionsOf(html)).toEqual([
+      { year: '2025', cards: ['Iceland 2026'] },
+    ]);
+    expect(html).toContain('<p>Mar · 1 photo</p>');
+  });
+
+  test('frames in no event are "Other photos from" their year, after that year’s events, leading to their own page', () => {
+    const html = file(
+      [
+        aPhoto('1', { details: { shot: 'Mar 2025' } }),
+        aPhoto('2', { event: lake }),
+        aPhoto('3'),
+        aPhoto('4', { event: cornwall, details: { shot: 'Aug 2025' } }),
+      ],
+      'index.html',
+    );
+    expect(sectionsOf(html)).toEqual([
+      { year: '2026', cards: ['Lake District', 'Other photos from 2026'] },
+      { year: '2025', cards: ['Cornwall', 'Other photos from 2025'] },
+    ]);
+    expect(html).toContain(
+      '<a href="events/_no-event-2026.html"><img class="cover" src="images/3-640.jpg"',
+    );
+    expect(html).toContain('<h3>Other photos from 2025</h3><p>1 photo</p>');
+    expect(html).toContain(
+      '<p class="site-count">2 events · 4 photographs</p>',
+    );
+  });
+
+  test('a year’s other photos have their own page, and each its frame page there', () => {
+    const photos = [aPhoto('1'), aPhoto('2')];
+    const page = file(photos, 'events/_no-event-2026.html');
+    expect(page).toContain('<h1>Other photos from 2026</h1>');
+    expect(page).toContain('<a href="_no-event-2026/1-F1.html">');
+    expect(file(photos, 'events/_no-event-2026/2-F2.html')).toContain(
+      '<a class="back" href="../_no-event-2026.html">← Other photos from 2026</a>',
+    );
+  });
+
+  test('undated frames in no event, and events with no date at all, are under "Other", after the years', () => {
+    const html = file(
+      [
+        aPhoto('1', { details: {} }),
+        aPhoto('2', { event: lake }),
+        aPhoto('3', { event: noDate, details: {} }),
+      ],
+      'index.html',
+    );
+    expect(sectionsOf(html)).toEqual([
+      { year: '2026', cards: ['Lake District'] },
+      { year: 'Other', cards: ['Iceland 2026', 'Other photos'] },
+    ]);
     expect(html).toContain('<a href="events/_no-event.html">');
   });
 
-  test('with Both, every page has an "Events | Rolls" menu, the view shown marked', () => {
-    const photos = [aPhoto('1', { event: iceland })];
-    expect(file(photos, 'index.html')).toContain(
-      '<nav class="views" aria-label="View by"><a href="index.html" aria-current="page">Events</a><a href="rolls.html">Rolls</a></nav>',
+  test('ends with its rolls, newest first, each leading to its page', () => {
+    const html = file(
+      [aPhoto('1', { roll: westfjords }), aPhoto('2', { roll: norway })],
+      'index.html',
     );
-    expect(file(photos, 'rolls.html')).toContain(
-      '<a href="index.html">Events</a><a href="rolls.html" aria-current="page">Rolls</a>',
+    expect(html).toContain(
+      '<footer class="by-roll"><h2>By roll</h2><ul><li><a href="rolls/2026-005-BBBBBBBB.html">2026-005 Norway</a></li><li><a href="rolls/2026-004-AAAAAAAA.html">2026-004 Westfjords</a></li></ul></footer>',
     );
-    expect(file(photos, 'rolls/2026-004-AAAAAAAA.html')).toContain(
-      '<a href="../index.html">Events</a><a href="../rolls.html" aria-current="page">Rolls</a>',
-    );
-  });
-
-  test('with one view there is no menu', () => {
-    expect(
-      file([aPhoto('1')], 'index.html', { organiseBy: 'rolls' }),
-    ).not.toContain('class="views"');
   });
 });
 
@@ -261,15 +313,10 @@ describe('a roll’s or event’s page', () => {
     expect(html.match(/class="photo /g)).toHaveLength(2);
   });
 
-  test('a roll’s page leads back to the roll cards, or to the index when it is them', () => {
+  test('a roll’s page leads back to the home page too', () => {
     expect(file([aPhoto('1')], 'rolls/2026-004-AAAAAAAA.html')).toContain(
-      '<a class="back" href="../rolls.html">← All rolls</a>',
+      '<a class="back" href="../index.html">← All events</a>',
     );
-    expect(
-      file([aPhoto('1')], 'rolls/2026-004-AAAAAAAA.html', {
-        organiseBy: 'rolls',
-      }),
-    ).toContain('<a class="back" href="../index.html">← All rolls</a>');
   });
 
   test('links each photo to its frame page and offers all sizes, from the folder above, with no caption or lightbox', () => {
@@ -304,9 +351,6 @@ describe('a frame’s page', () => {
     expect(html).toContain('<title>Frame 2 · Iceland highlights</title>');
     expect(html).toContain(
       '<p class="site-name"><a href="../../index.html">Iceland highlights</a></p>',
-    );
-    expect(html).toContain(
-      '<a href="../../index.html">Events</a><a href="../../rolls.html" aria-current="page">Rolls</a>',
     );
     expect(html).toContain(
       '<a class="back" href="../2026-004-AAAAAAAA.html">← 2026-004 Westfjords</a>',

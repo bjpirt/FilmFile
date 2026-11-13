@@ -19,9 +19,11 @@ const groupLabel = z.object({
 
 const storedManifest = z.object({
   version: z.literal(1),
+  // A site built before the design had a version was built with the first (D107).
+  design: z.number().int().default(1),
+  // An older site's `organiseBy` (D104, gone with D107) is read past.
   options: z.object({
     title: z.string(),
-    organiseBy: z.enum(['events', 'rolls', 'both']).default('both'),
     captions: z.array(z.enum(['title', 'shot', 'camera', 'lens', 'film'])),
   }),
   photos: z.array(
@@ -69,6 +71,7 @@ export function parseSiteManifestFile(text: string): SiteManifest {
   const stored = storedManifest.parse(JSON.parse(text));
   return {
     version: 1,
+    design: stored.design,
     options: stored.options,
     photos: stored.photos.map((photo) => ({
       frame: photo.frame,

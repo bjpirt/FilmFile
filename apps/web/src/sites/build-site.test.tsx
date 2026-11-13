@@ -148,9 +148,7 @@ test('an edit makes an up-to-date site out of date', async () => {
   renderPage(archive);
   await screen.findByText('Up to date');
 
-  fireEvent.change(screen.getByLabelText('Organise by'), {
-    target: { value: 'rolls' },
-  });
+  fireEvent.click(screen.getByLabelText('Camera'));
 
   expect(await screen.findByText('Out of date: options changed')).toBeTruthy();
 });
@@ -205,17 +203,11 @@ test('Cancel on the empty-site question builds nothing', async () => {
   expect(archive.siteBuilds).toEqual([]);
 });
 
-test('shows how the site is presented: "Organise by" at Both, and no page title, intro or Group by', async () => {
+test('shows how the site is presented: its captions, and no Organise by, page title, intro or Group by', async () => {
   renderPage(archiveWith());
 
-  const organiseBy =
-    await screen.findByLabelText<HTMLSelectElement>('Organise by');
-  expect(organiseBy.value).toBe('both');
-  expect([...organiseBy.options].map((option) => option.text)).toEqual([
-    'Events',
-    'Rolls',
-    'Both',
-  ]);
+  await screen.findByLabelText('Camera');
+  expect(screen.queryByLabelText('Organise by')).toBeNull();
   expect(screen.queryByLabelText('Group by')).toBeNull();
   expect(screen.queryByLabelText('Page title')).toBeNull();
   expect(screen.queryByLabelText('Intro')).toBeNull();
@@ -227,13 +219,9 @@ test('saves a choice at once', async () => {
   const archive = archiveWith();
   renderPage(archive);
 
-  fireEvent.change(await screen.findByLabelText('Organise by'), {
-    target: { value: 'events' },
-  });
-  fireEvent.click(screen.getByLabelText('Camera'));
+  fireEvent.click(await screen.findByLabelText('Camera'));
   await waitFor(() => {
     expect(archive.sites[0]?.presentation).toEqual({
-      organiseBy: 'events',
       captions: ['title', 'camera'],
     });
   });

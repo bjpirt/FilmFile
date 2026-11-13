@@ -10,9 +10,9 @@ const slug = checked('iceland', isSlug);
 
 const manifest: SiteManifest = {
   version: 1,
+  design: 2,
   options: {
     title: 'Iceland',
-    organiseBy: 'events',
     captions: ['title', 'shot'],
   },
   photos: [

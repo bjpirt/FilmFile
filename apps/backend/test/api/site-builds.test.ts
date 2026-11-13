@@ -130,7 +130,6 @@ describe('POST /api/sites/{slug}/build', () => {
       'images',
       'index.html',
       'rolls',
-      'rolls.html',
       'site.json',
     ]);
     expect(await readdir(path.join(siteFolder(slug), 'images'))).toHaveLength(
@@ -227,7 +226,7 @@ describe('POST /api/sites/{slug}/build', () => {
     ).toContain('This site has no photos yet.');
   });
 
-  test('uses the site’s name as its title, how it is organised and its captions', async () => {
+  test('uses the site’s name as its title, is organised by event with its rolls at the foot, and uses its captions', async () => {
     await aFrameWithAScan('1');
     const slug = await aSite();
     const etag =
@@ -236,10 +235,7 @@ describe('POST /api/sites/{slug}/build', () => {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'If-Match': etag },
       body: JSON.stringify({
-        presentation: {
-          organiseBy: 'rolls',
-          captions: ['shot'],
-        },
+        presentation: { captions: ['shot'] },
       }),
     });
 
@@ -251,9 +247,13 @@ describe('POST /api/sites/{slug}/build', () => {
     );
     expect(page).toContain('<title>Iceland highlights</title>');
     expect(page).toContain('>Iceland highlights</a></h1>');
-    expect(page).toContain('<h2>2026-014</h2>');
+    expect(page).toContain('<h3>Other photos from 2026</h3>');
+    expect(page).toContain('>2026-014</a></li>');
     expect(page).not.toContain('class="views"');
-    expect(await readdir(siteFolder(slug))).not.toContain('events');
+    expect(await readdir(siteFolder(slug))).toEqual(
+      expect.arrayContaining(['events', 'rolls']),
+    );
+    expect(await readdir(siteFolder(slug))).not.toContain('rolls.html');
     expect(await rollPage(slug)).not.toContain('<figcaption>');
     expect(
       await readFile(
@@ -326,7 +326,7 @@ describe('DELETE /api/sites/{slug}/build', () => {
 });
 
 describe('GET /built-sites/{slug}/', () => {
-  test('opens the built site: its cards, a roll’s and an event’s page, stylesheet, script and images', async () => {
+  test('opens the built site: its home page, a roll’s and an event’s page, stylesheet, script and images', async () => {
     await aFrameWithAScan('1');
     const slug = await aSite();
     await build(slug);
@@ -344,10 +344,9 @@ describe('GET /built-sites/{slug}/', () => {
     );
 
     for (const [file, type] of [
-      ['rolls.html', 'text/html; charset=utf-8'],
       [`rolls/${rollFile ?? ''}`, 'text/html; charset=utf-8'],
       [await aFramePage(slug), 'text/html; charset=utf-8'],
-      ['events/_no-event.html', 'text/html; charset=utf-8'],
+      ['events/_no-event-2026.html', 'text/html; charset=utf-8'],
       ['assets/site.css', 'text/css; charset=utf-8'],
       ['assets/site.js', 'text/javascript; charset=utf-8'],
     ] as const) {

@@ -43,7 +43,6 @@ interface Job {
 function optionsOf(site: Site): SiteOptions {
   return {
     title: site.name,
-    organiseBy: site.presentation.organiseBy,
     captions: site.presentation.captions,
   };
 }

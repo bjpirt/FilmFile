@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import { parseSiteManifestFile } from '../../../src/adapters/outbound/filesystem/site-manifest-file.ts';
 
-test('reads a site.json from before sites had cards (D104), so the site is only out of date', () => {
+test('reads a site.json from before sites had cards (D104) or a design version (D107), so the site is only out of date', () => {
   const older = JSON.stringify({
     version: 1,
     options: { title: 'Iceland', groupBy: 'roll', captions: ['title'] },
@@ -20,7 +20,8 @@ test('reads a site.json from before sites had cards (D104), so the site is only 
 
   const manifest = parseSiteManifestFile(older);
 
-  expect(manifest.options.organiseBy).toBe('both');
+  expect(manifest.design).toBe(1);
+  expect(manifest.options).toEqual({ title: 'Iceland', captions: ['title'] });
   expect(manifest.photos[0]).toMatchObject({
     rating: null,
     roll: { key: 'r', heading: '2026-014', file: '' },

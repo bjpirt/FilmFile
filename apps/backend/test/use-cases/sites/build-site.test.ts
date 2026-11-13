@@ -26,7 +26,6 @@ import { checked } from '../../support/checked.ts';
 const slug = checked('iceland-highlights', isSlug);
 const options: SiteOptions = {
   title: 'Iceland highlights',
-  organiseBy: 'both',
   captions: ['title'],
 };
 
@@ -151,7 +150,6 @@ describe('BuildSite', () => {
     const paths = [...(files?.keys() ?? [])];
     expect(paths.filter((p) => !p.startsWith('images/'))).toEqual([
       'index.html',
-      'rolls.html',
       'events/_no-event.html',
       expect.stringMatching(/^events\/_no-event\/1-[0-9A-Z]{8}\.html$/),
       expect.stringMatching(/^events\/_no-event\/2-[0-9A-Z]{8}\.html$/),
