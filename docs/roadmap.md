@@ -6,7 +6,7 @@ Each task is about one commit: small enough to review in one sitting, with its t
 
 `[x]` done, `[ ]` to do (`[later]` marks one set aside or not yet planned), `[-]` dropped or replaced (with where it went).
 
-**Next up:** 11. Integrate with NegPy.
+**Next up:** 10. Desktop app.
 
 ---
 
@@ -182,12 +182,17 @@ The author and copyright, set on first run and changed later (no name, D44; no l
 
 ### 10. Desktop app
 
-FilmFile as a Mac app, opened from the Dock rather than by starting a service and opening a browser (D54). Electron runs the service as it is, in a separate process (`utilityProcess`) on a free port of `127.0.0.1`, and opens a window on it; the web UI and API don't change, and still work from a browser while the app is open. Electron 45's own Node.js (24) runs the service's TypeScript directly, as Node 26 does, so nothing is bundled to run it from source; the packaged app bundles it, and leaves sharp's native files outside its app archive, which they can't be loaded from. Signing, updates and other platforms are for later.
+FilmFile as a Mac app, opened from the Dock rather than by starting a service and opening a browser (D54). Electron runs the service as it is, in a separate process (`utilityProcess`) on a free port of `127.0.0.1`, and opens a window on it; the web UI and API don't change, and still work from a browser while the app is open. Electron 45's own Node.js (24) runs the service's TypeScript directly, as Node 26 does, so nothing is bundled to run it from source; the packaged app bundles it, and leaves sharp's native files outside its app archive, which they can't be loaded from. A Release workflow on GitHub numbers each version, writes its changelog, and publishes the app for Macs (Apple silicon and Intel), Windows and Linux, each built and checked on its own runner (D109, D110). Signing and updates are for later.
 
-- [ ] [FF-161 An Intel Mac build](tasks/FF-161.md): the packaged app also built for Intel Macs.
-- [ ] [FF-139 Windows and Linux](tasks/FF-139.md): the app for Windows and Linux.
+- [ ] [FF-194 The app's version](tasks/FF-194.md): a version number, shown in About and Settings and in the files' names.
+- [ ] [FF-161 An Intel Mac build](tasks/FF-161.md): the packaged app also built for Intel Macs, both checked in CI by a reusable `package.yml`.
+- [ ] [FF-195 Make a release](tasks/FF-195.md): a Release workflow that bumps the version, writes the changelog, and publishes every platform's app with checksums.
+- [ ] [FF-196 The service on Windows](tasks/FF-196.md): `pnpm verify` passing on Windows, with its paths, renames and line endings fixed.
+- [ ] [FF-197 The Windows app](tasks/FF-197.md): the app for Windows, as a zip, built and checked in CI.
+- [ ] [FF-198 The Linux app](tasks/FF-198.md): the app for Linux, as an AppImage, built and checked in CI.
 - [ ] [FF-140 No open port](tasks/FF-140.md): a private protocol instead of a port on 127.0.0.1.
 - [ ] [later] [FF-137 A signed and notarised Mac app](tasks/FF-137.md): signed with a Developer ID and notarised.
+- [ ] [later] [FF-199 A signed Windows app](tasks/FF-199.md): signed, so SmartScreen doesn't warn.
 - [ ] [later] [FF-138 Updates](tasks/FF-138.md): the app updates itself.
 - [x] [U84 A packaged Mac app](tasks/U84.md)
 - [x] [U83 Choose the archive](tasks/U83.md)
@@ -402,6 +407,8 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D106 | A site's design is a template, apart from the code: a folder with `template.json`, Liquid pages (liquidjs, every output escaped, includes only from its own folder) and `assets/`, rendered through a `SiteRenderer` port from a documented, versioned set of data (a Zod schema). FilmFile keeps the images, their fixed sizes and the up-to-date check; a hash of the template's files in `site.json` makes a template change put sites out of date. The built-in design is the first template; your own templates come later (FF-187). | FF-186, FF-187 |
 | D107 | A site leads with its events, in a graphic, minimal look (white, black type and rules, no colour but the photos), drawn first as [wireframes](https://claude.ai/artifact/VWNcdhqokFEmgHq6My8bqn): the home page is the events under year headings with one upright cover each, each year ending with "Other <year> photos" for its frames in no event; an event's page is a large title over rows of photos that line up at both edges; a frame's page has its filmstrip above the photo, its title and date under it, and its camera, lens and film stock (or the details chosen) under it, always shown. There's no "Organise by", and a site names no roll anywhere: no roll pages or list, and a photo's alt text is its title, event or date (frames in no event are "Other <year> photos"). Changes D104 and D105's layout. `site.json` records the design's version (`design`, now 6), so sites built with the old one go out of date once; FF-186 then templates this design and a hash of its files replaces that number. | FF-188, FF-189, FF-190, FF-186 |
 | D108 | A site's title is apart from its name again (the name is for FilmFile and `Sites/<slug>`): blank at first, and blank shows no name in the header, the tab then showing the page's own name or "Photographs". Every page has a footer with a copyright notice: the archive's copyright from Settings until the site has its own, and none when that's blank. Replaces FF-179's "the name is the title". | FF-192 |
+| D109 | Versions are released by a "Release" workflow started by hand on `main` (patch, minor or major), not by pushing tags or release-please: it works out the next version from the last `v*` tag, builds and checks every platform, and only then commits the version (in the root `package.json` only, the one place it's kept; from source it shows as "0.1.0 (dev)") with a `CHANGELOG.md` entry written from the `feat:` and `fix:` commits by a small script of our own, tags it, and publishes the release at once with `SHA256SUMS`. Only that last job can write. It commits straight to `main`, which has no branch protection; a protected `main` would need a release PR instead. | FF-194, FF-195 |
+| D110 | Each platform's app is built and checked on its own GitHub runner (Apple silicon, Intel Mac, Windows, Linux), since pnpm installs sharp's native files only for the machine it runs on. Macs get a disk image each, Windows a zip and Linux an AppImage: no installer dependency until updates (FF-138) need Squirrel on Windows. | FF-161, FF-197, FF-198 |
 
 **Still open:** see `docs/design.md`, section 15.
 
@@ -411,6 +418,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 
 Tasks from the first plan that turned out differently:
 
+- [-] [FF-139 Windows and Linux](tasks/FF-139.md): *split into FF-196 (the service on Windows), FF-197 (the Windows app) and FF-198 (the Linux app).*
 - [-] [FF-110 A contents file in each roll's folder](tasks/FF-110.md): *dropped: folders named by number and kind (D66, D69) say which frame and version each is.*
 - [-] [FF-100 Stars on thumbnails](tasks/FF-100.md): *split into FF-148 (showing) and FF-149 (rating by clicking).*
 - U73 The NegPy folder: *replaced by FF-105, whose `Editors/NegPy/` it is (D57).*

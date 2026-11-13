@@ -438,6 +438,7 @@ packages/
 
 - Listens on `127.0.0.1` by default. Network or cloud access requires authentication, to be designed with the cloud adapters.
 - Serves the built web UI at `/`, so the UI and API share one origin and the Origin check needs no exceptions. In development, Vite proxies `/api` to the service, and the service's allowed UI origin is set to the Vite dev server's through configuration.
+- The desktop app is released for Macs (Apple silicon and Intel), Windows and Linux by a Release workflow on GitHub, which numbers the version, writes `CHANGELOG.md`, and builds and checks each platform's app on its own runner before publishing (D109, D110).
 - Runs inside the desktop app (D54): Electron's main process starts it in a `utilityProcess` on a free port and stops it on quitting, and only one copy of the app runs, so there's one writer. It can still be started on its own (`pnpm start`, with `FILMFILE_FOLDER` set) for development and a browser.
 - Exporting several frames in the desktop app writes JPEGs straight into a folder the person chooses (D100): the service asks its parent app for it over the utility process's message channel, which the page can't reach, and writes only there, for that export, never replacing a file that's there. In a browser, or started on its own, it has no parent to ask and exports are downloaded as a zip.
 - Editor integration, including launching an editor and reconciling its exports, is planned; see section 9.
