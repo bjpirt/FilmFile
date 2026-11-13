@@ -2,7 +2,7 @@ import { fixtureSets } from '../../apps/backend/test/support/lab-scans.ts';
 import { expect, test } from './support/isolated-test.ts';
 import { createRoll } from './support/journeys.ts';
 
-test('build a site: make one of two rolls’ frames, build it, open it in the browser, find an event under its year, its photos and a frame’s page, and no rolls, then change it, build again and rebuild from scratch (D92, D107, FF-191)', async ({
+test('build a site: make one of two rolls’ frames, build it, open it in the browser, find an event under its year, its photos and a frame’s page, and no rolls, then change it, build again, rebuild from scratch and rebuild its pages only (D92, D107, FF-191, FF-193)', async ({
   page,
 }) => {
   await createRoll(page, '2026-053', {
@@ -131,4 +131,12 @@ test('build a site: make one of two rolls’ frames, build it, open it in the br
     ),
   ).toBeVisible();
   await expect(page.getByText('Up to date')).toBeVisible();
+
+  // Rebuild pages only: the pages written again, every image kept (FF-193).
+  await page.getByRole('button', { name: 'Rebuild pages only' }).click();
+  await expect(
+    page.getByText(
+      /^Site built in Sites\/iceland: 11 photos \(0 images made, [1-9]\d* unchanged\)\.$/,
+    ),
+  ).toBeVisible();
 });

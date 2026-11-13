@@ -53,10 +53,11 @@ export interface BuildSiteInput {
   }[];
   readonly options: SiteOptions;
   /**
-   * Build it afresh (FF-191): make every image and page again, keeping
-   * nothing from the built site, even when it's up to date.
+   * Build it again even when it's up to date: `all` makes every image and
+   * page again, keeping nothing from the built site (FF-191); `pages` writes
+   * every page again, keeping its images (FF-193).
    */
-  readonly fresh?: boolean;
+  readonly rebuild?: 'all' | 'pages';
   /** Stops the build between images, leaving the site as it was. */
   readonly signal?: AbortSignal;
   /** Told after each image is dealt with, to show "Making images: 12 of 40". */
@@ -157,8 +158,8 @@ export class BuildSite {
       photos,
       input.options,
     );
-    const fresh = input.fresh === true;
-    if (plan.status.state === 'up-to-date' && !fresh) {
+    const fresh = input.rebuild === 'all';
+    if (plan.status.state === 'up-to-date' && input.rebuild === undefined) {
       return ok({
         photos: photos.length,
         leftOut,

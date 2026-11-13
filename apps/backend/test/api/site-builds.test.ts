@@ -58,7 +58,7 @@ async function aSite(name = 'Iceland highlights'): Promise<string> {
   );
 }
 
-/** Starts a build (afresh if asked) and waits for it to finish. */
+/** Starts a build (a rebuild, if asked) and waits for it to finish. */
 async function build(slug: string, query = '') {
   const started = await post(`/api/sites/${slug}/build${query}`, {});
   expect(started.status).toBe(202);
@@ -275,12 +275,12 @@ describe('POST /api/sites/{slug}/build', () => {
     ).toContain('<p class="caption"><span>12 Sep 2026</span></p>');
   });
 
-  test('with fresh=true, makes every image again even when the site is up to date (FF-191)', async () => {
+  test('with rebuild=all, makes every image again even when the site is up to date (FF-191)', async () => {
     await aFrameWithAScan('1');
     const slug = await aSite();
     await build(slug);
 
-    const status = await build(slug, '?fresh=true');
+    const status = await build(slug, '?rebuild=all');
 
     expect(status.build).toMatchObject({
       state: 'done',
@@ -290,12 +290,33 @@ describe('POST /api/sites/{slug}/build', () => {
     expect(status.freshness).toBe('up-to-date');
   });
 
-  test('refuses fresh as anything but true', async () => {
+  test('with rebuild=pages, writes the pages again but makes no image (FF-193)', async () => {
+    await aFrameWithAScan('1');
+    const slug = await aSite();
+    await build(slug);
+    await writeFile(
+      path.join(siteFolder(slug), 'index.html'),
+      'changed by hand',
+    );
+
+    const status = await build(slug, '?rebuild=pages');
+
+    expect(status.build).toMatchObject({
+      state: 'done',
+      imagesMade: 0,
+      imagesUnchanged: 4,
+    });
+    expect(
+      await readFile(path.join(siteFolder(slug), 'index.html'), 'utf8'),
+    ).toContain('<!doctype html>');
+  });
+
+  test('refuses rebuild as anything but all or pages', async () => {
     const slug = await aSite();
 
-    expect((await post(`/api/sites/${slug}/build?fresh=yes`, {})).status).toBe(
-      422,
-    );
+    expect(
+      (await post(`/api/sites/${slug}/build?rebuild=yes`, {})).status,
+    ).toBe(422);
   });
 
   test('a new site has no title, and its copyright can be changed or left off (D108)', async () => {

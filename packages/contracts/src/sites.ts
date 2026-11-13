@@ -73,9 +73,9 @@ export const updateSiteRequest = z
   });
 
 export const siteBuildQuery = z.strictObject({
-  fresh: z.literal('true').optional().meta({
+  rebuild: z.enum(['all', 'pages']).optional().meta({
     description:
-      'Build it afresh (FF-191): make every image and page again, even when the site is up to date.',
+      'Build it again even when it is up to date: all makes every image and page again (FF-191), pages writes every page again and keeps the images (FF-193).',
   }),
 });
 

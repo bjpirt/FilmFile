@@ -11,17 +11,21 @@ function builtMessage(slug: string, build: SiteBuildProgress): string {
   return `Site built in Sites/${slug}: ${photos(build.photos)} (${images(build.imagesMade)} made, ${String(build.imagesUnchanged)} unchanged).`;
 }
 
-/** How a build is asked for: as needed, or afresh with every image made again (FF-191). */
-type BuildKind = 'build' | 'rebuild';
+/**
+ * How a build is asked for: as needed, again with every image made anew
+ * (FF-191), or again with only its pages written anew (FF-193).
+ */
+type BuildKind = 'build' | 'all' | 'pages';
 
 const buildLabel: Record<BuildKind, string> = {
   build: 'Build site',
-  rebuild: 'Rebuild from scratch',
+  all: 'Rebuild from scratch',
+  pages: 'Rebuild pages only',
 };
 
 /**
  * Building a site: whether it's built and up to date, "Build site" (and,
- * once built, "Rebuild from scratch"), progress with "Cancel" while it runs,
+ * once built, "Rebuild from scratch" and "Rebuild pages only"), progress with "Cancel" while it runs,
  * and "Open site" to see it (D92).
  */
 export function BuildPanel({
@@ -63,7 +67,7 @@ export function BuildPanel({
     const { response } = await api.POST('/api/sites/{slug}/build', {
       params: {
         path: { slug },
-        query: kind === 'rebuild' ? { fresh: 'true' } : {},
+        query: kind === 'build' ? {} : { rebuild: kind },
       },
     });
     if (!response.ok) {
@@ -168,17 +172,19 @@ export function BuildPanel({
               >
                 {buildLabel.build}
               </button>
-              {built && (
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => {
-                    start('rebuild');
-                  }}
-                >
-                  {buildLabel.rebuild}
-                </button>
-              )}
+              {built &&
+                (['all', 'pages'] as const).map((kind) => (
+                  <button
+                    key={kind}
+                    type="button"
+                    disabled={saving}
+                    onClick={() => {
+                      start(kind);
+                    }}
+                  >
+                    {buildLabel[kind]}
+                  </button>
+                ))}
             </>
           )}
           {built && (

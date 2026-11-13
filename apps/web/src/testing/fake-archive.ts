@@ -267,7 +267,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   /** The slug of every site a build was started for, and every build cancelled. */
   const siteBuilds: string[] = [];
   const siteBuildsCancelled: string[] = [];
-  /** Builds asked to start afresh (`?fresh=true`, FF-191). */
+  /** Rebuilds asked for, as "<slug> <all|pages>" (`?rebuild=`, FF-191, FF-193). */
   const siteRebuilds: string[] = [];
   const siteFreshness = new Map<string, { freshness: string; message: string }>(
     Object.entries(contents.siteStatuses ?? {}),
@@ -1008,8 +1008,9 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         return new Response(null, { status: 204 });
       }
       siteBuilds.push(slug);
-      if (new URL(request.url).searchParams.get('fresh') === 'true') {
-        siteRebuilds.push(slug);
+      const rebuild = new URL(request.url).searchParams.get('rebuild');
+      if (rebuild !== null) {
+        siteRebuilds.push(`${slug} ${rebuild}`);
       }
       siteBuildCalls = 0;
       building = slug;

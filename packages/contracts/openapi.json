@@ -5117,7 +5117,7 @@
     "/api/sites/{slug}/build": {
       "post": {
         "summary": "Build a site",
-        "description": "Starts writing the site into Sites/<slug>/ in the background, from the frames its selection finds now, making again only the images whose inputs changed (or every image, with fresh=true). Follow it with the status. A build already running is followed instead of started again.",
+        "description": "Starts writing the site into Sites/<slug>/ in the background, from the frames its selection finds now, making again only the images whose inputs changed (or, with rebuild, every image and page, or every page). Follow it with the status. A build already running is followed instead of started again.",
         "parameters": [
           {
             "schema": {
@@ -5134,13 +5134,14 @@
             "schema": {
               "type": "string",
               "enum": [
-                "true"
+                "all",
+                "pages"
               ],
-              "description": "Build it afresh (FF-191): make every image and page again, even when the site is up to date."
+              "description": "Build it again even when it is up to date: all makes every image and page again (FF-191), pages writes every page again and keeps the images (FF-193)."
             },
             "required": false,
-            "description": "Build it afresh (FF-191): make every image and page again, even when the site is up to date.",
-            "name": "fresh",
+            "description": "Build it again even when it is up to date: all makes every image and page again (FF-191), pages writes every page again and keeps the images (FF-193).",
+            "name": "rebuild",
             "in": "query"
           }
         ],
@@ -5166,7 +5167,7 @@
             }
           },
           "422": {
-            "description": "Sites/<slug> holds something that is not a built site, and is left alone; or fresh is not true.",
+            "description": "Sites/<slug> holds something that is not a built site, and is left alone; or rebuild is not all or pages.",
             "content": {
               "application/json": {
                 "schema": {

@@ -196,13 +196,13 @@ describe('BuildSite', () => {
     const two = await archive.addFrame(2);
     await archive.build([one, two]);
 
-    const fresh = await archive.build([one], { fresh: true });
+    const fresh = await archive.build([one], { rebuild: 'all' });
 
     expect(fresh).toEqual({
       ok: true,
       value: { photos: 1, leftOut: 0, imagesMade: 4, imagesUnchanged: 0 },
     });
-    const again = await archive.build([one], { fresh: true });
+    const again = await archive.build([one], { rebuild: 'all' });
     expect(again).toMatchObject({
       value: { imagesMade: 4, imagesUnchanged: 0 },
     });
@@ -211,6 +211,24 @@ describe('BuildSite', () => {
     expect(await archive.build([one])).toMatchObject({
       value: { imagesMade: 0, imagesUnchanged: 4 },
     });
+  });
+
+  test('pages rebuilt, writes every page again even when up to date, keeping every image (FF-193)', async () => {
+    const archive = anArchive();
+    const one = await archive.addFrame(1);
+    await archive.build([one]);
+    const before = archive.folders.sites.get(slug);
+
+    const pages = await archive.build([one], { rebuild: 'pages' });
+
+    expect(pages).toEqual({
+      ok: true,
+      value: { photos: 1, leftOut: 0, imagesMade: 0, imagesUnchanged: 4 },
+    });
+    expect(archive.folders.sites.get(slug)).not.toBe(before);
+    const files = [...(archive.folders.sites.get(slug)?.files.keys() ?? [])];
+    expect(files).toContain('index.html');
+    expect(files.filter((p) => p.startsWith('images/'))).toHaveLength(4);
   });
 
   test('makes only the images of a frame added since', async () => {

@@ -225,6 +225,7 @@ A site is a saved description of which frames to share (a selection of frames, s
 - [ ] [later] [FF-121 Publish a site](tasks/FF-121.md): upload a built site to S3 or Cloudflare R2, and take it down again.
 - [ ] [later] [FF-162 Make a site or export from the Browse filters](tasks/FF-162.md): start one from the rolls page's filters.
 - [ ] [later] [FF-187 Use your own site template](tasks/FF-187.md): build a site with a template of your own, chosen on its page.
+- [x] [FF-193 Rebuild a site's pages only](tasks/FF-193.md)
 - [x] [FF-192 A site's title and copyright notice](tasks/FF-192.md)
 - [x] [FF-190 A frame's page in a site: the filmstrip above, and its details](tasks/FF-190.md)
 - [x] [FF-191 Rebuild a site from scratch](tasks/FF-191.md)

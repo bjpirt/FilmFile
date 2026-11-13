@@ -130,14 +130,14 @@ const startBuild = createRoute({
   path: '/{slug}/build',
   summary: 'Build a site',
   description:
-    'Starts writing the site into Sites/<slug>/ in the background, from the frames its selection finds now, making again only the images whose inputs changed (or every image, with fresh=true). Follow it with the status. A build already running is followed instead of started again.',
+    'Starts writing the site into Sites/<slug>/ in the background, from the frames its selection finds now, making again only the images whose inputs changed (or, with rebuild, every image and page, or every page). Follow it with the status. A build already running is followed instead of started again.',
   request: { params: siteParams, query: siteBuildQuery },
   responses: {
     202: json(siteBuildProgress, 'The build, running.'),
     404: json(errorResponse, 'There is no site with that slug.'),
     422: json(
       invalidRequestResponse,
-      'Sites/<slug> holds something that is not a built site, and is left alone; or fresh is not true.',
+      'Sites/<slug> holds something that is not a built site, and is left alone; or rebuild is not all or pages.',
     ),
   },
 });
@@ -280,11 +280,8 @@ export function siteRoutes({
     if (!isSlug(slug)) {
       return c.json(notFound, 404);
     }
-    const { fresh } = c.req.valid('query');
-    const started = await useCases.siteBuilds.start(ctx, {
-      slug,
-      fresh: fresh === 'true',
-    });
+    const { rebuild } = c.req.valid('query');
+    const started = await useCases.siteBuilds.start(ctx, { slug, rebuild });
     return started.ok
       ? c.json(started.value, 202)
       : domainErrorResponse(c, started.error);

@@ -261,9 +261,26 @@ test('"Rebuild from scratch" is offered once the site is built, and builds it af
   );
 
   await waitFor(() => {
-    expect(archive.siteRebuilds).toEqual(['iceland']);
+    expect(archive.siteRebuilds).toEqual(['iceland all']);
   });
   expect(archive.siteBuilds).toEqual(['iceland']);
+});
+
+test('"Rebuild pages only" is offered once the site is built, and rewrites its pages (FF-193)', async () => {
+  const archive = archiveWith({
+    siteStatuses: {
+      iceland: { freshness: 'up-to-date', message: 'Up to date' },
+    },
+  });
+  renderPage(archive);
+
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Rebuild pages only' }),
+  );
+
+  await waitFor(() => {
+    expect(archive.siteRebuilds).toEqual(['iceland pages']);
+  });
 });
 
 test('"Rebuild from scratch" is not offered before the site is built, and waits while a change is saved', async () => {
@@ -271,6 +288,9 @@ test('"Rebuild from scratch" is not offered before the site is built, and waits 
   await screen.findByText('Not built yet');
   expect(
     screen.queryByRole('button', { name: 'Rebuild from scratch' }),
+  ).toBeNull();
+  expect(
+    screen.queryByRole('button', { name: 'Rebuild pages only' }),
   ).toBeNull();
   cleanup();
 
@@ -312,7 +332,7 @@ test('rebuilding an empty site asks first, then rebuilds it afresh', async () =>
 
   fireEvent.click(screen.getByRole('button', { name: 'Rebuild from scratch' }));
   await waitFor(() => {
-    expect(archive.siteRebuilds).toEqual(['iceland']);
+    expect(archive.siteRebuilds).toEqual(['iceland all']);
   });
 });
 
