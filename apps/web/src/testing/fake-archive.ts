@@ -230,8 +230,10 @@ async function bodyOf<T>(
   };
 }
 
-/** How a site is shown when nothing is said: each photo's title. */
+/** How a site is shown when nothing is said: no title, the archive's copyright, each photo's title. */
 export const plainPresentation: Site['presentation'] = {
+  title: '',
+  copyright: null,
   captions: ['title'],
 };
 

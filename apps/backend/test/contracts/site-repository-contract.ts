@@ -66,7 +66,11 @@ export function siteRepositoryContract(
     test('keeps how a site is presented, and a plain site stays plain', async () => {
       const sites = make();
       const shown = aSite('Iceland', {
-        presentation: { captions: ['title', 'shot', 'camera'] },
+        presentation: {
+          title: 'Iceland in September',
+          copyright: '© Ben Pirt',
+          captions: ['title', 'shot', 'camera'],
+        },
       });
       await sites.create(ctx, shown);
       await sites.create(ctx, aSite('Norway'));

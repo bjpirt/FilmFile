@@ -7,6 +7,14 @@ import { slug } from './slug.ts';
 
 export const sitePresentation = z
   .strictObject({
+    title: z.string().max(200).meta({
+      description:
+        "The title the built site's pages show, apart from its name; blank for none (D108).",
+    }),
+    copyright: z.string().max(500).nullable().meta({
+      description:
+        "The copyright notice at the foot of every page; null takes the archive's from Settings, blank shows none (D108).",
+    }),
     captions: z
       .array(z.enum(['title', 'shot', 'camera', 'lens', 'film']))
       .max(5)

@@ -13,6 +13,7 @@ const manifest: SiteManifest = {
   design: 2,
   options: {
     title: 'Iceland',
+    copyright: '',
     captions: ['title', 'shot'],
   },
   photos: [

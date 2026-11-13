@@ -11,6 +11,8 @@ import type { SiteOptions } from '../../../domain/sites/site-options.ts';
 import type { Site } from '../../../domain/sites/site.ts';
 import type { SiteRepository } from '../../ports/site-repository.ts';
 import type { SearchFrames } from '../selections/search-frames.ts';
+import type { SettingsRepository } from '../../ports/settings-repository.ts';
+import type { Settings } from '../../../domain/settings/settings.ts';
 import type { BuildSite } from './build-site.ts';
 
 /** Where a build has got to. */
@@ -40,9 +42,11 @@ interface Job {
 }
 
 /** What a site is built with: its presentation, titled with its name (FF-179). */
-function optionsOf(site: Site): SiteOptions {
+/** What a site is built with: its own title, and its copyright or else the archive's (D108). */
+function optionsOf(site: Site, settings: Settings | undefined): SiteOptions {
   return {
-    title: site.name,
+    title: site.presentation.title,
+    copyright: site.presentation.copyright ?? settings?.copyright ?? '',
     captions: site.presentation.captions,
   };
 }
@@ -57,16 +61,23 @@ export class SiteBuilds {
   readonly #sites: SiteRepository;
   readonly #search: SearchFrames;
   readonly #building: BuildSite;
+  readonly #settings: SettingsRepository;
   readonly #jobs = new Map<Slug, Job>();
 
   constructor(
     sites: SiteRepository,
     search: SearchFrames,
     building: BuildSite,
+    settings: SettingsRepository,
   ) {
     this.#sites = sites;
     this.#search = search;
     this.#building = building;
+    this.#settings = settings;
+  }
+
+  async #optionsOf(ctx: ArchiveContext, site: Site): Promise<SiteOptions> {
+    return optionsOf(site, (await this.#settings.get(ctx))?.settings);
   }
 
   async #framesOf(ctx: ArchiveContext, site: Site) {
@@ -97,7 +108,7 @@ export class SiteBuilds {
     }
     const { site } = found;
     const frames = await this.#framesOf(ctx, site);
-    const options = optionsOf(site);
+    const options = await this.#optionsOf(ctx, site);
     const status = await this.#building.status(ctx, {
       slug: site.slug,
       frames,
@@ -190,7 +201,7 @@ export class SiteBuilds {
     const status = await this.#building.status(ctx, {
       slug: site.slug,
       frames: await this.#framesOf(ctx, site),
-      options: optionsOf(site),
+      options: await this.#optionsOf(ctx, site),
     });
     const build = this.#jobs.get(site.slug)?.progress;
     if (status.state === 'in-the-way') {

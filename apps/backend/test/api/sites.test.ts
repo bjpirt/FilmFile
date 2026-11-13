@@ -75,7 +75,7 @@ describe('POST /api/sites', () => {
       slug: 'iceland-highlights',
       name: 'Iceland highlights',
       selection: { rules: [], excluded: [] },
-      presentation: { captions: ['title'] },
+      presentation: { title: '', copyright: null, captions: ['title'] },
     });
     expect(response.headers.get('ETag')).toMatch(/^"[0-9a-f]{64}"$/);
     expect(
@@ -216,7 +216,11 @@ describe('PATCH /api/sites/{slug}', () => {
 
   test('saves how the site is presented, and gives it back', async () => {
     const { slug, etag } = await aSite('Iceland');
-    const presentation = { captions: ['title', 'shot'] };
+    const presentation = {
+      title: 'Iceland in September',
+      copyright: '© Ben Pirt',
+      captions: ['title', 'shot'],
+    };
 
     const response = await patch(slug, { presentation }, etag);
 
@@ -240,7 +244,7 @@ describe('PATCH /api/sites/{slug}', () => {
 
     const read = await request(`/api/sites/${slug}`);
     expect(await read.json()).toMatchObject({
-      presentation: { captions: ['shot'] },
+      presentation: { title: '', copyright: null, captions: ['shot'] },
     });
     expect(
       (await patch(slug, { name: 'Iceland' }, read.headers.get('ETag') ?? etag))
@@ -255,20 +259,21 @@ describe('PATCH /api/sites/{slug}', () => {
   test.each([
     [
       'Organise by, which sites no longer have (D107)',
-      { organiseBy: 'events', captions: [] },
+      { title: '', copyright: null, organiseBy: 'events', captions: [] },
     ],
     [
       'Group by, which sites no longer have (D104)',
-      { groupBy: 'roll', captions: [] },
+      { title: '', copyright: null, groupBy: 'roll', captions: [] },
     ],
-    ['an unknown caption', { captions: ['gps'] }],
+    ['an unknown caption', { title: '', copyright: null, captions: ['gps'] }],
+    ['no title or copyright (D108)', { captions: [] }],
     [
-      'a title, which is now the name (FF-179)',
-      { title: 'Iceland', captions: [] },
+      'a title over 200 characters',
+      { title: 'x'.repeat(201), copyright: null, captions: [] },
     ],
     [
       'an intro, which sites no longer have (FF-179)',
-      { intro: 'Two weeks.', captions: [] },
+      { title: '', copyright: null, intro: 'Two weeks.', captions: [] },
     ],
   ])('refuses a presentation with %s', async (_why, presentation) => {
     const { slug, etag } = await aSite('Iceland');

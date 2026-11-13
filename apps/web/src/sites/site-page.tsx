@@ -7,6 +7,7 @@ import { navigate } from '../routing.tsx';
 import { FrameSelectionEditor } from '../selections/frame-selection-editor.tsx';
 import { exclude, include } from '../selections/selection-edit.ts';
 import { useFrameSearch } from '../selections/use-frame-search.ts';
+import { useSettings } from '../settings/use-settings.ts';
 import { BuildPanel } from './build-panel.tsx';
 import { PresentationFields } from './presentation-fields.tsx';
 import { useSiteSaver } from './use-site-saver.ts';
@@ -27,6 +28,7 @@ function SiteEditor({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteFailed, setDeleteFailed] = useState(false);
   const found = useFrameSearch(api, site.selection).found;
+  const settings = useSettings(api);
   const saver = useSiteSaver({
     api,
     slug: loaded.slug,
@@ -150,7 +152,11 @@ function SiteEditor({
       {saver.state === 'failed' && (
         <p role="alert">Couldn't save the site. Is the service running?</p>
       )}
-      <PresentationFields presentation={site.presentation} change={present} />
+      <PresentationFields
+        presentation={site.presentation}
+        archiveCopyright={settings.data?.settings.copyright ?? null}
+        change={present}
+      />
       <BuildPanel
         api={api}
         slug={site.slug}

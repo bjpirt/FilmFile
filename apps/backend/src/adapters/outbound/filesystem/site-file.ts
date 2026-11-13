@@ -63,6 +63,9 @@ const storedFrame = z.object({ roll: rollIdValue, frame: frameIdValue });
 const storedPresentation = z.object({
   // Older files had `groupBy` (D104) or `organiseBy` (D107); a site is now
   // always organised by event, so they're read past and dropped on the next save.
+  // Files from before D108 have no title (blank) and take the archive's copyright.
+  title: z.string().default(''),
+  copyright: z.string().nullable().default(null),
   captions: z.array(z.enum(['title', 'shot', 'camera', 'lens', 'film'])),
 });
 
@@ -153,6 +156,8 @@ export function siteFileContent(site: SiteDetails): string {
       ? {}
       : {
           presentation: {
+            title: site.presentation.title,
+            copyright: site.presentation.copyright,
             captions: [...site.presentation.captions],
           },
         }),

@@ -2285,6 +2285,19 @@
       "SitePresentation": {
         "type": "object",
         "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "The title the built site's pages show, apart from its name; blank for none (D108)."
+          },
+          "copyright": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500,
+            "description": "The copyright notice at the foot of every page; null takes the archive's from Settings, blank shows none (D108)."
+          },
           "captions": {
             "type": "array",
             "items": {
@@ -2302,6 +2315,8 @@
           }
         },
         "required": [
+          "title",
+          "copyright",
           "captions"
         ],
         "additionalProperties": false

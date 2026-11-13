@@ -2,7 +2,7 @@ import { escapeHtml } from './escape-html.ts';
 import { shapeClass } from './photo-shape.ts';
 import { isOtherPhotos, type SiteGroup } from './site-groups.ts';
 import type { SiteOptions } from './site-options.ts';
-import { allEventsLink, sitePageShell } from './site-page-shell.ts';
+import { allEventsLink, sitePageShell, tabTitle } from './site-page-shell.ts';
 import type { SitePhoto } from './site-photo.ts';
 
 /** The screens' widths a photo's `sizes` is written for: one column on a phone. */
@@ -71,8 +71,9 @@ export function renderGroupPage(
     .map((photo) => photoHtml(group, photo))
     .join('\n');
   return sitePageShell({
-    title: `${group.label.heading} · ${options.title}`,
+    title: tabTitle(group.label.heading, options.title),
     siteName: options.title,
+    copyright: options.copyright,
     root,
     nameIsHeading: false,
     aside: allEventsLink(root),

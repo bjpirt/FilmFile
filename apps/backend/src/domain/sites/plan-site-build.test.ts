@@ -12,6 +12,7 @@ import { isFrameId, type FrameId } from '../shared/ids.ts';
 
 const options: SiteOptions = {
   title: 'Iceland',
+  copyright: '',
   captions: ['title'],
 };
 

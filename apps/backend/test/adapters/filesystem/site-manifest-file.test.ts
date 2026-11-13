@@ -21,7 +21,11 @@ test('reads a site.json from before sites had cards (D104) or a design version (
   const manifest = parseSiteManifestFile(older);
 
   expect(manifest.design).toBe(1);
-  expect(manifest.options).toEqual({ title: 'Iceland', captions: ['title'] });
+  expect(manifest.options).toEqual({
+    title: 'Iceland',
+    copyright: '',
+    captions: ['title'],
+  });
   expect(manifest.photos[0]).toMatchObject({
     rating: null,
     roll: { key: 'r', heading: '2026-014', file: '' },

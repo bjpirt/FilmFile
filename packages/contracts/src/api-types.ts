@@ -3407,6 +3407,10 @@ export interface components {
             }[];
         };
         SitePresentation: {
+            /** @description The title the built site's pages show, apart from its name; blank for none (D108). */
+            title: string;
+            /** @description The copyright notice at the foot of every page; null takes the archive's from Settings, blank shows none (D108). */
+            copyright: string | null;
             /** @description Which details appear under each photo. */
             captions: ("title" | "shot" | "camera" | "lens" | "film")[];
         };

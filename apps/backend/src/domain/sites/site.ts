@@ -17,15 +17,22 @@ export interface Site {
 }
 
 /**
- * How a site is shown when it's built (FF-120); its title is its name
- * (FF-179), and it's always organised by event (D107).
+ * How a site is shown when it's built (FF-120), always organised by event
+ * (D107): its title and copyright notice (D108) and the details its frame
+ * pages show.
  */
 export interface SitePresentation {
+  /** The title its pages show, apart from its name; blank for none (D108). */
+  readonly title: string;
+  /** Its copyright notice; null takes the archive's from Settings, blank shows none (D108). */
+  readonly copyright: string | null;
   /** Which details a caption shows. */
   readonly captions: readonly CaptionField[];
 }
 
-/** A site shown plainly: each photo's title. */
+/** A site shown plainly: no title, the archive's copyright, each photo's title. */
 export const defaultPresentation: SitePresentation = {
+  title: '',
+  copyright: null,
   captions: ['title'],
 };

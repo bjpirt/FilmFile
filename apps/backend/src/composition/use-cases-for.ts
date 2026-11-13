@@ -159,6 +159,7 @@ export function useCasesFor({
         renderer,
         siteFolders,
       ),
+      settings,
     ),
     getBuiltSiteFile: new GetBuiltSiteFile(siteFolders),
     listSites: new ListSites(sites, searchFrames),

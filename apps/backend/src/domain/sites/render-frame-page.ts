@@ -1,7 +1,7 @@
 import { escapeHtml } from './escape-html.ts';
 import type { SiteGroup } from './site-groups.ts';
 import type { CaptionField, SiteOptions } from './site-options.ts';
-import { allEventsLink, sitePageShell } from './site-page-shell.ts';
+import { allEventsLink, sitePageShell, tabTitle } from './site-page-shell.ts';
 import type { SitePhoto } from './site-photo.ts';
 
 /** A frame's page is two folders down: `events/<event>/<frame>.html`. */
@@ -128,8 +128,9 @@ export function renderFramePage(
       ? ''
       : `\n<div class="frame-info">${caption}${details.toggle}${details.list}</div>`;
   return sitePageShell({
-    title: `${photo.alt} · ${options.title}`,
+    title: tabTitle(photo.alt, options.title),
     siteName: options.title,
+    copyright: options.copyright,
     root,
     nameIsHeading: false,
     aside: allEventsLink(root),

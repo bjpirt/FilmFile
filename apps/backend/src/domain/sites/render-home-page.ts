@@ -53,8 +53,10 @@ export function renderHomePage(
           )
           .join('\n');
   return sitePageShell({
-    title: options.title,
+    // A site with no title is still "Photographs" in the browser's tab.
+    title: options.title === '' ? 'Photographs' : options.title,
     siteName: options.title,
+    copyright: options.copyright,
     root: '',
     nameIsHeading: true,
     aside: `<p class="site-count">${[

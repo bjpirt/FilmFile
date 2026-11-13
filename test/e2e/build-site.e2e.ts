@@ -24,6 +24,10 @@ test('build a site: make one of two rolls’ frames, build it, open it in the br
     .getByRole('group', { name: 'Details to show' })
     .getByLabel('Camera')
     .check();
+  // Its own title and copyright notice, apart from its name (D108).
+  await page.getByLabel('Site title').fill('Iceland in September');
+  await page.getByLabel('Copyright notice').fill('© The journeys');
+  await page.getByLabel('Copyright notice').blur();
   await expect(page.getByRole('link', { name: 'Open site' })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Build site' }).click();
@@ -39,7 +43,10 @@ test('build a site: make one of two rolls’ frames, build it, open it in the br
     page.context().waitForEvent('page'),
     page.getByRole('link', { name: 'Open site' }).click(),
   ]);
-  await expect(site.getByRole('heading', { name: 'Iceland' })).toBeVisible();
+  await expect(
+    site.getByRole('heading', { name: 'Iceland in September' }),
+  ).toBeVisible();
+  await expect(site.getByText('© The journeys')).toBeVisible();
   await expect(
     site.getByRole('heading', { name: '2026', exact: true }),
   ).toBeVisible();

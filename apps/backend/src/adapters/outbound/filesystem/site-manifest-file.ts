@@ -24,6 +24,8 @@ const storedManifest = z.object({
   // An older site's `organiseBy` (D104, gone with D107) is read past.
   options: z.object({
     title: z.string(),
+    // A site built before D108 had no copyright notice on its pages.
+    copyright: z.string().default(''),
     captions: z.array(z.enum(['title', 'shot', 'camera', 'lens', 'film'])),
   }),
   photos: z.array(

@@ -183,6 +183,8 @@ function siteBody({ site }: VersionedSite) {
     name: site.name,
     selection: selectionBody(site.selection),
     presentation: {
+      title: site.presentation.title,
+      copyright: site.presentation.copyright,
       captions: [...site.presentation.captions],
     },
   };

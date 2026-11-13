@@ -138,7 +138,7 @@ describe('POST /api/sites/{slug}/build', () => {
       path.join(siteFolder(slug), 'index.html'),
       'utf8',
     );
-    expect(page).toContain('>Iceland highlights</a></h1>');
+    expect(page).toContain('<title>Photographs</title>');
     expect(await eventPage(slug)).toContain('alt="Photo from 12 Sep 2026"');
   });
 
@@ -225,16 +225,27 @@ describe('POST /api/sites/{slug}/build', () => {
     ).toContain('This site has no photos yet.');
   });
 
-  test('uses the site’s name as its title, is organised by event with no rolls, and uses its captions', async () => {
+  test('uses the site’s own title, the archive’s copyright, is organised by event with no rolls, and uses its captions', async () => {
     await aFrameWithAScan('1');
     const slug = await aSite();
+    const settingsEtag =
+      (await request('/api/settings')).headers.get('ETag') ?? '';
+    await request('/api/settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'If-Match': settingsEtag },
+      body: JSON.stringify({ copyright: '© Ben Pirt' }),
+    });
     const etag =
       (await request(`/api/sites/${slug}`)).headers.get('ETag') ?? '';
     await request(`/api/sites/${slug}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json', 'If-Match': etag },
       body: JSON.stringify({
-        presentation: { captions: ['shot'] },
+        presentation: {
+          title: 'Iceland in September',
+          copyright: null,
+          captions: ['shot'],
+        },
       }),
     });
 
@@ -244,8 +255,11 @@ describe('POST /api/sites/{slug}/build', () => {
       path.join(siteFolder(slug), 'index.html'),
       'utf8',
     );
-    expect(page).toContain('<title>Iceland highlights</title>');
-    expect(page).toContain('>Iceland highlights</a></h1>');
+    expect(page).toContain('<title>Iceland in September</title>');
+    expect(page).toContain('>Iceland in September</a></h1>');
+    expect(page).toContain(
+      '<footer class="site-foot"><p>© Ben Pirt</p></footer>',
+    );
     expect(page).toContain('<h3>Other 2026 photos</h3>');
     expect(page).not.toContain('2026-014');
     expect(page).not.toContain('class="views"');
@@ -284,6 +298,30 @@ describe('POST /api/sites/{slug}/build', () => {
     );
   });
 
+  test('a new site has no title, and its copyright can be changed or left off (D108)', async () => {
+    await aFrameWithAScan('1');
+    const slug = await aSite();
+    const present = async (copyright: string | null) => {
+      const etag =
+        (await request(`/api/sites/${slug}`)).headers.get('ETag') ?? '';
+      await request(`/api/sites/${slug}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'If-Match': etag },
+        body: JSON.stringify({
+          presentation: { title: '', copyright, captions: ['title'] },
+        }),
+      });
+      await build(slug);
+      return readFile(path.join(siteFolder(slug), 'index.html'), 'utf8');
+    };
+
+    const own = await present('© Someone else');
+    expect(own).toContain('<p>© Someone else</p>');
+    expect(own).toContain('<title>Photographs</title>');
+    expect(own).not.toContain('class="site-name"');
+    expect(await present('')).not.toContain('site-foot');
+  });
+
   test('says there is no such site', async () => {
     expect((await post('/api/sites/nothing/build', {})).status).toBe(404);
   });
@@ -312,23 +350,33 @@ describe('GET /api/sites/{slug}/status', () => {
     expect(second.message).toBe('Out of date: 1 frame added');
   });
 
-  test('says a site renamed within its slug is out of date, as its title is its name', async () => {
+  test('says a site is out of date when its title changes, but not when it’s renamed within its slug (D108)', async () => {
     await aFrameWithAScan('1');
     const slug = await aSite('Iceland');
     await build(slug);
-    const etag =
-      (await request(`/api/sites/${slug}`)).headers.get('ETag') ?? '';
+    const change = async (body: unknown) => {
+      const etag =
+        (await request(`/api/sites/${slug}`)).headers.get('ETag') ?? '';
+      await request(`/api/sites/${slug}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'If-Match': etag },
+        body: JSON.stringify(body),
+      });
+      return siteStatus.parse(
+        await (await request(`/api/sites/${slug}/status`)).json(),
+      ).freshness;
+    };
 
-    await request(`/api/sites/${slug}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'If-Match': etag },
-      body: JSON.stringify({ name: 'ICELAND' }),
-    });
-
-    const status = siteStatus.parse(
-      await (await request(`/api/sites/${slug}/status`)).json(),
-    );
-    expect(status.freshness).toBe('out-of-date');
+    expect(await change({ name: 'ICELAND' })).toBe('up-to-date');
+    expect(
+      await change({
+        presentation: {
+          title: 'Iceland',
+          copyright: null,
+          captions: ['title'],
+        },
+      }),
+    ).toBe('out-of-date');
   });
 
   test('says there is no such site', async () => {
@@ -356,7 +404,7 @@ describe('GET /built-sites/{slug}/', () => {
     expect(page.status).toBe(200);
     expect(page.headers.get('Content-Type')).toBe('text/html; charset=utf-8');
     const html = await page.text();
-    expect(html).toContain('>Iceland highlights</a></h1>');
+    expect(html).toContain('<title>Photographs</title>');
     expect(page.headers.get('Content-Security-Policy')).toContain(
       "default-src 'self'",
     );

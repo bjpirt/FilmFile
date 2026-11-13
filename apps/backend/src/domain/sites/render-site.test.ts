@@ -7,6 +7,7 @@ import { isFrameId, type FrameId } from '../shared/ids.ts';
 
 const options: SiteOptions = {
   title: 'Iceland highlights',
+  copyright: '',
   captions: ['title'],
 };
 
@@ -536,4 +537,46 @@ test('escapes every word that came from the archive', () => {
   expect(all).not.toContain('<b>Bold');
   expect(all).not.toContain('<i>Roll');
   expect(all).toContain('A &amp; B');
+});
+
+describe('the title and copyright notice (D108)', () => {
+  const photos = [aPhoto('1', { event: iceland })];
+  const pages = [
+    'index.html',
+    'events/iceland.html',
+    'events/iceland/1-F1.html',
+  ];
+
+  test('with no title, no page names the site, and the tabs show the page’s own name', () => {
+    const blank = { title: '' };
+    for (const page of pages) {
+      expect(file(photos, page, blank)).not.toContain('class="site-name"');
+    }
+    expect(file(photos, 'index.html', blank)).toContain(
+      '<title>Photographs</title>',
+    );
+    expect(file(photos, 'events/iceland.html', blank)).toContain(
+      '<title>Iceland 2026</title>',
+    );
+    expect(file(photos, 'events/iceland/1-F1.html', blank)).toContain(
+      '<title>Frame 1</title>',
+    );
+  });
+
+  test('every page ends with the copyright notice, and none when it’s blank', () => {
+    for (const page of pages) {
+      expect(
+        file(photos, page, { copyright: '© Ben Pirt. All rights reserved.' }),
+      ).toContain(
+        '<footer class="site-foot"><p>© Ben Pirt. All rights reserved.</p></footer>',
+      );
+      expect(file(photos, page)).not.toContain('site-foot');
+    }
+  });
+
+  test('escapes the copyright notice', () => {
+    expect(file(photos, 'index.html', { copyright: '<b>© Me</b>' })).toContain(
+      '<p>&lt;b&gt;© Me&lt;/b&gt;</p>',
+    );
+  });
 });

@@ -26,6 +26,7 @@ import { checked } from '../../support/checked.ts';
 const slug = checked('iceland-highlights', isSlug);
 const options: SiteOptions = {
   title: 'Iceland highlights',
+  copyright: '',
   captions: ['title'],
 };
 

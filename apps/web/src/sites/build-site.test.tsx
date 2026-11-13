@@ -12,6 +12,7 @@ import {
   aFrame,
   aRoll,
   fakeArchive,
+  setUpSettings,
   type FakeArchive,
 } from '../testing/fake-archive.ts';
 import { SitePage } from './site-page.tsx';
@@ -223,6 +224,8 @@ test('saves a choice at once', async () => {
   fireEvent.click(await screen.findByLabelText('Camera'));
   await waitFor(() => {
     expect(archive.sites[0]?.presentation).toEqual({
+      title: '',
+      copyright: null,
       captions: ['title', 'camera'],
     });
   });
@@ -310,5 +313,58 @@ test('rebuilding an empty site asks first, then rebuilds it afresh', async () =>
   fireEvent.click(screen.getByRole('button', { name: 'Rebuild from scratch' }));
   await waitFor(() => {
     expect(archive.siteRebuilds).toEqual(['iceland']);
+  });
+});
+
+test('a site’s title starts blank and is saved when you leave the field (D108)', async () => {
+  const archive = archiveWith();
+  renderPage(archive);
+  const title = await screen.findByLabelText<HTMLInputElement>('Site title');
+  expect(title.value).toBe('');
+
+  fireEvent.change(title, { target: { value: 'Iceland in September' } });
+  fireEvent.blur(title);
+
+  await waitFor(() => {
+    expect(archive.sites[0]?.presentation.title).toBe('Iceland in September');
+  });
+});
+
+test('the copyright notice starts as the archive’s, and can be changed or cleared (D108)', async () => {
+  const archive = archiveWith({
+    settings: { ...setUpSettings, copyright: '© Test author' },
+  });
+  renderPage(archive);
+  const notice =
+    await screen.findByLabelText<HTMLInputElement>('Copyright notice');
+  await waitFor(() => {
+    expect(notice.value).toBe('© Test author');
+  });
+  expect(archive.sites[0]?.presentation.copyright).toBeNull();
+
+  fireEvent.change(notice, { target: { value: '© Someone else' } });
+  fireEvent.blur(notice);
+  await waitFor(() => {
+    expect(archive.sites[0]?.presentation.copyright).toBe('© Someone else');
+  });
+
+  fireEvent.change(notice, { target: { value: '' } });
+  fireEvent.blur(notice);
+  await waitFor(() => {
+    expect(archive.sites[0]?.presentation.copyright).toBe('');
+  });
+});
+
+test('leaving a field unchanged saves nothing', async () => {
+  const archive = archiveWith();
+  renderPage(archive);
+  const title = await screen.findByLabelText('Site title');
+
+  fireEvent.blur(title);
+
+  expect(archive.sites[0]?.presentation).toEqual({
+    title: '',
+    copyright: null,
+    captions: ['title'],
   });
 });

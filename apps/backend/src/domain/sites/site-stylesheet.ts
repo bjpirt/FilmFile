@@ -141,6 +141,22 @@ a:hover {
   white-space: nowrap;
 }
 
+/* The copyright notice at the foot of every page (D108). */
+.site-foot {
+  box-sizing: border-box;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  margin: 0 auto;
+  max-width: 75rem;
+  padding: 0 var(--space-6) var(--space-6);
+}
+
+.site-foot p {
+  border-top: 1px solid var(--line);
+  margin: 0;
+  padding-top: var(--space-5);
+}
+
 /* The header's way home from any other page. */
 .all-events {
   color: var(--text-muted);
@@ -399,7 +415,8 @@ h1 {
    arrows over its edges. */
 @media (max-width: 40rem) {
   .site-header,
-  .page {
+  .page,
+  .site-foot {
     padding-inline: var(--space-4);
   }
 
