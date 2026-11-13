@@ -9,6 +9,7 @@ test('build a site: make one of two rolls’ frames, build it, open it in the br
     year: '2026',
     month: 'September',
     newEvent: 'Westfjords walk',
+    newCamera: { make: 'Olympus', model: 'OM-2' },
     scans: fixtureSets.headToTail,
   });
   await createRoll(page, '2026-054', { scans: fixtureSets.headToTail });
@@ -19,6 +20,10 @@ test('build a site: make one of two rolls’ frames, build it, open it in the br
   await page.getByRole('button', { name: 'Add site' }).click();
   await expect(page.getByText('12 frames match')).toBeVisible();
   await expect(page.getByText('Not built yet')).toBeVisible();
+  await page
+    .getByRole('group', { name: 'Details to show' })
+    .getByLabel('Camera')
+    .check();
   await expect(page.getByRole('link', { name: 'Open site' })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Build site' }).click();
@@ -50,15 +55,40 @@ test('build a site: make one of two rolls’ frames, build it, open it in the br
   await expect(site.locator('.photo img')).toHaveCount(6);
   // A photo opens its own page with the filmstrip; → steps, Esc goes back (D105).
   await site.locator('.photo a').first().click();
-  await expect(site.getByText('1 of 6')).toBeVisible();
+  await expect(site.getByText('1 / 6')).toBeVisible();
   await expect(
     site.getByRole('navigation', { name: 'Filmstrip' }).getByRole('link'),
   ).toHaveCount(6);
   await expect(site.getByRole('link', { name: 'Previous frame' })).toHaveCount(
     0,
   );
+  // Its camera is behind the details icon, hidden until it's pressed (FF-190).
+  await expect(site.getByText('Olympus OM-2')).toBeHidden();
+  await site.getByRole('button', { name: 'Details' }).click();
+  await expect(site.getByText('Olympus OM-2')).toBeVisible();
   await site.keyboard.press('ArrowRight');
-  await expect(site.getByText('2 of 6')).toBeVisible();
+  await expect(site.getByText('2 / 6')).toBeVisible();
+  // Shown details stay shown on the next frame.
+  await expect(site.getByText('Olympus OM-2')).toBeVisible();
+  // On a phone the filmstrip scrolls so the frame shown is in its middle
+  // (as near as it can: not the last few, at the strip's end).
+  await site.setViewportSize({ width: 320, height: 640 });
+  await site
+    .getByRole('navigation', { name: 'Filmstrip' })
+    .getByRole('link')
+    .nth(3)
+    .click();
+  await expect(site.getByText('4 / 6')).toBeVisible();
+  const offCentre = await site.evaluate(() => {
+    const strip = document.querySelector('.filmstrip');
+    const shown = strip?.querySelector('[aria-current="page"]');
+    if (!strip || !shown) return Infinity;
+    const box = strip.getBoundingClientRect();
+    const frame = shown.getBoundingClientRect();
+    return Math.abs(frame.left + frame.width / 2 - (box.left + box.width / 2));
+  });
+  expect(offCentre).toBeLessThan(2);
+  await site.setViewportSize({ width: 1280, height: 720 });
   await site.keyboard.press('Escape');
   await expect(
     site.getByRole('heading', { name: 'Westfjords walk', level: 1 }),

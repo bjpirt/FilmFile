@@ -203,10 +203,11 @@ test('Cancel on the empty-site question builds nothing', async () => {
   expect(archive.siteBuilds).toEqual([]);
 });
 
-test('shows how the site is presented: its captions, and no Organise by, page title, intro or Group by', async () => {
+test('shows how the site is presented: the details to show, and no Organise by, page title, intro or Group by', async () => {
   renderPage(archiveWith());
 
   await screen.findByLabelText('Camera');
+  expect(screen.getByRole('group', { name: 'Details to show' })).toBeTruthy();
   expect(screen.queryByLabelText('Organise by')).toBeNull();
   expect(screen.queryByLabelText('Group by')).toBeNull();
   expect(screen.queryByLabelText('Page title')).toBeNull();

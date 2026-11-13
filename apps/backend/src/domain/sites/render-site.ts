@@ -6,6 +6,7 @@ import { eventSections } from './event-sections.ts';
 import { siteGroups, type SiteGroup } from './site-groups.ts';
 import type { SiteOptions } from './site-options.ts';
 import type { SitePhoto } from './site-photo.ts';
+import { noScriptStylesheet } from './no-script-stylesheet.ts';
 import { siteScript } from './site-script.ts';
 import { siteStylesheet } from './site-stylesheet.ts';
 
@@ -59,5 +60,6 @@ export function renderSite(
     ]),
     { path: 'assets/site.css', content: stylesheetFor(photos) },
     { path: 'assets/site.js', content: siteScript },
+    { path: 'assets/no-script.css', content: noScriptStylesheet },
   ];
 }

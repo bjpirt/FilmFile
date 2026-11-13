@@ -12,7 +12,9 @@ const captionChoices: readonly { value: Caption; label: string }[] = [
 ];
 
 /**
- * How a site is shown when it's built: which details are in the captions.
+ * How a site is shown when it's built: which details a frame's page shows
+ * ("Details to show": the title and date under the photo, the rest behind
+ * its icon, D107).
  * Its title is its name (FF-179) and it's always organised by event (D107).
  * A choice is saved at once.
  */
@@ -26,7 +28,7 @@ export function PresentationFields({
   return (
     <section className="presentation" aria-label="How the site looks">
       <fieldset className="rule-choices">
-        <legend>Captions</legend>
+        <legend>Details to show</legend>
         {captionChoices.map((choice) => (
           <label key={choice.value}>
             <input

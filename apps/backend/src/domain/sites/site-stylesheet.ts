@@ -246,8 +246,9 @@ h1 {
   opacity: 0.85;
 }
 
-/* A frame's page (D105): the photo as large as the screen allows, between
-   Previous and Next, its caption, and the filmstrip below. */
+/* A frame's page (D105, D107): the bar, the filmstrip, the photo as large as
+   the screen allows between Previous and Next, then its title and date with
+   the icon for its details. */
 .frame-bar {
   align-items: baseline;
   display: flex;
@@ -255,13 +256,51 @@ h1 {
   justify-content: space-between;
 }
 
-.frame-bar .back {
+.place {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
   margin: 0;
 }
 
-.place {
-  color: var(--text-muted);
-  margin: 0;
+/* Centred when it fits, scrolling sideways when it doesn't. */
+.filmstrip {
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 4px;
+  margin-top: var(--space-4);
+  overflow-x: auto;
+  padding: 4px 2px var(--space-4);
+}
+
+.filmstrip a {
+  flex: none;
+  opacity: 0.5;
+}
+
+.filmstrip a:first-child {
+  margin-left: auto;
+}
+
+.filmstrip a:last-child {
+  margin-right: auto;
+}
+
+.filmstrip a:hover,
+.filmstrip a[aria-current='page'] {
+  opacity: 1;
+}
+
+.filmstrip a[aria-current='page'] img {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.filmstrip img {
+  background: var(--placeholder);
+  display: block;
+  height: 2.5rem;
+  width: auto;
 }
 
 .frame-stage {
@@ -269,15 +308,15 @@ h1 {
   display: flex;
   gap: var(--space-3);
   justify-content: center;
-  margin: var(--space-4) 0 var(--space-3);
+  margin: var(--space-5) 0 var(--space-4);
   position: relative;
 }
 
 .frame-stage img {
   display: block;
   height: auto;
-  /* Room for the header, the bar, the caption and the filmstrip. */
-  max-height: calc(100vh - 19rem);
+  /* Room for the header, the bar, the filmstrip and the caption line. */
+  max-height: calc(100vh - 20rem);
   max-width: 100%;
   min-width: 0;
   object-fit: contain;
@@ -296,40 +335,64 @@ h1 {
   color: var(--text-muted);
 }
 
-.caption {
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  margin: 0 0 var(--space-4);
-  text-align: center;
-}
-
-.filmstrip {
+.frame-info {
+  align-items: center;
   display: flex;
-  gap: 4px;
-  overflow-x: auto;
-  padding: 4px 2px;
-  position: relative;
+  flex-wrap: wrap;
+  gap: 0 var(--space-4);
+  margin: 0 auto;
+  max-width: 60rem;
 }
 
-.filmstrip a {
-  flex: none;
-  opacity: 0.5;
+.caption {
+  margin: 0;
 }
 
-.filmstrip a:hover,
-.filmstrip a[aria-current='page'] {
-  opacity: 1;
+.caption span {
+  color: var(--text-muted);
 }
 
-.filmstrip a[aria-current='page'] img {
-  outline: 2px solid var(--text);
+/* The small icon that shows and hides the details. */
+.info-toggle {
+  background: none;
+  border: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  margin-left: auto;
+  min-height: 44px;
+  min-width: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 }
 
-.filmstrip img {
-  background: var(--placeholder);
-  display: block;
-  height: 4rem;
-  width: auto;
+.info-toggle:hover,
+.info-toggle[aria-expanded='true'] {
+  color: var(--text);
+}
+
+.frame-details {
+  border-top: 1px solid var(--rule);
+  display: grid;
+  flex-basis: 100%;
+  font-size: 0.8125rem;
+  gap: var(--space-4) var(--space-5);
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  margin: var(--space-2) 0 0;
+  padding-top: var(--space-4);
+}
+
+.frame-details[hidden] {
+  display: none;
+}
+
+.frame-details dt {
+  color: var(--text-muted);
+}
+
+.frame-details dd {
+  margin: var(--space-2) 0 0;
 }
 
 /* On a phone: two cards to a row, and the photo the whole width with small
@@ -373,6 +436,10 @@ h1 {
   .frame-stage img {
     max-height: none;
     width: 100%;
+  }
+
+  .frame-details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .step {
