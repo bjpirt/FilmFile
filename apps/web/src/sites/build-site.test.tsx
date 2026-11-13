@@ -86,6 +86,21 @@ test('builds the site, following it to "Site built in Sites/iceland: …", then 
   expect(open.getAttribute('target')).toBe('_blank');
 });
 
+test('says "Starting the build…" while a build is asked for, with the build buttons out of reach', async () => {
+  const archive = archiveWith();
+  renderPage(archive);
+  const buildButton = await screen.findByRole('button', { name: 'Build site' });
+  const release = archive.holdSiteBuildStarts();
+
+  fireEvent.click(buildButton);
+
+  expect(await screen.findByText('Starting the build…')).toBeTruthy();
+  expect(buildButton).toHaveProperty('disabled', true);
+  release();
+  expect(await screen.findByText(/^Site built in Sites\/iceland/)).toBeTruthy();
+  expect(screen.queryByText('Starting the build…')).toBeNull();
+});
+
 test('cancels a build while it runs', async () => {
   const archive = archiveWith({
     siteBuildStates: [{ state: 'running', done: 1, total: 4 }],

@@ -45,6 +45,8 @@ export function BuildPanel({
     undefined,
   );
   const [problem, setProblem] = useState<string | undefined>(undefined);
+  /** A build has been asked for and the service hasn't answered yet. */
+  const [starting, setStarting] = useState(false);
   const status = useQuery({
     queryKey: ['sites', slug, 'status'],
     queryFn: async () => {
@@ -64,6 +66,15 @@ export function BuildPanel({
   async function build(kind: BuildKind) {
     setConfirmingEmpty(undefined);
     setProblem(undefined);
+    setStarting(true);
+    try {
+      await startBuild(kind);
+    } finally {
+      setStarting(false);
+    }
+  }
+
+  async function startBuild(kind: BuildKind) {
     const { response } = await api.POST('/api/sites/{slug}/build', {
       params: {
         path: { slug },
@@ -115,6 +126,7 @@ export function BuildPanel({
           {message}
         </p>
       )}
+      {starting && <p role="status">Starting the build…</p>}
       {running && (
         <p role="status">
           {latest.total === 0
@@ -165,7 +177,7 @@ export function BuildPanel({
               <button
                 type="button"
                 className="primary"
-                disabled={saving || freshness === 'in-the-way'}
+                disabled={saving || starting || freshness === 'in-the-way'}
                 onClick={() => {
                   start('build');
                 }}
@@ -177,7 +189,7 @@ export function BuildPanel({
                   <button
                     key={kind}
                     type="button"
-                    disabled={saving}
+                    disabled={saving || starting}
                     onClick={() => {
                       start(kind);
                     }}

@@ -278,6 +278,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   const siteUpdates: { slug: string; body: unknown }[] = [];
   /** While set, a change to a site waits for it before it's answered. */
   let siteUpdatesHeld: Promise<undefined> | undefined;
+  /** While set, starting a build waits for it before it's answered. */
+  let siteBuildStartsHeld: Promise<undefined> | undefined;
   /** The body of every request to export into a folder, and the exports cancelled. */
   const folderExports: unknown[] = [];
   const folderExportsCancelled: string[] = [];
@@ -1104,6 +1106,9 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       return notFound();
     }
     if (below === 'build' || below === 'status') {
+      if (below === 'build' && request.method === 'POST') {
+        await siteBuildStartsHeld;
+      }
       return siteBuild(request, slug, below);
     }
     const key = `site:${slug}`;
@@ -1367,6 +1372,15 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       siteUpdatesHeld = held.promise;
       return () => {
         siteUpdatesHeld = undefined;
+        held.resolve(undefined);
+      };
+    },
+    /** Holds every build's start until the function returned is called. */
+    holdSiteBuildStarts(): () => void {
+      const held = Promise.withResolvers<undefined>();
+      siteBuildStartsHeld = held.promise;
+      return () => {
+        siteBuildStartsHeld = undefined;
         held.resolve(undefined);
       };
     },
