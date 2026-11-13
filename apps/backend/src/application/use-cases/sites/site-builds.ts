@@ -201,12 +201,15 @@ export class SiteBuilds {
       return err({ kind: 'not-found', entity: 'site', id: input.slug });
     }
     const { site } = found;
+    // How the build stands is taken first: a build ending while the site is
+    // looked at is then still running here, so the page asks again, rather
+    // than done beside how the site stood before it ended.
+    const build = this.#jobs.get(site.slug)?.progress;
     const status = await this.#building.status(ctx, {
       slug: site.slug,
       frames: await this.#framesOf(ctx, site),
       options: await this.#optionsOf(ctx, site),
     });
-    const build = this.#jobs.get(site.slug)?.progress;
     if (status.state === 'in-the-way') {
       return ok({
         freshness: 'in-the-way',
