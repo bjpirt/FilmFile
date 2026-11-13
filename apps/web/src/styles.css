@@ -1881,6 +1881,17 @@ textarea {
   margin-bottom: var(--space-4);
 }
 
+/* "Add a rule ▾" as wide as its button, with its menu under it: in a column
+   it would stretch across the page and open the menu at the far side. */
+.rule-editor > .menu-button {
+  align-self: flex-start;
+}
+
+.rule-editor .menu {
+  left: 0;
+  right: auto;
+}
+
 .rules {
   display: flex;
   flex-direction: column;

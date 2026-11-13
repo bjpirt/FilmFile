@@ -38,7 +38,12 @@ test('sites: make one, preview its frames by roll and event, choose them by a ru
   await expect(page.getByText('5 frames match, 1 excluded')).toBeVisible();
 
   // A rule: nothing is rated, so no frame is found, the excluded one neither.
-  await page.getByRole('button', { name: 'Add a rule ▾' }).click();
+  const addRule = page.getByRole('button', { name: 'Add a rule ▾' });
+  await addRule.click();
+  // The menu opens under its button, not across the page.
+  const button = await addRule.boundingBox();
+  const menu = await page.getByRole('menu').boundingBox();
+  expect(Math.abs((menu?.x ?? 0) - (button?.x ?? 1000))).toBeLessThan(2);
   await page.getByRole('menuitem', { name: 'Rated at least' }).click();
   await expect(page.getByText('No frames match')).toBeVisible();
 
