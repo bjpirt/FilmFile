@@ -1,4 +1,4 @@
-import sharp from 'sharp';
+import sharp, { type Sharp } from 'sharp';
 import type {
   ImageMetadata,
   ExportRecipe,
@@ -22,9 +22,7 @@ export class SharpImageRenderer implements ImageRenderer {
     recipe: ExportRecipe,
     metadata: ImageMetadata,
   ): Promise<Uint8Array> {
-    const image = sharp(previewSource(file), {
-      limitInputPixels: this.#maxPixels,
-    }).rotate(rotate);
+    const image = (await this.#asStored(previewSource(file))).rotate(rotate);
     const sized =
       recipe.longestEdge === null
         ? image
@@ -37,5 +35,27 @@ export class SharpImageRenderer implements ImageRenderer {
       .withExif(exifTags(metadata))
       .withXmp(xmpPacket(metadata))
       .toBuffer();
+  }
+
+  /**
+   * The image as stored, saying nothing of an EXIF orientation. The archive
+   * shows a scan as stored, turned only as its version says, so an image made
+   * from it must not carry the scan's orientation for a viewer to turn it
+   * again. sharp drops the tag only when it applies it, so a scan carrying one
+   * (rare) is first read out as plain pixels.
+   */
+  async #asStored(source: Uint8Array): Promise<Sharp> {
+    const options = { limitInputPixels: this.#maxPixels };
+    const { orientation } = await sharp(source, options).metadata();
+    if (orientation === undefined || orientation === 1) {
+      return sharp(source, options);
+    }
+    const { data, info } = await sharp(source, options)
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    return sharp(data, {
+      ...options,
+      raw: { width: info.width, height: info.height, channels: info.channels },
+    });
   }
 }

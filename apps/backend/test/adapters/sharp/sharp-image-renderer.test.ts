@@ -45,6 +45,26 @@ describe('SharpImageRenderer', () => {
     );
   });
 
+  test('a scan saying it is turned is shown as stored, turned only as the version says, and the image made says it is upright', async () => {
+    // Orientation 6 asks viewers to turn the image a quarter clockwise. The
+    // archive shows a scan as stored, so a viewer turning it again would show
+    // it unlike it's shown everywhere else.
+    const original = new Uint8Array(
+      await sharp(await aJpeg({ width: 600, height: 400 }))
+        .withMetadata({ orientation: 6 })
+        .toBuffer(),
+    );
+
+    const made = await renderer.render(original, 90, full, {});
+
+    expect(await sizeOf(made)).toEqual({
+      format: 'jpeg',
+      width: 400,
+      height: 600,
+    });
+    expect((await sharp(made).metadata()).orientation ?? 1).toBe(1);
+  });
+
   test('a lower quality makes a smaller file', async () => {
     // Noise, which a flat image would hide the difference in.
     const original = new Uint8Array(
