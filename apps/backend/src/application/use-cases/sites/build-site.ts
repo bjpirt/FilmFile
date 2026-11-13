@@ -52,6 +52,11 @@ export interface BuildSiteInput {
     readonly frameId: FrameId;
   }[];
   readonly options: SiteOptions;
+  /**
+   * Build it afresh (FF-191): make every image and page again, keeping
+   * nothing from the built site, even when it's up to date.
+   */
+  readonly fresh?: boolean;
   /** Stops the build between images, leaving the site as it was. */
   readonly signal?: AbortSignal;
   /** Told after each image is dealt with, to show "Making images: 12 of 40". */
@@ -152,7 +157,8 @@ export class BuildSite {
       photos,
       input.options,
     );
-    if (plan.status.state === 'up-to-date') {
+    const fresh = input.fresh === true;
+    if (plan.status.state === 'up-to-date' && !fresh) {
       return ok({
         photos: photos.length,
         leftOut,
@@ -169,7 +175,7 @@ export class BuildSite {
           await build.discard();
           return err({ kind: 'cancelled' });
         }
-        if (await build.keep(job.image.src)) {
+        if (!fresh && (await build.keep(job.image.src))) {
           unchanged += 1;
         } else {
           await build.writeImage(job.image.src, await this.#make(ctx, job));

@@ -11,9 +11,18 @@ function builtMessage(slug: string, build: SiteBuildProgress): string {
   return `Site built in Sites/${slug}: ${photos(build.photos)} (${images(build.imagesMade)} made, ${String(build.imagesUnchanged)} unchanged).`;
 }
 
+/** How a build is asked for: as needed, or afresh with every image made again (FF-191). */
+type BuildKind = 'build' | 'rebuild';
+
+const buildLabel: Record<BuildKind, string> = {
+  build: 'Build site',
+  rebuild: 'Rebuild from scratch',
+};
+
 /**
- * Building a site: whether it's built and up to date, "Build site", progress
- * with "Cancel" while it runs, and "Open site" to see it (D92).
+ * Building a site: whether it's built and up to date, "Build site" (and,
+ * once built, "Rebuild from scratch"), progress with "Cancel" while it runs,
+ * and "Open site" to see it (D92).
  */
 export function BuildPanel({
   api,
@@ -28,7 +37,9 @@ export function BuildPanel({
   /** A change is being saved: building now would use the settings before it. */
   readonly saving: boolean;
 }) {
-  const [confirmingEmpty, setConfirmingEmpty] = useState(false);
+  const [confirmingEmpty, setConfirmingEmpty] = useState<BuildKind | undefined>(
+    undefined,
+  );
   const [problem, setProblem] = useState<string | undefined>(undefined);
   const status = useQuery({
     queryKey: ['sites', slug, 'status'],
@@ -46,11 +57,14 @@ export function BuildPanel({
       query.state.data?.build?.state === 'running' ? 400 : false,
   });
 
-  async function build() {
-    setConfirmingEmpty(false);
+  async function build(kind: BuildKind) {
+    setConfirmingEmpty(undefined);
     setProblem(undefined);
     const { response } = await api.POST('/api/sites/{slug}/build', {
-      params: { path: { slug } },
+      params: {
+        path: { slug },
+        query: kind === 'rebuild' ? { fresh: 'true' } : {},
+      },
     });
     if (!response.ok) {
       setProblem(
@@ -78,6 +92,15 @@ export function BuildPanel({
   }
   const { freshness, message, build: latest } = status.data;
   const running = latest?.state === 'running';
+  const built = freshness === 'up-to-date' || freshness === 'out-of-date';
+  /** An empty site asks first; otherwise the build starts. */
+  function start(kind: BuildKind) {
+    if (frameCount === 0) {
+      setConfirmingEmpty(kind);
+    } else {
+      void build(kind);
+    }
+  }
   return (
     <section className="build-panel" aria-label="Build">
       <h2>Build</h2>
@@ -103,7 +126,7 @@ export function BuildPanel({
         <p role="alert">Couldn't build the site.</p>
       )}
       {problem !== undefined && <p role="alert">{problem}</p>}
-      {confirmingEmpty ? (
+      {confirmingEmpty !== undefined ? (
         <div
           role="alertdialog"
           aria-label="Build an empty site"
@@ -113,15 +136,15 @@ export function BuildPanel({
           <button
             type="button"
             className="primary"
-            onClick={() => void build()}
+            onClick={() => void build(confirmingEmpty)}
           >
-            Build site
+            {buildLabel[confirmingEmpty]}
           </button>
           <button
             type="button"
             autoFocus
             onClick={() => {
-              setConfirmingEmpty(false);
+              setConfirmingEmpty(undefined);
             }}
           >
             Cancel
@@ -134,22 +157,31 @@ export function BuildPanel({
               Cancel
             </button>
           ) : (
-            <button
-              type="button"
-              className="primary"
-              disabled={saving || freshness === 'in-the-way'}
-              onClick={() => {
-                if (frameCount === 0) {
-                  setConfirmingEmpty(true);
-                } else {
-                  void build();
-                }
-              }}
-            >
-              Build site
-            </button>
+            <>
+              <button
+                type="button"
+                className="primary"
+                disabled={saving || freshness === 'in-the-way'}
+                onClick={() => {
+                  start('build');
+                }}
+              >
+                {buildLabel.build}
+              </button>
+              {built && (
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => {
+                    start('rebuild');
+                  }}
+                >
+                  {buildLabel.rebuild}
+                </button>
+              )}
+            </>
           )}
-          {(freshness === 'up-to-date' || freshness === 'out-of-date') && (
+          {built && (
             <a href={`/built-sites/${slug}/`} target="_blank" rel="noreferrer">
               Open site
             </a>

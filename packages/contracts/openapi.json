@@ -5102,7 +5102,7 @@
     "/api/sites/{slug}/build": {
       "post": {
         "summary": "Build a site",
-        "description": "Starts writing the site into Sites/<slug>/ in the background, from the frames its selection finds now, making again only the images whose inputs changed. Follow it with the status. A build already running is followed instead of started again.",
+        "description": "Starts writing the site into Sites/<slug>/ in the background, from the frames its selection finds now, making again only the images whose inputs changed (or every image, with fresh=true). Follow it with the status. A build already running is followed instead of started again.",
         "parameters": [
           {
             "schema": {
@@ -5114,6 +5114,19 @@
             "required": true,
             "name": "slug",
             "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ],
+              "description": "Build it afresh (FF-191): make every image and page again, even when the site is up to date."
+            },
+            "required": false,
+            "description": "Build it afresh (FF-191): make every image and page again, even when the site is up to date.",
+            "name": "fresh",
+            "in": "query"
           }
         ],
         "responses": {
@@ -5138,7 +5151,7 @@
             }
           },
           "422": {
-            "description": "Sites/<slug> holds something that is not a built site, and is left alone.",
+            "description": "Sites/<slug> holds something that is not a built site, and is left alone; or fresh is not true.",
             "content": {
               "application/json": {
                 "schema": {

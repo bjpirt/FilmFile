@@ -188,6 +188,29 @@ describe('BuildSite', () => {
     expect(archive.folders.sites.get(slug)).toBe(before);
   });
 
+  test('built afresh, makes every image again even when up to date, and keeps none from before (FF-191)', async () => {
+    const archive = anArchive();
+    const one = await archive.addFrame(1);
+    const two = await archive.addFrame(2);
+    await archive.build([one, two]);
+
+    const fresh = await archive.build([one], { fresh: true });
+
+    expect(fresh).toEqual({
+      ok: true,
+      value: { photos: 1, leftOut: 0, imagesMade: 4, imagesUnchanged: 0 },
+    });
+    const again = await archive.build([one], { fresh: true });
+    expect(again).toMatchObject({
+      value: { imagesMade: 4, imagesUnchanged: 0 },
+    });
+    const files = [...(archive.folders.sites.get(slug)?.files.keys() ?? [])];
+    expect(files.filter((p) => p.startsWith('images/'))).toHaveLength(4);
+    expect(await archive.build([one])).toMatchObject({
+      value: { imagesMade: 0, imagesUnchanged: 4 },
+    });
+  });
+
   test('makes only the images of a frame added since', async () => {
     const archive = anArchive();
     const one = await archive.addFrame(1);

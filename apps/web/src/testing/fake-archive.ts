@@ -265,6 +265,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   /** The slug of every site a build was started for, and every build cancelled. */
   const siteBuilds: string[] = [];
   const siteBuildsCancelled: string[] = [];
+  /** Builds asked to start afresh (`?fresh=true`, FF-191). */
+  const siteRebuilds: string[] = [];
   const siteFreshness = new Map<string, { freshness: string; message: string }>(
     Object.entries(contents.siteStatuses ?? {}),
   );
@@ -1004,6 +1006,9 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         return new Response(null, { status: 204 });
       }
       siteBuilds.push(slug);
+      if (new URL(request.url).searchParams.get('fresh') === 'true') {
+        siteRebuilds.push(slug);
+      }
       siteBuildCalls = 0;
       building = slug;
       return Response.json(
@@ -1364,6 +1369,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     },
     siteBuilds,
     siteBuildsCancelled,
+    siteRebuilds,
     /** Changes how a site stands, as an edit elsewhere would. */
     setSiteStatus(
       slug: string,

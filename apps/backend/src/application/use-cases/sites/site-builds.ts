@@ -78,10 +78,14 @@ export class SiteBuilds {
       .map(({ rollId, frameId }) => ({ rollId, frameId }));
   }
 
-  /** Starts building the site, or gives the build already running. Refused if `Sites/<slug>` holds something else. */
+  /**
+   * Starts building the site (afresh, making every image again, when asked:
+   * FF-191), or gives the build already running. Refused if `Sites/<slug>`
+   * holds something else.
+   */
   async start(
     ctx: ArchiveContext,
-    input: { readonly slug: Slug },
+    input: { readonly slug: Slug; readonly fresh?: boolean },
   ): Promise<Result<SiteBuildProgress, NotFound | ValidationFailed>> {
     const found = await this.#sites.get(ctx, input.slug);
     if (found === undefined) {
@@ -123,7 +127,7 @@ export class SiteBuilds {
       controller: new AbortController(),
     };
     this.#jobs.set(site.slug, job);
-    void this.#run(ctx, site, frames, options, job);
+    void this.#run(ctx, site, frames, options, input.fresh === true, job);
     return ok(job.progress);
   }
 
@@ -132,6 +136,7 @@ export class SiteBuilds {
     site: Site,
     frames: readonly { readonly rollId: RollId; readonly frameId: FrameId }[],
     options: SiteOptions,
+    fresh: boolean,
     job: Job,
   ): Promise<void> {
     const update = (change: Partial<SiteBuildProgress>) => {
@@ -142,6 +147,7 @@ export class SiteBuilds {
         slug: site.slug,
         frames,
         options,
+        fresh,
         signal: job.controller.signal,
         onProgress: (done, total) => {
           update({ done, total });

@@ -58,9 +58,9 @@ async function aSite(name = 'Iceland highlights'): Promise<string> {
   );
 }
 
-/** Starts a build and waits for it to finish. */
-async function build(slug: string) {
-  const started = await post(`/api/sites/${slug}/build`, {});
+/** Starts a build (afresh if asked) and waits for it to finish. */
+async function build(slug: string, query = '') {
+  const started = await post(`/api/sites/${slug}/build${query}`, {});
   expect(started.status).toBe(202);
   for (let tries = 0; tries < 200; tries += 1) {
     const status = siteStatus.parse(
@@ -259,6 +259,29 @@ describe('POST /api/sites/{slug}/build', () => {
         'utf8',
       ),
     ).toContain('<p class="caption">12 Sep 2026</p>');
+  });
+
+  test('with fresh=true, makes every image again even when the site is up to date (FF-191)', async () => {
+    await aFrameWithAScan('1');
+    const slug = await aSite();
+    await build(slug);
+
+    const status = await build(slug, '?fresh=true');
+
+    expect(status.build).toMatchObject({
+      state: 'done',
+      imagesMade: 4,
+      imagesUnchanged: 0,
+    });
+    expect(status.freshness).toBe('up-to-date');
+  });
+
+  test('refuses fresh as anything but true', async () => {
+    const slug = await aSite();
+
+    expect((await post(`/api/sites/${slug}/build?fresh=yes`, {})).status).toBe(
+      422,
+    );
   });
 
   test('says there is no such site', async () => {

@@ -243,3 +243,71 @@ test('"Build site" waits while a change is being saved, so a build never uses ol
     expect(buildButton).toHaveProperty('disabled', false);
   });
 });
+
+test('"Rebuild from scratch" is offered once the site is built, and builds it afresh (FF-191)', async () => {
+  const archive = archiveWith({
+    siteStatuses: {
+      iceland: { freshness: 'up-to-date', message: 'Up to date' },
+    },
+  });
+  renderPage(archive);
+
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Rebuild from scratch' }),
+  );
+
+  await waitFor(() => {
+    expect(archive.siteRebuilds).toEqual(['iceland']);
+  });
+  expect(archive.siteBuilds).toEqual(['iceland']);
+});
+
+test('"Rebuild from scratch" is not offered before the site is built, and waits while a change is saved', async () => {
+  renderPage(archiveWith());
+  await screen.findByText('Not built yet');
+  expect(
+    screen.queryByRole('button', { name: 'Rebuild from scratch' }),
+  ).toBeNull();
+  cleanup();
+
+  const archive = archiveWith({
+    siteStatuses: {
+      iceland: { freshness: 'out-of-date', message: 'Out of date: 1 removed' },
+    },
+  });
+  renderPage(archive);
+  const rebuild = await screen.findByRole('button', {
+    name: 'Rebuild from scratch',
+  });
+  const release = archive.holdSiteUpdates();
+  fireEvent.click(screen.getByLabelText('Camera'));
+  await waitFor(() => {
+    expect(rebuild).toHaveProperty('disabled', true);
+  });
+  release();
+  await waitFor(() => {
+    expect(rebuild).toHaveProperty('disabled', false);
+  });
+});
+
+test('rebuilding an empty site asks first, then rebuilds it afresh', async () => {
+  const archive = archiveWith({
+    rolls: [aRoll('2026-001')],
+    siteStatuses: {
+      iceland: { freshness: 'up-to-date', message: 'Up to date' },
+    },
+  });
+  renderPage(archive);
+  await screen.findByText('No frames match');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Rebuild from scratch' }));
+  expect(
+    screen.getByText('This site has no frames. Build it anyway?'),
+  ).toBeTruthy();
+  expect(archive.siteBuilds).toEqual([]);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Rebuild from scratch' }));
+  await waitFor(() => {
+    expect(archive.siteRebuilds).toEqual(['iceland']);
+  });
+});

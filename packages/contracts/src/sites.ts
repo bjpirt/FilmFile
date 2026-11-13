@@ -64,6 +64,13 @@ export const updateSiteRequest = z
       'The details to change. A detail left out stays as it is; a selection or presentation replaces the whole one.',
   });
 
+export const siteBuildQuery = z.strictObject({
+  fresh: z.literal('true').optional().meta({
+    description:
+      'Build it afresh (FF-191): make every image and page again, even when the site is up to date.',
+  }),
+});
+
 export const siteBuildProgress = z
   .object({
     state: z.enum(['running', 'done', 'cancelled', 'failed']),

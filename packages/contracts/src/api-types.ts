@@ -2416,11 +2416,14 @@ export interface paths {
         put?: never;
         /**
          * Build a site
-         * @description Starts writing the site into Sites/<slug>/ in the background, from the frames its selection finds now, making again only the images whose inputs changed. Follow it with the status. A build already running is followed instead of started again.
+         * @description Starts writing the site into Sites/<slug>/ in the background, from the frames its selection finds now, making again only the images whose inputs changed (or every image, with fresh=true). Follow it with the status. A build already running is followed instead of started again.
          */
         post: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Build it afresh (FF-191): make every image and page again, even when the site is up to date. */
+                    fresh?: "true";
+                };
                 header?: never;
                 path: {
                     slug: string;
@@ -2447,7 +2450,7 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description Sites/<slug> holds something that is not a built site, and is left alone. */
+                /** @description Sites/<slug> holds something that is not a built site, and is left alone; or fresh is not true. */
                 422: {
                     headers: {
                         [name: string]: unknown;

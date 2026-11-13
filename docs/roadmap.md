@@ -222,11 +222,11 @@ Getting frames out as files, simplest first, all through one Export dialog (D97)
 A site is a saved description of which frames to share (a selection of frames, shared with exports, D93) and how to present them, built whenever you like into a self-contained static website in `Sites/<site>/`, always from the archive as it is, and made again only where something changed (D91, D92). It comes after exports (group 12), whose image rendering it shares. Putting a built site on the web is a separate step.
 
 - [ ] [FF-190 A frame's page in a site: the filmstrip above, and its details](tasks/FF-190.md): the filmstrip above the photo, a title and date line, and "Details" to open the rest.
-- [ ] [FF-191 Rebuild a site from scratch](tasks/FF-191.md): "Rebuild from scratch" builds the site again with every image made anew.
 - [ ] [FF-186 The site's design as a template](tasks/FF-186.md): the built-in site design moved into Liquid template files, given a documented set of data.
 - [ ] [later] [FF-121 Publish a site](tasks/FF-121.md): upload a built site to S3 or Cloudflare R2, and take it down again.
 - [ ] [later] [FF-162 Make a site or export from the Browse filters](tasks/FF-162.md): start one from the rolls page's filters.
 - [ ] [later] [FF-187 Use your own site template](tasks/FF-187.md): build a site with a template of your own, chosen on its page.
+- [x] [FF-191 Rebuild a site from scratch](tasks/FF-191.md)
 - [x] [FF-189 An event's page in a site: a big title and a grid that fills each row](tasks/FF-189.md)
 - [x] [FF-188 A site's home page: its events by year](tasks/FF-188.md)
 - [x] [FF-184 A frame's own page in a site, with thumbnails below](tasks/FF-184.md)
