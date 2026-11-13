@@ -119,7 +119,19 @@ function text(file: string | Uint8Array | undefined): string {
 function rollPage(
   files: ReadonlyMap<string, string | Uint8Array> | undefined,
 ): string {
-  const path = [...(files?.keys() ?? [])].find((p) => p.startsWith('rolls/'));
+  const path = [...(files?.keys() ?? [])].find((p) =>
+    /^rolls\/[^/]+\.html$/.test(p),
+  );
+  return path === undefined ? '' : text(files?.get(path));
+}
+
+/** The text of the built site's first frame page, under its one roll. */
+function framePage(
+  files: ReadonlyMap<string, string | Uint8Array> | undefined,
+): string {
+  const path = [...(files?.keys() ?? [])].find((p) =>
+    /^rolls\/[^/]+\/[^/]+\.html$/.test(p),
+  );
   return path === undefined ? '' : text(files?.get(path));
 }
 
@@ -133,7 +145,7 @@ describe('BuildSite', () => {
 
     expect(built).toEqual({
       ok: true,
-      value: { photos: 2, leftOut: 0, imagesMade: 6, imagesUnchanged: 0 },
+      value: { photos: 2, leftOut: 0, imagesMade: 8, imagesUnchanged: 0 },
     });
     const files = archive.folders.sites.get(slug)?.files;
     const paths = [...(files?.keys() ?? [])];
@@ -141,12 +153,20 @@ describe('BuildSite', () => {
       'index.html',
       'rolls.html',
       'events/_no-event.html',
+      expect.stringMatching(/^events\/_no-event\/1-[0-9A-Z]{8}\.html$/),
+      expect.stringMatching(/^events\/_no-event\/2-[0-9A-Z]{8}\.html$/),
       expect.stringMatching(/^rolls\/2026-014-[0-9A-Z]{8}\.html$/),
+      expect.stringMatching(
+        /^rolls\/2026-014-[0-9A-Z]{8}\/1-[0-9A-Z]{8}\.html$/,
+      ),
+      expect.stringMatching(
+        /^rolls\/2026-014-[0-9A-Z]{8}\/2-[0-9A-Z]{8}\.html$/,
+      ),
       'assets/site.css',
       'assets/site.js',
       'site.json',
     ]);
-    expect(paths.filter((p) => p.startsWith('images/'))).toHaveLength(6);
+    expect(paths.filter((p) => p.startsWith('images/'))).toHaveLength(8);
     expect(rollPage(files)).toContain('Roll 2026-014, frame 2');
   });
 
@@ -160,7 +180,7 @@ describe('BuildSite', () => {
 
     expect(again).toEqual({
       ok: true,
-      value: { photos: 1, leftOut: 0, imagesMade: 0, imagesUnchanged: 3 },
+      value: { photos: 1, leftOut: 0, imagesMade: 0, imagesUnchanged: 4 },
     });
     expect(archive.folders.sites.get(slug)).toBe(before);
   });
@@ -175,7 +195,7 @@ describe('BuildSite', () => {
 
     expect(built).toEqual({
       ok: true,
-      value: { photos: 2, leftOut: 0, imagesMade: 3, imagesUnchanged: 3 },
+      value: { photos: 2, leftOut: 0, imagesMade: 4, imagesUnchanged: 4 },
     });
   });
 
@@ -190,7 +210,7 @@ describe('BuildSite', () => {
     const images = [
       ...(archive.folders.sites.get(slug)?.files.keys() ?? []),
     ].filter((path) => path.startsWith('images/'));
-    expect(images).toHaveLength(3);
+    expect(images).toHaveLength(4);
   });
 
   test('leaves out hidden frames and frames that are gone, and says how many', async () => {
@@ -219,7 +239,7 @@ describe('BuildSite', () => {
     const images = [...(archive.folders.sites.get(slug)?.files ?? [])]
       .filter(([path]) => path.startsWith('images/'))
       .map(([, file]) => text(file));
-    expect(images).toHaveLength(3);
+    expect(images).toHaveLength(4);
     for (const image of images) {
       expect(image).toContain('saying {}');
     }
@@ -231,8 +251,8 @@ describe('BuildSite', () => {
 
     await archive.build([one]);
 
-    expect(rollPage(archive.folders.sites.get(slug)?.files)).toContain(
-      '<figcaption>Black beach</figcaption>',
+    expect(framePage(archive.folders.sites.get(slug)?.files)).toContain(
+      '<p class="caption">Black beach</p>',
     );
   });
 
@@ -280,7 +300,7 @@ describe('BuildSite', () => {
         told.push(`${String(done)} of ${String(total)}`),
     });
 
-    expect(told).toEqual(['1 of 3', '2 of 3', '3 of 3']);
+    expect(told).toEqual(['1 of 4', '2 of 4', '3 of 4', '4 of 4']);
   });
 
   test('builds an empty page for a site with no frames', async () => {

@@ -27,6 +27,7 @@ function aPhoto(name: string, roll: GroupLabel, event?: GroupLabel): SitePhoto {
     images: [],
     width: 3,
     height: 2,
+    file: name,
     rating: null,
     roll,
     ...(event === undefined ? {} : { event }),

@@ -32,7 +32,7 @@ export function sitePageShell(page: {
   /** A cards page names the site as its heading; another page has its own. */
   readonly nameIsHeading: boolean;
   readonly body: string;
-  /** Anything after the page, such as the lightbox and its script. */
+  /** Anything after the page, such as a frame page's script. */
   readonly after?: string;
 }): string {
   const tag = page.nameIsHeading ? 'h1' : 'p';

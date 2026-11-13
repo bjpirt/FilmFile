@@ -22,6 +22,7 @@ const manifest: SiteManifest = {
       images: [{ src: 'images/a.jpg', width: 480, madeFrom: 'abc' }],
       width: 480,
       height: 320,
+      file: '1-AAAAAAAA',
       rating: 4,
       roll: { key: 'r', heading: '2026-014', file: '2026-014-AAAAAAAA' },
       event: {

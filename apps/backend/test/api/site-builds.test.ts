@@ -79,8 +79,16 @@ const siteFolder = (slug: string) => path.join(archive.folder(), 'Sites', slug);
 /** The text of a built site's one roll page. */
 async function rollPage(slug: string): Promise<string> {
   const folder = path.join(siteFolder(slug), 'rolls');
-  const [file] = await readdir(folder);
+  const file = (await readdir(folder)).find((name) => name.endsWith('.html'));
   return file === undefined ? '' : readFile(path.join(folder, file), 'utf8');
+}
+
+/** The path of a built site's first frame page, under its one roll. */
+async function aFramePage(slug: string): Promise<string> {
+  const folder = path.join(siteFolder(slug), 'rolls');
+  const roll = (await readdir(folder)).find((name) => !name.endsWith('.html'));
+  const [frame] = await readdir(path.join(folder, roll ?? ''));
+  return `rolls/${roll ?? ''}/${frame ?? ''}`;
 }
 
 describe('POST /api/sites/{slug}/build', () => {
@@ -113,7 +121,7 @@ describe('POST /api/sites/{slug}/build', () => {
     expect(status.build).toMatchObject({
       state: 'done',
       photos: 2,
-      imagesMade: 6,
+      imagesMade: 8,
       imagesUnchanged: 0,
     });
     expect((await readdir(siteFolder(slug))).sort()).toEqual([
@@ -126,7 +134,7 @@ describe('POST /api/sites/{slug}/build', () => {
       'site.json',
     ]);
     expect(await readdir(path.join(siteFolder(slug), 'images'))).toHaveLength(
-      6,
+      8,
     );
     const page = await readFile(
       path.join(siteFolder(slug), 'index.html'),
@@ -150,7 +158,7 @@ describe('POST /api/sites/{slug}/build', () => {
       widths.push(meta.width);
       expect(meta.exif).toBeDefined();
     }
-    expect(widths.sort((a, b) => a - b)).toEqual([480, 960, 1600]);
+    expect(widths.sort((a, b) => a - b)).toEqual([240, 480, 960, 1600]);
   });
 
   test('says the site is up to date, and building again changes nothing', async () => {
@@ -166,7 +174,7 @@ describe('POST /api/sites/{slug}/build', () => {
 
     expect(again.freshness).toBe('up-to-date');
     expect(again.message).toBe('Up to date');
-    expect(again.build).toMatchObject({ imagesMade: 0, imagesUnchanged: 3 });
+    expect(again.build).toMatchObject({ imagesMade: 0, imagesUnchanged: 4 });
     expect(
       await readFile(path.join(siteFolder(slug), 'site.json'), 'utf8'),
     ).toBe(before);
@@ -246,9 +254,13 @@ describe('POST /api/sites/{slug}/build', () => {
     expect(page).toContain('<h2>2026-014</h2>');
     expect(page).not.toContain('class="views"');
     expect(await readdir(siteFolder(slug))).not.toContain('events');
-    expect(await rollPage(slug)).toContain(
-      '<figcaption>12 Sep 2026</figcaption>',
-    );
+    expect(await rollPage(slug)).not.toContain('<figcaption>');
+    expect(
+      await readFile(
+        path.join(siteFolder(slug), await aFramePage(slug)),
+        'utf8',
+      ),
+    ).toContain('<p class="caption">12 Sep 2026</p>');
   });
 
   test('says there is no such site', async () => {
@@ -327,11 +339,14 @@ describe('GET /built-sites/{slug}/', () => {
     expect(page.headers.get('Content-Security-Policy')).toContain(
       "default-src 'self'",
     );
-    const rollFile = (await readdir(path.join(siteFolder(slug), 'rolls')))[0];
+    const rollFile = (await readdir(path.join(siteFolder(slug), 'rolls'))).find(
+      (name) => name.endsWith('.html'),
+    );
 
     for (const [file, type] of [
       ['rolls.html', 'text/html; charset=utf-8'],
       [`rolls/${rollFile ?? ''}`, 'text/html; charset=utf-8'],
+      [await aFramePage(slug), 'text/html; charset=utf-8'],
       ['events/_no-event.html', 'text/html; charset=utf-8'],
       ['assets/site.css', 'text/css; charset=utf-8'],
       ['assets/site.js', 'text/javascript; charset=utf-8'],
@@ -367,6 +382,8 @@ describe('GET /built-sites/{slug}/', () => {
       'images/',
       'rolls/nothing.html',
       'rolls/../site.json',
+      'rolls/a/b/c.html',
+      'rolls/a/../../site.json',
       'events/secret.txt',
       'rolls.json',
     ]) {

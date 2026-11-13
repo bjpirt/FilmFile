@@ -221,11 +221,11 @@ Getting frames out as files, simplest first, all through one Export dialog (D97)
 
 A site is a saved description of which frames to share (a selection of frames, shared with exports, D93) and how to present them, built whenever you like into a self-contained static website in `Sites/<site>/`, always from the archive as it is, and made again only where something changed (D91, D92). It comes after exports (group 12), whose image rendering it shares. Putting a built site on the web is a separate step.
 
-- [ ] [FF-184 A frame's own page in a site, with thumbnails below](tasks/FF-184.md): a frame's page in a site with a filmstrip and its caption, like the app's frame view, replacing the lightbox.
 - [ ] [FF-186 The site's design as a template](tasks/FF-186.md): the built-in site design moved into Liquid template files, given a documented set of data.
 - [ ] [later] [FF-121 Publish a site](tasks/FF-121.md): upload a built site to S3 or Cloudflare R2, and take it down again.
 - [ ] [later] [FF-162 Make a site or export from the Browse filters](tasks/FF-162.md): start one from the rolls page's filters.
 - [ ] [later] [FF-187 Use your own site template](tasks/FF-187.md): build a site with a template of your own, chosen on its page.
+- [x] [FF-184 A frame's own page in a site, with thumbnails below](tasks/FF-184.md)
 - [x] [FF-183 Browse a site by roll, event or both, as cards](tasks/FF-183.md)
 - [x] [FF-182 Preview a site's frames grouped by roll or event](tasks/FF-182.md)
 - [x] [FF-181 Exclude a frame from a site with an ×](tasks/FF-181.md)

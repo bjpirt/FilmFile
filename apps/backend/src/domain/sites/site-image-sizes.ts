@@ -1,10 +1,11 @@
 import type { QuarterTurn } from '../rolls/quarter-turn.ts';
 
 /**
- * The longest edges, in pixels, a site's photos are made at: a small one for
- * phones, a middle one, and the one the lightbox opens.
+ * The longest edges, in pixels, a site's photos are made at: a thumbnail for
+ * the filmstrip and cards (FF-184), a small one for phones, a middle one, and
+ * the one a frame's page shows large.
  */
-export const siteLongestEdges: readonly number[] = [480, 960, 1600];
+export const siteLongestEdges: readonly number[] = [240, 480, 960, 1600];
 
 /**
  * Bumped whenever the way site images are made changes, so images made the

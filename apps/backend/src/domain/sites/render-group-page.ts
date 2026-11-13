@@ -1,7 +1,7 @@
 import { escapeHtml } from './escape-html.ts';
 import { shapeClass } from './photo-shape.ts';
 import type { SiteGroup } from './site-groups.ts';
-import { captionOrder, type SiteOptions } from './site-options.ts';
+import type { SiteOptions } from './site-options.ts';
 import { sitePageShell, type SiteView } from './site-page-shell.ts';
 import type { SitePhoto } from './site-photo.ts';
 
@@ -14,15 +14,7 @@ const root = '../';
 const photosCount = (count: number) =>
   count === 1 ? '1 photo' : `${String(count)} photos`;
 
-function captionOf(photo: SitePhoto, options: SiteOptions): string {
-  return captionOrder
-    .filter((field) => options.captions.includes(field))
-    .map((field) => photo.details[field])
-    .filter((text): text is string => text !== undefined && text !== '')
-    .join(' · ');
-}
-
-function photoHtml(photo: SitePhoto, options: SiteOptions): string {
+function photoHtml(group: SiteGroup, photo: SitePhoto): string {
   const widest = photo.images.at(-1);
   if (widest === undefined) {
     return '';
@@ -31,29 +23,13 @@ function photoHtml(photo: SitePhoto, options: SiteOptions): string {
   const srcset = photo.images
     .map((image) => `${src(image.src)} ${String(image.width)}w`)
     .join(', ');
-  const caption = captionOf(photo, options);
-  const figcaption =
-    caption === '' ? '' : `<figcaption>${escapeHtml(caption)}</figcaption>`;
-  return `<figure class="photo ${shapeClass(photo)}"><a href="${src(widest.src)}"><img src="${src(photo.images[0]?.src ?? widest.src)}" srcset="${srcset}" sizes="${sizes}" width="${String(photo.width)}" height="${String(photo.height)}" alt="${escapeHtml(photo.alt)}" loading="lazy"></a>${figcaption}</figure>`;
+  const page = escapeHtml(`${group.label.file}/${photo.file}.html`);
+  return `<figure class="photo ${shapeClass(photo)}"><a href="${page}"><img src="${src(photo.images[0]?.src ?? widest.src)}" srcset="${srcset}" sizes="${sizes}" width="${String(photo.width)}" height="${String(photo.height)}" alt="${escapeHtml(photo.alt)}" loading="lazy"></a></figure>`;
 }
-
-const lightbox = `<dialog id="lightbox" aria-label="Photo">
-<div class="lightbox">
-<img alt="">
-<div class="lightbox-bar">
-<button type="button" data-previous aria-label="Previous photo">←</button>
-<button type="button" data-next aria-label="Next photo">→</button>
-<p class="lightbox-caption"></p>
-<button type="button" data-close aria-label="Close">✕</button>
-</div>
-</div>
-</dialog>
-<script src="${root}assets/site.js"></script>
-`;
 
 /**
  * A roll's or event's own page: a way back to its cards, its heading, its
- * date and count, then its photos as a grid that opens each in the lightbox.
+ * date and count, then its photos as a grid, each opening its own page (D105).
  */
 export function renderGroupPage(
   group: SiteGroup,
@@ -70,7 +46,7 @@ export function renderGroupPage(
     .map((part) => escapeHtml(part))
     .join(' · ');
   const photos = group.photos
-    .map((photo) => photoHtml(photo, options))
+    .map((photo) => photoHtml(group, photo))
     .join('\n');
   return sitePageShell({
     title: `${group.label.heading} · ${options.title}`,
@@ -85,6 +61,5 @@ export function renderGroupPage(
 <div class="grid">
 ${photos}
 </div>`,
-    after: lightbox,
   });
 }

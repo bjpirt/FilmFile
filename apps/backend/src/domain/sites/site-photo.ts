@@ -35,11 +35,13 @@ export interface SitePhoto {
   readonly frame: FrameId;
   /** What a screen reader says for it, such as "Roll 2026-004, frame 12". */
   readonly alt: string;
-  /** Its sizes, narrowest first; the widest is the one the lightbox opens. */
+  /** Its sizes, narrowest first; the widest is the one its frame page shows. */
   readonly images: readonly SiteImage[];
   /** The widest image's shape, so the page keeps its place as images load. */
   readonly width: number;
   readonly height: number;
+  /** The name of its own page on a site, without `.html` (D105). */
+  readonly file: string;
   /** Its stars, to pick a card's best photos (FF-183). */
   readonly rating: number | null;
   readonly roll: GroupLabel;

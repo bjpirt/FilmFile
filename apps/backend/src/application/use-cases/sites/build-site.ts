@@ -17,6 +17,7 @@ import {
   planSiteBuild,
   type SiteStatus,
 } from '../../../domain/sites/plan-site-build.ts';
+import { framePageName } from '../../../domain/sites/frame-page-name.ts';
 import { renderSite } from '../../../domain/sites/render-site.ts';
 import {
   siteImageInputsText,
@@ -294,6 +295,7 @@ export class BuildSite {
         images,
         width: widest.width,
         height: widest.height,
+        file: framePageName(frame.number, frame.id),
         rating: frame.rating,
         roll: rollGroupLabel(roll),
         ...(eventLabel === undefined ? {} : { event: eventLabel }),

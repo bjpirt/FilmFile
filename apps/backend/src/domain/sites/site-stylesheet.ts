@@ -196,64 +196,117 @@ h1 {
   color: var(--text-muted);
 }
 
-/* The lightbox */
-
-dialog {
-  background: var(--bg);
-  border: 0;
-  color: var(--text);
-  height: 100%;
-  max-height: none;
-  max-width: none;
-  padding: 0;
-  width: 100%;
-}
-
-dialog::backdrop {
-  background: var(--bg);
-}
-
-.lightbox {
-  display: grid;
-  grid-template-rows: 1fr auto;
-  height: 100%;
-}
-
-.lightbox img {
-  height: 100%;
-  min-height: 0;
-  object-fit: contain;
-  padding: var(--space-4);
-  box-sizing: border-box;
-  width: 100%;
-}
-
-.lightbox-bar {
-  align-items: center;
+/* A frame's page (D105): the photo as large as the screen allows, between
+   Previous and Next, its caption, and the filmstrip below. */
+.frame-bar {
+  align-items: baseline;
   display: flex;
   gap: var(--space-4);
-  padding: var(--space-3) var(--space-4);
+  justify-content: space-between;
 }
 
-.lightbox-caption {
-  color: var(--text-muted);
-  flex: 1;
+.frame-bar .back {
   margin: 0;
 }
 
-.lightbox button {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  color: var(--text);
-  cursor: pointer;
-  font: inherit;
-  min-height: 2.5rem;
-  min-width: 2.5rem;
-  padding: 0 var(--space-3);
+.place {
+  color: var(--text-muted);
+  margin: 0;
 }
 
-.lightbox button:hover {
-  border-color: var(--accent);
+.frame-stage {
+  align-items: center;
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  margin: var(--space-4) 0 var(--space-3);
+  position: relative;
+}
+
+.frame-stage img {
+  border-radius: var(--radius);
+  display: block;
+  height: auto;
+  /* Room for the header, the bar, the caption and the filmstrip. */
+  max-height: calc(100vh - 19rem);
+  max-width: 100%;
+  min-width: 0;
+  object-fit: contain;
+  width: auto;
+}
+
+.step {
+  color: var(--text-muted);
+  font-size: 2.5rem;
+  line-height: 1;
+  padding: var(--space-3);
+  text-decoration: none;
+}
+
+.step:hover {
+  color: var(--accent);
+}
+
+.caption {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 0 0 var(--space-4);
+  text-align: center;
+}
+
+.filmstrip {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 4px 2px;
+  position: relative;
+}
+
+.filmstrip a {
+  flex: none;
+  opacity: 0.6;
+}
+
+.filmstrip a:hover,
+.filmstrip a[aria-current='page'] {
+  opacity: 1;
+}
+
+.filmstrip a[aria-current='page'] img {
+  outline: 2px solid var(--accent);
+}
+
+.filmstrip img {
+  background: var(--placeholder);
+  border-radius: 3px;
+  display: block;
+  height: 4rem;
+  width: auto;
+}
+
+/* On a phone the photo takes the whole width, with small arrows over its edges. */
+@media (max-width: 40rem) {
+  .frame-stage img {
+    max-height: none;
+    width: 100%;
+  }
+
+  .step {
+    background: rgb(0 0 0 / 45%);
+    border-radius: var(--radius);
+    font-size: 1.75rem;
+    padding: var(--space-2) var(--space-3);
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .step.previous {
+    left: var(--space-2);
+  }
+
+  .step.next {
+    right: var(--space-2);
+  }
 }
 `;

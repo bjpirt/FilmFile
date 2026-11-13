@@ -2,7 +2,7 @@ import { fixtureSets } from '../../apps/backend/test/support/lab-scans.ts';
 import { expect, test } from './support/isolated-test.ts';
 import { createRoll } from './support/journeys.ts';
 
-test('build a site: make one of two rolls’ frames, build it, open it in the browser, find the cards and a roll’s photos, then change it and build again (D92)', async ({
+test('build a site: make one of two rolls’ frames, build it, open it in the browser, find the cards, a roll’s photos and a frame’s page, then change it and build again (D92)', async ({
   page,
 }) => {
   await createRoll(page, '2026-053', { scans: fixtureSets.headToTail });
@@ -46,11 +46,21 @@ test('build a site: make one of two rolls’ frames, build it, open it in the br
     site.getByRole('heading', { name: '2026-053', level: 1 }),
   ).toBeVisible();
   await expect(site.locator('.photo img')).toHaveCount(6);
-  // The lightbox opens a photo, and Esc closes it.
+  // A photo opens its own page with the filmstrip; → steps, Esc goes back (D105).
   await site.locator('.photo a').first().click();
-  await expect(site.getByRole('dialog')).toBeVisible();
+  await expect(site.getByText('1 of 6')).toBeVisible();
+  await expect(
+    site.getByRole('navigation', { name: 'Filmstrip' }).getByRole('link'),
+  ).toHaveCount(6);
+  await expect(site.getByRole('link', { name: 'Previous frame' })).toHaveCount(
+    0,
+  );
+  await site.keyboard.press('ArrowRight');
+  await expect(site.getByText('2 of 6')).toBeVisible();
   await site.keyboard.press('Escape');
-  await expect(site.getByRole('dialog')).toHaveCount(0);
+  await expect(
+    site.getByRole('heading', { name: '2026-053', level: 1 }),
+  ).toBeVisible();
   await site.getByRole('link', { name: '← All rolls' }).click();
   await expect(site.getByRole('heading', { name: '2026-054' })).toBeVisible();
   await site.close();

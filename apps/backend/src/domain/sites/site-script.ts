@@ -1,55 +1,41 @@
 /**
- * The lightbox: a few lines of plain JavaScript, no dependencies. Without it
- * each photo is still a link to its large image.
+ * A frame's page (D105): a few lines of plain JavaScript, no dependencies.
+ * Every link works without it; it adds the arrow keys and Esc, swiping on a
+ * phone, and scrolls the filmstrip to the frame shown.
  */
 export const siteScript = `(function () {
-  var links = Array.prototype.slice.call(document.querySelectorAll('.photo a'));
-  var box = document.getElementById('lightbox');
-  var image = box.querySelector('img');
-  var caption = box.querySelector('.lightbox-caption');
-  var current = 0;
-
-  function show(index) {
-    current = (index + links.length) % links.length;
-    var link = links[current];
-    var thumb = link.querySelector('img');
-    image.src = link.href;
-    image.alt = thumb.alt;
-    var text = link.parentNode.querySelector('figcaption');
-    caption.textContent = text ? text.textContent : '';
+  function follow(selector) {
+    var link = document.querySelector(selector);
+    if (link) window.location.href = link.href;
   }
 
-  links.forEach(function (link, index) {
-    link.addEventListener('click', function (event) {
-      event.preventDefault();
-      show(index);
-      box.showModal();
-    });
+  document.addEventListener('keydown', function (event) {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (event.key === 'ArrowLeft') follow('.step.previous');
+    if (event.key === 'ArrowRight') follow('.step.next');
+    if (event.key === 'Escape') follow('.frame-bar .back');
   });
 
-  box.querySelector('[data-previous]').addEventListener('click', function () {
-    show(current - 1);
-  });
-  box.querySelector('[data-next]').addEventListener('click', function () {
-    show(current + 1);
-  });
-  box.querySelector('[data-close]').addEventListener('click', function () {
-    box.close();
-  });
-  box.addEventListener('keydown', function (event) {
-    if (event.key === 'ArrowLeft') show(current - 1);
-    if (event.key === 'ArrowRight') show(current + 1);
-  });
-
+  var stage = document.querySelector('.frame-stage');
   var startX = null;
-  box.addEventListener('touchstart', function (event) {
-    startX = event.touches[0].clientX;
-  });
-  box.addEventListener('touchend', function (event) {
-    if (startX === null) return;
-    var moved = event.changedTouches[0].clientX - startX;
-    startX = null;
-    if (Math.abs(moved) > 50) show(current + (moved < 0 ? 1 : -1));
-  });
+  if (stage) {
+    stage.addEventListener('touchstart', function (event) {
+      startX = event.touches[0].clientX;
+    });
+    stage.addEventListener('touchend', function (event) {
+      if (startX === null) return;
+      var moved = event.changedTouches[0].clientX - startX;
+      startX = null;
+      if (Math.abs(moved) > 50) follow(moved < 0 ? '.step.next' : '.step.previous');
+    });
+  }
+
+  // Sideways only, so opening a frame never scrolls the page down to the strip.
+  var strip = document.querySelector('.filmstrip');
+  var current = strip && strip.querySelector('[aria-current="page"]');
+  if (current) {
+    strip.scrollLeft =
+      current.offsetLeft - strip.clientWidth / 2 + current.clientWidth / 2;
+  }
 })();
 `;

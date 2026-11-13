@@ -46,6 +46,7 @@ function aPhoto(name: string, extra: Partial<SitePhoto> = {}): SitePhoto {
     ],
     width: 1600,
     height: 1067,
+    file: `${name}-F${name}`,
     rating: null,
     roll: westfjords,
     details: { shot: '12 Sep 2026' },
@@ -81,9 +82,13 @@ describe('the files', () => {
       'index.html',
       'rolls.html',
       'events/iceland.html',
+      'events/iceland/1-F1.html',
       'events/_no-event.html',
+      'events/_no-event/2-F2.html',
       'rolls/2026-005-BBBBBBBB.html',
+      'rolls/2026-005-BBBBBBBB/2-F2.html',
       'rolls/2026-004-AAAAAAAA.html',
+      'rolls/2026-004-AAAAAAAA/1-F1.html',
       'assets/site.css',
       'assets/site.js',
     ]);
@@ -97,6 +102,7 @@ describe('the files', () => {
     ).toEqual([
       'index.html',
       'rolls/2026-004-AAAAAAAA.html',
+      'rolls/2026-004-AAAAAAAA/1-F1.html',
       'assets/site.css',
       'assets/site.js',
     ]);
@@ -110,6 +116,7 @@ describe('the files', () => {
     ).toEqual([
       'index.html',
       'events/iceland.html',
+      'events/iceland/1-F1.html',
       'assets/site.css',
       'assets/site.js',
     ]);
@@ -265,33 +272,108 @@ describe('a roll’s or event’s page', () => {
     ).toContain('<a class="back" href="../index.html">← All rolls</a>');
   });
 
-  test('links each photo to its widest image and offers all sizes, from the folder above', () => {
-    const html = file([aPhoto('1')], 'rolls/2026-004-AAAAAAAA.html');
-    expect(html).toContain('<a href="../images/1-1600.jpg">');
+  test('links each photo to its frame page and offers all sizes, from the folder above, with no caption or lightbox', () => {
+    const html = file(
+      [aPhoto('1', { details: { title: 'Black beach' } })],
+      'rolls/2026-004-AAAAAAAA.html',
+    );
+    expect(html).toContain('<a href="2026-004-AAAAAAAA/1-F1.html">');
     expect(html).toContain(
       'srcset="../images/1-640.jpg 640w, ../images/1-1600.jpg 1600w"',
     );
     expect(html).toContain('alt="Frame 1"');
     expect(html).toContain('class="photo shape-14995"');
     expect(html).toContain('<link rel="stylesheet" href="../assets/site.css">');
-    expect(html).toContain('<script src="../assets/site.js"></script>');
+    expect(html).not.toContain('<figcaption>');
+    expect(html).not.toContain('<dialog');
+    expect(html).not.toContain('<script');
     expect(html).not.toContain('style=');
   });
+});
 
-  test('writes the captions chosen, in a fixed order, and none when nothing chosen is known', () => {
+describe('a frame’s page', () => {
+  const three = [aPhoto('1'), aPhoto('2'), aPhoto('3')];
+  const framePage = (
+    name: string,
+    photos: readonly SitePhoto[] = three,
+    over: Partial<SiteOptions> = {},
+  ) => file(photos, `rolls/2026-004-AAAAAAAA/${name}-F${name}.html`, over);
+
+  test('has the site’s header, a way back to its roll or event, and its place', () => {
+    const html = framePage('2');
+    expect(html).toContain('<title>Frame 2 · Iceland highlights</title>');
+    expect(html).toContain(
+      '<p class="site-name"><a href="../../index.html">Iceland highlights</a></p>',
+    );
+    expect(html).toContain(
+      '<a href="../../index.html">Events</a><a href="../../rolls.html" aria-current="page">Rolls</a>',
+    );
+    expect(html).toContain(
+      '<a class="back" href="../2026-004-AAAAAAAA.html">← 2026-004 Westfjords</a>',
+    );
+    expect(html).toContain('<p class="place">2 of 3</p>');
+  });
+
+  test('shows the photo large, from the site’s sizes', () => {
+    expect(framePage('2')).toContain(
+      '<img src="../../images/2-1600.jpg" srcset="../../images/2-640.jpg 640w, ../../images/2-1600.jpg 1600w" sizes="100vw" width="1600" height="1067" alt="Frame 2">',
+    );
+  });
+
+  test('steps to the previous and next frames, with neither past the ends', () => {
+    const middle = framePage('2');
+    expect(middle).toContain(
+      '<a class="step previous" href="1-F1.html" aria-label="Previous frame">‹</a>',
+    );
+    expect(middle).toContain(
+      '<a class="step next" href="3-F3.html" aria-label="Next frame">›</a>',
+    );
+    expect(framePage('1')).not.toContain('Previous frame');
+    expect(framePage('3')).not.toContain('Next frame');
+  });
+
+  test('has a filmstrip of the roll’s frames, each a link, the one shown marked', () => {
+    const html = framePage('2');
+    const strip =
+      /<nav class="filmstrip" aria-label="Filmstrip">(.*?)<\/nav>/s.exec(
+        html,
+      )?.[1] ?? '';
+    expect(strip.match(/<a /g)).toHaveLength(3);
+    expect(strip).toContain(
+      '<a href="2-F2.html" aria-label="Frame 2" aria-current="page"><img src="../../images/2-640.jpg" alt="" loading="lazy"></a>',
+    );
+    expect(strip).toContain('<a href="1-F1.html" aria-label="Frame 1">');
+  });
+
+  test('writes the captions chosen under the photo, in a fixed order, and none when nothing chosen is known', () => {
     const photo = aPhoto('1', {
       details: { title: 'Black beach', shot: 'Sep 2026', camera: 'Leica M6' },
     });
     expect(
-      file([photo], 'rolls/2026-004-AAAAAAAA.html', {
-        captions: ['camera', 'title'],
-      }),
-    ).toContain('<figcaption>Black beach · Leica M6</figcaption>');
+      framePage('1', [photo], { captions: ['camera', 'title'] }),
+    ).toContain('<p class="caption">Black beach · Leica M6</p>');
     expect(
-      file([aPhoto('2')], 'rolls/2026-004-AAAAAAAA.html', {
-        captions: ['title'],
+      framePage('1', [aPhoto('1', { details: {} })], {
+        captions: ['title', 'camera'],
       }),
-    ).not.toContain('<figcaption>');
+    ).not.toContain('class="caption"');
+  });
+
+  test('has the script that steps by key and swipe, from the folder two up', () => {
+    expect(framePage('2')).toContain(
+      '<script src="../../assets/site.js"></script>',
+    );
+  });
+
+  test('a frame in an event has a page there too, stepping through the event', () => {
+    const html = file(
+      [aPhoto('1', { event: iceland }), aPhoto('2')],
+      'events/iceland/1-F1.html',
+    );
+    expect(html).toContain(
+      '<a class="back" href="../iceland.html">← Iceland 2026</a>',
+    );
+    expect(html).toContain('<p class="place">1 of 1</p>');
   });
 });
 

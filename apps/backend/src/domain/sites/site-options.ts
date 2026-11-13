@@ -4,7 +4,7 @@ export type GroupBy = 'nothing' | 'roll' | 'event';
 /** How a built site is organised: cards of its events, its rolls, or both with a menu (D104). */
 export type OrganiseBy = 'events' | 'rolls' | 'both';
 
-/** What can appear under a photo, besides its place in the lightbox. */
+/** What can appear in a photo's caption, on its frame page (D105). */
 export type CaptionField = 'title' | 'shot' | 'camera' | 'lens' | 'film';
 
 /** The choices a site is built with. */
