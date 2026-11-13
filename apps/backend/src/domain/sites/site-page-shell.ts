@@ -1,5 +1,10 @@
 import { escapeHtml } from './escape-html.ts';
 
+/** The header's way home from a page other than the home page (D107). */
+export function allEventsLink(root: string): string {
+  return `<a class="all-events" href="${root}index.html">All events</a>`;
+}
+
 /**
  * Every page of a site: its title, the stylesheet, a header with the site's
  * name leading home, then the page's own content. `root` is the way up to the

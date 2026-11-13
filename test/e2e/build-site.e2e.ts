@@ -2,7 +2,7 @@ import { fixtureSets } from '../../apps/backend/test/support/lab-scans.ts';
 import { expect, test } from './support/isolated-test.ts';
 import { createRoll } from './support/journeys.ts';
 
-test('build a site: make one of two rolls’ frames, build it, open it in the browser, find an event under its year, its photos, a frame’s page and a roll from the foot, then change it and build again (D92, D107)', async ({
+test('build a site: make one of two rolls’ frames, build it, open it in the browser, find an event under its year, its photos and a frame’s page, and no rolls, then change it and build again (D92, D107)', async ({
   page,
 }) => {
   await createRoll(page, '2026-053', {
@@ -39,7 +39,7 @@ test('build a site: make one of two rolls’ frames, build it, open it in the br
     site.getByRole('heading', { name: '2026', exact: true }),
   ).toBeVisible();
   await expect(
-    site.getByRole('heading', { name: /^Other photos/ }),
+    site.getByRole('heading', { name: /^Other (\d{4} )?photos$/ }),
   ).toBeVisible();
 
   // An event's card opens its page of photos.
@@ -63,14 +63,14 @@ test('build a site: make one of two rolls’ frames, build it, open it in the br
   await expect(
     site.getByRole('heading', { name: 'Westfjords walk', level: 1 }),
   ).toBeVisible();
-  await site.getByRole('link', { name: '← All events' }).click();
-
-  // The rolls are listed at the foot, each leading to its page.
-  await site.getByRole('link', { name: '2026-054', exact: true }).click();
+  // At the foot, the one other card on the home page: the other roll's photos (D107).
   await expect(
-    site.getByRole('heading', { name: '2026-054', level: 1 }),
-  ).toBeVisible();
-  await expect(site.locator('.photo img')).toHaveCount(6);
+    site.getByRole('navigation', { name: 'Other events' }).getByRole('link'),
+  ).toHaveCount(1);
+  await site.getByRole('link', { name: 'All events', exact: true }).click();
+
+  // No roll is named anywhere on the site (D107).
+  await expect(site.getByText('2026-053')).toHaveCount(0);
   await site.close();
 
   // Exclude a frame: out of date; building again makes no new image.

@@ -141,52 +141,75 @@ a:hover {
   white-space: nowrap;
 }
 
-/* The rolls, kept small at the foot (D107). */
-.by-roll {
-  border-top: 1px solid var(--line);
+/* The header's way home from any other page. */
+.all-events {
   color: var(--text-muted);
-  font-size: 0.8125rem;
-  padding-top: var(--space-5);
+  font-size: 0.875rem;
 }
 
-.by-roll h2 {
-  color: var(--text);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  margin: 0 0 var(--space-3);
+/* An event's page: its name large, its date and count beside it. */
+.title-block {
+  align-items: end;
+  border-bottom: 1px solid var(--rule);
+  display: grid;
+  gap: var(--space-5) var(--space-6);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-5);
 }
 
-.by-roll ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-5);
-  line-height: 1.8;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-/* A roll's or event's page. */
 h1 {
   font-size: clamp(3rem, 9vw, 7rem);
   font-weight: 800;
   letter-spacing: -0.05em;
   line-height: 0.9;
-  margin: 0 0 var(--space-3);
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
+.group-meta {
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* A frame's way back to its event. */
 .back {
   color: var(--text-muted);
   display: inline-block;
   font-size: 0.875rem;
-  margin-bottom: var(--space-4);
 }
 
-.group-meta {
-  border-bottom: 1px solid var(--rule);
-  font-size: 0.875rem;
-  margin: 0 0 var(--space-6);
-  padding-bottom: var(--space-5);
+/* The newer and earlier events, at the foot of an event's page. */
+.neighbours {
+  border-top: 1px solid var(--rule);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-6);
+  justify-content: space-between;
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+}
+
+.neighbours a {
+  display: flex;
+  flex-direction: column;
+  font-size: 2rem;
+  font-weight: 800;
+  gap: var(--space-2);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.neighbours .earlier {
+  margin-left: auto;
+  text-align: right;
+}
+
+.neighbours span {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  letter-spacing: normal;
 }
 
 /* Rows that fill the width: each photo grows in proportion to its shape. */
@@ -337,6 +360,14 @@ h1 {
   .card a {
     gap: var(--space-2);
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .title-block {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .neighbours a {
+    font-size: 1.5rem;
   }
 
   .frame-stage img {

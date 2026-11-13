@@ -1,10 +1,10 @@
 import { escapeHtml } from './escape-html.ts';
 import type { SiteGroup } from './site-groups.ts';
 import { captionOrder, type SiteOptions } from './site-options.ts';
-import { sitePageShell } from './site-page-shell.ts';
+import { allEventsLink, sitePageShell } from './site-page-shell.ts';
 import type { SitePhoto } from './site-photo.ts';
 
-/** A frame's page is two folders down: `rolls/<roll>/<frame>.html`. */
+/** A frame's page is two folders down: `events/<event>/<frame>.html`. */
 const root = '../../';
 
 function captionOf(photo: SitePhoto, options: SiteOptions): string {
@@ -45,8 +45,8 @@ function filmstripHtml(group: SiteGroup, shown: SitePhoto): string {
 
 /**
  * A frame's own page, like the app's frame view (D105): a way back to its
- * roll or event and its place there, the photo large between Previous and
- * Next, its caption, and a filmstrip of the roll's or event's frames. Every
+ * event and its place there, the photo large between Previous and Next, its
+ * caption, and a filmstrip of the event's frames. Every
  * link works without the script, which adds keys and swiping.
  */
 export function renderFramePage(
@@ -68,6 +68,7 @@ export function renderFramePage(
     siteName: options.title,
     root,
     nameIsHeading: false,
+    aside: allEventsLink(root),
     body: `<div class="frame-bar"><a class="back" href="../${escapeHtml(group.label.file)}.html">← ${escapeHtml(group.label.heading)}</a><p class="place">${String(index + 1)} of ${String(group.photos.length)}</p></div>
 <div class="frame-stage">
 ${stepHtml(group.photos[index - 1], 'previous')}

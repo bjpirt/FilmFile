@@ -76,19 +76,19 @@ async function build(slug: string) {
 
 const siteFolder = (slug: string) => path.join(archive.folder(), 'Sites', slug);
 
-/** The text of a built site's one roll page. */
-async function rollPage(slug: string): Promise<string> {
-  const folder = path.join(siteFolder(slug), 'rolls');
+/** The text of a built site's first event page. */
+async function eventPage(slug: string): Promise<string> {
+  const folder = path.join(siteFolder(slug), 'events');
   const file = (await readdir(folder)).find((name) => name.endsWith('.html'));
   return file === undefined ? '' : readFile(path.join(folder, file), 'utf8');
 }
 
-/** The path of a built site's first frame page, under its one roll. */
+/** The path of a built site's first frame page, under its first event. */
 async function aFramePage(slug: string): Promise<string> {
-  const folder = path.join(siteFolder(slug), 'rolls');
-  const roll = (await readdir(folder)).find((name) => !name.endsWith('.html'));
-  const [frame] = await readdir(path.join(folder, roll ?? ''));
-  return `rolls/${roll ?? ''}/${frame ?? ''}`;
+  const folder = path.join(siteFolder(slug), 'events');
+  const event = (await readdir(folder)).find((name) => !name.endsWith('.html'));
+  const [frame] = await readdir(path.join(folder, event ?? ''));
+  return `events/${event ?? ''}/${frame ?? ''}`;
 }
 
 describe('POST /api/sites/{slug}/build', () => {
@@ -129,7 +129,6 @@ describe('POST /api/sites/{slug}/build', () => {
       'events',
       'images',
       'index.html',
-      'rolls',
       'site.json',
     ]);
     expect(await readdir(path.join(siteFolder(slug), 'images'))).toHaveLength(
@@ -140,7 +139,7 @@ describe('POST /api/sites/{slug}/build', () => {
       'utf8',
     );
     expect(page).toContain('>Iceland highlights</a></h1>');
-    expect(await rollPage(slug)).toContain('Roll 2026-014, frame 2');
+    expect(await eventPage(slug)).toContain('alt="Photo from 12 Sep 2026"');
   });
 
   test('makes images of the right size that say only who they are by', async () => {
@@ -226,7 +225,7 @@ describe('POST /api/sites/{slug}/build', () => {
     ).toContain('This site has no photos yet.');
   });
 
-  test('uses the site’s name as its title, is organised by event with its rolls at the foot, and uses its captions', async () => {
+  test('uses the site’s name as its title, is organised by event with no rolls, and uses its captions', async () => {
     await aFrameWithAScan('1');
     const slug = await aSite();
     const etag =
@@ -247,14 +246,13 @@ describe('POST /api/sites/{slug}/build', () => {
     );
     expect(page).toContain('<title>Iceland highlights</title>');
     expect(page).toContain('>Iceland highlights</a></h1>');
-    expect(page).toContain('<h3>Other photos from 2026</h3>');
-    expect(page).toContain('>2026-014</a></li>');
+    expect(page).toContain('<h3>Other 2026 photos</h3>');
+    expect(page).not.toContain('2026-014');
     expect(page).not.toContain('class="views"');
-    expect(await readdir(siteFolder(slug))).toEqual(
-      expect.arrayContaining(['events', 'rolls']),
-    );
+    expect(await readdir(siteFolder(slug))).toContain('events');
+    expect(await readdir(siteFolder(slug))).not.toContain('rolls');
     expect(await readdir(siteFolder(slug))).not.toContain('rolls.html');
-    expect(await rollPage(slug)).not.toContain('<figcaption>');
+    expect(await eventPage(slug)).not.toContain('<figcaption>');
     expect(
       await readFile(
         path.join(siteFolder(slug), await aFramePage(slug)),
@@ -339,12 +337,8 @@ describe('GET /built-sites/{slug}/', () => {
     expect(page.headers.get('Content-Security-Policy')).toContain(
       "default-src 'self'",
     );
-    const rollFile = (await readdir(path.join(siteFolder(slug), 'rolls'))).find(
-      (name) => name.endsWith('.html'),
-    );
 
     for (const [file, type] of [
-      [`rolls/${rollFile ?? ''}`, 'text/html; charset=utf-8'],
       [await aFramePage(slug), 'text/html; charset=utf-8'],
       ['events/_no-event-2026.html', 'text/html; charset=utf-8'],
       ['assets/site.css', 'text/css; charset=utf-8'],
@@ -380,9 +374,9 @@ describe('GET /built-sites/{slug}/', () => {
       'assets/nothing.css',
       'images/',
       'rolls/nothing.html',
-      'rolls/../site.json',
-      'rolls/a/b/c.html',
-      'rolls/a/../../site.json',
+      'events/../site.json',
+      'events/a/b/c.html',
+      'events/a/../../site.json',
       'events/secret.txt',
       'rolls.json',
     ]) {

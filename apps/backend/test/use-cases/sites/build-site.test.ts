@@ -114,22 +114,22 @@ function text(file: string | Uint8Array | undefined): string {
     : new TextDecoder().decode(file ?? new Uint8Array());
 }
 
-/** The text of the built site's one roll page. */
-function rollPage(
+/** The text of the built site's first event page. */
+function eventPage(
   files: ReadonlyMap<string, string | Uint8Array> | undefined,
 ): string {
   const path = [...(files?.keys() ?? [])].find((p) =>
-    /^rolls\/[^/]+\.html$/.test(p),
+    /^events\/[^/]+\.html$/.test(p),
   );
   return path === undefined ? '' : text(files?.get(path));
 }
 
-/** The text of the built site's first frame page, under its one roll. */
+/** The text of the built site's first frame page, under its first event. */
 function framePage(
   files: ReadonlyMap<string, string | Uint8Array> | undefined,
 ): string {
   const path = [...(files?.keys() ?? [])].find((p) =>
-    /^rolls\/[^/]+\/[^/]+\.html$/.test(p),
+    /^events\/[^/]+\/[^/]+\.html$/.test(p),
   );
   return path === undefined ? '' : text(files?.get(path));
 }
@@ -153,19 +153,24 @@ describe('BuildSite', () => {
       'events/_no-event.html',
       expect.stringMatching(/^events\/_no-event\/1-[0-9A-Z]{8}\.html$/),
       expect.stringMatching(/^events\/_no-event\/2-[0-9A-Z]{8}\.html$/),
-      expect.stringMatching(/^rolls\/2026-014-[0-9A-Z]{8}\.html$/),
-      expect.stringMatching(
-        /^rolls\/2026-014-[0-9A-Z]{8}\/1-[0-9A-Z]{8}\.html$/,
-      ),
-      expect.stringMatching(
-        /^rolls\/2026-014-[0-9A-Z]{8}\/2-[0-9A-Z]{8}\.html$/,
-      ),
       'assets/site.css',
       'assets/site.js',
       'site.json',
     ]);
     expect(paths.filter((p) => p.startsWith('images/'))).toHaveLength(8);
-    expect(rollPage(files)).toContain('Roll 2026-014, frame 2');
+    expect(eventPage(files)).not.toContain('2026-014');
+  });
+
+  test('describes each photo by its title, else as a photo, never by its roll (D107)', async () => {
+    const archive = anArchive();
+    const one = await archive.addFrame(1, { title: 'Black beach' });
+    const two = await archive.addFrame(2);
+
+    await archive.build([one, two]);
+
+    const page = eventPage(archive.folders.sites.get(slug)?.files);
+    expect(page).toContain('alt="Black beach"');
+    expect(page).toContain('alt="Photo"');
   });
 
   test('builds a site that is up to date again without touching it', async () => {

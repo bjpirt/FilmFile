@@ -293,7 +293,15 @@ export class BuildSite {
         event === undefined ? undefined : eventGroupLabel(event);
       photos.push({
         frame: frame.id,
-        alt: `Roll ${roll.roll}, frame ${frame.number ?? 'with no number'}`,
+        // A site never names a roll (D107): the frame's title, else where or
+        // when it was taken.
+        alt:
+          frame.title ??
+          (event === undefined
+            ? details.shot === undefined
+              ? 'Photo'
+              : `Photo from ${shotLabel(details.shot.value)}`
+            : `Photo from ${event.name}`),
         images,
         width: widest.width,
         height: widest.height,

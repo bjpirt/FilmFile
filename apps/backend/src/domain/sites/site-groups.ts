@@ -2,10 +2,10 @@ import { groupPhotos } from './group-photos.ts';
 import type { GroupLabel, SitePhoto } from './site-photo.ts';
 import { yearAndMonth } from './year-and-month.ts';
 
-/** A roll's or event's card on a site, and its own page (D104). */
+/** An event's card on a site, and its own page (D104, D107). */
 export interface SiteGroup {
   readonly label: GroupLabel;
-  /** Its page, relative to the site's folder: `rolls/<file>.html` or `events/<file>.html`. */
+  /** Its page, relative to the site's folder: `events/<file>.html`. */
   readonly path: string;
   /** In shot order. */
   readonly photos: readonly SitePhoto[];
@@ -24,8 +24,8 @@ export function isOtherPhotos(group: SiteGroup): boolean {
 }
 
 /**
- * Frames in no event, split by the year they were shot (D107): "Other photos
- * from 2026" and so on, newest first, then "Other photos" for those undated.
+ * Frames in no event, split by the year they were shot (D107): "Other 2026
+ * photos" and so on, newest first, then "Other photos" for those undated.
  */
 function otherPhotos(
   photos: readonly SitePhoto[],
@@ -46,7 +46,7 @@ function otherPhotos(
       .map(([year, inIt]) => ({
         label: {
           key: `${otherPhotosFile}-${year}`,
-          heading: `Other photos from ${year}`,
+          heading: `Other ${year} photos`,
           file: `${otherPhotosFile}-${year}`,
         },
         photos: inIt,
@@ -68,14 +68,11 @@ function otherPhotos(
 }
 
 /**
- * The photos (in shot order) as a site's rolls or events, newest first by the
- * latest dated frame in each; those with no dated frame go last, and with
- * events, frames in no event after them, by year.
+ * The photos (in shot order) as a site's events, newest first by the latest
+ * dated frame in each; those with no dated frame go last, and frames in no
+ * event after them, by year. A site shows no rolls (D107).
  */
-export function siteGroups(
-  photos: readonly SitePhoto[],
-  by: 'roll' | 'event',
-): SiteGroup[] {
+export function siteGroups(photos: readonly SitePhoto[]): SiteGroup[] {
   const place = new Map(photos.map((photo, index) => [photo, index]));
   const latest = (group: readonly SitePhoto[]): number =>
     Math.max(
@@ -84,8 +81,9 @@ export function siteGroups(
         .filter((photo) => photo.details.shot !== undefined)
         .map((photo) => place.get(photo) ?? -1),
     );
-  const groups = groupPhotos(photos, by).flatMap(({ label, photos: inIt }) =>
-    label === undefined ? [] : [{ label, photos: inIt }],
+  const groups = groupPhotos(photos, 'event').flatMap(
+    ({ label, photos: inIt }) =>
+      label === undefined ? [] : [{ label, photos: inIt }],
   );
   const named = groups
     .filter(({ label }) => label.key !== 'no-event')
@@ -99,7 +97,7 @@ export function siteGroups(
     .flatMap(({ photos: inIt }) => otherPhotos(inIt));
   return [...named, ...none].map(({ label, photos: inIt, ...rest }) => ({
     label,
-    path: `${by === 'roll' ? 'rolls' : 'events'}/${label.file}.html`,
+    path: `events/${label.file}.html`,
     photos: inIt,
     best: [...inIt]
       .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))

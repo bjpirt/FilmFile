@@ -18,12 +18,12 @@ const contentTypes: Readonly<Record<string, string>> = {
 };
 
 /**
- * The home page, a roll's or event's page and its frames' pages (D104,
+ * The home page, an event's page and its frames' pages (D104,
  * D105), or a file in `assets/` or `images/`, with names that can't climb out
  * of them.
  */
 const served =
-  /^(?:index\.html|(?:rolls|events)\/[A-Za-z0-9_-][A-Za-z0-9._-]*(?:\/[A-Za-z0-9_-][A-Za-z0-9._-]*)?\.html|(?:assets|images)\/[A-Za-z0-9_-][A-Za-z0-9._-]*)$/;
+  /^(?:index\.html|events\/[A-Za-z0-9_-][A-Za-z0-9._-]*(?:\/[A-Za-z0-9_-][A-Za-z0-9._-]*)?\.html|(?:assets|images)\/[A-Za-z0-9_-][A-Za-z0-9._-]*)$/;
 
 /**
  * A file of a built site, to open the site in the browser (FF-120). Only what
