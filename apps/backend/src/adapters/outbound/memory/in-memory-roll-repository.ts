@@ -5,9 +5,13 @@ import type {
   VersionedRoll,
   VersionedRollListing,
 } from '../../../application/ports/roll-repository.ts';
+import { planRollRenumbering } from '../../../domain/rolls/plan-roll-renumbering.ts';
+import {
+  filedRollNumberMessage,
+  mayChangeRollNumber,
+} from '../../../domain/rolls/roll-number-change.ts';
 import {
   compareRollNumbers,
-  rollNumbersAreUnique,
   sameRollNumber,
 } from '../../../domain/rolls/roll-number.ts';
 import type { Roll } from '../../../domain/rolls/roll.ts';
@@ -134,15 +138,13 @@ export class InMemoryRollRepository implements RollRepository {
           entity: 'roll',
           id: roll.id,
         });
-      } else if (current.roll.filed && current.roll.roll !== roll.roll) {
+      } else if (
+        !mayChangeRollNumber(current.roll) &&
+        current.roll.roll !== roll.roll
+      ) {
         result = err({
           kind: 'validation-failed',
-          issues: [
-            {
-              path: ['roll'],
-              message: "A filed roll's number can't be changed.",
-            },
-          ],
+          issues: [{ path: ['roll'], message: filedRollNumberMessage }],
         });
       } else if (
         [...this.#rolls.values()].some(
@@ -179,103 +181,19 @@ export class InMemoryRollRepository implements RollRepository {
     return this.#archive.run<
       Result<void, AlreadyExists | ConcurrencyConflict | ValidationFailed>
     >('archive', () => {
-      const current = [...this.#rolls.values()];
-      const expectedById = new Map(expected.map((entry) => [entry.id, entry]));
-      if (expectedById.size !== expected.length) {
-        return Promise.resolve(
-          err({
-            kind: 'validation-failed',
-            issues: [
-              { path: ['snapshot'], message: 'contains a duplicate roll' },
-            ],
-          }),
-        );
+      const planned = planRollRenumbering({
+        current: [...this.#rolls.values()],
+        currentUnreadable: [],
+        expected,
+        expectedUnreadable: unreadable,
+        changes,
+      });
+      if (!planned.ok) {
+        return Promise.resolve(planned);
       }
-      for (const entry of expected) {
-        const found = this.#rolls.get(entry.id);
-        if (found?.version !== entry.version) {
-          return Promise.resolve(
-            err({
-              kind: 'concurrency-conflict',
-              entity: 'roll',
-              id: entry.id,
-            }),
-          );
-        }
-      }
-      const extra = current.find(({ roll }) => !expectedById.has(roll.id));
-      if (extra !== undefined || expected.length !== current.length) {
-        return Promise.resolve(
-          err({
-            kind: 'concurrency-conflict',
-            entity: 'roll',
-            id: extra?.roll.id ?? expected[0]?.id ?? 'listing',
-          }),
-        );
-      }
-      if (unreadable.length > 0) {
-        return Promise.resolve(
-          err({
-            kind: 'concurrency-conflict',
-            entity: 'roll',
-            id: 'unreadable',
-          }),
-        );
-      }
-
-      const changesById = new Map(changes.map((change) => [change.id, change]));
-      if (changesById.size !== changes.length) {
-        return Promise.resolve(
-          err({
-            kind: 'validation-failed',
-            issues: [
-              { path: ['changes'], message: 'contains a duplicate roll' },
-            ],
-          }),
-        );
-      }
-      for (const change of changes) {
+      for (const change of planned.value) {
         const found = this.#rolls.get(change.id);
-        if (found === undefined || !expectedById.has(change.id)) {
-          return Promise.resolve(
-            err({
-              kind: 'validation-failed',
-              issues: [
-                { path: ['changes'], message: 'includes an unknown roll' },
-              ],
-            }),
-          );
-        }
-        if (found.roll.filed && found.roll.roll !== change.roll) {
-          return Promise.resolve(
-            err({
-              kind: 'validation-failed',
-              issues: [
-                {
-                  path: ['roll'],
-                  message: "A filed roll's number can't be changed.",
-                },
-              ],
-            }),
-          );
-        }
-      }
-      const finalNumbers = current.map(
-        ({ roll }) => changesById.get(roll.id)?.roll ?? roll.roll,
-      );
-      if (!rollNumbersAreUnique(finalNumbers)) {
-        return Promise.resolve(
-          err({
-            kind: 'validation-failed',
-            issues: [
-              { path: ['changes'], message: 'roll numbers must be unique' },
-            ],
-          }),
-        );
-      }
-      for (const change of changes) {
-        const found = this.#rolls.get(change.id);
-        if (found !== undefined && found.roll.roll !== change.roll) {
+        if (found !== undefined) {
           this.#store({ ...found.roll, roll: change.roll });
         }
       }

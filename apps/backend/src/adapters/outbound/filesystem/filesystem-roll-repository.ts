@@ -13,15 +13,18 @@ import type {
 import {
   folderName,
   frameFolderName,
-  rollFolderLabel,
   rollFolderName,
   versionFolderName,
 } from '../../../domain/rolls/folder-names.ts';
+import { folderHoldsNumber } from '../../../domain/rolls/folder-holds-number.ts';
+import { planRollRenumbering } from '../../../domain/rolls/plan-roll-renumbering.ts';
+import {
+  filedRollNumberMessage,
+  mayChangeRollNumber,
+} from '../../../domain/rolls/roll-number-change.ts';
 import {
   compareRollNumbers,
-  rollNumbersAreUnique,
   sameRollNumber,
-  type RollNumber,
 } from '../../../domain/rolls/roll-number.ts';
 import type { Frame, Roll, Version } from '../../../domain/rolls/roll.ts';
 import type { UnreadableRoll } from '../../../domain/rolls/unreadable-roll.ts';
@@ -62,16 +65,6 @@ function sameNumber(before: Roll, after: Roll): void {
       `roll ${before.id} was saved with another number: a number is changed with saveRenumbered`,
     );
   }
-}
-
-/** Whether an unreadable roll folder may hold this number or its safe label. */
-function namedFor(folder: string, roll: RollNumber): boolean {
-  const label = /^(.+)-[0-9A-HJKMNP-TV-Z]{8}$/iu.exec(folder)?.[1] ?? folder;
-  return (
-    sameRollNumber(folder, roll) ||
-    sameRollNumber(label, roll) ||
-    sameRollNumber(rollFolderLabel(label), rollFolderLabel(roll))
-  );
 }
 
 interface VersionFolderMove {
@@ -352,7 +345,7 @@ export class FilesystemRollRepository implements RollRepository {
     return (
       stored.some(
         (s) => s.roll.id !== roll.id && sameRollNumber(s.roll.roll, roll.roll),
-      ) || unreadable.some((u) => namedFor(u.folder, roll.roll))
+      ) || unreadable.some((u) => folderHoldsNumber(u.folder, roll.roll))
     );
   }
 
@@ -442,15 +435,13 @@ export class FilesystemRollRepository implements RollRepository {
           id: roll.id,
         });
       }
-      if (current.roll.filed && current.roll.roll !== roll.roll) {
+      if (
+        !mayChangeRollNumber(current.roll) &&
+        current.roll.roll !== roll.roll
+      ) {
         return err({
           kind: 'validation-failed',
-          issues: [
-            {
-              path: ['roll'],
-              message: "A filed roll's number can't be changed.",
-            },
-          ],
+          issues: [{ path: ['roll'], message: filedRollNumberMessage }],
         });
       }
       const content = rollFileContent(roll);
@@ -483,115 +474,23 @@ export class FilesystemRollRepository implements RollRepository {
   > {
     return this.#archive.run('archive', async () => {
       const current = await this.#readAll();
-      const expectedById = new Map(expected.map((entry) => [entry.id, entry]));
-      if (expectedById.size !== expected.length) {
-        return err({
-          kind: 'validation-failed',
-          issues: [
-            { path: ['snapshot'], message: 'contains a duplicate roll' },
-          ],
-        });
-      }
-
-      const currentById = new Map(
-        current.stored.map((entry) => [entry.roll.id, entry]),
-      );
-      for (const entry of expected) {
-        const found = currentById.get(entry.id);
-        if (found?.version !== entry.version) {
-          return err({
-            kind: 'concurrency-conflict',
-            entity: 'roll',
-            id: entry.id,
-          });
-        }
-      }
-      const added = current.stored.find(
-        (entry) => !expectedById.has(entry.roll.id),
-      );
-      if (added !== undefined || expected.length !== current.stored.length) {
-        return err({
-          kind: 'concurrency-conflict',
-          entity: 'roll',
-          id: added?.roll.id ?? expected[0]?.id ?? 'listing',
-        });
-      }
-      const sortUnreadable = (entries: readonly UnreadableRoll[]) =>
-        [...entries].sort((a, b) => a.folder.localeCompare(b.folder));
-      if (
-        JSON.stringify(sortUnreadable(current.unreadable)) !==
-        JSON.stringify(sortUnreadable(unreadable))
-      ) {
-        return err({
-          kind: 'concurrency-conflict',
-          entity: 'roll',
-          id: 'unreadable',
-        });
-      }
-
-      const changesById = new Map(changes.map((change) => [change.id, change]));
-      if (changesById.size !== changes.length) {
-        return err({
-          kind: 'validation-failed',
-          issues: [{ path: ['changes'], message: 'contains a duplicate roll' }],
-        });
-      }
-      for (const change of changes) {
-        const found = currentById.get(change.id);
-        if (found === undefined || !expectedById.has(change.id)) {
-          return err({
-            kind: 'validation-failed',
-            issues: [
-              { path: ['changes'], message: 'includes an unknown roll' },
-            ],
-          });
-        }
-        if (found.roll.filed && found.roll.roll !== change.roll) {
-          return err({
-            kind: 'validation-failed',
-            issues: [
-              {
-                path: ['roll'],
-                message: "A filed roll's number can't be changed.",
-              },
-            ],
-          });
-        }
-      }
-
-      const finalRolls = current.stored.map((entry) => {
-        const change = changesById.get(entry.roll.id);
-        return change === undefined
-          ? entry.roll
-          : { ...entry.roll, roll: change.roll };
+      const planned = planRollRenumbering({
+        current: current.stored,
+        currentUnreadable: current.unreadable,
+        expected,
+        expectedUnreadable: unreadable,
+        changes,
       });
-      if (!rollNumbersAreUnique(finalRolls.map((roll) => roll.roll))) {
-        return err({
-          kind: 'validation-failed',
-          issues: [
-            { path: ['changes'], message: 'roll numbers must be unique' },
-          ],
-        });
+      if (!planned.ok) {
+        return planned;
       }
-      if (
-        finalRolls.some((roll) =>
-          current.unreadable.some((entry) => namedFor(entry.folder, roll.roll)),
-        )
-      ) {
-        return err({
-          kind: 'validation-failed',
-          issues: [
-            {
-              path: ['changes'],
-              message: 'a roll number is used by an unreadable roll folder',
-            },
-          ],
-        });
-      }
+      const changesById = new Map(
+        planned.value.map((change) => [change.id, change]),
+      );
 
       const moving = current.stored.flatMap((entry) => {
         const change = changesById.get(entry.roll.id);
-        if (change === undefined || change.roll === entry.roll.roll) {
+        if (change === undefined) {
           return [];
         }
         const roll = { ...entry.roll, roll: change.roll };
