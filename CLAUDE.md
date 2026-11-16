@@ -4,7 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **FilmFile** is a local-first tool for cataloguing film photographs: rolls, frames and multiple versions of each image, organised by roll and by nested events, with metadata as JSON on the filesystem, S3 backup and sync, and workflows that run when things change.
 
-- **Design:** `docs/design.md`; section 13 defines the architecture. Read it before design decisions, and raise any conflict rather than silently diverging. When a design decision is made or changed, update it and remove it from the open questions.
+- **Design:** `docs/design.md`; section 13 holds the architecture's rules and the reasons for them. Read it before design decisions, and raise any conflict rather than silently diverging. When a design decision is made or changed, update it and remove it from the open questions.
+- **What's built:** `docs/technical-architecture.md`, how the code is organised today: the port table (every port and its adapters) and a request's walk through the layers.
 - **Roadmap:** `docs/roadmap.md`, an index of the work grouped by feature in a fixed order (unfinished tasks first, then finished ones, newest first), then the decisions; each task's detail and acceptance criteria are in `docs/tasks/<ID>.md`. Work through it in order, build to the acceptance criteria, and keep both true (the `write-task` skill). `docs/plan-phase-0-1.md` was the first plan, with formats, fields and routes in detail.
 
 ## Skills
@@ -26,14 +27,14 @@ Simple first (the design's ports are the only planned abstractions; three simila
 
 - A **backend** (`apps/backend`) owns all archive data and serves the built UI; the browser UI (`apps/web`) is only an API client. No CLI.
 - The **desktop app** (`apps/desktop`, Electron) starts the backend in a `utilityProcess` and opens a locked-down window on it (D54); it imports nothing from the backend.
-- **Hexagonal**, layers as folders: `domain/` → `application/` (use cases + `ports/`) → `adapters/` (inbound: HTTP; outbound: filesystem, SQLite, sharp, node, memory) → `composition/`, enforced by `eslint-plugin-boundaries`. `domain/` imports nothing outside itself (no I/O, time or randomness); `application/` only `domain/`; only `main.ts` imports `composition/`; `apps/web` only `@filmfile/contracts`.
+- **Hexagonal**, layers as folders: `domain/` → `application/` (use cases + `ports/`) → `adapters/` (inbound: HTTP; outbound: filesystem, sharp, node, memory) → `composition/`, enforced by `eslint-plugin-boundaries`. `domain/` imports nothing outside itself (no I/O, time or randomness); `application/` only `domain/`; only `main.ts` imports `composition/`; `apps/web` only `@filmfile/contracts`.
 - **Pure DI:** constructor injection, no container or decorators; adapters built only in `composeLocal` and `composeInMemory`.
 - **Three models** mapped explicitly at the adapter: domain types, persistence schemas (filesystem adapter), API contracts (`@filmfile/contracts`).
-- Use cases have one `execute(ctx, input)` taking an `ArchiveContext`, returning `Result<T, E>` for expected failures. REST + OpenAPI from Zod; the web UI uses the generated client.
+- Use cases have one `execute(ctx, input)` taking an `ArchiveContext`, returning `Result<T, E>` for expected failures. The two job runners (`SiteBuilds`, `FolderExports`) offer `start`, `status` and `cancel` instead (design 13.5). REST + OpenAPI from Zod; the web UI uses the generated client.
 
 ## Invariants — never break these
 
-- The filesystem is the source of truth; SQLite and every other store is a rebuildable cache.
+- The filesystem is the source of truth; every other store (the previews now, the planned SQLite index) is a cache that can be rebuilt from it.
 - The service is the only writer. Saves require the expected version token and are atomic, with stable key order so unchanged data is byte-identical.
 - Never modify or permanently delete originals (lab scans, raws, editor exports). Versions are only added; the blob store is write-once. Deleting moves files to the archive's `deleted/`, which only the user empties.
 - Never write metadata into raws; stamp catalogue metadata into exports only.
@@ -57,10 +58,10 @@ Full rules in the `testing-conventions` and `security-rules` skills.
 
 ## Definition of done
 
-`pnpm verify` passes (the `check` skill); new behaviour is tested; no new dependency without a stated reason; public changes are in the OpenAPI spec (`pnpm generate`) and design changes in `docs/design.md`; the code makes sense to a first-time reader.
+`pnpm verify` passes (the `check` skill); new behaviour is tested; no new dependency without a stated reason; public changes are in the OpenAPI spec (`pnpm generate`) and design changes in `docs/design.md`; a new port or adapter is in the port table in `docs/technical-architecture.md`; the code makes sense to a first-time reader.
 
 ## Stack
 
-pnpm workspaces, TypeScript strict, Node LTS (`.nvmrc`). Hono + `@hono/zod-openapi`, Zod, `openapi-typescript` + `openapi-fetch`, sharp, better-sqlite3, ULID, React + Vite + TanStack Query. Vitest, fast-check, Playwright. ESLint (`typescript-eslint`, `eslint-plugin-boundaries`), Prettier. Packages are scoped `@filmfile/*`.
+pnpm workspaces, TypeScript strict, Node LTS (`.nvmrc`). Hono + `@hono/zod-openapi`, Zod, `openapi-typescript` + `openapi-fetch`, sharp, ULID, React + Vite + TanStack Query. Vitest, fast-check, Playwright. ESLint (`typescript-eslint`, `eslint-plugin-boundaries`), Prettier. Packages are scoped `@filmfile/*`. Planned: SQLite for the index (FF-122), through Node's own `node:sqlite` or `better-sqlite3`.
 
 Run pnpm by hand only after `nvm use` (in a fresh shell, `. "$HOME/.nvm/nvm.sh"; nvm use`). The pre-commit hook and the `check` and `screenshot` scripts do it themselves. Under an older Node, pnpm fails with "Failed to switch pnpm … Unknown system error -8". That's the wrong Node, not a broken install.

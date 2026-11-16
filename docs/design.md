@@ -327,22 +327,13 @@ In Phase 1 the persistence and domain shapes are deliberately close, so the mapp
 
 Version responses expose the original basename as `fileName`, never the file's relative or absolute path (D83).
 
-### 13.4 Ports (Phase 1)
+### 13.4 Ports
 
-Outbound ports, defined in `application/ports/` and implemented by outbound adapters:
+Outbound ports are defined in `application/ports/` and implemented by outbound adapters. A port is the application's statement of what it needs (storage, images, time, IDs, the desktop app); an adapter meets it with one mechanism. The ports that exist and their adapters are listed in the port table in [technical-architecture.md](technical-architecture.md#the-ports-and-their-adapters), which says what's built; this section holds the rules.
 
-| Port | Responsibility | Local adapter | Cloud adapter (later) |
-|---|---|---|---|
-| `SettingsRepository` | Read and save `settings.json` at the FilmFile folder's top level (id and meta) | JSON file | S3 object |
-| `RollRepository` | Get, list, create, change and save rolls; explicit single and batch renumber operations. Versioned writes reject a stale snapshot with `ConcurrencyConflict`; roll creation and renumbering enforce unique roll numbers | JSON files: archive-wide in-process lock, version check, temp file + rename; batch renumber with best-effort rollback (D77–D78) | S3 conditional writes (future) |
-| `EquipmentRepository` | Cameras, lenses, films | JSON files | S3 objects |
-| `BlobStore` | Write-once storage of image files: `put` accepts inspected bytes and returns the relative file path; `get` reads by that path. Never overwrites | Labeled frame and version folders in the archive | S3 (future) |
-| `HoldingArea` | Receives deleted versions and frames (their files plus their JSON) and deleted rolls (the whole folder, frames and all), for me to empty by hand. Never deletes | `deleted/` in the archive | S3 prefix |
-| `CatalogueIndex` (planned) | Read model for listing and filtering: upsert a resolved roll, remove, query, rebuild | Not implemented; current roll listings read through `RollRepository` | SQLite or Postgres (future) |
-| `PreviewProvider` | Thumbnails and previews by content hash, generated lazily | sharp + cache folder | sharp + S3 cache |
-| `ImageInspector` | Reads an uploaded image's pixel dimensions from its header, within the input pixel limit | sharp; a TIFF's or raw's (Sony ARW) size from its TIFF tables, by our own reader | same |
-| `Clock`, `IdGenerator` | Current time; ULIDs | Node | Node |
-| `ErrorReporter` | Takes an unexpected failure in background work (a site build, a frame an export can't make, a startup step), with words saying what failed, to the log, never the page (D113) | The service's error output | same |
+- Each port has a local adapter, used by `composeLocal`, and an in-memory one, used by `composeInMemory` for tests, unless one adapter serves both (sharp needs no disk; export tickets are only ever in memory).
+- Storage ports keep the filesystem as the source of truth: other stores are caches that can be rebuilt (CLAUDE.md's invariants).
+- Planned: a `CatalogueIndex` for listing and filtering, in SQLite in the OS cache folder (FF-122). Cloud adapters for the storage ports (S3 objects and conditional writes) come only if FilmFile is hosted (13.1).
 
 The filesystem roll repository takes one in-process lock around every roll
 read and mutation. This keeps versioned listings stable while a batch is
@@ -384,9 +375,9 @@ Two classes in `application/use-cases/` are **job runners**, not use cases: `Sit
 ### 13.7 Testing strategy
 
 - **Domain:** pure unit tests (table-driven for frame-number rules and the metadata resolver).
-- **Use cases:** tested through `composeInMemory`. This is where most behaviour is tested, and it's fast because nothing touches disk.
+- **Use cases:** tested with in-memory adapters, built directly or through `composeInMemory`, so nothing touches disk.
 - **Port contract tests:** shared suites cover the implemented in-memory and filesystem adapters where both exist; S3 adapters are future work. They verify adapter behavior, including stale-version conflicts.
-- **HTTP:** Hono `app.request` tests against an in-memory composition, checking status codes, ETags and validation errors.
+- **HTTP:** Hono `app.request` tests, checking status codes, ETags, validation errors and security checks. Most run against `composeLocal` on a temporary archive, so they cover the filesystem adapters too; some against `composeInMemory`, where a test swaps in an adapter.
 - **End to end:** a small Playwright suite against `composeLocal` with a temp archive and generated fixture scans.
 
 ### 13.8 API
@@ -399,30 +390,39 @@ Two classes in `application/use-cases/` are **job runners**, not use cases: `Sit
 
 ### 13.9 Repository layout
 
+Within each layer, code is organised by feature (`rolls`, `frames`, `equipment`, `events`, `selections`, `exports`, `sites`, `settings`, `originals`).
+
 ```
 apps/
   backend/                 @filmfile/backend — the core API service, which also serves the UI
     src/
-      domain/
+      domain/              rolls, details, equipment, events, selections, settings, sites, shared
       application/
-        ports/
-        use-cases/
+        ports/             one file per port
+        use-cases/         rolls, frames, equipment, events, selections, exports, sites, settings, originals
       adapters/
-        inbound/http/        Hono routes, OpenAPI, DTO ↔ domain mapping
-        outbound/filesystem/ repositories, blob store, persistence schemas
-        outbound/sharp/      preview provider
-        outbound/node/       clock, ULID generator
-        outbound/memory/     in-memory implementations of storage ports used in tests
-      composition/         composeLocal, composeInMemory
+        inbound/http/        Hono routes, OpenAPI, DTO ↔ domain mapping, middleware
+        outbound/filesystem/ repositories, blob store, holding area, site and export folders, persistence schemas
+        outbound/sharp/      image inspector, preview provider, image renderer
+        outbound/node/       clock, ULIDs, error reporter, the desktop app's message channel
+        outbound/memory/     in-memory adapters, used in tests
+      composition/         composeLocal, composeInMemory, and useCasesFor, which both use to build the use cases
       main.ts
     test/
+      api/                 HTTP tests against a composed service
+      use-cases/           use cases with in-memory adapters
+      adapters/            adapters against a temporary folder
       contracts/           port contract suites
-      fixtures/            generated fixture archives and lab scans
+      composition/         startup and configuration
+      support/             builders, a temporary archive, generated scans
   web/                     @filmfile/web — React UI
   desktop/                 @filmfile/desktop — the Electron app: starts the service and opens a window on it (D54);
                            scripts/package.ts builds FilmFile.app and FilmFile.dmg (D56)
 packages/
   contracts/               @filmfile/contracts — API schemas, OpenAPI, typed client
+test/
+  e2e/                     Playwright journeys, in a browser and in the desktop app
+  architecture/            fixtures that check the layer rules
 ```
 
 ### 13.10 Stack
@@ -434,7 +434,7 @@ packages/
 | HTTP | Hono + `@hono/zod-openapi` |
 | API client | `openapi-typescript` + `openapi-fetch` |
 | Images | `sharp` (libvips): WebP thumbnails and previews keyed by hash |
-| Metadata (Phase 2) | `exiftool-vendored`; raw previews come from our own reader of TIFF tables (U20) |
+| Metadata | Planned: `exiftool-vendored` for reading metadata (Phase 2). Built: raw previews from our own reader of TIFF tables (U20); exports' EXIF and XMP written by sharp |
 | Index (planned) | SQLite via `better-sqlite3`, in the OS cache directory |
 | IDs | ULID |
 | Web UI | React + Vite + TanStack Query |

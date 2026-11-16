@@ -1,6 +1,6 @@
 # Technical Architecture
 
-This document describes how the code is organized today and how a request moves through it. The broader goals and future design are in [design.md](design.md); this guide distinguishes implemented code from planned architecture.
+This document describes what's built: how the code is organized today, the ports and adapters that exist, and how a request moves through them. The rules and the reasons for them (the layers, the three models, how use cases and dependency injection work, and the decisions) are in [design.md](design.md) section 13. When the two disagree about what's built, this document is the one to correct.
 
 ## Runtime and Packages
 
@@ -100,6 +100,36 @@ For example, [`AddVersion`](../apps/backend/src/application/use-cases/frames/add
 
 This is the dependency inversion at the heart of the design: application code owns the port definitions, while infrastructure depends inward on those definitions. Replacing local files with another adapter is therefore a composition change, provided the new adapter honors the same port contract. HTTP DTOs and persisted JSON remain separate representations, mapped at their respective boundaries.
 
+### The ports and their adapters
+
+Every outbound port in [`application/ports/`](../apps/backend/src/application/ports/), with the adapter `composeLocal` uses and the one `composeInMemory` uses. Add a row when a port or adapter is added (CLAUDE.md's definition of done). Adapters are in `apps/backend/src/adapters/outbound/`, by kind: `filesystem/`, `sharp/`, `node/`, `memory/`.
+
+| Port | What it does | Local adapter | In-memory adapter (tests) |
+|---|---|---|---|
+| `SettingsRepository` | Reads and saves `settings.json` at the top of the FilmFile folder, with a version token | `FilesystemSettingsRepository` | `InMemorySettingsRepository` |
+| `RollRepository` | Gets, lists, creates, changes, saves, renumbers (one roll or a batch) and removes rolls; versioned writes refuse a stale token, and roll numbers stay unique (D77, D78, D112) | `FilesystemRollRepository`: a `roll.json` in each roll's folder, one in-process lock | `InMemoryRollRepository` |
+| `EquipmentRepository` | Cameras, lenses and film stocks, by slug | `FilesystemEquipmentRepository`: `Library/equipment/<kind>/<slug>.json` | `InMemoryEquipmentRepository` |
+| `EventRepository` | Events, by slug, with a version token | `FilesystemEventRepository`: `Library/events/<slug>.json` | `InMemoryEventRepository` |
+| `SiteRepository` | Sites, by slug, with a version token (D91) | `FilesystemSiteRepository`: `Library/sites/<slug>.json` | `InMemorySiteRepository` |
+| `BlobStore` | Write-once storage of a version's files, made read-only as they're stored (D96); never overwrites or deletes | `FilesystemBlobStore`: the labelled frame and version folders in each roll's folder | `InMemoryBlobStore` |
+| `HoldingArea` | Takes deleted versions, frames and rolls, with their JSON, for the person to empty by hand; never deletes | `FilesystemHoldingArea`: `Library/deleted/` | `InMemoryHoldingArea` |
+| `SiteFolders` | Built sites, one folder each, each build made beside the last and swapped in whole (D92) | `FilesystemSiteFolders`: `Sites/<slug>/` in the FilmFile folder | `InMemorySiteFolders` |
+| `ExportTickets` | Holds a quick export's recipe for the one download it's for (D95) | `InMemoryExportTickets` (in memory in both: a ticket lasts moments) | `InMemoryExportTickets` |
+| `ExportDestination` | Asks the desktop app for a folder to export into, and tells it when an export is done (D100); none outside the desktop app | `ParentProcessExportDestination`: the utility process's message channel | `InMemoryExportDestination` |
+| `ExportFolder` (in `export-destination.ts`) | A folder the person chose, written into without replacing a file that's there | `FilesystemExportFolder` | `InMemoryExportFolder` |
+| `ImageInspector` | Checks an upload is an image the catalogue accepts and reads its size from its header, within the pixel limit | `SharpImageInspector`, with our own reader of a TIFF's or raw's tables | `SharpImageInspector` (it needs no disk) |
+| `PreviewProvider` | Thumbnails by content hash and turn, made on first request, cached outside the archive (D114) | `SharpPreviewProvider`: the OS cache folder | `InMemoryPreviewProvider` |
+| `ImageRenderer` | Makes an exported or site image: turned, sized, at a quality, with the metadata asked for | `SharpImageRenderer` | `InMemoryImageRenderer` (text standing in for a JPEG) |
+| `ErrorReporter` | Takes an unexpected failure in background work to the log, never the page (D113) | `ConsoleErrorReporter`: the service's error output | `InMemoryErrorReporter` |
+| `Clock` | The current time | `NodeClock` | `FixedClock` (2026-11-02T12:00:00Z) |
+| `IdGenerator` | New ULIDs | `UlidGenerator` | `SequentialIdGenerator` |
+
+Planned, not built: a `CatalogueIndex` for listing and filtering, in SQLite in the OS cache folder (FF-122). Until then, listings read through `RollRepository`.
+
+Each port with storage or image behaviour has a contract suite in [`apps/backend/test/contracts/`](../apps/backend/test/contracts/), run against each of its adapters. `Clock`, `IdGenerator`, `ImageInspector` and `ExportDestination` have tests of each adapter on its own instead.
+
+The one inbound adapter is HTTP: Hono with `@hono/zod-openapi`, in [`adapters/inbound/http/`](../apps/backend/src/adapters/inbound/http/). Each route file defines the use cases it needs as an interface (`RollUseCases` and so on), which the composition root fills.
+
 [`eslint.config.ts`](../eslint.config.ts) encodes the import boundaries with `eslint-plugin-boundaries`; architecture tests exercise those rules against fixtures. The domain can therefore stay independent of storage and HTTP, while an adapter can be replaced without changing a use case.
 
 ## A Request Through The Layers
@@ -143,7 +173,9 @@ Expected failures travel back as `Result<T, E>` values and are mapped by the HTT
 
 ## Composition And Storage
 
-[`compose-local.ts`](../apps/backend/src/composition/compose-local.ts) wires the production-like local runtime: filesystem settings, roll, equipment, event, blob, and holding-area adapters; Node time and ULIDs; and sharp image inspection and previews. [`compose-in-memory.ts`](../apps/backend/src/composition/compose-in-memory.ts) swaps most storage ports for memory adapters and uses a fixed clock and sequential IDs for deterministic tests.
+[`compose-local.ts`](../apps/backend/src/composition/compose-local.ts) wires the production-like local runtime, and [`compose-in-memory.ts`](../apps/backend/src/composition/compose-in-memory.ts) the one for tests, each choosing the adapters in the table above. Both hand them to [`use-cases-for.ts`](../apps/backend/src/composition/use-cases-for.ts), which builds every use case from one `Adapters` object, so the two runtimes can't wire the use cases differently. `composeInMemory(overrides)` swaps in any adapter a test gives it.
+
+Two classes among the use cases are job runners: `SiteBuilds` and `FolderExports` run a site build or an export to a folder in the background, keep their jobs in memory, and offer `start`, `status` and `cancel` (see `docs/design.md` section 13.5).
 
 The filesystem is the source of truth. Roll, event, equipment, and settings metadata are JSON; image bytes are stored in the archive beside their version metadata. The filesystem adapter validates persisted records when reading them and resolves paths through the safe-path helper. Preview/cache data is kept outside the archive. The current composition has no SQLite catalogue-index port or adapter; listing rolls reads through `RollRepository` directly. S3 and cloud compositions remain future design work rather than active runtime dependencies.
 
@@ -151,4 +183,4 @@ The filesystem is the source of truth. Roll, event, equipment, and settings meta
 
 The Zod schemas in `packages/contracts` define the HTTP boundary and generate the OpenAPI description. The backend maps between these API DTOs, domain types, and filesystem persistence schemas instead of sharing one model across all three boundaries. The web app uses the generated client and imports only `@filmfile/contracts` from the workspace.
 
-Tests match the architecture: domain rules have unit tests; use cases run with in-memory adapters; shared port contract suites run against adapters; API tests use Hono with an in-memory composition; and Playwright journeys exercise the local service against a temporary archive. For examples, see [`filesystem-roll-repository.test.ts`](../apps/backend/test/adapters/filesystem/filesystem-roll-repository.test.ts), [`roll-repository-contract.ts`](../apps/backend/test/contracts/roll-repository-contract.ts), and [`test/e2e`](../test/e2e).
+Tests match the architecture: domain rules have unit tests; use cases run with in-memory adapters; shared port contract suites run against adapters; API tests send requests with Hono's `app.request`, mostly to `composeLocal` on a temporary archive and sometimes to `composeInMemory` with an adapter swapped in; and Playwright journeys exercise the local service, and the desktop app, against a temporary archive. For examples, see [`filesystem-roll-repository.test.ts`](../apps/backend/test/adapters/filesystem/filesystem-roll-repository.test.ts), [`roll-repository-contract.ts`](../apps/backend/test/contracts/roll-repository-contract.ts), and [`test/e2e`](../test/e2e).
