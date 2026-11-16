@@ -62,3 +62,5 @@ Full rules in the `testing-conventions` and `security-rules` skills.
 ## Stack
 
 pnpm workspaces, TypeScript strict, Node LTS (`.nvmrc`). Hono + `@hono/zod-openapi`, Zod, `openapi-typescript` + `openapi-fetch`, sharp, better-sqlite3, ULID, React + Vite + TanStack Query. Vitest, fast-check, Playwright. ESLint (`typescript-eslint`, `eslint-plugin-boundaries`), Prettier. Packages are scoped `@filmfile/*`.
+
+Run pnpm by hand only after `nvm use` (in a fresh shell, `. "$HOME/.nvm/nvm.sh"; nvm use`). The pre-commit hook and the `check` and `screenshot` scripts do it themselves. Under an older Node, pnpm fails with "Failed to switch pnpm … Unknown system error -8". That's the wrong Node, not a broken install.

@@ -4,6 +4,16 @@
 # CI runs every check (pnpm verify).
 set -eu
 
+# pnpm needs the Node version in .nvmrc; an older one can't run it.
+if [ -s "$HOME/.nvm/nvm.sh" ]; then
+  # nvm.sh reads unset variables, so -u is off while it loads.
+  set +u
+  # shellcheck disable=SC1091
+  . "$HOME/.nvm/nvm.sh" >/dev/null
+  nvm use >/dev/null
+  set -u
+fi
+
 files=$(git diff --cached --name-only --diff-filter=ACMR)
 if [ -z "$files" ]; then
   exit 0
