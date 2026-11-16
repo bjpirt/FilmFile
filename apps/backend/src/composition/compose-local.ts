@@ -77,12 +77,15 @@ export function composeLocal(config: {
   readonly ids?: IdGenerator;
   /** The AWS credentials file whose `[filmfile]` profile holds the keys that publish a site (D111); by default `~/.aws/credentials`. */
   readonly awsCredentialsFile?: string;
+  /** Where R2 is in place of Cloudflare's own address, for testing only (FILMFILE_R2_ENDPOINT). */
+  readonly r2Endpoint?: string;
   /** Where sites are published; by default a Cloudflare R2 bucket, with keys from `awsCredentialsFile`. */
   readonly publishBucket?: PublishBucket;
   /** Asks for a folder to export into; by default the desktop app that started the service, if one did (D100). */
   readonly destination?: ExportDestination;
 }): OpenAPIHono {
   const clock = config.clock ?? new NodeClock();
+  const errors = new ConsoleErrorReporter();
   const destination =
     config.destination ?? ParentProcessExportDestination.ofThisProcess();
   return createApp({
@@ -108,11 +111,15 @@ export function composeLocal(config: {
             config.awsCredentialsFile ??
             path.join(homedir(), '.aws', 'credentials'),
           clock,
+          errors,
+          ...(config.r2Endpoint === undefined
+            ? {}
+            : { endpoint: () => config.r2Endpoint ?? '' }),
         }),
       tickets: new InMemoryExportTickets(clock),
       destination,
       ids: config.ids ?? new UlidGenerator(),
-      errors: new ConsoleErrorReporter(),
+      errors,
       clock,
     }),
   });

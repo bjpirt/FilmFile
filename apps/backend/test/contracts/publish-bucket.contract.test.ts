@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import { FixedClock } from '../../src/adapters/outbound/memory/fixed-clock.ts';
+import { InMemoryErrorReporter } from '../../src/adapters/outbound/memory/in-memory-error-reporter.ts';
 import { InMemoryPublishBucket } from '../../src/adapters/outbound/memory/in-memory-publish-bucket.ts';
 import { R2PublishBucket } from '../../src/adapters/outbound/r2/r2-publish-bucket.ts';
 import type { BucketTarget } from '../../src/application/ports/publish-bucket.ts';
@@ -47,10 +48,12 @@ aws_secret_access_key = ${keys.secretAccessKey}
 async function r2Against(
   fake: FakeR2,
   credentials = goodCredentials,
+  errors = new InMemoryErrorReporter(),
 ): Promise<R2PublishBucket> {
   return new R2PublishBucket({
     credentialsFile: await credentialsFile(credentials),
     clock,
+    errors,
     endpoint: fake.endpoint,
   });
 }
@@ -105,6 +108,7 @@ describe('R2PublishBucket', () => {
         ? new R2PublishBucket({
             credentialsFile: '/nowhere/credentials',
             clock,
+            errors: new InMemoryErrorReporter(),
             endpoint: fake.endpoint,
           })
         : await r2Against(fake, text);
@@ -118,6 +122,7 @@ describe('R2PublishBucket', () => {
     const bucket = new R2PublishBucket({
       credentialsFile: '/nowhere/credentials',
       clock,
+      errors: new InMemoryErrorReporter(),
       endpoint: fake.endpoint,
     });
 
@@ -190,6 +195,54 @@ describe('R2PublishBucket', () => {
       });
     }
     expect(fake.requests).toEqual([]);
+  });
+
+  test.each([
+    [400, 'InvalidArgument'],
+    [500, 'InternalError'],
+    [429, 'SlowDown'],
+  ])(
+    'logs what R2 said when it answers %i %s, as well as failing, without the keys',
+    async (status, code) => {
+      const fake = await aFakeR2();
+      const errors = new InMemoryErrorReporter();
+      const bucket = await r2Against(fake, goodCredentials, errors);
+      fake.answerWith(status, code);
+
+      const put = await bucket.put(
+        target,
+        {
+          key: 'images/a.jpg',
+          bytes: new TextEncoder().encode('jpeg'),
+          contentType: 'image/jpeg',
+          cacheControl: 'x',
+        },
+        signal,
+      );
+
+      expect(put).toMatchObject({ ok: false, error: { reason: 'other' } });
+      expect(errors.reported).toHaveLength(1);
+      const [reported] = errors.reported;
+      expect(reported?.what).toBe(
+        `R2 refused PUT images/a.jpg in photos-pirt: ${String(status)} ${code}`,
+      );
+      expect(JSON.stringify(errors.reported)).not.toContain(
+        keys.secretAccessKey,
+      );
+      expect(JSON.stringify(errors.reported)).not.toContain(keys.accessKeyId);
+    },
+  );
+
+  test('logs nothing for the failures it explains itself', async () => {
+    const fake = await aFakeR2();
+    const errors = new InMemoryErrorReporter();
+    const bucket = await r2Against(fake, goodCredentials, errors);
+
+    await bucket.list({ accountId: account, bucket: 'no-such-bucket' }, signal);
+    fake.answerWith(403, 'SignatureDoesNotMatch');
+    await bucket.list(target, signal);
+
+    expect(errors.reported).toEqual([]);
   });
 
   test('never puts the keys in what it says', async () => {

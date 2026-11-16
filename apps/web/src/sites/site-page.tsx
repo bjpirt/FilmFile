@@ -2,13 +2,16 @@ import type { ApiClient } from '@filmfile/contracts/client';
 import type { FrameSelection } from '@filmfile/contracts/selections';
 import type { Site } from '@filmfile/contracts/sites';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, type SubmitEvent } from 'react';
+import { useEffect, useRef, useState, type SubmitEvent } from 'react';
 import { navigate } from '../routing.tsx';
 import { FrameSelectionEditor } from '../selections/frame-selection-editor.tsx';
 import { exclude, include } from '../selections/selection-edit.ts';
 import { useFrameSearch } from '../selections/use-frame-search.ts';
 import { useSettings } from '../settings/use-settings.ts';
 import { BuildPanel } from './build-panel.tsx';
+import { PublishPanel } from './publish-panel.tsx';
+import { useSitePublished } from './use-site-published.ts';
+import { useSiteStatus } from './use-site-status.ts';
 import { PresentationFields } from './presentation-fields.tsx';
 import { useSiteSaver } from './use-site-saver.ts';
 
@@ -27,7 +30,27 @@ function SiteEditor({
   const [name, setName] = useState(loaded.name);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteFailed, setDeleteFailed] = useState(false);
+  const [unpublishing, setUnpublishing] = useState(false);
   const found = useFrameSearch(api, site.selection).found;
+  // Building and publishing each wait for the other, and each changes how the other stands.
+  const status = useSiteStatus(api, site.slug);
+  const published = useSitePublished(api, site.slug, site.publish !== null);
+  const building = status.data?.build?.state === 'running';
+  const publishing = published.data?.publish?.state === 'running';
+  const was = useRef({ building, publishing });
+  useEffect(() => {
+    if (was.current.building && !building) {
+      void queryClient.invalidateQueries({
+        queryKey: ['sites', site.slug, 'published'],
+      });
+    }
+    if (was.current.publishing && !publishing) {
+      void queryClient.invalidateQueries({
+        queryKey: ['sites', site.slug, 'status'],
+      });
+    }
+    was.current = { building, publishing };
+  }, [building, publishing, queryClient, site.slug]);
   const settings = useSettings(api);
   const saver = useSiteSaver({
     api,
@@ -43,7 +66,15 @@ function SiteEditor({
         // The address follows the name.
         navigate(`/sites/${saved.slug}`, { replace: true });
       }
-      setSite((now) => ({ ...now, slug: saved.slug, name: saved.name }));
+      setSite((now) => ({
+        ...now,
+        slug: saved.slug,
+        name: saved.name,
+        publish: saved.publish,
+      }));
+      void queryClient.invalidateQueries({
+        queryKey: ['sites', saved.slug, 'published'],
+      });
     },
   });
 
@@ -162,6 +193,23 @@ function SiteEditor({
         slug={site.slug}
         frameCount={found?.count}
         saving={saver.state === 'saving'}
+        publishing={publishing || unpublishing}
+      />
+      <PublishPanel
+        api={api}
+        site={site}
+        published={published}
+        frameCount={found?.count}
+        saving={saver.state === 'saving'}
+        building={building}
+        unpublishing={unpublishing}
+        setUnpublishing={setUnpublishing}
+        saveTarget={(publish) => saver.save({ publish })}
+        changed={() => {
+          void queryClient.invalidateQueries({
+            queryKey: ['sites', site.slug, 'published'],
+          });
+        }}
       />
       <FrameSelectionEditor
         api={api}

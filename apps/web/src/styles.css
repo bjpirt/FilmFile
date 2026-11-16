@@ -2116,7 +2116,8 @@ textarea {
 /* Building a site (FF-120) */
 
 .presentation,
-.build-panel {
+.build-panel,
+.publish-panel {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -2127,9 +2128,39 @@ textarea {
   padding: var(--space-4);
 }
 
-.build-panel h2 {
+.build-panel h2,
+.publish-panel h2 {
   font-size: 1.1rem;
   margin: 0;
+}
+
+/* Publishing a site (FF-234): the bucket and address above the state, the fields as wide as the panel allows. */
+.publish-target {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 32rem;
+}
+
+.publish-target label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.publish-target input {
+  width: 100%;
+}
+
+.publish-panel p {
+  margin: 0;
+}
+
+.publish-check {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
 }
 
 .presentation label {
@@ -2149,5 +2180,6 @@ textarea {
 .build-actions {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-4);
 }

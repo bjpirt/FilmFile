@@ -1,4 +1,5 @@
 import { useState, type SubmitEvent } from 'react';
+import { cloudflareGuide } from './cloudflare-guide.ts';
 
 const dashboard = 'https://dash.cloudflare.com/?to=/:account/r2/overview';
 const apiTokens = 'https://dash.cloudflare.com/?to=/:account/r2/api-tokens';
@@ -107,6 +108,12 @@ export function CloudflareSection({
         </li>
         <li>Then set the bucket and address on each site’s page.</li>
       </ol>
+      <p>
+        <a href={cloudflareGuide} target="_blank" rel="noreferrer">
+          How to set up Cloudflare
+        </a>
+        , step by step.
+      </p>
     </form>
   );
 }

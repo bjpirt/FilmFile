@@ -25,6 +25,8 @@ export interface FakeR2 {
   readonly files: (bucket: string) => ReadonlyMap<string, FakeR2File>;
   /** Every request made, as `METHOD /path?query`. */
   readonly requests: readonly string[];
+  /** Answers every signed request from now on with this status and R2 error code, as an R2 refusal would. */
+  readonly answerWith: (status: number, code: string) => void;
   readonly close: () => Promise<void>;
 }
 
@@ -77,6 +79,7 @@ export async function startFakeR2(
     bucketNames.map((name) => [name, new Map<string, FakeR2File>()]),
   );
   const requests: string[] = [];
+  let forced: { readonly status: number; readonly code: string } | undefined;
 
   function signatureIsRight(
     request: IncomingMessage,
@@ -143,6 +146,10 @@ export async function startFakeR2(
           ? 'InvalidAccessKeyId'
           : 'SignatureDoesNotMatch',
       );
+      return;
+    }
+    if (forced !== undefined) {
+      failure(response, forced.status, forced.code);
       return;
     }
     const [, bucketName = '', ...keyParts] = url.pathname.split('/');
@@ -218,6 +225,9 @@ export async function startFakeR2(
     endpoint: () => `http://127.0.0.1:${String(port)}`,
     files: (bucket) => buckets.get(bucket) ?? new Map(),
     requests,
+    answerWith: (status, code) => {
+      forced = { status, code };
+    },
     close: () =>
       new Promise<void>((resolve) => {
         server.close(() => {

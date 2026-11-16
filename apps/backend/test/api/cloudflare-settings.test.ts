@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import { settings as settingsSchema } from '@filmfile/contracts/settings';
 import { FixedClock } from '../../src/adapters/outbound/memory/fixed-clock.ts';
+import { InMemoryErrorReporter } from '../../src/adapters/outbound/memory/in-memory-error-reporter.ts';
 import { R2PublishBucket } from '../../src/adapters/outbound/r2/r2-publish-bucket.ts';
 import { apiFor } from '../support/api.ts';
 import { useTempArchive } from '../support/temp-archive.ts';
@@ -30,6 +31,7 @@ async function serviceWithCredentials(text: string | undefined) {
     publishBucket: new R2PublishBucket({
       credentialsFile: file,
       clock: new FixedClock('2026-11-02T12:00:00.000Z'),
+      errors: new InMemoryErrorReporter(),
     }),
   });
   await api.post('/api/settings', { author: 'Ben Pirt' });

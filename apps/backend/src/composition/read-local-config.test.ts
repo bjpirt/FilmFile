@@ -97,3 +97,13 @@ test('looks for the keys that publish a site in ~/.aws/credentials, or where AWS
     ).awsCredentialsFile,
   ).toBe('/keys/aws');
 });
+
+test('points R2 at a local fake only when FILMFILE_R2_ENDPOINT says so, for testing', () => {
+  expect(readLocalConfig(folder, mac).r2Endpoint).toBeUndefined();
+  expect(
+    readLocalConfig(
+      { ...folder, FILMFILE_R2_ENDPOINT: 'http://127.0.0.1:9000' },
+      mac,
+    ).r2Endpoint,
+  ).toBe('http://127.0.0.1:9000');
+});

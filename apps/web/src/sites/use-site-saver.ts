@@ -6,7 +6,14 @@ interface Change {
   readonly name?: string;
   readonly selection?: Site['selection'];
   readonly presentation?: Site['presentation'];
+  readonly publish?: Site['publish'];
 }
+
+/** How a save ended: saved, refused with the service's issues (a 422), or neither. */
+export type SaveOutcome =
+  | { readonly kind: 'saved'; readonly site: Site }
+  | { readonly kind: 'invalid'; readonly error: unknown }
+  | { readonly kind: 'not-saved' };
 
 export type SaveState =
   | 'saved'
@@ -41,17 +48,18 @@ export function useSiteSaver({
   const waiting = useRef(0);
   const stopped = useRef(false);
 
-  function save(change: Change): Promise<void> {
+  function save(change: Change): Promise<SaveOutcome> {
+    const notSaved: SaveOutcome = { kind: 'not-saved' };
     if (stopped.current) {
       // The site changed elsewhere: what's on screen stays, and nothing more is sent.
-      return queue.current;
+      return queue.current.then(() => notSaved);
     }
     waiting.current += 1;
     setState('saving');
-    queue.current = queue.current.then(async () => {
+    const outcome = queue.current.then(async (): Promise<SaveOutcome> => {
       try {
         if (stopped.current) {
-          return;
+          return notSaved;
         }
         const { data, error, response } = await api.PATCH('/api/sites/{slug}', {
           params: {
@@ -68,7 +76,14 @@ export function useSiteSaver({
           saved(data);
           // Another change is waiting behind this one.
           setState(waiting.current > 1 ? 'saving' : 'saved');
-        } else if (response.status === 409) {
+          return { kind: 'saved', site: data };
+        }
+        if (response.status === 422) {
+          // The one asking says what was wrong, by field; what's saved is as it was.
+          setState(waiting.current > 1 ? 'saving' : 'saved');
+          return { kind: 'invalid', error };
+        }
+        if (response.status === 409) {
           // A taken slug and a changed site are both 409; only the second stops the saving.
           const taken =
             typeof error === 'object' &&
@@ -84,8 +99,10 @@ export function useSiteSaver({
       } finally {
         waiting.current -= 1;
       }
+      return notSaved;
     });
-    return queue.current;
+    queue.current = outcome.then(() => undefined);
+    return outcome;
   }
 
   return { state, save };

@@ -419,6 +419,13 @@ describe('Cloudflare (D119)', () => {
       'Give each bucket a custom domain, and add a rewrite rule from / to /index.html.',
       'Then set the bucket and address on each site’s page.',
     ]);
+    const guide = within(form).getByRole('link', {
+      name: 'How to set up Cloudflare',
+    });
+    expect(guide.getAttribute('href')).toBe(
+      'https://github.com/bjpirt/FilmFile/blob/main/docs/publishing-to-cloudflare.md',
+    );
+    expect(guide.getAttribute('target')).toBe('_blank');
     for (const name of ['Cloudflare dashboard', 'Manage API tokens']) {
       const link = within(form).getByRole('link', { name });
       expect(link.getAttribute('href')).toMatch(

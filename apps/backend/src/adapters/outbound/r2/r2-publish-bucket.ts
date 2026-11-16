@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import type { Clock } from '../../../application/ports/clock.ts';
+import type { ErrorReporter } from '../../../application/ports/error-reporter.ts';
 import type {
   BucketTarget,
   FileToPut,
@@ -78,6 +79,7 @@ function remoteFileOf(contents: string): RemoteFile | undefined {
 export class R2PublishBucket implements PublishBucket {
   readonly #credentialsFile: string;
   readonly #clock: Clock;
+  readonly #errors: ErrorReporter;
   readonly #endpoint: (accountId: string) => string;
   readonly #fetch: typeof fetch;
 
@@ -85,12 +87,18 @@ export class R2PublishBucket implements PublishBucket {
     /** The AWS credentials file, usually `~/.aws/credentials`. */
     readonly credentialsFile: string;
     readonly clock: Clock;
+    /**
+     * Where R2's answers that FilmFile has no words for go (a 400, a 5xx),
+     * so the cause behind "Couldn't publish the site." can be found (D113).
+     */
+    readonly errors: ErrorReporter;
     /** Where an account's R2 is; tests point it at a local server. */
     readonly endpoint?: (accountId: string) => string;
     readonly fetch?: typeof fetch;
   }) {
     this.#credentialsFile = options.credentialsFile;
     this.#clock = options.clock;
+    this.#errors = options.errors;
     this.#endpoint =
       options.endpoint ??
       ((accountId) => `https://${accountId}.r2.cloudflarestorage.com`);
@@ -119,6 +127,8 @@ export class R2PublishBucket implements PublishBucket {
   async #send(
     target: BucketTarget,
     request: {
+      /** What the request is, for the log: `PUT images/a.jpg`, `GET the listing`. */
+      readonly what: string;
       readonly method: 'GET' | 'PUT' | 'POST';
       readonly key?: string;
       readonly query?: Readonly<Record<string, string>>;
@@ -198,9 +208,16 @@ export class R2PublishBucket implements PublishBucket {
     if (response.status === 401 || response.status === 403) {
       return failed('keys-refused');
     }
-    if (response.status === 404 && tagText(text, 'Code') === 'NoSuchBucket') {
+    const code = tagText(text, 'Code') ?? 'no error code';
+    if (response.status === 404 && code === 'NoSuchBucket') {
       return failed('no-bucket');
     }
+    // Only R2's code and message are logged: never the request's headers,
+    // which carry the key ID, or the file.
+    this.#errors.report(
+      `R2 refused ${request.what} in ${target.bucket}: ${String(response.status)} ${code}`,
+      tagText(text, 'Message') ?? '(no message)',
+    );
     return failed('other');
   }
 
@@ -212,6 +229,7 @@ export class R2PublishBucket implements PublishBucket {
     let token: string | undefined;
     do {
       const sent = await this.#send(target, {
+        what: 'GET the listing',
         method: 'GET',
         query: {
           'list-type': '2',
@@ -226,6 +244,10 @@ export class R2PublishBucket implements PublishBucket {
       for (const match of xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/gu)) {
         const file = remoteFileOf(match[1] ?? '');
         if (file === undefined) {
+          this.#errors.report(
+            `R2's listing of ${target.bucket} couldn't be read`,
+            'a file in it has no key, size, ETag or time',
+          );
           return err({
             kind: 'publish-failed',
             reason: 'other',
@@ -248,6 +270,7 @@ export class R2PublishBucket implements PublishBucket {
     signal: AbortSignal,
   ): Promise<Result<undefined, PublishFailed>> {
     const sent = await this.#send(target, {
+      what: `PUT ${file.key}`,
       method: 'PUT',
       key: file.key,
       headers: {
@@ -273,6 +296,7 @@ export class R2PublishBucket implements PublishBucket {
           .join('')}</Delete>`,
       );
       const sent = await this.#send(target, {
+        what: `POST a removal of ${String(batch.length)} files`,
         method: 'POST',
         query: { delete: '' },
         headers: {
@@ -286,7 +310,12 @@ export class R2PublishBucket implements PublishBucket {
       if (!sent.ok) {
         return sent;
       }
-      if ((await sent.value.text()).includes('<Error>')) {
+      const answer = await sent.value.text();
+      if (answer.includes('<Error>')) {
+        this.#errors.report(
+          `R2 didn't remove every file asked in ${target.bucket}: ${tagText(answer, 'Code') ?? 'no error code'}`,
+          tagText(answer, 'Message') ?? '(no message)',
+        );
         return err({
           kind: 'publish-failed',
           reason: 'other',

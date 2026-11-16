@@ -1,7 +1,7 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import type { SiteBuildProgress } from '@filmfile/contracts/sites';
-import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useSiteStatus } from './use-site-status.ts';
 
 const photos = (n: number) => (n === 1 ? '1 photo' : `${String(n)} photos`);
 const images = (n: number) => (n === 1 ? '1 image' : `${String(n)} images`);
@@ -33,6 +33,7 @@ export function BuildPanel({
   slug,
   frameCount,
   saving,
+  publishing,
 }: {
   readonly api: ApiClient;
   readonly slug: string;
@@ -40,6 +41,8 @@ export function BuildPanel({
   readonly frameCount: number | undefined;
   /** A change is being saved: building now would use the settings before it. */
   readonly saving: boolean;
+  /** The site is being published or unpublished, so it can't be built now. */
+  readonly publishing: boolean;
 }) {
   const [confirmingEmpty, setConfirmingEmpty] = useState<BuildKind | undefined>(
     undefined,
@@ -47,21 +50,7 @@ export function BuildPanel({
   const [problem, setProblem] = useState<string | undefined>(undefined);
   /** A build has been asked for and the service hasn't answered yet. */
   const [starting, setStarting] = useState(false);
-  const status = useQuery({
-    queryKey: ['sites', slug, 'status'],
-    queryFn: async () => {
-      const { data } = await api.GET('/api/sites/{slug}/status', {
-        params: { path: { slug } },
-      });
-      if (data === undefined) {
-        throw new Error("Couldn't load how the site stands.");
-      }
-      return data;
-    },
-    // While it runs, ask how far it has got.
-    refetchInterval: (query) =>
-      query.state.data?.build?.state === 'running' ? 400 : false,
-  });
+  const status = useSiteStatus(api, slug);
 
   async function build(kind: BuildKind) {
     setConfirmingEmpty(undefined);
@@ -177,7 +166,9 @@ export function BuildPanel({
               <button
                 type="button"
                 className="primary"
-                disabled={saving || starting || freshness === 'in-the-way'}
+                disabled={
+                  saving || starting || publishing || freshness === 'in-the-way'
+                }
                 onClick={() => {
                   start('build');
                 }}
@@ -189,7 +180,7 @@ export function BuildPanel({
                   <button
                     key={kind}
                     type="button"
-                    disabled={saving || starting}
+                    disabled={saving || starting || publishing}
                     onClick={() => {
                       start(kind);
                     }}

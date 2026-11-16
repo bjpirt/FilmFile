@@ -35,6 +35,8 @@ import {
   createSiteRequest,
   updateSiteRequest,
   type Site,
+  type SitePublished,
+  type SitePublishProgress,
 } from '@filmfile/contracts/sites';
 import {
   createSettingsRequest,
@@ -103,6 +105,13 @@ export interface ArchiveContents {
     readonly done: number;
     readonly total: number;
   }[];
+  /** How each site's bucket stands at first (FF-234): not published, unless said. */
+  readonly sitePublished?: Readonly<
+    Record<string, Partial<Omit<SitePublished, 'publish' | 'check'>>>
+  >;
+  /** What a publish's progress says as it's asked after, one after another; the last is kept. */
+  readonly sitePublishStates?: readonly (Partial<SitePublishProgress> &
+    Pick<SitePublishProgress, 'state'>)[];
   /** Whether the person cancels the folder chooser. */
   readonly folderChooserCancelled?: boolean;
 }
@@ -276,6 +285,32 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   const siteFreshness = new Map<string, { freshness: string; message: string }>(
     Object.entries(contents.siteStatuses ?? {}),
   );
+  type Bucket = Omit<SitePublished, 'publish' | 'check'>;
+  const buckets = new Map<string, Bucket>(
+    Object.entries(contents.sitePublished ?? {}).map(([slug, stated]) => [
+      slug,
+      {
+        stands: 'not-published',
+        publishedAt: null,
+        filesToUpdate: 3,
+        filesInBucket: 0,
+        ...stated,
+      },
+    ]),
+  );
+  /** The slug of every site a publish was started for, cancelled, or unpublished. */
+  const sitePublishes: string[] = [];
+  const sitePublishesCancelled: string[] = [];
+  const siteUnpublishes: string[] = [];
+  let publishing: string | undefined;
+  let publishCalls = 0;
+  let latestPublish: SitePublishProgress | null = null;
+  /** While set, asking how a bucket stands fails this way, as the service says. */
+  let checkFailure: SitePublished['check'] = null;
+  /** While set, unpublishing fails this way. */
+  let unpublishFailure:
+    { readonly error: string; readonly reason: string } | undefined;
+  let unpublishesHeld: Promise<undefined> | undefined;
   let siteBuildCalls = 0;
   let building: string | undefined;
   /** Every change to a site: which one, and what was sent. */
@@ -1088,6 +1123,140 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     });
   }
 
+  /** Publishing a site and asking how its bucket stands, as the service answers (FF-201). */
+  async function sitePublishing(
+    request: Request,
+    site: Site,
+    what: 'publish' | 'published',
+  ): Promise<Response> {
+    const slug = site.slug;
+    if (site.publish === null) {
+      return Response.json(
+        {
+          error: 'invalid request',
+          issues: [
+            { path: ['publish'], message: 'say where to publish the site' },
+          ],
+        },
+        { status: 422 },
+      );
+    }
+    const noAccount = settings?.cloudflareAccountId == null;
+    const needsAccount = Response.json(
+      {
+        error: 'invalid request',
+        issues: [
+          {
+            path: ['cloudflareAccountId'],
+            message: 'Set your Cloudflare account ID in Settings.',
+          },
+        ],
+      },
+      { status: 422 },
+    );
+    const bucket: Bucket = buckets.get(slug) ?? {
+      stands: 'not-published',
+      publishedAt: null,
+      filesToUpdate: 3,
+      filesInBucket: 0,
+    };
+    if (what === 'publish') {
+      if (request.method === 'DELETE') {
+        sitePublishesCancelled.push(slug);
+        return new Response(null, { status: 204 });
+      }
+      if (noAccount) {
+        return needsAccount;
+      }
+      sitePublishes.push(slug);
+      publishing = slug;
+      publishCalls = 0;
+      latestPublish = {
+        state: 'running',
+        phase: 'uploading',
+        done: 0,
+        total: 3,
+        failure: null,
+        message: null,
+      };
+      return Response.json(latestPublish, { status: 202 });
+    }
+    if (request.method === 'DELETE') {
+      siteUnpublishes.push(slug);
+      await unpublishesHeld;
+      if (noAccount) {
+        return needsAccount;
+      }
+      if (unpublishFailure !== undefined) {
+        return Response.json(unpublishFailure, { status: 502 });
+      }
+      if (bucket.filesInBucket === 0) {
+        return Response.json(
+          {
+            error: 'invalid request',
+            issues: [{ path: ['site'], message: 'nothing is published' }],
+          },
+          { status: 422 },
+        );
+      }
+      buckets.set(slug, {
+        ...bucket,
+        stands: 'not-published',
+        publishedAt: null,
+        filesInBucket: 0,
+      });
+      return new Response(null, { status: 204 });
+    }
+    if (publishing === slug) {
+      const states = contents.sitePublishStates ?? [{ state: 'done' as const }];
+      publishCalls += 1;
+      const now = states[Math.min(publishCalls, states.length) - 1];
+      latestPublish = {
+        phase: 'uploading',
+        done: 3,
+        total: 3,
+        failure: null,
+        message: null,
+        ...latestPublish,
+        ...now,
+        state: now?.state ?? 'done',
+      };
+      if (latestPublish.state === 'done') {
+        buckets.set(slug, {
+          stands: 'up-to-date',
+          publishedAt: '2026-11-13T14:02:00.000Z',
+          filesToUpdate: 0,
+          filesInBucket: Math.max(bucket.filesInBucket, 3),
+        });
+      }
+      if (latestPublish.state !== 'running') {
+        publishing = undefined;
+      }
+    }
+    const publish =
+      buckets.has(slug) || latestPublish !== null ? latestPublish : null;
+    if (noAccount || checkFailure !== null) {
+      return Response.json({
+        stands: 'unknown',
+        check: noAccount
+          ? {
+              failure: 'no-account',
+              message: 'Set your Cloudflare account ID in Settings.',
+            }
+          : checkFailure,
+        publishedAt: null,
+        filesToUpdate: 0,
+        filesInBucket: 0,
+        publish,
+      });
+    }
+    return Response.json({
+      ...(buckets.get(slug) ?? bucket),
+      check: null,
+      publish,
+    });
+  }
+
   async function sitesRoute(
     request: Request,
     slug: string | undefined,
@@ -1136,6 +1305,9 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     if (current === undefined) {
       return notFound();
     }
+    if (below === 'publish' || below === 'published') {
+      return sitePublishing(request, current, below);
+    }
     if (below === 'build' || below === 'status') {
       if (below === 'build' && request.method === 'POST') {
         await siteBuildStartsHeld;
@@ -1172,6 +1344,35 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         { error: `site ${newSlug} already exists` },
         { status: 409 },
       );
+    }
+    const publish = body.value.publish;
+    if (publish !== undefined && publish !== null) {
+      // As the service does (FF-201): R2's bucket names, and https:// addresses.
+      const issues = [
+        ...(/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/u.test(publish.bucket)
+          ? []
+          : [
+              {
+                path: ['publish', 'bucket'],
+                message:
+                  'must be 3 to 63 lower-case letters, digits or hyphens, starting and ending with a letter or digit',
+              },
+            ]),
+        ...(publish.address.startsWith('https://')
+          ? []
+          : [
+              {
+                path: ['publish', 'address'],
+                message: 'must be an https:// address',
+              },
+            ]),
+      ];
+      if (issues.length > 0) {
+        return Response.json(
+          { error: 'invalid request', issues },
+          { status: 422 },
+        );
+      }
     }
     const updated: Site = {
       ...current,
@@ -1415,6 +1616,29 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       siteBuildStartsHeld = held.promise;
       return () => {
         siteBuildStartsHeld = undefined;
+        held.resolve(undefined);
+      };
+    },
+    sitePublishes,
+    sitePublishesCancelled,
+    siteUnpublishes,
+    /** Makes asking how a bucket stands fail this way, or work again with null. */
+    failCheck(check: SitePublished['check']) {
+      checkFailure = check;
+    },
+    /** Makes unpublishing fail with this answer, as the service's 502. */
+    failUnpublish(failure: {
+      readonly error: string;
+      readonly reason: string;
+    }) {
+      unpublishFailure = failure;
+    },
+    /** Holds every unpublish until the function returned is called. */
+    holdUnpublishes(): () => void {
+      const held = Promise.withResolvers<undefined>();
+      unpublishesHeld = held.promise;
+      return () => {
+        unpublishesHeld = undefined;
         held.resolve(undefined);
       };
     },

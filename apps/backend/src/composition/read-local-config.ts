@@ -13,6 +13,12 @@ export interface LocalConfig {
   readonly uiOrigin?: string;
   /** The AWS credentials file whose `[filmfile]` profile holds the keys that publish a site (D111). */
   readonly awsCredentialsFile: string;
+  /**
+   * Where Cloudflare R2 is, for every account, in place of its own address:
+   * for testing only, against a local fake (FF-234). Read only from the
+   * environment, never from a request.
+   */
+  readonly r2Endpoint?: string;
 }
 
 interface System {
@@ -49,6 +55,9 @@ export function readLocalConfig(
     awsCredentialsFile:
       env.AWS_SHARED_CREDENTIALS_FILE ??
       path.join(system.home, '.aws', 'credentials'),
+    ...(env.FILMFILE_R2_ENDPOINT === undefined
+      ? {}
+      : { r2Endpoint: env.FILMFILE_R2_ENDPOINT }),
     // Where the UI runs when it isn't served by the backend, e.g. Vite in development.
     ...(env.FILMFILE_UI_ORIGIN === undefined
       ? {}
