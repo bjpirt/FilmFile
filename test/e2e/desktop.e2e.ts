@@ -64,6 +64,8 @@ test.beforeEach(() => {
 test.afterEach(async () => {
   const journey = test.info();
   if (journey.status !== journey.expectedStatus && appOutput !== '') {
+    // TEMPORARY: time for the app to say how its service stopped.
+    await new Promise((resolve) => setTimeout(resolve, 3000));
     process.stderr.write(`The app's output:\n${appOutput}\n`);
     await journey.attach('app-output', {
       body: appOutput,
@@ -402,6 +404,7 @@ test('a quick export in the desktop app asks where to save it, says where it wen
 
   // A roll with one scanned frame, made through the service as the page would.
   async function send(url: string, body: BodyInit, type: string) {
+    appOutput += `TEMPORARY: sending ${url}\n`;
     const response = await fetch(`${service}${url}`, {
       method: 'POST',
       headers: { Origin: service, 'Content-Type': type },
@@ -472,6 +475,7 @@ async function aRollWithFrames(
   numbers: readonly string[],
 ): Promise<string> {
   async function send(url: string, body: BodyInit, type: string) {
+    appOutput += `TEMPORARY: sending ${url}\n`;
     const response = await fetch(`${service}${url}`, {
       method: 'POST',
       headers: { Origin: service, 'Content-Type': type },
