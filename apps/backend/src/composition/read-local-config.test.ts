@@ -85,3 +85,15 @@ test.each([
     expected,
   );
 });
+
+test('looks for the keys that publish a site in ~/.aws/credentials, or where AWS_SHARED_CREDENTIALS_FILE says', () => {
+  expect(readLocalConfig(folder, mac).awsCredentialsFile).toBe(
+    '/Users/ben/.aws/credentials',
+  );
+  expect(
+    readLocalConfig(
+      { ...folder, AWS_SHARED_CREDENTIALS_FILE: '/keys/aws' },
+      mac,
+    ).awsCredentialsFile,
+  ).toBe('/keys/aws');
+});

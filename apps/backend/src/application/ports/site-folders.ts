@@ -29,6 +29,14 @@ export interface SiteBuild {
   discard(): Promise<void>;
 }
 
+/** A file of a built site: its path in the site, its size and the MD5 of its bytes. */
+export interface BuiltSiteFile {
+  readonly path: string;
+  readonly size: number;
+  /** Lower-case hexadecimal. */
+  readonly md5: string;
+}
+
 /**
  * Where built sites are kept, one folder each in the archive's `Sites/`
  * (D92). A build is made in a folder beside the site's and swapped in when
@@ -46,6 +54,12 @@ export interface SiteFolders {
     slug: Slug,
     relativePath: string,
   ): Promise<Uint8Array | undefined>;
+
+  /**
+   * Every file of the built site, `site.json` included, with its size and
+   * MD5, by path; nothing if the site isn't built.
+   */
+  describe(ctx: ArchiveContext, slug: Slug): Promise<readonly BuiltSiteFile[]>;
 
   /** Starts a build; never touches the built site until `commit`. */
   begin(ctx: ArchiveContext, slug: Slug): Promise<SiteBuild>;

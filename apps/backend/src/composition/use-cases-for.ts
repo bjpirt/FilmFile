@@ -20,6 +20,7 @@ import type { HoldingArea } from '../application/ports/holding-area.ts';
 import type { IdGenerator } from '../application/ports/id-generator.ts';
 import type { ImageRenderer } from '../application/ports/image-renderer.ts';
 import type { ImageInspector } from '../application/ports/image-inspector.ts';
+import type { PublishBucket } from '../application/ports/publish-bucket.ts';
 import type { PreviewProvider } from '../application/ports/preview-provider.ts';
 import type { RollRepository } from '../application/ports/roll-repository.ts';
 import { FolderExports } from '../application/use-cases/exports/folder-exports.ts';
@@ -28,6 +29,8 @@ import { PrepareQuickExport } from '../application/use-cases/exports/prepare-qui
 import { BuildSite } from '../application/use-cases/sites/build-site.ts';
 import { GetBuiltSiteFile } from '../application/use-cases/sites/get-built-site-file.ts';
 import { SiteBuilds } from '../application/use-cases/sites/site-builds.ts';
+import { SitePublishes } from '../application/use-cases/sites/site-publishes.ts';
+import { SiteWork } from '../application/use-cases/sites/site-work.ts';
 import { CreateSite } from '../application/use-cases/sites/create-site.ts';
 import { DeleteSite } from '../application/use-cases/sites/delete-site.ts';
 import { GetSite } from '../application/use-cases/sites/get-site.ts';
@@ -79,6 +82,8 @@ export interface Adapters {
   readonly renderer: ImageRenderer;
   readonly sites: SiteRepository;
   readonly siteFolders: SiteFolders;
+  /** The bucket a built site is published into (D111). */
+  readonly publishBucket: PublishBucket;
   readonly tickets: ExportTickets;
   /** The desktop app, which can ask for a folder to export into (D100); none when there isn't one. */
   readonly destination?: ExportDestination | undefined;
@@ -103,6 +108,7 @@ export function useCasesFor({
   destination,
   sites,
   siteFolders,
+  publishBucket,
   ids,
   clock,
   errors,
@@ -125,6 +131,23 @@ export function useCasesFor({
     renderer,
     clock,
     errors,
+  );
+  const siteWork = new SiteWork();
+  const siteBuilds = new SiteBuilds(
+    sites,
+    searchFrames,
+    new BuildSite(
+      rolls,
+      settings,
+      equipment,
+      events,
+      blobs,
+      renderer,
+      siteFolders,
+    ),
+    settings,
+    errors,
+    siteWork,
   );
   return {
     getSettings: new GetSettings(settings),
@@ -157,20 +180,14 @@ export function useCasesFor({
       errors,
     ),
     searchFrames,
-    siteBuilds: new SiteBuilds(
+    siteBuilds,
+    sitePublishes: new SitePublishes(
       sites,
-      searchFrames,
-      new BuildSite(
-        rolls,
-        settings,
-        equipment,
-        events,
-        blobs,
-        renderer,
-        siteFolders,
-      ),
-      settings,
+      siteBuilds,
+      siteFolders,
+      publishBucket,
       errors,
+      siteWork,
     ),
     getBuiltSiteFile: new GetBuiltSiteFile(siteFolders),
     listSites: new ListSites(sites, searchFrames),

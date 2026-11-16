@@ -71,8 +71,9 @@ export interface ArchiveContents {
   readonly lenses?: readonly Lens[];
   readonly events?: readonly Event[];
   /** Sites, plainly presented unless they say how. */
-  readonly sites?: readonly (Omit<Site, 'presentation'> & {
+  readonly sites?: readonly (Omit<Site, 'presentation' | 'publish'> & {
     readonly presentation?: Site['presentation'];
+    readonly publish?: Site['publish'];
   })[];
   /** FilmFile's settings; set up by default, or null if they aren't yet. */
   readonly settings?: Settings | null;
@@ -250,6 +251,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   const sites: Site[] = (contents.sites ?? []).map((site) => ({
     ...site,
     presentation: site.presentation ?? plainPresentation,
+    publish: site.publish ?? null,
   }));
   let settings =
     contents.settings === undefined ? setUpSettings : contents.settings;
@@ -1087,6 +1089,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         name: body.value.name,
         selection: { rules: [], excluded: [] },
         presentation: plainPresentation,
+        publish: null,
       };
       if (sites.some((site) => site.slug === made.slug)) {
         return Response.json(
@@ -1152,6 +1155,9 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       ...(body.value.presentation === undefined
         ? {}
         : { presentation: body.value.presentation }),
+      ...(body.value.publish === undefined
+        ? {}
+        : { publish: body.value.publish }),
     };
     sites[index] = updated;
     change(`site:${newSlug}`);

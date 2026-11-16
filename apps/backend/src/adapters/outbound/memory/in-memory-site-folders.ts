@@ -1,10 +1,12 @@
 import type {
+  BuiltSiteFile,
   SiteBuild,
   SiteFolders,
   SiteFolderState,
 } from '../../../application/ports/site-folders.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type { Slug } from '../../../domain/shared/slug.ts';
+import { md5Hex } from '../node/md5-hex.ts';
 import {
   siteManifestJson,
   type SiteManifest,
@@ -58,6 +60,25 @@ export class InMemorySiteFolders implements SiteFolders {
     const file = this.sites.get(slug)?.files.get(relativePath);
     return Promise.resolve(
       typeof file === 'string' ? new TextEncoder().encode(file) : file,
+    );
+  }
+
+  describe(
+    _ctx: ArchiveContext,
+    slug: Slug,
+  ): Promise<readonly BuiltSiteFile[]> {
+    const files =
+      this.sites.get(slug)?.files ?? new Map<string, string | Uint8Array>();
+    return Promise.resolve(
+      [...files]
+        .map(([path, content]) => {
+          const bytes =
+            typeof content === 'string'
+              ? new TextEncoder().encode(content)
+              : content;
+          return { path, size: bytes.length, md5: md5Hex(bytes) };
+        })
+        .sort((a, b) => (a.path < b.path ? -1 : 1)),
     );
   }
 

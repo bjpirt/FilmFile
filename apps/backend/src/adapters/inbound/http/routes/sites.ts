@@ -19,6 +19,7 @@ import type { CreateSite } from '../../../../application/use-cases/sites/create-
 import type { DeleteSite } from '../../../../application/use-cases/sites/delete-site.ts';
 import type { GetSite } from '../../../../application/use-cases/sites/get-site.ts';
 import type { ListSites } from '../../../../application/use-cases/sites/list-sites.ts';
+import type { SitePublishes } from '../../../../application/use-cases/sites/site-publishes.ts';
 import type { SiteBuilds } from '../../../../application/use-cases/sites/site-builds.ts';
 import type { UpdateSite } from '../../../../application/use-cases/sites/update-site.ts';
 import type { ArchiveContext } from '../../../../domain/shared/archive-context.ts';
@@ -135,6 +136,7 @@ const startBuild = createRoute({
   responses: {
     202: json(siteBuildProgress, 'The build, running.'),
     404: json(errorResponse, 'There is no site with that slug.'),
+    409: json(errorResponse, 'The site is being published or unpublished.'),
     422: json(
       invalidRequestResponse,
       'Sites/<slug> holds something that is not a built site, and is left alone; or rebuild is not all or pages.',
@@ -169,6 +171,7 @@ const cancelBuild = createRoute({
 
 export interface SiteUseCases {
   readonly siteBuilds: SiteBuilds;
+  readonly sitePublishes: SitePublishes;
   readonly listSites: ListSites;
   readonly createSite: CreateSite;
   readonly getSite: GetSite;
@@ -187,6 +190,7 @@ function siteBody({ site }: VersionedSite) {
       copyright: site.presentation.copyright,
       captions: [...site.presentation.captions],
     },
+    publish: site.publish,
   };
 }
 
@@ -237,7 +241,12 @@ export function siteRoutes({
     if (ifMatch === undefined) {
       return c.json({ error: 'send the site’s ETag as If-Match' }, 428);
     }
-    const { name, selection: wanted, presentation } = c.req.valid('json');
+    const {
+      name,
+      selection: wanted,
+      presentation,
+      publish,
+    } = c.req.valid('json');
     const selection = wanted === undefined ? undefined : selectionOf(wanted);
     if (wanted !== undefined && selection === undefined) {
       return c.json(
@@ -256,6 +265,7 @@ export function siteRoutes({
       name,
       selection,
       presentation,
+      publish,
     });
     if (!updated.ok) {
       return domainErrorResponse(c, updated.error);

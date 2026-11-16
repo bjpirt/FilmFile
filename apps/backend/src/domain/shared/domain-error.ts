@@ -4,7 +4,9 @@
  * The HTTP adapter maps them to status codes: not found → 404, validation
  * failed, mapping invalid and an unreadable or oversized image → 422,
  * conflict, already exists and a scan already in the roll → 409, and a file
- * that isn't a JPEG, PNG or WebP → 415.
+ * that isn't a JPEG, PNG or WebP → 415, and a site already being built,
+ * published or unpublished → 409. A publish that failed on the other side
+ * (keys, bucket, network) → 502.
  */
 export type DomainError =
   | NotFound
@@ -13,7 +15,9 @@ export type DomainError =
   | ValidationFailed
   | MappingInvalid
   | ImageRejected
-  | ScanAlreadyInRoll;
+  | ScanAlreadyInRoll
+  | Busy
+  | PublishFailed;
 
 export type EntityKind =
   | 'settings'
@@ -78,4 +82,30 @@ export interface ScanAlreadyInRoll {
 export interface Issue {
   readonly path: readonly (string | number)[];
   readonly message: string;
+}
+
+/** What a site is busy with, so asking for another thing at the same time is refused. */
+export interface Busy {
+  readonly kind: 'busy';
+  readonly entity: EntityKind;
+  readonly id: string;
+  readonly doing: 'building' | 'publishing' | 'unpublishing';
+}
+
+/** Why putting a site on the web, or taking it down, didn't work (FF-201). */
+export type PublishFailureReason =
+  /** No `[filmfile]` profile in `~/.aws/credentials`. */
+  | 'no-credentials'
+  /** The bucket's service refused the keys. */
+  | 'keys-refused'
+  | 'no-bucket'
+  /** The service couldn't be reached. */
+  | 'unreachable'
+  | 'other';
+
+export interface PublishFailed {
+  readonly kind: 'publish-failed';
+  readonly reason: PublishFailureReason;
+  /** The bucket being used, for the message. */
+  readonly bucket: string;
 }

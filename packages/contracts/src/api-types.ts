@@ -2452,6 +2452,15 @@ export interface paths {
                         "application/json": components["schemas"]["Error"];
                     };
                 };
+                /** @description The site is being published or unpublished. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
                 /** @description Sites/<slug> holds something that is not a built site, and is left alone; or rebuild is not all or pages. */
                 422: {
                     headers: {
@@ -2546,6 +2555,224 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sites/{slug}/published": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How a site stands in its bucket
+         * @description Lists the bucket and compares it with the built site by path, size and MD5: whether it is published, up to date or has files to update, when it was published, and how the latest publish went. Needs the site's publish target. When the bucket cannot be asked (no keys in the [filmfile] profile of ~/.aws/credentials, keys refused, no such bucket, unreachable) it still answers, with stands unknown and why in check, so how the latest publish went can be read.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Where the bucket stands. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SitePublished"];
+                    };
+                };
+                /** @description There is no site with that slug. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The site has no publish target. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        /**
+         * Unpublish a site
+         * @description Removes every file in the site's bucket, which is used only for the site. Nothing else is touched.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The bucket is empty. */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description There is no site with that slug. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The site is being built, published or unpublished. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The site has no publish target, or nothing is published. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+                /** @description The bucket could not be reached or used: no keys, keys refused, no such bucket, or unreachable. */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublishFailedResponse"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sites/{slug}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish a site
+         * @description Starts publishing in the background: builds the site first when it is not built or is out of date, then uploads only the files that are missing or differ (images first, then pages, CSS and script) and removes what the site no longer has. Follow it with the published status. A publish already running is followed instead of started again.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The publish, running. */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SitePublishProgress"];
+                    };
+                };
+                /** @description There is no site with that slug. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The site is being built or unpublished, so it can not be published now. */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The site has no publish target. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        /**
+         * Stop publishing a site
+         * @description No more files are started and those already going finish. Nothing already uploaded is taken back.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Asked to stop. */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description That site is not being published. */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -3396,6 +3623,15 @@ export interface components {
             name: string;
             selection: components["schemas"]["FrameSelection"];
             presentation: components["schemas"]["SitePresentation"];
+            /** @description Where the site is published, or null while it is not set. */
+            publish: {
+                /** @description The Cloudflare account ID: 32 hexadecimal characters. */
+                accountId: string;
+                /** @description The R2 bucket, used only for this site: what the site doesn't have is removed from it. */
+                bucket: string;
+                /** @description Where the published site is seen, an https:// address; only ever a link. */
+                address: string;
+            } | null;
         };
         /** @description Which frames: those meeting every rule (all of them with no rules), minus those excluded by hand. A hidden frame is never on one. */
         FrameSelection: {
@@ -3426,6 +3662,15 @@ export interface components {
             name?: string;
             selection?: components["schemas"]["FrameSelection"];
             presentation?: components["schemas"]["SitePresentation"];
+            /** @description Where to publish the site; null takes the target away. Every field is checked. */
+            publish?: {
+                /** @description The Cloudflare account ID: 32 hexadecimal characters. */
+                accountId: string;
+                /** @description The R2 bucket, used only for this site: what the site doesn't have is removed from it. */
+                bucket: string;
+                /** @description Where the published site is seen, an https:// address; only ever a link. */
+                address: string;
+            } | null;
         };
         SiteBuildProgress: {
             /** @enum {string} */
@@ -3459,6 +3704,73 @@ export interface components {
                 imagesMade: number;
                 imagesUnchanged: number;
             } | null;
+        };
+        SitePublished: {
+            /**
+             * @description unknown: the bucket could not be asked, see check; not-built: there is nothing built to compare with; not-published: the bucket has no index.html; up-to-date; or needs-update.
+             * @enum {string}
+             */
+            stands: "unknown" | "not-built" | "not-published" | "up-to-date" | "needs-update";
+            /** @description Why the bucket could not be asked, in words, when stands is unknown. */
+            check: {
+                /** @enum {string} */
+                failure: "no-credentials" | "keys-refused" | "no-bucket" | "unreachable" | "other";
+                message: string;
+            } | null;
+            /**
+             * Format: date-time
+             * @description When index.html in the bucket was written.
+             */
+            publishedAt: string | null;
+            /** @description Files to upload or remove to make the bucket the built site. */
+            filesToUpdate: number;
+            /** @description Files in the bucket now, which unpublishing would remove. */
+            filesInBucket: number;
+            /** @description How the latest publish since the service started went, if there was one. */
+            publish: {
+                /** @enum {string} */
+                state: "running" | "done" | "cancelled" | "failed";
+                /**
+                 * @description What it is doing: building the site first, putting files in the bucket, or removing what the site no longer has.
+                 * @enum {string}
+                 */
+                phase: "building" | "uploading" | "removing";
+                /** @description Images (building) or files (uploading, removing) dealt with so far. */
+                done: number;
+                total: number;
+                /**
+                 * @description Why it failed, if it did; build-failed when the site could not be built first.
+                 * @enum {string|null}
+                 */
+                failure: "no-credentials" | "keys-refused" | "no-bucket" | "unreachable" | "other" | "build-failed" | null;
+                /** @description What to fix, in words, when it failed. */
+                message: string | null;
+            } | null;
+        };
+        SitePublishProgress: {
+            /** @enum {string} */
+            state: "running" | "done" | "cancelled" | "failed";
+            /**
+             * @description What it is doing: building the site first, putting files in the bucket, or removing what the site no longer has.
+             * @enum {string}
+             */
+            phase: "building" | "uploading" | "removing";
+            /** @description Images (building) or files (uploading, removing) dealt with so far. */
+            done: number;
+            total: number;
+            /**
+             * @description Why it failed, if it did; build-failed when the site could not be built first.
+             * @enum {string|null}
+             */
+            failure: "no-credentials" | "keys-refused" | "no-bucket" | "unreachable" | "other" | "build-failed" | null;
+            /** @description What to fix, in words, when it failed. */
+            message: string | null;
+        };
+        PublishFailedResponse: {
+            /** @description What to fix, in words, such as "Cloudflare refused the keys in the [filmfile] profile." */
+            error: string;
+            /** @enum {string} */
+            reason: "no-credentials" | "keys-refused" | "no-bucket" | "unreachable" | "other";
         };
         Settings: {
             id: string;

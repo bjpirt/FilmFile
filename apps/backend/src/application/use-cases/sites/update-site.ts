@@ -8,6 +8,7 @@ import type {
 } from '../../../domain/shared/domain-error.ts';
 import { err, ok, type Result } from '../../../domain/shared/result.ts';
 import { slugFor, type Slug } from '../../../domain/shared/slug.ts';
+import { parsePublishTarget } from '../../../domain/sites/publish-target.ts';
 import type { Site, SitePresentation } from '../../../domain/sites/site.ts';
 import type {
   SiteRepository,
@@ -15,7 +16,7 @@ import type {
 } from '../../ports/site-repository.ts';
 
 /**
- * Changes a site's name, selection or presentation; a detail left out stays as it is. A new
+ * Changes a site's name, selection, presentation or publish target; a detail left out stays as it is. A new
  * name makes a new slug, and the site moves to it (what it built in `Sites/`
  * stays where it is). Saved only if the site hasn't changed since the caller
  * read it at `expectedVersion`.
@@ -35,6 +36,15 @@ export class UpdateSite {
       readonly name?: string | undefined;
       readonly selection?: Selection | undefined;
       readonly presentation?: SitePresentation | undefined;
+      /** Where to publish; null takes the target away. */
+      readonly publish?:
+        | {
+            readonly accountId: string;
+            readonly bucket: string;
+            readonly address: string;
+          }
+        | null
+        | undefined;
     },
   ): Promise<
     Result<
@@ -50,6 +60,13 @@ export class UpdateSite {
         issues: [{ path: ['name'], message: 'must have a letter or digit' }],
       });
     }
+    const publish =
+      input.publish === undefined || input.publish === null
+        ? input.publish
+        : parsePublishTarget(input.publish);
+    if (publish !== undefined && publish !== null && !publish.ok) {
+      return publish;
+    }
     const current = await this.#sites.get(ctx, input.slug);
     if (current === undefined) {
       return err({ kind: 'not-found', entity: 'site', id: input.slug });
@@ -62,6 +79,9 @@ export class UpdateSite {
       ...(input.presentation === undefined
         ? {}
         : { presentation: input.presentation }),
+      ...(publish === undefined
+        ? {}
+        : { publish: publish === null ? null : publish.value }),
     };
     const saved =
       site.slug === input.slug

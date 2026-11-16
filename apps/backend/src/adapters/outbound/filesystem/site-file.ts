@@ -69,6 +69,12 @@ const storedPresentation = z.object({
   captions: z.array(z.enum(['title', 'shot', 'camera', 'lens', 'film'])),
 });
 
+const storedPublish = z.object({
+  accountId: z.string(),
+  bucket: z.string(),
+  address: z.string(),
+});
+
 const storedSite = z.object({
   schema: z.literal(currentSchema),
   id: z.custom<SiteId>(
@@ -84,13 +90,15 @@ const storedSite = z.object({
   }),
   // Only stored once it differs from the plain default, so older files read as plain.
   presentation: storedPresentation.optional(),
+  // Only stored once a target is set, so older files read as not published.
+  publish: storedPublish.optional(),
 });
 
 type SiteDetails = Omit<Site, 'slug'>;
 
 /** The site's details in a site file's text; throws if the file isn't one. */
 export function parseSiteFile(text: string): SiteDetails {
-  const { id, name, selection, presentation } = storedSite.parse(
+  const { id, name, selection, presentation, publish } = storedSite.parse(
     JSON.parse(text),
   );
   return {
@@ -104,6 +112,7 @@ export function parseSiteFile(text: string): SiteDetails {
       })),
     },
     presentation: presentation ?? defaultPresentation,
+    publish: publish ?? null,
   };
 }
 
@@ -159,6 +168,15 @@ export function siteFileContent(site: SiteDetails): string {
             title: site.presentation.title,
             copyright: site.presentation.copyright,
             captions: [...site.presentation.captions],
+          },
+        }),
+    ...(site.publish === null
+      ? {}
+      : {
+          publish: {
+            accountId: site.publish.accountId,
+            bucket: site.publish.bucket,
+            address: site.publish.address,
           },
         }),
   };

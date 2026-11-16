@@ -14,6 +14,7 @@ import {
   type BuiltSite,
   type BuildSiteError,
 } from '../../../src/application/use-cases/sites/build-site.ts';
+import { SiteWork } from '../../../src/application/use-cases/sites/site-work.ts';
 import { SiteBuilds } from '../../../src/application/use-cases/sites/site-builds.ts';
 import { isSiteId } from '../../../src/domain/shared/ids.ts';
 import { ok, type Result } from '../../../src/domain/shared/result.ts';
@@ -89,6 +90,7 @@ test('never says a build is done alongside how the site stood before it ended', 
     name: 'Iceland',
     selection: { rules: [], excluded: [] },
     presentation: defaultPresentation,
+    publish: null,
   });
   const rolls = new InMemoryRollRepository();
   const settings = new InMemorySettingsRepository();
@@ -99,6 +101,7 @@ test('never says a build is done alongside how the site stood before it ended', 
     building,
     settings,
     new InMemoryErrorReporter(),
+    new SiteWork(),
   );
   await builds.start(ctx, { slug });
 

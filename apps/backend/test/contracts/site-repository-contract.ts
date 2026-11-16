@@ -15,6 +15,7 @@ function aSite(name: string, over: Partial<Site> = {}): Site {
     name,
     selection: { rules: [], excluded: [] },
     presentation: defaultPresentation,
+    publish: null,
     ...over,
   };
 }
@@ -79,6 +80,22 @@ export function siteRepositoryContract(
       expect((await sites.get(ctx, slug('norway')))?.site.presentation).toEqual(
         defaultPresentation,
       );
+    });
+
+    test('keeps where a site is published, and a site with no target has none', async () => {
+      const sites = make();
+      const published = aSite('Iceland', {
+        publish: {
+          accountId: '0123456789abcdef0123456789abcdef',
+          bucket: 'photos-pirt',
+          address: 'https://photos.example.com',
+        },
+      });
+      await sites.create(ctx, published);
+      await sites.create(ctx, aSite('Norway'));
+
+      expect((await sites.get(ctx, published.slug))?.site).toEqual(published);
+      expect((await sites.get(ctx, slug('norway')))?.site.publish).toBeNull();
     });
 
     test('lists the sites by name', async () => {

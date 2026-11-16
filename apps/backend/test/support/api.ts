@@ -1,5 +1,6 @@
 import type { Clock } from '../../src/application/ports/clock.ts';
 import type { ExportDestination } from '../../src/application/ports/export-destination.ts';
+import type { PublishBucket } from '../../src/application/ports/publish-bucket.ts';
 import type { IdGenerator } from '../../src/application/ports/id-generator.ts';
 import { composeLocal } from '../../src/composition/compose-local.ts';
 import type { TempArchive } from './temp-archive.ts';
@@ -19,6 +20,7 @@ export function apiFor(
     readonly clock?: Clock;
     readonly ids?: IdGenerator;
     readonly destination?: ExportDestination;
+    readonly publishBucket?: PublishBucket;
   } = {},
 ) {
   // One app per test archive, as the real service has one app: requests to

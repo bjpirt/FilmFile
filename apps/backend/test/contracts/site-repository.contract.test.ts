@@ -29,6 +29,7 @@ const site = {
   name: 'Iceland',
   selection: { rules: [], excluded: [] },
   presentation: defaultPresentation,
+  publish: null,
 };
 
 test('FilesystemSiteRepository writes the same bytes each time, and leaves them alone when nothing changed', async () => {

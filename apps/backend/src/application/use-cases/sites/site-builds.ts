@@ -1,6 +1,7 @@
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type { FrameId, RollId } from '../../../domain/shared/ids.ts';
 import type {
+  Busy,
   NotFound,
   ValidationFailed,
 } from '../../../domain/shared/domain-error.ts';
@@ -15,6 +16,7 @@ import type { SearchFrames } from '../selections/search-frames.ts';
 import type { SettingsRepository } from '../../ports/settings-repository.ts';
 import type { Settings } from '../../../domain/settings/settings.ts';
 import type { BuildSite } from './build-site.ts';
+import type { SiteWork } from './site-work.ts';
 
 /** Where a build has got to. */
 export interface SiteBuildProgress {
@@ -40,6 +42,8 @@ export interface SiteFreshness {
 interface Job {
   progress: SiteBuildProgress;
   readonly controller: AbortController;
+  /** Settles when the build has ended, however it ended. */
+  finished: Promise<void>;
 }
 
 /** What a site is built with: its presentation, titled with its name (FF-179). */
@@ -64,6 +68,7 @@ export class SiteBuilds {
   readonly #building: BuildSite;
   readonly #settings: SettingsRepository;
   readonly #errors: ErrorReporter;
+  readonly #work: SiteWork;
   readonly #jobs = new Map<Slug, Job>();
 
   constructor(
@@ -72,12 +77,14 @@ export class SiteBuilds {
     building: BuildSite,
     settings: SettingsRepository,
     errors: ErrorReporter,
+    work: SiteWork,
   ) {
     this.#sites = sites;
     this.#search = search;
     this.#building = building;
     this.#settings = settings;
     this.#errors = errors;
+    this.#work = work;
   }
 
   async #optionsOf(ctx: ArchiveContext, site: Site): Promise<SiteOptions> {
@@ -104,10 +111,19 @@ export class SiteBuilds {
       readonly slug: Slug;
       readonly rebuild?: 'all' | 'pages' | undefined;
     },
-  ): Promise<Result<SiteBuildProgress, NotFound | ValidationFailed>> {
+  ): Promise<Result<SiteBuildProgress, NotFound | ValidationFailed | Busy>> {
     const found = await this.#sites.get(ctx, input.slug);
     if (found === undefined) {
       return err({ kind: 'not-found', entity: 'site', id: input.slug });
+    }
+    const doing = this.#work.doing(input.slug);
+    if (doing !== undefined) {
+      return err({
+        kind: 'busy',
+        entity: 'site',
+        id: input.slug,
+        doing,
+      });
     }
     const running = this.#jobs.get(input.slug);
     if (running?.progress.state === 'running') {
@@ -143,10 +159,21 @@ export class SiteBuilds {
         imagesUnchanged: 0,
       },
       controller: new AbortController(),
+      finished: Promise.resolve(),
     };
     this.#jobs.set(site.slug, job);
-    void this.#run(ctx, site, frames, options, input.rebuild, job);
+    job.finished = this.#run(ctx, site, frames, options, input.rebuild, job);
     return ok(job.progress);
+  }
+
+  /** How the latest build of the site is going or went, if there was one since the service started. */
+  progress(slug: Slug): SiteBuildProgress | undefined {
+    return this.#jobs.get(slug)?.progress;
+  }
+
+  /** Settles when the latest build of the site has ended, however it ended. */
+  finished(slug: Slug): Promise<void> {
+    return this.#jobs.get(slug)?.finished ?? Promise.resolve();
   }
 
   async #run(

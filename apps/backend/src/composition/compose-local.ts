@@ -1,3 +1,5 @@
+import { homedir } from 'node:os';
+import path from 'node:path';
 import type { OpenAPIHono } from '@hono/zod-openapi';
 import { createApp } from '../adapters/inbound/http/create-app.ts';
 import type { ReportError } from '../adapters/inbound/http/middleware/error-handler.ts';
@@ -18,6 +20,8 @@ import { UlidGenerator } from '../adapters/outbound/node/ulid-generator.ts';
 import { SharpImageInspector } from '../adapters/outbound/sharp/sharp-image-inspector.ts';
 import { SharpImageRenderer } from '../adapters/outbound/sharp/sharp-image-renderer.ts';
 import { SharpPreviewProvider } from '../adapters/outbound/sharp/sharp-preview-provider.ts';
+import { R2PublishBucket } from '../adapters/outbound/r2/r2-publish-bucket.ts';
+import type { PublishBucket } from '../application/ports/publish-bucket.ts';
 import type { Clock } from '../application/ports/clock.ts';
 import type { ErrorReporter } from '../application/ports/error-reporter.ts';
 import type { IdGenerator } from '../application/ports/id-generator.ts';
@@ -71,6 +75,10 @@ export function composeLocal(config: {
   // Tests pass a fixed clock and sequential IDs.
   readonly clock?: Clock;
   readonly ids?: IdGenerator;
+  /** The AWS credentials file whose `[filmfile]` profile holds the keys that publish a site (D111); by default `~/.aws/credentials`. */
+  readonly awsCredentialsFile?: string;
+  /** Where sites are published; by default a Cloudflare R2 bucket, with keys from `awsCredentialsFile`. */
+  readonly publishBucket?: PublishBucket;
   /** Asks for a folder to export into; by default the desktop app that started the service, if one did (D100). */
   readonly destination?: ExportDestination;
 }): OpenAPIHono {
@@ -93,6 +101,14 @@ export function composeLocal(config: {
       renderer: new SharpImageRenderer(maxPixels),
       sites: new FilesystemSiteRepository(config.archivePath),
       siteFolders: new FilesystemSiteFolders(config.folderPath),
+      publishBucket:
+        config.publishBucket ??
+        new R2PublishBucket({
+          credentialsFile:
+            config.awsCredentialsFile ??
+            path.join(homedir(), '.aws', 'credentials'),
+          clock,
+        }),
       tickets: new InMemoryExportTickets(clock),
       destination,
       ids: config.ids ?? new UlidGenerator(),

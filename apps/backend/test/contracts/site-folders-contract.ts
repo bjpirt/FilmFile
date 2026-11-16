@@ -151,6 +151,36 @@ export function siteFoldersContract(
       await expect(folders.read(ctx, slug, 'a/../../x')).rejects.toThrow();
     });
 
+    test('describes every file of the built site with its size and MD5, by path', async () => {
+      const { folders } = make();
+      const build = await folders.begin(ctx, slug);
+      await build.writeFile('index.html', 'hello');
+      await build.writeImage('images/a.jpg', bytes('jpeg a'));
+      await build.commit(manifest);
+
+      const described = await folders.describe(ctx, slug);
+
+      expect(described.map(({ path }) => path)).toEqual([
+        'images/a.jpg',
+        'index.html',
+        'site.json',
+      ]);
+      expect(described.find(({ path }) => path === 'index.html')).toEqual({
+        path: 'index.html',
+        size: 5,
+        md5: '5d41402abc4b2a76b9719d911017c592',
+      });
+      expect(described.find(({ path }) => path === 'images/a.jpg')?.size).toBe(
+        6,
+      );
+    });
+
+    test('describes nothing for a site never built', async () => {
+      const { folders } = make();
+
+      expect(await folders.describe(ctx, slug)).toEqual([]);
+    });
+
     test('says a folder holding something else is in the way', async () => {
       const { folders, putSomethingElse } = make();
       await putSomethingElse(slug);

@@ -22,6 +22,22 @@ export const sitePresentation = z
   })
   .meta({ id: 'SitePresentation' });
 
+export const publishTarget = z
+  .strictObject({
+    accountId: z.string().max(100).meta({
+      description: 'The Cloudflare account ID: 32 hexadecimal characters.',
+    }),
+    bucket: z.string().max(100).meta({
+      description:
+        "The R2 bucket, used only for this site: what the site doesn't have is removed from it.",
+    }),
+    address: z.string().max(500).meta({
+      description:
+        'Where the published site is seen, an https:// address; only ever a link.',
+    }),
+  })
+  .meta({ id: 'PublishTarget' });
+
 export const site = z
   .object({
     id: ulid,
@@ -31,6 +47,9 @@ export const site = z
     name: z.string().meta({ example: 'Iceland highlights' }),
     selection: frameSelection,
     presentation: sitePresentation,
+    publish: publishTarget.nullable().meta({
+      description: 'Where the site is published, or null while it is not set.',
+    }),
   })
   .meta({ id: 'Site' });
 
@@ -65,6 +84,10 @@ export const updateSiteRequest = z
     }),
     selection: frameSelection.optional(),
     presentation: sitePresentation.optional(),
+    publish: publishTarget.nullable().optional().meta({
+      description:
+        'Where to publish the site; null takes the target away. Every field is checked.',
+    }),
   })
   .meta({
     id: 'UpdateSiteRequest',
@@ -110,6 +133,94 @@ export const siteStatus = z
   })
   .meta({ id: 'SiteStatus' });
 
+const publishFailureReason = z.enum([
+  'no-credentials',
+  'keys-refused',
+  'no-bucket',
+  'unreachable',
+  'other',
+]);
+
+export const publishFailedResponse = z
+  .object({
+    error: z.string().meta({
+      description:
+        'What to fix, in words, such as "Cloudflare refused the keys in the [filmfile] profile."',
+    }),
+    reason: publishFailureReason,
+  })
+  .meta({ id: 'PublishFailedResponse' });
+
+export const sitePublishProgress = z
+  .object({
+    state: z.enum(['running', 'done', 'cancelled', 'failed']),
+    phase: z.enum(['building', 'uploading', 'removing']).meta({
+      description:
+        'What it is doing: building the site first, putting files in the bucket, or removing what the site no longer has.',
+    }),
+    done: z.number().int().meta({
+      description:
+        'Images (building) or files (uploading, removing) dealt with so far.',
+    }),
+    total: z.number().int(),
+    failure: z
+      .enum([
+        'no-credentials',
+        'keys-refused',
+        'no-bucket',
+        'unreachable',
+        'other',
+        'build-failed',
+      ])
+      .nullable()
+      .meta({
+        description:
+          'Why it failed, if it did; build-failed when the site could not be built first.',
+      }),
+    message: z.string().nullable().meta({
+      description: 'What to fix, in words, when it failed.',
+    }),
+  })
+  .meta({ id: 'SitePublishProgress' });
+
+export const sitePublished = z
+  .object({
+    stands: z
+      .enum([
+        'unknown',
+        'not-built',
+        'not-published',
+        'up-to-date',
+        'needs-update',
+      ])
+      .meta({
+        description:
+          'unknown: the bucket could not be asked, see check; not-built: there is nothing built to compare with; not-published: the bucket has no index.html; up-to-date; or needs-update.',
+      }),
+    check: z
+      .object({ failure: publishFailureReason, message: z.string() })
+      .nullable()
+      .meta({
+        description:
+          'Why the bucket could not be asked, in words, when stands is unknown.',
+      }),
+    publishedAt: z.iso.datetime().nullable().meta({
+      description: 'When index.html in the bucket was written.',
+    }),
+    filesToUpdate: z.number().int().meta({
+      description:
+        'Files to upload or remove to make the bucket the built site.',
+    }),
+    filesInBucket: z.number().int().meta({
+      description: 'Files in the bucket now, which unpublishing would remove.',
+    }),
+    publish: sitePublishProgress.nullable().meta({
+      description:
+        'How the latest publish since the service started went, if there was one.',
+    }),
+  })
+  .meta({ id: 'SitePublished' });
+
 export const siteParams = z.object({ slug });
 
 /** The site's version, from the ETag it was read with, so a changed site isn't overwritten. */
@@ -125,3 +236,5 @@ export type SiteSummary = z.infer<typeof siteSummary>;
 
 export type SiteStatus = z.infer<typeof siteStatus>;
 export type SiteBuildProgress = z.infer<typeof siteBuildProgress>;
+export type SitePublished = z.infer<typeof sitePublished>;
+export type SitePublishProgress = z.infer<typeof sitePublishProgress>;

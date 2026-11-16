@@ -1,12 +1,15 @@
 import type { Context } from 'hono';
 import { assertNever } from '../../../domain/shared/assert-never.ts';
+import { publishFailureMessage } from '../../../domain/sites/publish-failure-message.ts';
 import type {
   AlreadyExists,
+  Busy,
   ConcurrencyConflict,
   DomainError,
   ImageRejected,
   MappingInvalid,
   NotFound,
+  PublishFailed,
   ScanAlreadyInRoll,
   ValidationFailed,
 } from '../../../domain/shared/domain-error.ts';
@@ -37,6 +40,22 @@ function invalid(c: Context, error: ValidationFailed | MappingInvalid) {
       })),
     },
     422,
+  );
+}
+
+function busy(c: Context, error: Busy) {
+  const doing = {
+    building: 'built',
+    publishing: 'published',
+    unpublishing: 'unpublished',
+  }[error.doing];
+  return c.json({ error: `the ${error.entity} is being ${doing}` }, 409);
+}
+
+function publishFailed(c: Context, error: PublishFailed) {
+  return c.json(
+    { error: publishFailureMessage(error), reason: error.reason },
+    502,
   );
 }
 
@@ -77,7 +96,11 @@ type ResponseFor<E extends DomainError> = E extends NotFound
       ? ReturnType<typeof scanAlreadyInRoll>
       : E extends ImageRejected
         ? ReturnType<typeof imageRejected>
-        : ReturnType<typeof invalid>;
+        : E extends Busy
+          ? ReturnType<typeof busy>
+          : E extends PublishFailed
+            ? ReturnType<typeof publishFailed>
+            : ReturnType<typeof invalid>;
 
 function responseFor(c: Context, error: DomainError) {
   switch (error.kind) {
@@ -93,6 +116,10 @@ function responseFor(c: Context, error: DomainError) {
       return scanAlreadyInRoll(c, error);
     case 'image-rejected':
       return imageRejected(c, error);
+    case 'busy':
+      return busy(c, error);
+    case 'publish-failed':
+      return publishFailed(c, error);
     default:
       return assertNever(error);
   }

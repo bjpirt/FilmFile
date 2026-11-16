@@ -12,6 +12,7 @@ import {
 } from 'node:fs/promises';
 import path from 'node:path';
 import type {
+  BuiltSiteFile,
   SiteBuild,
   SiteFolders,
   SiteFolderState,
@@ -22,6 +23,7 @@ import {
   siteManifestJson,
   type SiteManifest,
 } from '../../../domain/sites/site-manifest.ts';
+import { md5Hex } from '../node/md5-hex.ts';
 import { hasErrorCode } from './error-codes.ts';
 import { safePath } from './safe-path.ts';
 import { parseSiteManifestFile } from './site-manifest-file.ts';
@@ -94,6 +96,38 @@ export class FilesystemSiteFolders implements SiteFolders {
       }
       throw error;
     }
+  }
+
+  async describe(
+    _ctx: ArchiveContext,
+    slug: Slug,
+  ): Promise<readonly BuiltSiteFile[]> {
+    const folder = safePath(this.#sites, slug);
+    let entries;
+    try {
+      entries = await readdir(folder, { recursive: true, withFileTypes: true });
+    } catch (error) {
+      if (hasErrorCode(error, 'ENOENT')) {
+        return [];
+      }
+      throw error;
+    }
+    const files: BuiltSiteFile[] = [];
+    for (const entry of entries) {
+      if (!entry.isFile()) {
+        continue;
+      }
+      const bytes = await readFile(path.join(entry.parentPath, entry.name));
+      files.push({
+        path: path
+          .relative(folder, path.join(entry.parentPath, entry.name))
+          .split(path.sep)
+          .join('/'),
+        size: bytes.length,
+        md5: md5Hex(bytes),
+      });
+    }
+    return files.sort((a, b) => (a.path < b.path ? -1 : 1));
   }
 
   async begin(_ctx: ArchiveContext, slug: Slug): Promise<SiteBuild> {

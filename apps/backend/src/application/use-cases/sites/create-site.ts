@@ -43,6 +43,7 @@ export class CreateSite {
       name,
       selection: { rules: [], excluded: [] },
       presentation: defaultPresentation,
+      publish: null,
     };
     const created = await this.#sites.create(ctx, site);
     return created.ok ? ok({ site, version: created.value }) : created;

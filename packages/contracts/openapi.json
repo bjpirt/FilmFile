@@ -2229,6 +2229,36 @@
           },
           "presentation": {
             "$ref": "#/components/schemas/SitePresentation"
+          },
+          "publish": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "accountId": {
+                "type": "string",
+                "maxLength": 100,
+                "description": "The Cloudflare account ID: 32 hexadecimal characters."
+              },
+              "bucket": {
+                "type": "string",
+                "maxLength": 100,
+                "description": "The R2 bucket, used only for this site: what the site doesn't have is removed from it."
+              },
+              "address": {
+                "type": "string",
+                "maxLength": 500,
+                "description": "Where the published site is seen, an https:// address; only ever a link."
+              }
+            },
+            "required": [
+              "accountId",
+              "bucket",
+              "address"
+            ],
+            "additionalProperties": false,
+            "description": "Where the site is published, or null while it is not set."
           }
         },
         "required": [
@@ -2236,7 +2266,8 @@
           "slug",
           "name",
           "selection",
-          "presentation"
+          "presentation",
+          "publish"
         ]
       },
       "FrameSelection": {
@@ -2350,6 +2381,36 @@
           },
           "presentation": {
             "$ref": "#/components/schemas/SitePresentation"
+          },
+          "publish": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "accountId": {
+                "type": "string",
+                "maxLength": 100,
+                "description": "The Cloudflare account ID: 32 hexadecimal characters."
+              },
+              "bucket": {
+                "type": "string",
+                "maxLength": 100,
+                "description": "The R2 bucket, used only for this site: what the site doesn't have is removed from it."
+              },
+              "address": {
+                "type": "string",
+                "maxLength": 500,
+                "description": "Where the published site is seen, an https:// address; only ever a link."
+              }
+            },
+            "required": [
+              "accountId",
+              "bucket",
+              "address"
+            ],
+            "additionalProperties": false,
+            "description": "Where to publish the site; null takes the target away. Every field is checked."
           }
         },
         "additionalProperties": false,
@@ -2468,6 +2529,221 @@
           "freshness",
           "message",
           "build"
+        ]
+      },
+      "SitePublished": {
+        "type": "object",
+        "properties": {
+          "stands": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "not-built",
+              "not-published",
+              "up-to-date",
+              "needs-update"
+            ],
+            "description": "unknown: the bucket could not be asked, see check; not-built: there is nothing built to compare with; not-published: the bucket has no index.html; up-to-date; or needs-update."
+          },
+          "check": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "failure": {
+                "type": "string",
+                "enum": [
+                  "no-credentials",
+                  "keys-refused",
+                  "no-bucket",
+                  "unreachable",
+                  "other"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "failure",
+              "message"
+            ],
+            "description": "Why the bucket could not be asked, in words, when stands is unknown."
+          },
+          "publishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When index.html in the bucket was written."
+          },
+          "filesToUpdate": {
+            "type": "integer",
+            "description": "Files to upload or remove to make the bucket the built site."
+          },
+          "filesInBucket": {
+            "type": "integer",
+            "description": "Files in the bucket now, which unpublishing would remove."
+          },
+          "publish": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "running",
+                  "done",
+                  "cancelled",
+                  "failed"
+                ]
+              },
+              "phase": {
+                "type": "string",
+                "enum": [
+                  "building",
+                  "uploading",
+                  "removing"
+                ],
+                "description": "What it is doing: building the site first, putting files in the bucket, or removing what the site no longer has."
+              },
+              "done": {
+                "type": "integer",
+                "description": "Images (building) or files (uploading, removing) dealt with so far."
+              },
+              "total": {
+                "type": "integer"
+              },
+              "failure": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "no-credentials",
+                  "keys-refused",
+                  "no-bucket",
+                  "unreachable",
+                  "other",
+                  "build-failed",
+                  null
+                ],
+                "description": "Why it failed, if it did; build-failed when the site could not be built first."
+              },
+              "message": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "What to fix, in words, when it failed."
+              }
+            },
+            "required": [
+              "state",
+              "phase",
+              "done",
+              "total",
+              "failure",
+              "message"
+            ],
+            "description": "How the latest publish since the service started went, if there was one."
+          }
+        },
+        "required": [
+          "stands",
+          "check",
+          "publishedAt",
+          "filesToUpdate",
+          "filesInBucket",
+          "publish"
+        ]
+      },
+      "SitePublishProgress": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "running",
+              "done",
+              "cancelled",
+              "failed"
+            ]
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "building",
+              "uploading",
+              "removing"
+            ],
+            "description": "What it is doing: building the site first, putting files in the bucket, or removing what the site no longer has."
+          },
+          "done": {
+            "type": "integer",
+            "description": "Images (building) or files (uploading, removing) dealt with so far."
+          },
+          "total": {
+            "type": "integer"
+          },
+          "failure": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "no-credentials",
+              "keys-refused",
+              "no-bucket",
+              "unreachable",
+              "other",
+              "build-failed",
+              null
+            ],
+            "description": "Why it failed, if it did; build-failed when the site could not be built first."
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What to fix, in words, when it failed."
+          }
+        },
+        "required": [
+          "state",
+          "phase",
+          "done",
+          "total",
+          "failure",
+          "message"
+        ]
+      },
+      "PublishFailedResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "What to fix, in words, such as \"Cloudflare refused the keys in the [filmfile] profile.\""
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "no-credentials",
+              "keys-refused",
+              "no-bucket",
+              "unreachable",
+              "other"
+            ]
+          }
+        },
+        "required": [
+          "error",
+          "reason"
         ]
       },
       "Settings": {
@@ -5175,6 +5451,16 @@
               }
             }
           },
+          "409": {
+            "description": "The site is being published or unpublished.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Sites/<slug> holds something that is not a built site, and is left alone; or rebuild is not all or pages.",
             "content": {
@@ -5250,6 +5536,212 @@
           },
           "404": {
             "description": "There is no site with that slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sites/{slug}/published": {
+      "get": {
+        "summary": "How a site stands in its bucket",
+        "description": "Lists the bucket and compares it with the built site by path, size and MD5: whether it is published, up to date or has files to update, when it was published, and how the latest publish went. Needs the site's publish target. When the bucket cannot be asked (no keys in the [filmfile] profile of ~/.aws/credentials, keys refused, no such bucket, unreachable) it still answers, with stands unknown and why in check, so how the latest publish went can be read.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "example": "nikon-fe"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Where the bucket stands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SitePublished"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "There is no site with that slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The site has no publish target.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Unpublish a site",
+        "description": "Removes every file in the site's bucket, which is used only for the site. Nothing else is touched.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "example": "nikon-fe"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The bucket is empty."
+          },
+          "404": {
+            "description": "There is no site with that slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The site is being built, published or unpublished.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The site has no publish target, or nothing is published.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The bucket could not be reached or used: no keys, keys refused, no such bucket, or unreachable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishFailedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sites/{slug}/publish": {
+      "post": {
+        "summary": "Publish a site",
+        "description": "Starts publishing in the background: builds the site first when it is not built or is out of date, then uploads only the files that are missing or differ (images first, then pages, CSS and script) and removes what the site no longer has. Follow it with the published status. A publish already running is followed instead of started again.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "example": "nikon-fe"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "The publish, running.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SitePublishProgress"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "There is no site with that slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The site is being built or unpublished, so it can not be published now.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The site has no publish target.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Stop publishing a site",
+        "description": "No more files are started and those already going finish. Nothing already uploaded is taken back.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "example": "nikon-fe"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Asked to stop."
+          },
+          "404": {
+            "description": "That site is not being published.",
             "content": {
               "application/json": {
                 "schema": {

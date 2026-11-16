@@ -80,6 +80,7 @@ describe('POST /api/sites', () => {
         copyright: null,
         captions: ['camera', 'lens', 'film'],
       },
+      publish: null,
     });
     expect(response.headers.get('ETag')).toMatch(/^"[0-9a-f]{64}"$/);
     expect(

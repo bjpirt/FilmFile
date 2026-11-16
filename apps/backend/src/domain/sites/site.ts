@@ -1,6 +1,7 @@
 import type { Selection } from '../selections/selection.ts';
 import type { SiteId } from '../shared/ids.ts';
 import type { Slug } from '../shared/slug.ts';
+import type { PublishTarget } from './publish-target.ts';
 import type { CaptionField } from './site-options.ts';
 
 /**
@@ -14,6 +15,8 @@ export interface Site {
   readonly name: string;
   readonly selection: Selection;
   readonly presentation: SitePresentation;
+  /** Where it's published (FF-201), or null while it isn't set. */
+  readonly publish: PublishTarget | null;
 }
 
 /**

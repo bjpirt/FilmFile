@@ -11,6 +11,8 @@ export interface LocalConfig {
   readonly port: number;
   readonly uiPath: string;
   readonly uiOrigin?: string;
+  /** The AWS credentials file whose `[filmfile]` profile holds the keys that publish a site (D111). */
+  readonly awsCredentialsFile: string;
 }
 
 interface System {
@@ -44,6 +46,9 @@ export function readLocalConfig(
     cachePath: env.FILMFILE_CACHE ?? defaultCachePath(env, system),
     port: Number(env.FILMFILE_PORT ?? defaultPort),
     uiPath: env.FILMFILE_UI ?? builtUi,
+    awsCredentialsFile:
+      env.AWS_SHARED_CREDENTIALS_FILE ??
+      path.join(system.home, '.aws', 'credentials'),
     // Where the UI runs when it isn't served by the backend, e.g. Vite in development.
     ...(env.FILMFILE_UI_ORIGIN === undefined
       ? {}

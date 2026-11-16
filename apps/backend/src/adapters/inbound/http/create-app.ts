@@ -18,6 +18,7 @@ import {
   builtSiteRoutes,
   type BuiltSiteUseCases,
 } from './routes/built-sites.ts';
+import { sitePublishingRoutes } from './routes/site-publishing.ts';
 import { siteRoutes, type SiteUseCases } from './routes/sites.ts';
 import { rollRoutes, type RollUseCases } from './routes/rolls.ts';
 import { uiRoutes } from './routes/ui.ts';
@@ -70,6 +71,7 @@ export function createApp(config: {
   app.route('/api/exports', exportRoutes(config));
   app.route('/api/frames', frameRoutes(config));
   app.route('/api/sites', siteRoutes(config));
+  app.route('/api/sites', sitePublishingRoutes(config));
   app.route('/built-sites', builtSiteRoutes(config));
   app.route('/api/settings', settingsRoutes(config));
   app.doc31('/api/openapi.json', {

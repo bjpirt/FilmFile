@@ -53,6 +53,29 @@ test.each<[DomainError, number, unknown]>([
     },
   ],
   [
+    { kind: 'busy', entity: 'site', id: 'iceland', doing: 'publishing' },
+    409,
+    { error: 'the site is being published' },
+  ],
+  [
+    { kind: 'busy', entity: 'site', id: 'iceland', doing: 'building' },
+    409,
+    { error: 'the site is being built' },
+  ],
+  [
+    { kind: 'busy', entity: 'site', id: 'iceland', doing: 'unpublishing' },
+    409,
+    { error: 'the site is being unpublished' },
+  ],
+  [
+    { kind: 'publish-failed', reason: 'no-bucket', bucket: 'photos-pirt' },
+    502,
+    {
+      error: "There's no bucket photos-pirt in that Cloudflare account.",
+      reason: 'no-bucket',
+    },
+  ],
+  [
     { kind: 'scan-already-in-roll', frameId: '01JC8Z7K3M0000000000000002' },
     409,
     {
