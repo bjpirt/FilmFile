@@ -37,8 +37,12 @@ let root = '';
 let filmFile = '';
 let cache = '';
 let userData = '';
+// What the app and its service wrote during the journey, shown if it fails:
+// the service's errors go nowhere else.
+let appOutput = '';
 
 test.beforeEach(() => {
+  appOutput = '';
   root = mkdtempSync(path.join(tmpdir(), 'filmfile-desktop-'));
   filmFile = path.join(root, 'FilmFile');
   cache = path.join(root, 'cache');
@@ -57,9 +61,31 @@ test.beforeEach(() => {
   );
 });
 
-test.afterEach(() => {
+test.afterEach(async () => {
+  const journey = test.info();
+  if (journey.status !== journey.expectedStatus && appOutput !== '') {
+    process.stderr.write(`The app's output:\n${appOutput}\n`);
+    await journey.attach('app-output', {
+      body: appOutput,
+      contentType: 'text/plain',
+    });
+  }
   rmSync(root, { recursive: true, force: true });
 });
+
+/** Starts the app, keeping what it and its service (which writes to the app's output) say. */
+async function launch(
+  options: Parameters<typeof electron.launch>[0],
+): Promise<ElectronApplication> {
+  const app = await electron.launch(options);
+  const { stdout, stderr } = app.process();
+  for (const stream of [stdout, stderr]) {
+    stream?.on('data', (chunk: Buffer) => {
+      appOutput += chunk.toString();
+    });
+  }
+  return app;
+}
 
 /** A new folder in the journey's own, with the files given. */
 function folderWith(name: string, files: readonly string[] = []): string {
@@ -83,7 +109,13 @@ function appEnv(extra: Record<string, string> = {}): Record<string, string> {
       env[name] = value;
     }
   }
-  return { ...env, FILMFILE_CACHE: cache, ...extra };
+  return {
+    ...env,
+    FILMFILE_CACHE: cache,
+    // Chromium's own log, for a failed journey's output.
+    ELECTRON_ENABLE_LOGGING: '1',
+    ...extra,
+  };
 }
 
 type Answer =
@@ -93,7 +125,7 @@ type Answer =
 function launchChoosing(
   answers: readonly Answer[],
 ): Promise<ElectronApplication> {
-  return electron.launch({
+  return launch({
     args: ['-r', dialogs, desktop],
     env: appEnv({
       FILMFILE_TEST_DIALOGS: JSON.stringify(answers),
@@ -133,7 +165,7 @@ function notFilmFileFolder(folder: string) {
 }
 
 test('the desktop app opens FilmFile in its own window, and stops the service when it quits', async () => {
-  const app = await electron.launch({
+  const app = await launch({
     args: [desktop],
     env: appEnv({ FILMFILE_FOLDER: filmFile }),
   });
@@ -158,7 +190,7 @@ test('the desktop app opens FilmFile in its own window, and stops the service wh
 });
 
 test('opening the app again while it’s open starts no second copy', async () => {
-  const app = await electron.launch({
+  const app = await launch({
     args: [desktop],
     env: appEnv({ FILMFILE_FOLDER: filmFile }),
   });
@@ -268,7 +300,8 @@ test('File › Open FilmFile Folder… switches to another FilmFile folder, and 
   ).toBeVisible();
   expect(app.windows()).toHaveLength(1);
   expect(readdirSync(other)).toEqual(['Library']);
-  expect(remembered()).toEqual({ folder: other });
+  // Remembered once the folder open before has closed, after the window shows.
+  await expect.poll(remembered).toEqual({ folder: other });
   await app.close();
 });
 
@@ -351,7 +384,7 @@ test('a quick export in the desktop app asks where to save it, says where it wen
   const saved = path.join(prints, 'for-the-lab.jpg');
   const show =
     process.platform === 'darwin' ? 'Show in Finder' : 'Show in Folder';
-  const app = await electron.launch({
+  const app = await launch({
     args: ['-r', dialogs, desktop],
     env: appEnv({
       FILMFILE_FOLDER: filmFile,
@@ -475,7 +508,7 @@ test('exporting several frames in the desktop app writes JPEGs into a folder cho
   const photos = folderWith('photos');
   const show =
     process.platform === 'darwin' ? 'Show in Finder' : 'Show in Folder';
-  const app = await electron.launch({
+  const app = await launch({
     args: ['-r', dialogs, desktop],
     env: appEnv({
       FILMFILE_FOLDER: filmFile,

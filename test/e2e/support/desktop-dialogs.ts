@@ -8,7 +8,8 @@ import { app, BaseWindow, dialog, session, shell } from 'electron';
 // to cancel it), and keeps what each said in `dialogsShown` for the journey to
 // read. Doesn't open anything for real: the paths the app asks the system to
 // open (Show FilmFile Folder in Finder) are kept in `pathsOpened`. Also keeps
-// the app's settings in FILMFILE_TEST_USER_DATA, not the real ones.
+// the app's settings in FILMFILE_TEST_USER_DATA, not the real ones, and says
+// in the app's output how any of its processes stopped.
 
 interface Answer {
   readonly choose?: string;
@@ -52,6 +53,12 @@ void app.whenReady().then(() => {
       });
     }, 0);
   });
+});
+
+// Says how a process of the app's stopped (its service among them), in the
+// app's output, which a failed journey shows.
+app.on('child-process-gone', (_event, details) => {
+  console.error(`A process of the app's stopped: ${JSON.stringify(details)}`);
 });
 
 const userData = process.env.FILMFILE_TEST_USER_DATA;

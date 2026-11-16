@@ -71,7 +71,11 @@ jobs:
           retention-days: 7
 
   end-to-end:
-    runs-on: ubuntu-latest
+    # Not ubuntu-latest: on Ubuntu 26.04 the service crashes inside Electron as
+    # soon as sharp reads an image, because Electron's glib and the one in
+    # sharp's files clash (electron/electron#46323). The Linux app has to
+    # solve that before this moves on (FF-198).
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
