@@ -4059,6 +4059,15 @@
         "responses": {
           "200": {
             "description": "A WebP that fits within the size.",
+            "headers": {
+              "Cache-Control": {
+                "description": "Kept by the browser for a year: the address names these bytes (D114).",
+                "schema": {
+                  "type": "string",
+                  "example": "private, max-age=31536000, immutable"
+                }
+              }
+            },
             "content": {
               "image/webp": {
                 "schema": {

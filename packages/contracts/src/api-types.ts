@@ -1253,6 +1253,8 @@ export interface paths {
                 /** @description A WebP that fits within the size. */
                 200: {
                     headers: {
+                        /** @description Kept by the browser for a year: the address names these bytes (D114). */
+                        "Cache-Control"?: string;
                         [name: string]: unknown;
                     };
                     content: {

@@ -1,8 +1,9 @@
 import { readdir } from 'node:fs/promises';
 import sharp from 'sharp';
 import { beforeEach, describe, expect, test } from 'vitest';
+import { composeLocal } from '../../src/composition/compose-local.ts';
 import { aJpeg } from '../support/a-jpeg.ts';
-import { apiFor, idOf } from '../support/api.ts';
+import { apiFor, idOf, origin, port } from '../support/api.ts';
 import { useTempArchive } from '../support/temp-archive.ts';
 
 const archive = useTempArchive();
@@ -134,6 +135,62 @@ describe('GET …/versions/{versionId}/thumbnail', () => {
     const response = await request(`${unknown}/thumbnail?size=small`);
 
     expect(response.status).toBe(404);
+  });
+
+  // Its address names its bytes, so the browser keeps it (FF-204, D114).
+  test.each(['size=small', 'size=large', 'size=small&rotate=90'])(
+    'lets the browser keep it for a year (%s)',
+    async (query) => {
+      const response = await request(`${versionUrl}/thumbnail?${query}`);
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Cache-Control')).toBe(
+        'private, max-age=31536000, immutable',
+      );
+    },
+  );
+
+  test('still carries the security headers every response has', async () => {
+    const response = await request(`${versionUrl}/thumbnail?size=small`);
+
+    expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    expect(response.headers.get('Content-Security-Policy')).toContain(
+      "default-src 'self'",
+    );
+  });
+
+  test.each([
+    [
+      'a version that does not exist',
+      404,
+      () =>
+        request(
+          `${versionUrl.replace(/[^/]+$/, '01JC8Z7K3M0000000000000000')}/thumbnail?size=small`,
+        ),
+    ],
+    [
+      'a size that is not small or large',
+      422,
+      () => request(`${versionUrl}/thumbnail?size=huge`),
+    ],
+    [
+      'a request from another site',
+      403,
+      () =>
+        composeLocal({
+          folderPath: archive.folder(),
+          archivePath: archive.path(),
+          cachePath: archive.cachePath(),
+          port,
+        }).request(`${origin}${versionUrl}/thumbnail?size=small`, {
+          headers: { Origin: 'https://attacker.example' },
+        }),
+    ],
+  ])('lets nothing be kept for %s', async (_case, status, send) => {
+    const response = await send();
+
+    expect(response.status).toBe(status);
+    expect(response.headers.get('Cache-Control')).toBeNull();
   });
 });
 

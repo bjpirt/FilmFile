@@ -435,13 +435,32 @@ const getOriginal = createRoute({
   },
 });
 
+/**
+ * A thumbnail's address names its bytes (the version is write-once, and the
+ * size and turn are in the address), so the browser keeps it. A change to how
+ * thumbnails are made must change their address too (D114).
+ */
+const thumbnailCaching = {
+  value: 'private, max-age=31536000, immutable',
+  description:
+    'Kept by the browser for a year: the address names these bytes (D114).',
+} as const;
+
 const getThumbnail = createRoute({
   method: 'get',
   path: '/{rollId}/frames/{frameId}/versions/{versionId}/thumbnail',
   summary: 'Get a thumbnail of a version',
   request: { params: versionParams, query: thumbnailQuery },
   responses: {
-    200: image('image/webp', 'A WebP that fits within the size.'),
+    200: {
+      ...image('image/webp', 'A WebP that fits within the size.'),
+      headers: {
+        'Cache-Control': {
+          description: thumbnailCaching.description,
+          schema: { type: 'string', example: thumbnailCaching.value },
+        },
+      },
+    },
     404: json(errorResponse, 'No such version.'),
     422: invalid,
   },
@@ -798,6 +817,7 @@ export function rollRoutes({
     return thumbnail.ok
       ? c.body(new Uint8Array(thumbnail.value), 200, {
           'Content-Type': 'image/webp',
+          'Cache-Control': thumbnailCaching.value,
         })
       : domainErrorResponse(c, thumbnail.error);
   });

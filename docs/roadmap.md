@@ -266,7 +266,6 @@ After "Integrate with NegPy", whose folder of links (in `Editors/`, FF-105), fil
 
 Changes to how FilmFile is built that add nothing to see: speed, legibility and keeping the code to its own rules. They come from the architecture review (`docs/architecture-review.md`, recommendations R1 to R10), in its order of priority, and can be done between the tasks of any other group. Only FF-203 and FF-204 change anything a person or a log can see; for the rest, the existing tests stay green and are the proof.
 
-- [ ] [FF-204 Let browsers cache thumbnails](tasks/FF-204.md): a roll page opened again doesn't fetch its thumbnails again (R3).
 - [ ] [FF-205 Bring the architecture documents back in line](tasks/FF-205.md): `CLAUDE.md` and the design say what's built, with one complete port table (R4).
 - [ ] [FF-206 One lock in the roll repository](tasks/FF-206.md): the inner locks that can never be contended go (R5a).
 - [ ] [FF-207 Renumbering rules in the domain](tasks/FF-207.md): one pure function checks a batch renumbering, for both repositories (R5b).
@@ -287,6 +286,7 @@ Changes to how FilmFile is built that add nothing to see: speed, legibility and 
 - [ ] [FF-222 Domain types and pure code in the domain](tasks/FF-222.md): export types, pure export code and group labels where they belong (R10).
 - [ ] [FF-223 Correlation IDs from the composition, and one entry per use case](tasks/FF-223.md): the error handler given its IDs, and `ListRolls` split in two (R10).
 - [ ] [later] [FF-224 A log file](tasks/FF-224.md): request errors and background failures written to a file in the OS's logs folder, so the packaged app's can be found.
+- [x] [FF-204 Let browsers cache thumbnails](tasks/FF-204.md)
 - [x] [FF-203 Report failures in background work](tasks/FF-203.md)
 - [x] [FF-202 Find a roll by its ID](tasks/FF-202.md)
 
