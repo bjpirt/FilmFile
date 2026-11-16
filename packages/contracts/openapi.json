@@ -2738,6 +2738,207 @@
           "reason"
         ]
       },
+      "SyncSettings": {
+        "type": "object",
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "description": "Whether sync can be set up here: only in the desktop app, which keeps these settings for this computer (D120)."
+          },
+          "bucket": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The R2 bucket the library is synced with, or null."
+          },
+          "computerName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "This computer's name as other computers are told it; its own name until one is saved. Null when sync isn't available."
+          },
+          "lastSyncedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When this computer last finished a sync."
+          }
+        },
+        "required": [
+          "available",
+          "bucket",
+          "computerName",
+          "lastSyncedAt"
+        ]
+      },
+      "SaveSyncSettingsRequest": {
+        "type": "object",
+        "properties": {
+          "bucket": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "An R2 bucket in the Cloudflare account set in Settings, used only for the backup."
+          },
+          "computerName": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "This computer's name, 1 to 60 characters."
+          }
+        },
+        "required": [
+          "bucket",
+          "computerName"
+        ],
+        "additionalProperties": false
+      },
+      "SyncStatus": {
+        "type": "object",
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "lastSyncedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "run": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "state": {
+                "type": "string",
+                "enum": [
+                  "running",
+                  "done",
+                  "cancelled",
+                  "failed"
+                ]
+              },
+              "bytesDone": {
+                "type": "integer"
+              },
+              "bytesTotal": {
+                "type": "integer"
+              },
+              "filesDone": {
+                "type": "integer"
+              },
+              "filesTotal": {
+                "type": "integer"
+              },
+              "failure": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "no-account",
+                  "no-credentials",
+                  "keys-refused",
+                  "no-bucket",
+                  "unreachable",
+                  "other",
+                  "not-empty",
+                  "another-library",
+                  null
+                ],
+                "description": "Why it failed, if it did."
+              },
+              "message": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "What to fix, in words, when it failed."
+              }
+            },
+            "required": [
+              "state",
+              "bytesDone",
+              "bytesTotal",
+              "filesDone",
+              "filesTotal",
+              "failure",
+              "message"
+            ],
+            "description": "How the latest sync since the service started went, if there was one."
+          }
+        },
+        "required": [
+          "available",
+          "lastSyncedAt",
+          "run"
+        ]
+      },
+      "SyncProgress": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "running",
+              "done",
+              "cancelled",
+              "failed"
+            ]
+          },
+          "bytesDone": {
+            "type": "integer"
+          },
+          "bytesTotal": {
+            "type": "integer"
+          },
+          "filesDone": {
+            "type": "integer"
+          },
+          "filesTotal": {
+            "type": "integer"
+          },
+          "failure": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "no-account",
+              "no-credentials",
+              "keys-refused",
+              "no-bucket",
+              "unreachable",
+              "other",
+              "not-empty",
+              "another-library",
+              null
+            ],
+            "description": "Why it failed, if it did."
+          },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What to fix, in words, when it failed."
+          }
+        },
+        "required": [
+          "state",
+          "bytesDone",
+          "bytesTotal",
+          "filesDone",
+          "filesTotal",
+          "failure",
+          "message"
+        ]
+      },
       "Settings": {
         "type": "object",
         "properties": {
@@ -5760,6 +5961,143 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sync/settings": {
+      "get": {
+        "summary": "This computer's sync settings",
+        "description": "Kept by the desktop app for this computer, never in the FilmFile folder (D120). Without the app, available is false.",
+        "responses": {
+          "200": {
+            "description": "The settings.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncSettings"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Set this computer's bucket and name",
+        "description": "A different bucket forgets the last sync, which was the other bucket’s.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveSyncSettingsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The settings, saved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not valid JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "The body is not of the expected type.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A field is not valid, or sync is not available here.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sync": {
+      "get": {
+        "summary": "How syncing stands",
+        "description": "When this computer last finished a sync, and how the latest sync since the service started went.",
+        "responses": {
+          "200": {
+            "description": "How it stands.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Sync the library",
+        "description": "Starts backing the library up in the background (D117): claims an empty bucket for it, sends what is new or changed since the last sync, then writes the manifest and sync record. Follow it with the status. A sync already running is followed instead of started again.",
+        "responses": {
+          "202": {
+            "description": "The sync, running.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncProgress"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Sync is not available here, or no Cloudflare account or bucket is set.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Stop syncing",
+        "description": "No more files are started; those going finish. The bucket’s sync record stays as it was.",
+        "responses": {
+          "204": {
+            "description": "Asked to stop."
+          },
+          "422": {
+            "description": "No sync is running.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
                 }
               }
             }

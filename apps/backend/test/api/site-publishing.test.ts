@@ -143,7 +143,8 @@ function setUp(options: { readonly createBucket?: boolean } = {}) {
 
   /** Waits for the publish running for the site to end. */
   async function untilPublishEnds(slug: string) {
-    for (let tries = 0; tries < 400; tries += 1) {
+    // Up to 30 seconds: building with sharp is slow when every test file runs at once.
+    for (let tries = 0; tries < 1500; tries += 1) {
       const now = await status(slug);
       if (now.publish !== null && now.publish.state !== 'running') {
         return now.publish;

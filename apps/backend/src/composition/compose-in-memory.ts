@@ -9,6 +9,7 @@ import { InMemoryEventRepository } from '../adapters/outbound/memory/in-memory-e
 import { InMemoryExportTickets } from '../adapters/outbound/memory/in-memory-export-tickets.ts';
 import { InMemoryHoldingArea } from '../adapters/outbound/memory/in-memory-holding-area.ts';
 import { InMemoryImageRenderer } from '../adapters/outbound/memory/in-memory-image-renderer.ts';
+import { InMemoryLibraryFiles } from '../adapters/outbound/memory/in-memory-library-files.ts';
 import { InMemoryPublishBucket } from '../adapters/outbound/memory/in-memory-publish-bucket.ts';
 import { InMemoryPreviewProvider } from '../adapters/outbound/memory/in-memory-preview-provider.ts';
 import { InMemorySiteFolders } from '../adapters/outbound/memory/in-memory-site-folders.ts';
@@ -48,6 +49,8 @@ export function composeInMemory(
       sites: new InMemorySiteRepository(),
       siteFolders: new InMemorySiteFolders(),
       publishBucket: new InMemoryPublishBucket(clock),
+      libraryFiles: new InMemoryLibraryFiles(),
+      thisComputer: 'This computer',
       tickets: new InMemoryExportTickets(clock),
       ids: new SequentialIdGenerator(),
       errors: new InMemoryErrorReporter(),

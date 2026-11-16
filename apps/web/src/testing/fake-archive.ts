@@ -39,6 +39,11 @@ import {
   type SitePublishProgress,
 } from '@filmfile/contracts/sites';
 import {
+  saveSyncSettingsRequest,
+  type SyncProgress,
+  type SyncSettings,
+} from '@filmfile/contracts/sync';
+import {
   createSettingsRequest,
   updateSettingsRequest,
   type Settings,
@@ -112,6 +117,11 @@ export interface ArchiveContents {
   /** What a publish's progress says as it's asked after, one after another; the last is kept. */
   readonly sitePublishStates?: readonly (Partial<SitePublishProgress> &
     Pick<SitePublishProgress, 'state'>)[];
+  /** This computer's sync settings (FF-225): available, with nothing set, unless said. */
+  readonly sync?: Partial<SyncSettings>;
+  /** What a sync's progress says as it's asked after, one after another; the last is kept. */
+  readonly syncStates?: readonly (Partial<SyncProgress> &
+    Pick<SyncProgress, 'state'>)[];
   /** Whether the person cancels the folder chooser. */
   readonly folderChooserCancelled?: boolean;
 }
@@ -311,6 +321,19 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   let unpublishFailure:
     { readonly error: string; readonly reason: string } | undefined;
   let unpublishesHeld: Promise<undefined> | undefined;
+  let syncSettings: SyncSettings = {
+    available: true,
+    bucket: null,
+    computerName: 'Test computer',
+    lastSyncedAt: null,
+    ...contents.sync,
+  };
+  /** Every sync started, and every one cancelled. */
+  const syncs: string[] = [];
+  const syncsCancelled: string[] = [];
+  let syncing = false;
+  let syncCalls = 0;
+  let latestSync: SyncProgress | null = null;
   let siteBuildCalls = 0;
   let building: string | undefined;
   /** Every change to a site: which one, and what was sent. */
@@ -1257,6 +1280,122 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     });
   }
 
+  /** Backing up the library (FF-225), as the service answers. */
+  async function syncRoute(
+    request: Request,
+    below: string | undefined,
+  ): Promise<Response> {
+    const refuse = (path: string, message: string) =>
+      Response.json(
+        { error: 'invalid request', issues: [{ path: [path], message }] },
+        { status: 422 },
+      );
+    if (below === 'settings') {
+      if (request.method === 'GET') {
+        return Response.json(syncSettings);
+      }
+      if (!syncSettings.available) {
+        return refuse('sync', 'sync works in the FilmFile app');
+      }
+      const body = await bodyOf(request, saveSyncSettingsRequest);
+      if (!body.ok) {
+        return body.response;
+      }
+      const bucket = body.value.bucket.trim();
+      const computerName = body.value.computerName.trim();
+      const issues = [
+        ...(/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/u.test(bucket)
+          ? []
+          : [
+              {
+                path: ['bucket'],
+                message:
+                  'must be 3 to 63 lower-case letters, digits or hyphens, starting and ending with a letter or digit',
+              },
+            ]),
+        ...(computerName.length > 0 && computerName.length <= 60
+          ? []
+          : [
+              {
+                path: ['computerName'],
+                message: 'must be 1 to 60 characters',
+              },
+            ]),
+      ];
+      if (issues.length > 0) {
+        return Response.json(
+          { error: 'invalid request', issues },
+          { status: 422 },
+        );
+      }
+      syncSettings = { ...syncSettings, bucket, computerName };
+      return Response.json(syncSettings);
+    }
+    if (request.method === 'POST') {
+      if (!syncSettings.available) {
+        return refuse('sync', 'sync works in the FilmFile app');
+      }
+      if (settings?.cloudflareAccountId == null) {
+        return refuse(
+          'cloudflareAccountId',
+          'Set your Cloudflare account ID in Settings.',
+        );
+      }
+      if (syncSettings.bucket === null) {
+        return refuse('bucket', 'say which bucket to sync with');
+      }
+      syncs.push(syncSettings.bucket);
+      syncing = true;
+      syncCalls = 0;
+      latestSync = {
+        state: 'running',
+        bytesDone: 0,
+        bytesTotal: 0,
+        filesDone: 0,
+        filesTotal: 0,
+        failure: null,
+        message: null,
+      };
+      return Response.json(latestSync, { status: 202 });
+    }
+    if (request.method === 'DELETE') {
+      syncsCancelled.push(syncSettings.bucket ?? '');
+      return new Response(null, { status: 204 });
+    }
+    if (syncing) {
+      const states = contents.syncStates ?? [
+        { state: 'done' as const, bytesDone: 2048, filesDone: 1 },
+      ];
+      syncCalls += 1;
+      const now = states[Math.min(syncCalls, states.length) - 1];
+      latestSync = {
+        bytesDone: 0,
+        bytesTotal: 2048,
+        filesDone: 0,
+        filesTotal: 1,
+        failure: null,
+        message: null,
+        ...latestSync,
+        ...now,
+        state: now?.state ?? 'done',
+      };
+      if (latestSync.state === 'done') {
+        syncSettings = {
+          ...syncSettings,
+          lastSyncedAt: '2026-11-16T14:02:00.000Z',
+        };
+      }
+      if (latestSync.state !== 'running') {
+        syncing = false;
+      }
+    }
+    return Response.json({
+      available: syncSettings.available,
+      lastSyncedAt: syncSettings.lastSyncedAt,
+      run: latestSync,
+    });
+  }
+
   async function sitesRoute(
     request: Request,
     slug: string | undefined,
@@ -1538,6 +1677,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         return searchFrames(request);
       case 'sites':
         return sitesRoute(request, rest[0], rest[1]);
+      case 'sync':
+        return syncRoute(request, rest[0]);
       case 'health':
         return Response.json({
           status: 'ok',
@@ -1619,6 +1760,10 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         held.resolve(undefined);
       };
     },
+    syncs,
+    syncsCancelled,
+    /** This computer's sync settings as they are now. */
+    syncSettings: () => syncSettings,
     sitePublishes,
     sitePublishesCancelled,
     siteUnpublishes,

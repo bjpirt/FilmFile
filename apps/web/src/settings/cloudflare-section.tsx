@@ -74,7 +74,7 @@ export function CloudflareSection({
           : 'Keys: no [filmfile] profile in ~/.aws/credentials yet'}
       </p>
       <p className="muted">
-        To publish sites to Cloudflare R2 (and, later, back up to it):
+        To publish sites to Cloudflare R2, and back the library up to it:
       </p>
       <ol className="cloudflare-steps">
         <li>

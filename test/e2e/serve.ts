@@ -2,7 +2,11 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { startFakeR2 } from '../../apps/backend/test/support/fake-r2-server.ts';
-import { journeyBucket, journeyR2Keys } from './support/journey-r2.ts';
+import {
+  journeyBackupBucket,
+  journeyBucket,
+  journeyR2Keys,
+} from './support/journey-r2.ts';
 
 // Starts the backend, serving the built UI, on a new FilmFile folder and
 // cache that are removed when it stops. The isolated test fixture starts this
@@ -27,7 +31,10 @@ if (mode === 'set-up') {
 
 // Publishing goes to a local fake of Cloudflare R2, never the real one (FF-234):
 // its keys in a credentials file of the journey's own, and one bucket.
-const r2 = await startFakeR2(journeyR2Keys, [journeyBucket]);
+const r2 = await startFakeR2(journeyR2Keys, [
+  journeyBucket,
+  journeyBackupBucket,
+]);
 const credentials = path.join(cache, 'aws-credentials');
 writeFileSync(
   credentials,
@@ -35,6 +42,8 @@ writeFileSync(
 );
 process.env.AWS_SHARED_CREDENTIALS_FILE = credentials;
 process.env.FILMFILE_R2_ENDPOINT = r2.endpoint('');
+// This computer's sync settings, kept in a file of the journey's own in place of the desktop app (D120).
+process.env.FILMFILE_SYNC_SETTINGS = path.join(cache, 'sync-settings.json');
 
 process.env.FILMFILE_FOLDER = folder;
 process.env.FILMFILE_CACHE = cache;

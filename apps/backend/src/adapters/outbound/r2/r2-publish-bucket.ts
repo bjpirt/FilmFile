@@ -4,9 +4,12 @@ import type { Clock } from '../../../application/ports/clock.ts';
 import type { ErrorReporter } from '../../../application/ports/error-reporter.ts';
 import type {
   BucketTarget,
+  FileGot,
   FileToPut,
+  PreconditionFailed,
   PublishBucket,
   RemoteFile,
+  StreamToPut,
 } from '../../../application/ports/publish-bucket.ts';
 import type {
   PublishFailed,
@@ -133,8 +136,16 @@ export class R2PublishBucket implements PublishBucket {
       readonly key?: string;
       readonly query?: Readonly<Record<string, string>>;
       readonly headers?: Readonly<Record<string, string>>;
-      readonly body?: Uint8Array;
+      /** Bytes, signed by their SHA-256; or a stream of a known size, sent unsigned (D120). */
+      readonly body?:
+        | Uint8Array
+        | {
+            readonly stream: ReadableStream<Uint8Array>;
+            readonly size: number;
+          };
       readonly signal: AbortSignal;
+      /** Answers that aren't failures here: 404 `NoSuchKey` for a get, 412 for a conditional put. */
+      readonly fine?: readonly ('missing' | 'precondition')[];
     },
   ): Promise<Result<Response, PublishFailed>> {
     const failed = (
@@ -162,9 +173,18 @@ export class R2PublishBucket implements PublishBucket {
       url.searchParams.set(name, value);
     }
     const body = request.body ?? new Uint8Array();
-    const payloadHash = sha256Hex(body);
+    const streamed = body instanceof Uint8Array ? undefined : body;
+    // A stream can't be hashed before it's sent, so it goes unsigned, with
+    // its length (R2 needs it), and what was sent is hashed on the way.
+    const payloadHash =
+      streamed === undefined
+        ? sha256Hex(body instanceof Uint8Array ? body : new Uint8Array())
+        : 'UNSIGNED-PAYLOAD';
     const headers = {
       ...request.headers,
+      ...(streamed === undefined
+        ? {}
+        : { 'content-length': String(streamed.size) }),
       host: url.host,
       'x-amz-content-sha256': payloadHash,
     };
@@ -189,10 +209,21 @@ export class R2PublishBucket implements PublishBucket {
       response = await this.#fetch(url, {
         method: request.method,
         headers: toSend,
-        ...(request.method === 'GET' ? {} : { body: new Uint8Array(body) }),
+        ...(request.method === 'GET'
+          ? {}
+          : streamed === undefined
+            ? {
+                body: new Uint8Array(
+                  body instanceof Uint8Array ? body : new Uint8Array(),
+                ),
+              }
+            : { body: streamed.stream, duplex: 'half' }),
         signal: AbortSignal.any([
           request.signal,
-          AbortSignal.timeout(requestTimeoutMs),
+          // A large file gets longer: a minute, and a second for every 50 KB.
+          AbortSignal.timeout(
+            requestTimeoutMs + Math.ceil((streamed?.size ?? 0) / 50),
+          ),
         ]),
       });
     } catch (error) {
@@ -204,6 +235,12 @@ export class R2PublishBucket implements PublishBucket {
     if (response.ok) {
       return ok(response);
     }
+    if (
+      response.status === 412 &&
+      request.fine?.includes('precondition') === true
+    ) {
+      return ok(response);
+    }
     const text = await response.text().catch(() => '');
     if (response.status === 401 || response.status === 403) {
       return failed('keys-refused');
@@ -211,6 +248,13 @@ export class R2PublishBucket implements PublishBucket {
     const code = tagText(text, 'Code') ?? 'no error code';
     if (response.status === 404 && code === 'NoSuchBucket') {
       return failed('no-bucket');
+    }
+    if (
+      response.status === 404 &&
+      code === 'NoSuchKey' &&
+      request.fine?.includes('missing') === true
+    ) {
+      return ok(new Response(null, { status: 404 }));
     }
     // Only R2's code and message are logged: never the request's headers,
     // which carry the key ID, or the file.
@@ -281,6 +325,107 @@ export class R2PublishBucket implements PublishBucket {
       signal,
     });
     return sent.ok ? ok(undefined) : sent;
+  }
+
+  async get(
+    target: BucketTarget,
+    key: string,
+    signal: AbortSignal,
+  ): Promise<Result<FileGot | undefined, PublishFailed>> {
+    const sent = await this.#send(target, {
+      what: `GET ${key}`,
+      method: 'GET',
+      key,
+      signal,
+      fine: ['missing'],
+    });
+    if (!sent.ok) {
+      return sent;
+    }
+    if (sent.value.status === 404) {
+      return ok(undefined);
+    }
+    return ok({
+      bytes: new Uint8Array(await sent.value.arrayBuffer()),
+      etag: (sent.value.headers.get('etag') ?? '').replaceAll('"', ''),
+    });
+  }
+
+  async putIf(
+    target: BucketTarget,
+    file: FileToPut,
+    condition: { readonly ifNoneMatch: true } | { readonly ifMatch: string },
+    signal: AbortSignal,
+  ): Promise<
+    Result<{ readonly etag: string }, PublishFailed | PreconditionFailed>
+  > {
+    const sent = await this.#send(target, {
+      what: `PUT ${file.key} (if ${'ifNoneMatch' in condition ? 'absent' : 'unchanged'})`,
+      method: 'PUT',
+      key: file.key,
+      headers: {
+        'content-type': file.contentType,
+        'cache-control': file.cacheControl,
+        ...('ifNoneMatch' in condition
+          ? { 'if-none-match': '*' }
+          : { 'if-match': `"${condition.ifMatch}"` }),
+      },
+      body: file.bytes,
+      signal,
+      fine: ['precondition'],
+    });
+    if (!sent.ok) {
+      return sent;
+    }
+    if (sent.value.status === 412) {
+      return err({ kind: 'precondition-failed' });
+    }
+    return ok({
+      etag: (sent.value.headers.get('etag') ?? '').replaceAll('"', ''),
+    });
+  }
+
+  async putStream(
+    target: BucketTarget,
+    file: StreamToPut,
+    signal: AbortSignal,
+  ): Promise<Result<{ readonly sha256: string }, PublishFailed>> {
+    const sha256 = createHash('sha256');
+    const md5 = createHash('md5');
+    // What's sent is hashed as it goes: the SHA-256 is what the bucket now
+    // holds, and the MD5 is checked against the ETag R2 gives back.
+    const hashing = new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        sha256.update(chunk);
+        md5.update(chunk);
+        controller.enqueue(chunk);
+      },
+    });
+    const sent = await this.#send(target, {
+      what: `PUT ${file.key}`,
+      method: 'PUT',
+      key: file.key,
+      headers: { 'content-type': file.contentType },
+      body: { stream: file.body.pipeThrough(hashing), size: file.size },
+      signal,
+    });
+    if (!sent.ok) {
+      return sent;
+    }
+    const etag = (sent.value.headers.get('etag') ?? '').replaceAll('"', '');
+    const sentMd5 = md5.digest('hex');
+    if (etag.toLowerCase() !== sentMd5) {
+      this.#errors.report(
+        `R2 stored ${file.key} in ${target.bucket} differently from what was sent`,
+        `ETag ${etag}, sent MD5 ${sentMd5}`,
+      );
+      return err({
+        kind: 'publish-failed',
+        reason: 'other',
+        bucket: target.bucket,
+      });
+    }
+    return ok({ sha256: sha256.digest('hex') });
   }
 
   async deleteMany(

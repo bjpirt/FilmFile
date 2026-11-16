@@ -21,6 +21,7 @@ import {
 import { sitePublishingRoutes } from './routes/site-publishing.ts';
 import { siteRoutes, type SiteUseCases } from './routes/sites.ts';
 import { rollRoutes, type RollUseCases } from './routes/rolls.ts';
+import { syncRoutes, type SyncUseCases } from './routes/sync.ts';
 import { uiRoutes } from './routes/ui.ts';
 
 const getHealth = createRoute({
@@ -46,7 +47,8 @@ export function createApp(config: {
     FrameSelectionUseCases &
     SiteUseCases &
     BuiltSiteUseCases &
-    SettingsUseCases;
+    SettingsUseCases &
+    SyncUseCases;
   readonly uiPath?: string;
   /** Whether exports can be written into a folder the desktop app chooses (D100). */
   readonly exportToFolder?: boolean;
@@ -72,6 +74,7 @@ export function createApp(config: {
   app.route('/api/frames', frameRoutes(config));
   app.route('/api/sites', siteRoutes(config));
   app.route('/api/sites', sitePublishingRoutes(config));
+  app.route('/api/sync', syncRoutes(config));
   app.route('/built-sites', builtSiteRoutes(config));
   app.route('/api/settings', settingsRoutes(config));
   app.doc31('/api/openapi.json', {

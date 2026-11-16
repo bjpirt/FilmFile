@@ -2778,6 +2778,200 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sync/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * This computer's sync settings
+         * @description Kept by the desktop app for this computer, never in the FilmFile folder (D120). Without the app, available is false.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The settings. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SyncSettings"];
+                    };
+                };
+            };
+        };
+        /**
+         * Set this computer's bucket and name
+         * @description A different bucket forgets the last sync, which was the other bucket’s.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SaveSyncSettingsRequest"];
+                };
+            };
+            responses: {
+                /** @description The settings, saved. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SyncSettings"];
+                    };
+                };
+                /** @description The body is not valid JSON. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The body is not of the expected type. */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description A field is not valid, or sync is not available here. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How syncing stands
+         * @description When this computer last finished a sync, and how the latest sync since the service started went.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description How it stands. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SyncStatus"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * Sync the library
+         * @description Starts backing the library up in the background (D117): claims an empty bucket for it, sends what is new or changed since the last sync, then writes the manifest and sync record. Follow it with the status. A sync already running is followed instead of started again.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The sync, running. */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SyncProgress"];
+                    };
+                };
+                /** @description Sync is not available here, or no Cloudflare account or bucket is set. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        /**
+         * Stop syncing
+         * @description No more files are started; those going finish. The bucket’s sync record stays as it was.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Asked to stop. */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description No sync is running. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings": {
         parameters: {
             query?: never;
@@ -3767,6 +3961,61 @@ export interface components {
             error: string;
             /** @enum {string} */
             reason: "no-account" | "no-credentials" | "keys-refused" | "no-bucket" | "unreachable" | "other";
+        };
+        SyncSettings: {
+            /** @description Whether sync can be set up here: only in the desktop app, which keeps these settings for this computer (D120). */
+            available: boolean;
+            /** @description The R2 bucket the library is synced with, or null. */
+            bucket: string | null;
+            /** @description This computer's name as other computers are told it; its own name until one is saved. Null when sync isn't available. */
+            computerName: string | null;
+            /**
+             * Format: date-time
+             * @description When this computer last finished a sync.
+             */
+            lastSyncedAt: string | null;
+        };
+        SaveSyncSettingsRequest: {
+            /** @description An R2 bucket in the Cloudflare account set in Settings, used only for the backup. */
+            bucket: string;
+            /** @description This computer's name, 1 to 60 characters. */
+            computerName: string;
+        };
+        SyncStatus: {
+            available: boolean;
+            /** Format: date-time */
+            lastSyncedAt: string | null;
+            /** @description How the latest sync since the service started went, if there was one. */
+            run: {
+                /** @enum {string} */
+                state: "running" | "done" | "cancelled" | "failed";
+                bytesDone: number;
+                bytesTotal: number;
+                filesDone: number;
+                filesTotal: number;
+                /**
+                 * @description Why it failed, if it did.
+                 * @enum {string|null}
+                 */
+                failure: "no-account" | "no-credentials" | "keys-refused" | "no-bucket" | "unreachable" | "other" | "not-empty" | "another-library" | null;
+                /** @description What to fix, in words, when it failed. */
+                message: string | null;
+            } | null;
+        };
+        SyncProgress: {
+            /** @enum {string} */
+            state: "running" | "done" | "cancelled" | "failed";
+            bytesDone: number;
+            bytesTotal: number;
+            filesDone: number;
+            filesTotal: number;
+            /**
+             * @description Why it failed, if it did.
+             * @enum {string|null}
+             */
+            failure: "no-account" | "no-credentials" | "keys-refused" | "no-bucket" | "unreachable" | "other" | "not-empty" | "another-library" | null;
+            /** @description What to fix, in words, when it failed. */
+            message: string | null;
         };
         Settings: {
             id: string;

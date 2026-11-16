@@ -70,6 +70,17 @@ Press **Publish**. FilmFile builds the site if it isn't built or is out of date,
 
 Publish again whenever you change the site: only what changed is sent. Pages are cached for five minutes, so a change can take that long to show. Images are cached for a year, but an image's name changes whenever it does.
 
+## Backing up the library
+
+The same account and keys back up the whole library (everything in `Library/`, and the library's settings) to a bucket of its own. This works in the FilmFile app.
+
+1. In **R2 Object Storage**, create a bucket for the backup, such as `filmfile-backup`. Use it for nothing else, and don't give it a custom domain or a public address: it stays private.
+2. Make sure the token from step 1 covers it (edit the token's buckets if you chose them one by one).
+3. In FilmFile, open **Settings**. Under **Sync**, enter the **Bucket** and this computer's name, and press **Save**.
+4. Press **Sync**. The first sync sends everything, which can take a while for a big library; after that, only what's new or changed is sent.
+
+A bucket with other things in it is refused, so nothing of anyone else's is mixed in. Cancelling, or a sync that fails part-way, loses nothing: the next sync carries on.
+
 ## Trying it without a domain
 
 Instead of steps 5 and 6, open the bucket's **Settings** and enable **Public Development URL**. The site's home page is then at `https://pub-….r2.dev/index.html`: use that whole address in FilmFile. Cloudflare limits how much an r2.dev address serves, so it's for trying things out, not for sharing.

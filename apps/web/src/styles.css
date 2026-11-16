@@ -2135,20 +2135,23 @@ textarea {
 }
 
 /* Publishing a site (FF-234): the bucket and address above the state, the fields as wide as the panel allows. */
-.publish-target {
+.publish-target,
+.sync-settings {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   max-width: 32rem;
 }
 
-.publish-target label {
+.publish-target label,
+.sync-settings label {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
 }
 
-.publish-target input {
+.publish-target input,
+.sync-settings input {
   width: 100%;
 }
 

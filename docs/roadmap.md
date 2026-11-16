@@ -298,7 +298,6 @@ Changes to how FilmFile is built that add nothing to see: speed, legibility and 
 
 A copy of the library in one bucket (Cloudflare R2 first, then S3), kept in step between computers by syncing by hand, with one computer editing at a time so nothing needs merging (D115–D118, design section 10). It reuses the request signing and keys from publishing a site (FF-201); whichever is built first builds them.
 
-- [ ] [FF-225 Back up the library to a bucket](tasks/FF-225.md): set a bucket in Settings, in the desktop app, and sync the library up to it, sending only what's new or changed.
 - [ ] [FF-238 Renames and removals in the backup](tasks/FF-238.md): renamed files copied inside the bucket, files emptied from `deleted/` removed, and missing files kept.
 - [ ] [FF-226 Sync status in the header](tasks/FF-226.md): see when the library was last synced and sync from anywhere. Edits wait while a sync runs.
 - [ ] [FF-227 Start a second computer from the bucket](tasks/FF-227.md): download the whole library into an empty FilmFile folder.
@@ -308,6 +307,7 @@ A copy of the library in one bucket (Cloudflare R2 first, then S3), kept in step
 - [ ] [FF-231 When both computers have changed](tasks/FF-231.md): keep this computer's or take the bucket's, with the other side's changes set aside.
 - [ ] [FF-232 Back up when closing FilmFile](tasks/FF-232.md): a desktop setting that syncs and hands back editing on close.
 - [ ] [later] [FF-233 Sync with an S3 bucket](tasks/FF-233.md): the same with AWS S3.
+- [x] [FF-225 Back up the library to a bucket](tasks/FF-225.md)
 
 ---
 

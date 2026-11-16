@@ -1,0 +1,506 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import { hostname } from 'node:os';
+import path from 'node:path';
+import { describe, expect, test } from 'vitest';
+import { syncSettings, syncStatus } from '@filmfile/contracts/sync';
+import { FixedClock } from '../../src/adapters/outbound/memory/fixed-clock.ts';
+import { InMemoryPublishBucket } from '../../src/adapters/outbound/memory/in-memory-publish-bucket.ts';
+import { InMemorySyncSettings } from '../../src/adapters/outbound/memory/in-memory-sync-settings.ts';
+import type {
+  BucketTarget,
+  StreamToPut,
+} from '../../src/application/ports/publish-bucket.ts';
+import type { PublishFailed } from '../../src/domain/shared/domain-error.ts';
+import type { Result } from '../../src/domain/shared/result.ts';
+import { computerNameFrom } from '../../src/domain/sync/computer-name.ts';
+import {
+  parseManifest,
+  parseSyncRecord,
+} from '../../src/domain/sync/sync-files.ts';
+import { apiFor } from '../support/api.ts';
+import { useTempArchive } from '../support/temp-archive.ts';
+
+const archive = useTempArchive();
+const accountId = '0123456789abcdef0123456789abcdef';
+const target: BucketTarget = { accountId, bucket: 'backup-pirt' };
+const now = '2026-11-16T14:02:00.000Z';
+
+/** A bucket that remembers what was streamed into it, and can hold those puts back. */
+class WatchedBucket extends InMemoryPublishBucket {
+  readonly streamed: string[] = [];
+  holding: Promise<void> | undefined;
+
+  override async putStream(
+    to: BucketTarget,
+    file: StreamToPut,
+    signal: AbortSignal,
+  ): Promise<Result<{ readonly sha256: string }, PublishFailed>> {
+    this.streamed.push(file.key);
+    await this.holding;
+    return super.putStream(to, file, signal);
+  }
+}
+
+function setUp(options: { readonly app?: boolean } = {}) {
+  const bucket = new WatchedBucket(new FixedClock(now));
+  bucket.createBucket(target);
+  const store = new InMemorySyncSettings();
+  const api = apiFor(archive, {
+    clock: new FixedClock(now),
+    publishBucket: bucket,
+    ...((options.app ?? true) ? { syncSettings: store } : {}),
+  });
+  const { request, post } = api;
+  const put = (url: string, body: unknown) =>
+    request(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+  async function setUpWithAccount(withAccount = true) {
+    await post('/api/settings', { author: 'Ben Pirt' });
+    if (withAccount) {
+      const etag = (await request('/api/settings')).headers.get('ETag') ?? '';
+      await request('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'If-Match': etag },
+        body: JSON.stringify({ cloudflareAccountId: accountId }),
+      });
+    }
+  }
+
+  async function ready() {
+    await setUpWithAccount();
+    expect(
+      (
+        await put('/api/sync/settings', {
+          bucket: 'backup-pirt',
+          computerName: 'Studio',
+        })
+      ).status,
+    ).toBe(200);
+  }
+
+  const status = async () =>
+    syncStatus.parse(await (await request('/api/sync')).json());
+
+  async function untilDone() {
+    // Up to 30 seconds, for when every test file runs at once.
+    for (let tries = 0; tries < 3000; tries += 1) {
+      const now = await status();
+      if (now.run !== null && now.run.state !== 'running') {
+        return now.run;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    throw new Error('the sync did not finish');
+  }
+
+  async function sync() {
+    const started = await post('/api/sync', {});
+    expect(started.status).toBe(202);
+    return untilDone();
+  }
+
+  const fileInBucket = async (key: string) => {
+    const got = await bucket.get(target, key, new AbortController().signal);
+    return got.ok && got.value !== undefined
+      ? new TextDecoder().decode(got.value.bytes)
+      : undefined;
+  };
+
+  return {
+    bucket,
+    store,
+    request,
+    post,
+    put,
+    setUpWithAccount,
+    ready,
+    status,
+    sync,
+    untilDone,
+    fileInBucket,
+  };
+}
+
+async function putInLibrary(relative: string, text: string) {
+  const file = path.join(archive.path(), ...relative.split('/'));
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, text);
+}
+
+describe("this computer's sync settings", () => {
+  test('without the desktop app, sync is not available and nothing can be set', async () => {
+    const { request, put, post, setUpWithAccount } = setUp({ app: false });
+    await setUpWithAccount();
+
+    expect(
+      syncSettings.parse(await (await request('/api/sync/settings')).json()),
+    ).toEqual({
+      available: false,
+      bucket: null,
+      computerName: null,
+      lastSyncedAt: null,
+    });
+    const saved = await put('/api/sync/settings', {
+      bucket: 'backup-pirt',
+      computerName: 'Studio',
+    });
+    expect(saved.status).toBe(422);
+    expect(await saved.json()).toMatchObject({
+      issues: [{ path: ['sync'], message: 'sync works in the FilmFile app' }],
+    });
+    expect((await post('/api/sync', {})).status).toBe(422);
+    expect((await status()).available).toBe(false);
+
+    async function status() {
+      return syncStatus.parse(await (await request('/api/sync')).json());
+    }
+  });
+
+  test("start with no bucket and this computer's own name, and are kept by the app once saved", async () => {
+    const { request, put, store } = setUp();
+
+    expect(
+      syncSettings.parse(await (await request('/api/sync/settings')).json()),
+    ).toEqual({
+      available: true,
+      bucket: null,
+      computerName: computerNameFrom(hostname()),
+      lastSyncedAt: null,
+    });
+    const saved = await put('/api/sync/settings', {
+      bucket: ' backup-pirt ',
+      computerName: ' Studio ',
+    });
+
+    expect(syncSettings.parse(await saved.json())).toMatchObject({
+      bucket: 'backup-pirt',
+      computerName: 'Studio',
+    });
+    expect(store.settings).toEqual({
+      bucket: 'backup-pirt',
+      computerName: 'Studio',
+      lastSync: null,
+    });
+  });
+
+  test('refuses a bucket R2 would not take and a name of no characters, saving nothing', async () => {
+    const { put, store } = setUp();
+
+    const refused = await put('/api/sync/settings', {
+      bucket: 'Backup_Pirt',
+      computerName: '  ',
+    });
+
+    expect(refused.status).toBe(422);
+    expect(await refused.json()).toMatchObject({
+      issues: [
+        { path: ['bucket'] },
+        { path: ['computerName'], message: 'must be 1 to 60 characters' },
+      ],
+    });
+    expect(store.settings.bucket).toBeNull();
+  });
+
+  test('a different bucket forgets the last sync', async () => {
+    const { put, store } = setUp();
+    store.settings = {
+      bucket: 'backup-pirt',
+      computerName: 'Studio',
+      lastSync: { sync: 2, at: now },
+    };
+
+    await put('/api/sync/settings', {
+      bucket: 'backup-other',
+      computerName: 'Studio',
+    });
+
+    expect(store.settings.lastSync).toBeNull();
+  });
+});
+
+describe('POST /api/sync', () => {
+  test('says to set the account, or the bucket, first', async () => {
+    const { post, put, setUpWithAccount } = setUp();
+    await setUpWithAccount(false);
+    await put('/api/sync/settings', {
+      bucket: 'backup-pirt',
+      computerName: 'Studio',
+    });
+
+    const noAccount = await post('/api/sync', {});
+    expect(noAccount.status).toBe(422);
+    expect(await noAccount.json()).toMatchObject({
+      issues: [
+        {
+          path: ['cloudflareAccountId'],
+          message: 'Set your Cloudflare account ID in Settings.',
+        },
+      ],
+    });
+  });
+
+  test('says to choose a bucket first', async () => {
+    const { post, setUpWithAccount } = setUp();
+    await setUpWithAccount();
+
+    const noBucket = await post('/api/sync', {});
+
+    expect(noBucket.status).toBe(422);
+    expect(await noBucket.json()).toMatchObject({
+      issues: [{ path: ['bucket'], message: 'say which bucket to sync with' }],
+    });
+  });
+
+  test('claims an empty bucket and sends the library and settings.json, at the same paths, leaving out dotfiles', async () => {
+    const { bucket, ready, sync, status, store, fileInBucket } = setUp();
+    await ready();
+    await putInLibrary('rolls/2026-014-AAAAAAAA/roll.json', '{"roll":1}');
+    await putInLibrary('.DS_Store', 'finder');
+    await putInLibrary('rolls/._roll.json', 'finder');
+
+    const run = await sync();
+
+    expect(run).toMatchObject({ state: 'done', failure: null });
+    const keys = [...bucket.files(target).keys()].sort();
+    expect(keys).toEqual([
+      'Library/rolls/2026-014-AAAAAAAA/roll.json',
+      'filmfile/manifest.json',
+      'filmfile/sync.json',
+      'settings.json',
+    ]);
+    expect(run.filesDone).toBe(2);
+    expect(run.filesTotal).toBe(2);
+    expect(run.bytesDone).toBe(run.bytesTotal);
+    expect(
+      await fileInBucket('Library/rolls/2026-014-AAAAAAAA/roll.json'),
+    ).toBe('{"roll":1}');
+    const record = parseSyncRecord(
+      (await fileInBucket('filmfile/sync.json')) ?? '',
+    );
+    expect(record).toMatchObject({ sync: 1, computer: 'Studio', at: now });
+    expect(
+      parseManifest((await fileInBucket('filmfile/manifest.json')) ?? '')?.map(
+        (file) => file.path,
+      ),
+    ).toEqual(['Library/rolls/2026-014-AAAAAAAA/roll.json', 'settings.json']);
+    expect(store.settings.lastSync).toEqual({ sync: 1, at: now });
+    expect((await status()).lastSyncedAt).toBe(now);
+  });
+
+  test('syncing again sends only what is new or changed, and nothing when nothing changed', async () => {
+    const { bucket, ready, sync, fileInBucket } = setUp();
+    await ready();
+    await putInLibrary('a.json', 'one');
+    await putInLibrary('b.json', 'b');
+    await sync();
+    bucket.streamed.length = 0;
+
+    const unchanged = await sync();
+    expect(unchanged).toMatchObject({ state: 'done', filesTotal: 0 });
+    expect(bucket.streamed).toEqual([]);
+
+    await putInLibrary('a.json', 'second');
+    await putInLibrary('c.json', 'c');
+    const changed = await sync();
+
+    expect(changed).toMatchObject({ state: 'done', filesTotal: 2 });
+    expect(bucket.streamed.sort()).toEqual([
+      'Library/a.json',
+      'Library/c.json',
+    ]);
+    expect(await fileInBucket('Library/a.json')).toBe('second');
+    expect(
+      parseSyncRecord((await fileInBucket('filmfile/sync.json')) ?? '')?.sync,
+    ).toBe(3);
+  });
+
+  test('refuses a bucket with something else in it, sending nothing', async () => {
+    const { bucket, ready, sync } = setUp();
+    await ready();
+    await bucket.put(
+      target,
+      {
+        key: 'holiday.jpg',
+        bytes: new Uint8Array([1]),
+        contentType: 'image/jpeg',
+        cacheControl: 'x',
+      },
+      new AbortController().signal,
+    );
+
+    expect(await sync()).toMatchObject({
+      state: 'failed',
+      failure: 'not-empty',
+      message:
+        "That bucket has something else in it, so FilmFile won't sync with it.",
+    });
+    expect(bucket.streamed).toEqual([]);
+    expect(bucket.files(target).has('filmfile/sync.json')).toBe(false);
+  });
+
+  test('refuses a bucket that backs up another library', async () => {
+    const { bucket, ready, sync } = setUp();
+    await ready();
+    await bucket.put(
+      target,
+      {
+        key: 'filmfile/sync.json',
+        bytes: new TextEncoder().encode(
+          JSON.stringify({
+            archiveId: '01JC8Y00000000000000000OTHER'.slice(0, 26),
+            sync: 4,
+            computer: 'Laptop',
+            at: now,
+          }),
+        ),
+        contentType: 'application/json',
+        cacheControl: 'x',
+      },
+      new AbortController().signal,
+    );
+
+    expect(await sync()).toMatchObject({
+      state: 'failed',
+      failure: 'another-library',
+      message: 'That bucket belongs to another FilmFile library.',
+    });
+    expect(bucket.streamed).toEqual([]);
+  });
+
+  test.each([
+    ['keys-refused', 'Cloudflare refused the keys in the [filmfile] profile.'],
+    [
+      'no-credentials',
+      "No [filmfile] profile in ~/.aws/credentials, so the site can't be published.",
+    ],
+    ['unreachable', "Couldn't reach Cloudflare. Are you online?"],
+    ['other', "Couldn't sync."],
+  ] as const)('says what to fix when %s', async (reason, message) => {
+    const { bucket, ready, sync } = setUp();
+    await ready();
+    bucket.failWith(reason);
+
+    expect(await sync()).toMatchObject({
+      state: 'failed',
+      failure: reason,
+      message,
+    });
+  });
+
+  test('a sync that fails part-way leaves the record as it was, and the next sends only what is missing', async () => {
+    const { bucket, ready, sync, fileInBucket } = setUp();
+    await ready();
+    await putInLibrary('a.json', 'a');
+    await sync();
+    for (const name of ['b', 'c', 'd', 'e', 'f', 'g']) {
+      await putInLibrary(`${name}.json`, name);
+    }
+    const putStream = bucket.putStream.bind(bucket);
+    let sent = 0;
+    bucket.putStream = (to, file, signal) => {
+      sent += 1;
+      if (sent === 3) {
+        bucket.failWith('unreachable');
+      }
+      return putStream(to, file, signal);
+    };
+
+    const failed = await sync();
+
+    expect(failed).toMatchObject({ state: 'failed', failure: 'unreachable' });
+    bucket.failWith(undefined);
+    expect(
+      parseSyncRecord((await fileInBucket('filmfile/sync.json')) ?? '')?.sync,
+    ).toBe(1);
+    bucket.putStream = putStream;
+    bucket.streamed.length = 0;
+    const again = await sync();
+    expect(again.state).toBe('done');
+    expect(bucket.streamed.length).toBe(6 - failed.filesDone);
+    expect(
+      parseSyncRecord((await fileInBucket('filmfile/sync.json')) ?? '')?.sync,
+    ).toBe(2);
+  });
+});
+
+test('a record written by another sync meanwhile is never overwritten', async () => {
+  const { bucket, ready, sync, post, untilDone, fileInBucket } = setUp();
+  await ready();
+  await putInLibrary('a.json', 'a');
+  await sync();
+  await putInLibrary('a.json', 'changed');
+  let release: () => void = () => undefined;
+  bucket.holding = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await post('/api/sync', {});
+  for (let tries = 0; tries < 200 && bucket.streamed.length === 0; tries += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  const record = (await fileInBucket('filmfile/sync.json')) ?? '';
+  const theirs = record.replace('"sync": 1', '"sync": 9');
+  await bucket.put(
+    target,
+    {
+      key: 'filmfile/sync.json',
+      bytes: new TextEncoder().encode(theirs),
+      contentType: 'application/json',
+      cacheControl: 'no-store',
+    },
+    new AbortController().signal,
+  );
+
+  release();
+  const run = await untilDone();
+
+  expect(run).toMatchObject({ state: 'failed', failure: 'other' });
+  expect(
+    parseSyncRecord((await fileInBucket('filmfile/sync.json')) ?? '')?.sync,
+  ).toBe(9);
+});
+
+describe('DELETE /api/sync', () => {
+  test('starts no more files, lets those going finish, and leaves the record as it was', async () => {
+    const { bucket, request, post, ready, untilDone, fileInBucket } = setUp();
+    await ready();
+    for (const name of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']) {
+      await putInLibrary(`${name}.json`, name);
+    }
+    let release: () => void = () => undefined;
+    bucket.holding = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await post('/api/sync', {});
+    for (
+      let tries = 0;
+      tries < 200 && bucket.streamed.length === 0;
+      tries += 1
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    const going = bucket.streamed.length;
+
+    const cancelled = await request('/api/sync', { method: 'DELETE' });
+    release();
+    const run = await untilDone();
+
+    expect(cancelled.status).toBe(204);
+    expect(run.state).toBe('cancelled');
+    expect(going).toBeLessThanOrEqual(4);
+    expect(bucket.streamed.length).toBe(going);
+    // The claim was made, but no sync was recorded as finished.
+    expect(
+      parseSyncRecord((await fileInBucket('filmfile/sync.json')) ?? '')?.sync,
+    ).toBe(0);
+  });
+
+  test('is refused when no sync is running', async () => {
+    const { request } = setUp();
+
+    expect((await request('/api/sync', { method: 'DELETE' })).status).toBe(422);
+  });
+});

@@ -47,7 +47,7 @@ function run(): void {
   async function open(next: string): Promise<void> {
     const started = await startService(next, (message, reply) => {
       handleServiceMessage(message, serviceRequests, reply).catch(
-        couldNot('export those frames'),
+        couldNot('answer the service'),
       );
     });
     const previous = { window, service };
@@ -90,8 +90,10 @@ function run(): void {
   /** The folder an export of several frames was last written into (FF-176). */
   let exportFolder: string | undefined;
 
-  /** What the service asks of the app (D100): a folder to export into, and telling where an export went. */
+  /** What the service asks of the app (D100, D120): a folder to export into, telling where an export went, and keeping this computer's sync settings. */
   const serviceRequests: ServiceRequests = {
+    syncSettings: async () => (await readSettings(settingsFile())).sync,
+    saveSyncSettings: (sync) => updateSettings(settingsFile(), { sync }),
     chooseExportFolder: async () => {
       const options: Electron.OpenDialogOptions = {
         title: 'Where should the exported photographs go?',

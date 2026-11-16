@@ -19,6 +19,11 @@ export interface LocalConfig {
    * environment, never from a request.
    */
   readonly r2Endpoint?: string;
+  /**
+   * A file of this computer's sync settings, in place of the desktop app's:
+   * for testing only (D120). Read only from the environment.
+   */
+  readonly syncSettingsFile?: string;
 }
 
 interface System {
@@ -55,6 +60,9 @@ export function readLocalConfig(
     awsCredentialsFile:
       env.AWS_SHARED_CREDENTIALS_FILE ??
       path.join(system.home, '.aws', 'credentials'),
+    ...(env.FILMFILE_SYNC_SETTINGS === undefined
+      ? {}
+      : { syncSettingsFile: env.FILMFILE_SYNC_SETTINGS }),
     ...(env.FILMFILE_R2_ENDPOINT === undefined
       ? {}
       : { r2Endpoint: env.FILMFILE_R2_ENDPOINT }),

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, test } from 'vitest';
 import type {
   BucketTarget,
@@ -133,6 +134,102 @@ export function publishBucketContract(
       expect(await bucket.deleteMany(missing, ['a.html'], signal)).toEqual(
         failure,
       );
+      expect(await bucket.get(missing, 'a.html', signal)).toEqual(failure);
+    });
+
+    test('gets a file it holds with its ETag, and nothing for a key it has none at', async () => {
+      const { bucket, target } = await make();
+      await bucket.put(target, aFile('filmfile/sync.json', '{"a":1}'), signal);
+
+      const got = await bucket.get(target, 'filmfile/sync.json', signal);
+      const none = await bucket.get(target, 'filmfile/none.json', signal);
+
+      expect(got.ok && new TextDecoder().decode(got.value?.bytes)).toBe(
+        '{"a":1}',
+      );
+      expect(got.ok && got.value?.etag).toMatch(/^[0-9a-f]{32}$/u);
+      expect(none).toEqual({ ok: true, value: undefined });
+    });
+
+    test('puts a file only if none is there, when asked', async () => {
+      const { bucket, target } = await make();
+      const first = await bucket.putIf(
+        target,
+        aFile('claim.json', 'one'),
+        { ifNoneMatch: true },
+        signal,
+      );
+      const second = await bucket.putIf(
+        target,
+        aFile('claim.json', 'two'),
+        { ifNoneMatch: true },
+        signal,
+      );
+
+      expect(first.ok).toBe(true);
+      expect(second).toEqual({
+        ok: false,
+        error: { kind: 'precondition-failed' },
+      });
+      const got = await bucket.get(target, 'claim.json', signal);
+      expect(got.ok && new TextDecoder().decode(got.value?.bytes)).toBe('one');
+    });
+
+    test('replaces a file only if it is the one read, when asked', async () => {
+      const { bucket, target } = await make();
+      const made = await bucket.putIf(
+        target,
+        aFile('record.json', 'one'),
+        { ifNoneMatch: true },
+        signal,
+      );
+      const etag = made.ok ? made.value.etag : '';
+
+      const changed = await bucket.putIf(
+        target,
+        aFile('record.json', 'two'),
+        { ifMatch: etag },
+        signal,
+      );
+      const stale = await bucket.putIf(
+        target,
+        aFile('record.json', 'three'),
+        { ifMatch: etag },
+        signal,
+      );
+
+      expect(changed.ok).toBe(true);
+      expect(stale).toEqual({
+        ok: false,
+        error: { kind: 'precondition-failed' },
+      });
+    });
+
+    test('puts a streamed file, giving the SHA-256 of what was sent', async () => {
+      const { bucket, target } = await make();
+      const text = 'a scan, streamed';
+
+      const put = await bucket.putStream(
+        target,
+        {
+          key: 'Library/2026/scan.jpg',
+          size: text.length,
+          contentType: 'image/jpeg',
+          body: new Blob([text]).stream(),
+        },
+        signal,
+      );
+
+      expect(put).toEqual({
+        ok: true,
+        value: {
+          sha256: createHash('sha256').update(text).digest('hex'),
+        },
+      });
+      const listed = await bucket.list(target, signal);
+      expect(
+        listed.ok && listed.value.map(({ key, size }) => [key, size]),
+      ).toEqual([['Library/2026/scan.jpg', text.length]]);
     });
 
     test('stops when asked to', async () => {

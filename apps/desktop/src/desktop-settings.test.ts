@@ -60,3 +60,26 @@ test('remembers the folder downloads were last saved to, beside the FilmFile fol
     exportFolder: '/Volumes/Prints',
   });
 });
+
+test('keeps the sync settings beside the rest, and drops only those it can’t read', async () => {
+  const sync = {
+    bucket: 'backup-pirt',
+    computerName: 'Studio',
+    lastSync: { sync: 2, at: '2026-11-16T14:02:00.000Z' },
+  };
+  await saveSettings(file, { folder: '/Volumes/Photos/FilmFile' });
+  await updateSettings(file, { sync });
+
+  expect(await readSettings(file)).toEqual({
+    folder: '/Volumes/Photos/FilmFile',
+    sync,
+  });
+
+  writeFileSync(
+    file,
+    JSON.stringify({ folder: '/Volumes/Photos/FilmFile', sync: { bucket: 3 } }),
+  );
+  expect(await readSettings(file)).toEqual({
+    folder: '/Volumes/Photos/FilmFile',
+  });
+});

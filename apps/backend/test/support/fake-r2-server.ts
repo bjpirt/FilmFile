@@ -111,7 +111,11 @@ export async function startFakeR2(
       ),
     );
     const payloadHash = String(request.headers['x-amz-content-sha256'] ?? '');
-    if (payloadHash !== sha256Hex(body) || Number.isNaN(date.getTime())) {
+    // R2 takes a payload it can't check first (a streamed upload) as unsigned.
+    if (
+      (payloadHash !== 'UNSIGNED-PAYLOAD' && payloadHash !== sha256Hex(body)) ||
+      Number.isNaN(date.getTime())
+    ) {
       return 'bad-signature';
     }
     const expected = signRequest({
@@ -160,7 +164,33 @@ export async function startFakeR2(
     }
     const key = keyParts.map(decodeURIComponent).join('/');
 
+    if (request.method === 'GET' && key !== '') {
+      const file = bucket.get(key);
+      if (file === undefined) {
+        failure(response, 404, 'NoSuchKey');
+        return;
+      }
+      response.writeHead(200, { etag: `"${md5Of(file.bytes)}"` });
+      response.end(Buffer.from(file.bytes));
+      return;
+    }
     if (request.method === 'PUT') {
+      // R2 needs to know a file's length before it's sent.
+      if (request.headers['content-length'] === undefined) {
+        failure(response, 411, 'MissingContentLength');
+        return;
+      }
+      const there = bucket.get(key);
+      const ifNoneMatch = request.headers['if-none-match'];
+      const ifMatch = request.headers['if-match'];
+      if (
+        (ifNoneMatch === '*' && there !== undefined) ||
+        (ifMatch !== undefined &&
+          (there === undefined || `"${md5Of(there.bytes)}"` !== ifMatch))
+      ) {
+        failure(response, 412, 'PreconditionFailed');
+        return;
+      }
       bucket.set(key, {
         bytes: new Uint8Array(body),
         contentType: request.headers['content-type'],

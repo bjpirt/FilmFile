@@ -9,13 +9,33 @@ export interface DesktopSettings {
   readonly downloadFolder?: string;
   /** The folder an export of several frames was last written into (FF-176). */
   readonly exportFolder?: string;
+  /** This computer's sync settings, kept here for the service (D120). */
+  readonly sync?: SyncSettings;
 }
+
+/** This computer's bucket, name and last finished sync (D120), each null until set. */
+export interface SyncSettings {
+  readonly bucket: string | null;
+  readonly computerName: string | null;
+  readonly lastSync: { readonly sync: number; readonly at: string } | null;
+}
+
+/** What the service sends to be kept, and what's kept: checked, since it crosses from another process. */
+export const syncSettings = z.object({
+  bucket: z.string().min(1).nullable(),
+  computerName: z.string().min(1).nullable(),
+  lastSync: z
+    .object({ sync: z.number().int().min(0), at: z.string() })
+    .nullable(),
+});
 
 // An `archive` from before the FilmFile folder isn't read: the folder is chosen again.
 const settingsFile = z.object({
   folder: z.string().min(1).optional(),
   downloadFolder: z.string().min(1).optional(),
   exportFolder: z.string().min(1).optional(),
+  // Sync settings that can't be read are set up again, not the rest lost.
+  sync: syncSettings.optional().catch(undefined),
 });
 
 /** The settings saved in `file`, or none if it isn't there or can't be read. */
@@ -37,12 +57,13 @@ export async function readSettings(file: string): Promise<DesktopSettings> {
   if (!parsed.success) {
     return {};
   }
-  const { folder, downloadFolder, exportFolder } = parsed.data;
+  const { folder, downloadFolder, exportFolder, sync } = parsed.data;
   // An `archive` from before the FilmFile folder says nothing, but a download folder still stands.
   return {
     ...(folder === undefined ? {} : { folder }),
     ...(downloadFolder === undefined ? {} : { downloadFolder }),
     ...(exportFolder === undefined ? {} : { exportFolder }),
+    ...(sync === undefined ? {} : { sync }),
   };
 }
 

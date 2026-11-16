@@ -1,8 +1,12 @@
+import { createHash } from 'node:crypto';
 import type {
   BucketTarget,
+  FileGot,
   FileToPut,
+  PreconditionFailed,
   PublishBucket,
   RemoteFile,
+  StreamToPut,
 } from '../../../application/ports/publish-bucket.ts';
 import type { Clock } from '../../../application/ports/clock.ts';
 import type {
@@ -112,6 +116,81 @@ export class InMemoryPublishBucket implements PublishBucket {
       lastModified: this.#clock.now().toISOString(),
     });
     return Promise.resolve(ok(undefined));
+  }
+
+  get(
+    target: BucketTarget,
+    key: string,
+    signal: AbortSignal,
+  ): Promise<Result<FileGot | undefined, PublishFailed>> {
+    if (signal.aborted) {
+      return Promise.reject(new DOMException('aborted', 'AbortError'));
+    }
+    const opened = this.#open(target);
+    if (!opened.ok) {
+      return Promise.resolve(opened);
+    }
+    const file = opened.value.get(key);
+    return Promise.resolve(
+      ok(
+        file === undefined
+          ? undefined
+          : { bytes: new Uint8Array(file.bytes), etag: md5Hex(file.bytes) },
+      ),
+    );
+  }
+
+  putIf(
+    target: BucketTarget,
+    file: FileToPut,
+    condition: { readonly ifNoneMatch: true } | { readonly ifMatch: string },
+    signal: AbortSignal,
+  ): Promise<
+    Result<{ readonly etag: string }, PublishFailed | PreconditionFailed>
+  > {
+    if (signal.aborted) {
+      return Promise.reject(new DOMException('aborted', 'AbortError'));
+    }
+    const opened = this.#open(target);
+    if (!opened.ok) {
+      return Promise.resolve(opened);
+    }
+    const there = opened.value.get(file.key);
+    const expected =
+      'ifNoneMatch' in condition
+        ? there === undefined
+        : there !== undefined && md5Hex(there.bytes) === condition.ifMatch;
+    if (!expected) {
+      return Promise.resolve(err({ kind: 'precondition-failed' }));
+    }
+    opened.value.set(file.key, {
+      ...file,
+      bytes: new Uint8Array(file.bytes),
+      lastModified: this.#clock.now().toISOString(),
+    });
+    return Promise.resolve(ok({ etag: md5Hex(file.bytes) }));
+  }
+
+  async putStream(
+    target: BucketTarget,
+    file: StreamToPut,
+    signal: AbortSignal,
+  ): Promise<Result<{ readonly sha256: string }, PublishFailed>> {
+    signal.throwIfAborted();
+    const bytes = new Uint8Array(await new Response(file.body).arrayBuffer());
+    const put = await this.put(
+      target,
+      {
+        key: file.key,
+        bytes,
+        contentType: file.contentType,
+        cacheControl: 'private',
+      },
+      signal,
+    );
+    return put.ok
+      ? ok({ sha256: createHash('sha256').update(bytes).digest('hex') })
+      : put;
   }
 
   deleteMany(

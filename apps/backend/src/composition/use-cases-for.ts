@@ -21,6 +21,12 @@ import type { IdGenerator } from '../application/ports/id-generator.ts';
 import type { ImageRenderer } from '../application/ports/image-renderer.ts';
 import type { ImageInspector } from '../application/ports/image-inspector.ts';
 import type { PublishBucket } from '../application/ports/publish-bucket.ts';
+import type { LibraryFiles } from '../application/ports/library-files.ts';
+import type { SyncSettingsStore } from '../application/ports/sync-settings-store.ts';
+import { GetSyncSettings } from '../application/use-cases/sync/get-sync-settings.ts';
+import { LibrarySync } from '../application/use-cases/sync/library-sync.ts';
+import { SaveSyncSettings } from '../application/use-cases/sync/save-sync-settings.ts';
+import type { SyncUseCases } from '../adapters/inbound/http/routes/sync.ts';
 import type { PreviewProvider } from '../application/ports/preview-provider.ts';
 import type { RollRepository } from '../application/ports/roll-repository.ts';
 import { FolderExports } from '../application/use-cases/exports/folder-exports.ts';
@@ -85,6 +91,12 @@ export interface Adapters {
   readonly siteFolders: SiteFolders;
   /** The bucket a built site is published into (D111). */
   readonly publishBucket: PublishBucket;
+  /** The library's files as a sync sees them (D117). */
+  readonly libraryFiles: LibraryFiles;
+  /** This computer's sync settings, kept by the desktop app; none without it (D120). */
+  readonly syncSettings?: SyncSettingsStore | undefined;
+  /** This computer's own name, until another is saved. */
+  readonly thisComputer: string;
   readonly tickets: ExportTickets;
   /** The desktop app, which can ask for a folder to export into (D100); none when there isn't one. */
   readonly destination?: ExportDestination | undefined;
@@ -110,6 +122,9 @@ export function useCasesFor({
   sites,
   siteFolders,
   publishBucket,
+  libraryFiles,
+  syncSettings,
+  thisComputer,
   ids,
   clock,
   errors,
@@ -120,7 +135,8 @@ export function useCasesFor({
   FrameSelectionUseCases &
   SiteUseCases &
   BuiltSiteUseCases &
-  SettingsUseCases {
+  SettingsUseCases &
+  SyncUseCases {
   const searchFrames = new SearchFrames(rolls, settings, events);
   const makeQuickExport = new MakeQuickExport(
     rolls,
@@ -151,6 +167,17 @@ export function useCasesFor({
     siteWork,
   );
   return {
+    getSyncSettings: new GetSyncSettings(syncSettings, thisComputer),
+    saveSyncSettings: new SaveSyncSettings(syncSettings),
+    librarySync: new LibrarySync({
+      store: syncSettings,
+      settings,
+      files: libraryFiles,
+      bucket: publishBucket,
+      clock,
+      errors,
+      thisComputer,
+    }),
     getSettings: new GetSettings(settings),
     findCloudflareKeys: new FindCloudflareKeys(publishBucket),
     initialiseSettings: new InitialiseSettings(settings, ids),

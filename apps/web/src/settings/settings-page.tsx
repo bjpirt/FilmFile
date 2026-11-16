@@ -4,6 +4,7 @@ import { firstIssueMessage } from '../forms/first-issue-message.ts';
 import { navigate } from '../routing.tsx';
 import { CloudflareSection } from './cloudflare-section.tsx';
 import { RollNumberPatternForm } from './roll-number-pattern-form.tsx';
+import { SyncSection } from './sync-section.tsx';
 import { SettingsForm } from './settings-form.tsx';
 import type { ReadSettings } from './use-settings.ts';
 
@@ -100,6 +101,10 @@ export function SettingsPage({
           });
           return undefined;
         }}
+      />
+      <SyncSection
+        api={api}
+        accountSet={read.settings.cloudflareAccountId !== null}
       />
     </section>
   );
