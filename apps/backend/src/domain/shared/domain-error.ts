@@ -94,6 +94,8 @@ export interface Busy {
 
 /** Why putting a site on the web, or taking it down, didn't work (FF-201). */
 export type PublishFailureReason =
+  /** No Cloudflare account ID in Settings (D119). */
+  | 'no-account'
   /** No `[filmfile]` profile in `~/.aws/credentials`. */
   | 'no-credentials'
   /** The bucket's service refused the keys. */

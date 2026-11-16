@@ -9,6 +9,7 @@ import {
   errorResponse,
   invalidRequestResponse,
 } from '@filmfile/contracts/errors';
+import type { FindCloudflareKeys } from '../../../../application/use-cases/settings/find-cloudflare-keys.ts';
 import type { GetSettings } from '../../../../application/use-cases/settings/get-settings.ts';
 import type { InitialiseSettings } from '../../../../application/use-cases/settings/initialise-settings.ts';
 import type { UpdateSettings } from '../../../../application/use-cases/settings/update-settings.ts';
@@ -60,7 +61,8 @@ const initialiseSettingsRoute = createRoute({
 const updateSettingsRoute = createRoute({
   method: 'patch',
   path: '/',
-  summary: 'Change the author or copyright',
+  summary:
+    'Change the author, copyright, roll number pattern or Cloudflare account',
   description:
     "Send the settings' ETag as If-Match: the change is refused if they have changed since. The response's ETag is their new version.",
   middleware: [requireJson] as const,
@@ -84,6 +86,7 @@ const updateSettingsRoute = createRoute({
 
 export interface SettingsUseCases {
   readonly getSettings: GetSettings;
+  readonly findCloudflareKeys: FindCloudflareKeys;
   readonly initialiseSettings: InitialiseSettings;
   readonly updateSettings: UpdateSettings;
 }
@@ -104,9 +107,13 @@ export function settingsRoutes({
 }): OpenAPIHono {
   const routes = new OpenAPIHono({ defaultHook: invalidRequestHook });
 
-  /** The settings as the API gives them, with the FilmFile folder's path. */
-  function dto(stored: Settings) {
-    return { ...stored, folder: folderPath };
+  /** The settings as the API gives them, with the FilmFile folder's path and whether this computer has the Cloudflare keys. */
+  async function dto(stored: Settings) {
+    return {
+      ...stored,
+      cloudflareKeysFound: await useCases.findCloudflareKeys.execute(),
+      folder: folderPath,
+    };
   }
 
   routes.openapi(getSettingsRoute, async (c) => {
@@ -115,7 +122,7 @@ export function settingsRoutes({
       return domainErrorResponse(c, found.error);
     }
     c.header('ETag', etagOf(found.value.version));
-    return c.json(dto(found.value.settings), 200);
+    return c.json(await dto(found.value.settings), 200);
   });
 
   routes.openapi(initialiseSettingsRoute, async (c) => {
@@ -124,7 +131,7 @@ export function settingsRoutes({
       c.req.valid('json'),
     );
     return created.ok
-      ? c.json(dto(created.value), 201)
+      ? c.json(await dto(created.value), 201)
       : domainErrorResponse(c, created.error);
   });
 
@@ -141,7 +148,7 @@ export function settingsRoutes({
       return domainErrorResponse(c, updated.error);
     }
     c.header('ETag', etagOf(updated.value.version));
-    return c.json(dto(updated.value.settings), 200);
+    return c.json(await dto(updated.value.settings), 200);
   });
 
   return routes;

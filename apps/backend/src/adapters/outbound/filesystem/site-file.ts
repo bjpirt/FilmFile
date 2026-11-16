@@ -69,8 +69,9 @@ const storedPresentation = z.object({
   captions: z.array(z.enum(['title', 'shot', 'camera', 'lens', 'film'])),
 });
 
+// Files written before D119 also have an `accountId`, now in Settings: it's
+// read past and dropped on the next save.
 const storedPublish = z.object({
-  accountId: z.string(),
   bucket: z.string(),
   address: z.string(),
 });
@@ -174,7 +175,6 @@ export function siteFileContent(site: SiteDetails): string {
       ? {}
       : {
           publish: {
-            accountId: site.publish.accountId,
             bucket: site.publish.bucket,
             address: site.publish.address,
           },

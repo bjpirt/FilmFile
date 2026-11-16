@@ -37,6 +37,7 @@ import { GetSite } from '../application/use-cases/sites/get-site.ts';
 import { ListSites } from '../application/use-cases/sites/list-sites.ts';
 import { UpdateSite } from '../application/use-cases/sites/update-site.ts';
 import { SearchFrames } from '../application/use-cases/selections/search-frames.ts';
+import { FindCloudflareKeys } from '../application/use-cases/settings/find-cloudflare-keys.ts';
 import { GetSettings } from '../application/use-cases/settings/get-settings.ts';
 import { InitialiseSettings } from '../application/use-cases/settings/initialise-settings.ts';
 import { UpdateSettings } from '../application/use-cases/settings/update-settings.ts';
@@ -151,6 +152,7 @@ export function useCasesFor({
   );
   return {
     getSettings: new GetSettings(settings),
+    findCloudflareKeys: new FindCloudflareKeys(publishBucket),
     initialiseSettings: new InitialiseSettings(settings, ids),
     updateSettings: new UpdateSettings(settings, rolls),
     createRoll: new CreateRoll(rolls, equipment, events, ids),
@@ -183,6 +185,7 @@ export function useCasesFor({
     siteBuilds,
     sitePublishes: new SitePublishes(
       sites,
+      settings,
       siteBuilds,
       siteFolders,
       publishBucket,

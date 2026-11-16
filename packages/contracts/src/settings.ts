@@ -19,6 +19,15 @@ export const settings = z
         'How roll numbers are suggested: fixed text, one sequence token {n:3} (digits are a minimum width) and optionally {year}, {month}, {day} and {event}.',
       example: '{year}-{n:3}',
     }),
+    cloudflareAccountId: z.string().nullable().meta({
+      description:
+        'The Cloudflare account sites are published in (and later synced with), or null until it is set (D119).',
+      example: '0123456789abcdef0123456789abcdef',
+    }),
+    cloudflareKeysFound: z.boolean().meta({
+      description:
+        "Read-only: whether this computer's ~/.aws/credentials has both keys in its [filmfile] profile. Only that they are there, never what they are, and not whether Cloudflare accepts them.",
+    }),
     folder: z.string().meta({
       description:
         "The FilmFile folder's absolute path: read-only, chosen when FilmFile starts (by the desktop app, or FILMFILE_FOLDER) and never set through the API. The one absolute path any response carries (D64).",
@@ -43,6 +52,10 @@ export const updateSettingsRequest = z
     author: z.string().min(1).max(100).optional(),
     copyright: z.string().max(200).nullable().optional(),
     rollNumberPattern: z.string().max(200).optional(),
+    cloudflareAccountId: z.string().max(100).nullable().optional().meta({
+      description:
+        'The Cloudflare account ID, 32 hexadecimal characters; null or blank takes it away.',
+    }),
   })
   .meta({
     id: 'UpdateSettingsRequest',

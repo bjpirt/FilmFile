@@ -211,5 +211,6 @@ export function aSettings(
     author,
     copyright: details.copyright ?? null,
     rollNumberPattern: details.rollNumberPattern ?? '{year}-{n:3}',
+    cloudflareAccountId: null,
   };
 }

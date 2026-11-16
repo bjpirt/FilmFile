@@ -2,6 +2,7 @@ import { expect, test } from 'vitest';
 import { publishFailureMessage } from './publish-failure-message.ts';
 
 test.each([
+  ['no-account', 'Set your Cloudflare account ID in Settings.'],
   [
     'no-credentials',
     "No [filmfile] profile in ~/.aws/credentials, so the site can't be published.",

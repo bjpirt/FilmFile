@@ -91,6 +91,28 @@ describe('R2PublishBucket', () => {
     });
   });
 
+  test.each([
+    ['no credentials file', undefined],
+    [
+      'no [filmfile] profile',
+      '[default]\naws_access_key_id = A\naws_secret_access_key = B\n',
+    ],
+    ['a profile with no secret', '[filmfile]\naws_access_key_id = A\n'],
+  ])('has no keys with %s', async (_name, text) => {
+    const fake = await aFakeR2();
+    const bucket =
+      text === undefined
+        ? new R2PublishBucket({
+            credentialsFile: '/nowhere/credentials',
+            clock,
+            endpoint: fake.endpoint,
+          })
+        : await r2Against(fake, text);
+
+    expect(await bucket.hasKeys()).toBe(false);
+    expect(fake.requests).toEqual([]);
+  });
+
   test('says there are no keys when there is no credentials file', async () => {
     const fake = await aFakeR2();
     const bucket = new R2PublishBucket({

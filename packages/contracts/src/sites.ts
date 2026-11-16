@@ -24,9 +24,6 @@ export const sitePresentation = z
 
 export const publishTarget = z
   .strictObject({
-    accountId: z.string().max(100).meta({
-      description: 'The Cloudflare account ID: 32 hexadecimal characters.',
-    }),
     bucket: z.string().max(100).meta({
       description:
         "The R2 bucket, used only for this site: what the site doesn't have is removed from it.",
@@ -134,6 +131,7 @@ export const siteStatus = z
   .meta({ id: 'SiteStatus' });
 
 const publishFailureReason = z.enum([
+  'no-account',
   'no-credentials',
   'keys-refused',
   'no-bucket',
@@ -165,6 +163,7 @@ export const sitePublishProgress = z
     total: z.number().int(),
     failure: z
       .enum([
+        'no-account',
         'no-credentials',
         'keys-refused',
         'no-bucket',

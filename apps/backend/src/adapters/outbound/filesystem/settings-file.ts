@@ -24,18 +24,20 @@ const storedSettings = z.object({
     copyright: z.string().optional(),
   }),
   rollNumberPattern: z.string().min(1).optional(),
+  // Absent until one is set (D119).
+  cloudflareAccountId: z.string().min(1).optional(),
 });
 
 /** The settings in settings.json's text; throws if the file isn't one. */
 export function parseSettingsFile(text: string): Settings {
-  const { id, meta, rollNumberPattern } = storedSettings.parse(
-    JSON.parse(text),
-  );
+  const { id, meta, rollNumberPattern, cloudflareAccountId } =
+    storedSettings.parse(JSON.parse(text));
   return {
     id,
     author: meta.author,
     copyright: meta.copyright ?? null,
     rollNumberPattern: rollNumberPattern ?? defaultRollNumberPattern,
+    cloudflareAccountId: cloudflareAccountId ?? null,
   };
 }
 
@@ -53,6 +55,9 @@ export function settingsFileContent(settings: Settings): string {
     ...(settings.rollNumberPattern === defaultRollNumberPattern
       ? {}
       : { rollNumberPattern: settings.rollNumberPattern }),
+    ...(settings.cloudflareAccountId === null
+      ? {}
+      : { cloudflareAccountId: settings.cloudflareAccountId }),
   };
   return `${JSON.stringify(stored, null, 2)}\n`;
 }

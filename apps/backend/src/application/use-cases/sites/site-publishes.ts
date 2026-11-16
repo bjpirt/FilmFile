@@ -22,6 +22,7 @@ import type {
   PublishBucket,
   RemoteFile,
 } from '../../ports/publish-bucket.ts';
+import type { SettingsRepository } from '../../ports/settings-repository.ts';
 import type { SiteFolders } from '../../ports/site-folders.ts';
 import type { SiteRepository } from '../../ports/site-repository.ts';
 import type { SiteBuilds } from './site-builds.ts';
@@ -75,23 +76,39 @@ const uploadsAtOnce = 4;
 
 const neverStopped = new AbortController().signal;
 
-function targetOf(
-  target: PublishTarget | null,
-): Result<PublishTarget, ValidationFailed> {
-  return target === null
-    ? err({
-        kind: 'validation-failed',
-        issues: [
-          { path: ['publish'], message: 'say where to publish the site' },
-        ],
-      })
-    : ok(target);
+/** Where a site goes: its bucket and address, in the account set in Settings (D119). */
+interface Destination extends PublishTarget {
+  /** Null until the account is set in Settings. */
+  readonly accountId: string | null;
 }
 
-const bucketOf = ({ accountId, bucket }: PublishTarget): BucketTarget => ({
-  accountId,
-  bucket,
-});
+const noAccount: PublishFailed = {
+  kind: 'publish-failed',
+  reason: 'no-account',
+  bucket: '',
+};
+
+/** The bucket, once the account is known. */
+function bucketOf(
+  destination: Destination,
+): Result<BucketTarget, PublishFailed> {
+  return destination.accountId === null
+    ? err({ ...noAccount, bucket: destination.bucket })
+    : ok({ accountId: destination.accountId, bucket: destination.bucket });
+}
+
+/** Publishing without an account is refused as invalid, in the words Settings would use. */
+function needsAccount(): ValidationFailed {
+  return {
+    kind: 'validation-failed',
+    issues: [
+      {
+        path: ['cloudflareAccountId'],
+        message: publishFailureMessage(noAccount),
+      },
+    ],
+  };
+}
 
 /**
  * Puts a built site on the web, in a bucket used only for it (D111): says
@@ -102,6 +119,7 @@ const bucketOf = ({ accountId, bucket }: PublishTarget): BucketTarget => ({
  */
 export class SitePublishes {
   readonly #sites: SiteRepository;
+  readonly #settings: SettingsRepository;
   readonly #builds: SiteBuilds;
   readonly #folders: SiteFolders;
   readonly #bucket: PublishBucket;
@@ -111,6 +129,7 @@ export class SitePublishes {
 
   constructor(
     sites: SiteRepository,
+    settings: SettingsRepository,
     builds: SiteBuilds,
     folders: SiteFolders,
     bucket: PublishBucket,
@@ -118,6 +137,7 @@ export class SitePublishes {
     work: SiteWork,
   ) {
     this.#sites = sites;
+    this.#settings = settings;
     this.#builds = builds;
     this.#folders = folders;
     this.#bucket = bucket;
@@ -128,12 +148,25 @@ export class SitePublishes {
   async #target(
     ctx: ArchiveContext,
     slug: Slug,
-  ): Promise<Result<PublishTarget, NotFound | ValidationFailed>> {
+  ): Promise<Result<Destination, NotFound | ValidationFailed>> {
     const found = await this.#sites.get(ctx, slug);
     if (found === undefined) {
       return err({ kind: 'not-found', entity: 'site', id: slug });
     }
-    return targetOf(found.site.publish);
+    const target = found.site.publish;
+    if (target === null) {
+      return err({
+        kind: 'validation-failed',
+        issues: [
+          { path: ['publish'], message: 'say where to publish the site' },
+        ],
+      });
+    }
+    const settings = await this.#settings.get(ctx);
+    return ok({
+      ...target,
+      accountId: settings?.settings.cloudflareAccountId ?? null,
+    });
   }
 
   /** Why the site can't be published or unpublished now, if something else is going on. */
@@ -171,10 +204,10 @@ export class SitePublishes {
     const job = this.#jobs.get(input.slug);
     const publish =
       job === undefined ? null : this.#progressOf(input.slug, job);
-    const listed = await this.#bucket.list(
-      bucketOf(target.value),
-      new AbortController().signal,
-    );
+    const bucket = bucketOf(target.value);
+    const listed = bucket.ok
+      ? await this.#bucket.list(bucket.value, new AbortController().signal)
+      : bucket;
     if (!listed.ok) {
       // The latest publish is still told, so a failed one can be read.
       return ok({
@@ -229,6 +262,10 @@ export class SitePublishes {
     if (!target.ok) {
       return target;
     }
+    const bucket = bucketOf(target.value);
+    if (!bucket.ok) {
+      return err(needsAccount());
+    }
     const running = this.#jobs.get(input.slug);
     if (running?.progress.state === 'running') {
       return ok(this.#progressOf(input.slug, running));
@@ -249,7 +286,7 @@ export class SitePublishes {
       controller: new AbortController(),
     };
     this.#jobs.set(input.slug, job);
-    void this.#run(ctx, input.slug, target.value, job);
+    void this.#run(ctx, input.slug, bucket.value, job);
     return ok(job.progress);
   }
 
@@ -268,7 +305,7 @@ export class SitePublishes {
   async #run(
     ctx: ArchiveContext,
     slug: Slug,
-    target: PublishTarget,
+    target: BucketTarget,
     job: Job,
   ): Promise<void> {
     try {
@@ -337,10 +374,9 @@ export class SitePublishes {
   async #upload(
     ctx: ArchiveContext,
     slug: Slug,
-    target: PublishTarget,
+    bucket: BucketTarget,
     job: Job,
   ): Promise<void> {
-    const bucket = bucketOf(target);
     const listed = await this.#bucket.list(bucket, job.controller.signal);
     if (!listed.ok) {
       this.#fail(job, listed.error);
@@ -475,6 +511,10 @@ export class SitePublishes {
     if (!target.ok) {
       return target;
     }
+    const destination = bucketOf(target.value);
+    if (!destination.ok) {
+      return err(needsAccount());
+    }
     const running = this.#jobs.get(input.slug);
     const busy =
       running?.progress.state === 'running'
@@ -490,7 +530,7 @@ export class SitePublishes {
     }
     this.#work.begin(input.slug, 'unpublishing');
     try {
-      const bucket = bucketOf(target.value);
+      const bucket = destination.value;
       const listed = await this.#bucket.list(bucket, neverStopped);
       if (!listed.ok) {
         return listed;

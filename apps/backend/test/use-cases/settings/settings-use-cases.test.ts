@@ -41,6 +41,7 @@ describe('InitialiseSettings', () => {
       author: 'Ben Pirt',
       copyright: null,
       rollNumberPattern: '{year}-{n:3}',
+      cloudflareAccountId: null,
     };
     expect(created).toEqual({ ok: true, value: expected });
     expect((await repository.get())?.settings).toEqual(expected);
@@ -106,6 +107,7 @@ describe('UpdateSettings', () => {
           author: 'Ben Pirt',
           copyright: null,
           rollNumberPattern: '{year}-{n:3}',
+          cloudflareAccountId: null,
         },
         version: '2',
       },

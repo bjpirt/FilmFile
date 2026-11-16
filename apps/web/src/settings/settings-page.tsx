@@ -2,14 +2,15 @@ import type { ApiClient } from '@filmfile/contracts/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { firstIssueMessage } from '../forms/first-issue-message.ts';
 import { navigate } from '../routing.tsx';
+import { CloudflareSection } from './cloudflare-section.tsx';
 import { RollNumberPatternForm } from './roll-number-pattern-form.tsx';
 import { SettingsForm } from './settings-form.tsx';
 import type { ReadSettings } from './use-settings.ts';
 
 /**
  * The author and copyright, changed after first run (saving goes back to the
- * rolls), and where the FilmFile folder is, which can't be changed here
- * (D64).
+ * rolls), where the FilmFile folder is, which can't be changed here (D64),
+ * and the Cloudflare account sites are published in (D119).
  */
 export function SettingsPage({
   api,
@@ -76,6 +77,30 @@ export function SettingsPage({
         Change it in the app with File › Open FilmFile Folder…, or set
         FILMFILE_FOLDER and restart.
       </p>
+      <CloudflareSection
+        saved={read.settings.cloudflareAccountId}
+        keysFound={read.settings.cloudflareKeysFound}
+        save={async (cloudflareAccountId) => {
+          const { data, response, error } = await api.PATCH('/api/settings', {
+            params: { header: { 'if-match': read.etag } },
+            body: { cloudflareAccountId },
+          });
+          if (response.status === 409) {
+            return 'The settings changed since you opened them. Reload the page.';
+          }
+          if (response.status === 422) {
+            return `The account ID ${firstIssueMessage(error) ?? 'is not valid'}.`;
+          }
+          if (data === undefined) {
+            return "Couldn't save it. Is the service running?";
+          }
+          queryClient.setQueryData<ReadSettings>(['settings'], {
+            settings: data,
+            etag: response.headers.get('ETag') ?? read.etag,
+          });
+          return undefined;
+        }}
+      />
     </section>
   );
 }

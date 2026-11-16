@@ -335,3 +335,96 @@ describe('the roll number pattern (D88)', () => {
     );
   });
 });
+
+describe('Cloudflare (D119)', () => {
+  const settings = { ...setUpSettings, author: 'Ben' };
+  const accountId = '0123456789abcdef0123456789abcdef';
+
+  async function cloudflareForm() {
+    return await screen.findByRole('form', { name: 'Cloudflare' });
+  }
+
+  test('saves the account ID with Save, enabled once it changes', async () => {
+    const archive = openAt('/settings', { settings });
+    const form = await cloudflareForm();
+    const save = within(form).getByRole('button', { name: 'Save' });
+    expect(save).toHaveProperty('disabled', true);
+
+    fill(form, 'Account ID', ` ${accountId} `);
+    expect(save).toHaveProperty('disabled', false);
+    fireEvent.click(save);
+
+    expect(
+      await within(form).findByText('Saved the account ID.'),
+    ).toBeDefined();
+    expect(archive.settings()).toMatchObject({
+      cloudflareAccountId: accountId,
+    });
+    expect(save).toHaveProperty('disabled', true);
+  });
+
+  test('takes the account ID away when emptied and saved', async () => {
+    const archive = openAt('/settings', {
+      settings: { ...settings, cloudflareAccountId: accountId },
+    });
+    const form = await cloudflareForm();
+    expect(within(form).getByLabelText('Account ID')).toHaveProperty(
+      'value',
+      accountId,
+    );
+
+    fill(form, 'Account ID', '');
+    fireEvent.click(within(form).getByRole('button', { name: 'Save' }));
+
+    expect(
+      await within(form).findByText('Saved the account ID.'),
+    ).toBeDefined();
+    expect(archive.settings()).toMatchObject({ cloudflareAccountId: null });
+  });
+
+  test('says why an ID is refused, in the service’s words, and saves nothing', async () => {
+    const archive = openAt('/settings', { settings });
+    const form = await cloudflareForm();
+
+    fill(form, 'Account ID', 'abc');
+    fireEvent.click(within(form).getByRole('button', { name: 'Save' }));
+
+    expect((await within(form).findByRole('alert')).textContent).toBe(
+      'The account ID must be 32 hexadecimal characters.',
+    );
+    expect(archive.settings()).toMatchObject({ cloudflareAccountId: null });
+  });
+
+  test.each([
+    [true, 'Keys: found in the [filmfile] profile of ~/.aws/credentials'],
+    [false, 'Keys: no [filmfile] profile in ~/.aws/credentials yet'],
+  ])('with keys found %s, says “%s”', async (found, text) => {
+    openAt('/settings', {
+      settings: { ...settings, cloudflareKeysFound: found },
+    });
+
+    expect(within(await cloudflareForm()).getByText(text)).toBeDefined();
+  });
+
+  test('shows the steps to set up Cloudflare, with links to its dashboard', async () => {
+    openAt('/settings', { settings });
+    const form = await cloudflareForm();
+    const steps = within(form).getAllByRole('listitem');
+
+    expect(steps.map((step) => step.textContent)).toEqual([
+      'In the Cloudflare dashboard, click the user menu at the top right of the page, then “Copy account ID”, and paste it into the field above.',
+      'Create a bucket for each site. Use it only for that site: files the site doesn’t have are removed from it.',
+      'Under R2, Manage API tokens, create a token with Object Read & Write on those buckets.',
+      'Put its Access Key ID and Secret Access Key in ~/.aws/credentials:[filmfile]\naws_access_key_id = …\naws_secret_access_key = …',
+      'Give each bucket a custom domain, and add a rewrite rule from / to /index.html.',
+      'Then set the bucket and address on each site’s page.',
+    ]);
+    for (const name of ['Cloudflare dashboard', 'Manage API tokens']) {
+      const link = within(form).getByRole('link', { name });
+      expect(link.getAttribute('href')).toMatch(
+        /^https:\/\/dash\.cloudflare\.com\//,
+      );
+      expect(link.getAttribute('target')).toBe('_blank');
+    }
+  });
+});

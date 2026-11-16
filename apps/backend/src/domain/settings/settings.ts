@@ -13,4 +13,6 @@ export interface Settings {
   readonly copyright: string | null;
   /** How roll numbers are suggested, e.g. `{year}-{n:3}` (D88). Always a valid pattern. */
   readonly rollNumberPattern: string;
+  /** The Cloudflare account sites are published in, and later synced with (D119), or null until it's set. */
+  readonly cloudflareAccountId: string | null;
 }

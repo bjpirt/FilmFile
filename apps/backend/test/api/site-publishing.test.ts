@@ -1,3 +1,5 @@
+import { readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { describe, expect, test } from 'vitest';
 import {
   site as siteSchema,
@@ -18,15 +20,12 @@ import { useTempArchive } from '../support/temp-archive.ts';
 
 const archive = useTempArchive();
 
+const accountId = '0123456789abcdef0123456789abcdef';
 const target = {
-  accountId: '0123456789abcdef0123456789abcdef',
   bucket: 'photos-pirt',
   address: 'https://photos.example.com',
 };
-const bucketTarget: BucketTarget = {
-  accountId: target.accountId,
-  bucket: target.bucket,
-};
+const bucketTarget: BucketTarget = { accountId, bucket: target.bucket };
 
 /** A bucket that remembers the order files were put in, and can hold puts back. */
 class WatchedBucket extends InMemoryPublishBucket {
@@ -74,7 +73,26 @@ function setUp(options: { readonly createBucket?: boolean } = {}) {
     });
   };
 
-  async function aSiteWithATarget(): Promise<string> {
+  /** Sets FilmFile up, once, with the Cloudflare account (D119) unless asked not to. */
+  let setUpDone = false;
+  async function settingsWithAnAccount(withAccount = true) {
+    if (!setUpDone) {
+      await post('/api/settings', { author: 'Ben Pirt', copyright: 'Mine' });
+      setUpDone = true;
+    }
+    if (withAccount) {
+      const etag = (await request('/api/settings')).headers.get('ETag') ?? '';
+      const saved = await request('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'If-Match': etag },
+        body: JSON.stringify({ cloudflareAccountId: accountId }),
+      });
+      expect(saved.status).toBe(200);
+    }
+  }
+
+  async function aSiteWithATarget(withAccount = true): Promise<string> {
+    await settingsWithAnAccount(withAccount);
     const created = await post('/api/sites', { name: 'Iceland' });
     expect(created.status).toBe(201);
     const slug = siteSchema.parse(await created.json()).slug;
@@ -103,7 +121,7 @@ function setUp(options: { readonly createBucket?: boolean } = {}) {
   }
 
   async function aRollWithFrames(...numbers: string[]) {
-    await post('/api/settings', { author: 'Ben Pirt', copyright: 'Mine' });
+    await settingsWithAnAccount(false);
     const roll = idOf(
       await (
         await post('/api/rolls', { roll: '2026-014', shot: '2026-09-12' })
@@ -174,12 +192,33 @@ describe('a site’s publish target', () => {
     expect(siteSchema.parse(await cleared.json()).publish).toBeNull();
   });
 
+  test('reads a site file written with an account ID past it, and drops it on the next save', async () => {
+    const { request, patch, aSiteWithATarget } = setUp();
+    const slug = await aSiteWithATarget();
+    const file = path.join(archive.path(), 'sites', `${slug}.json`);
+    const stored: unknown = JSON.parse(await readFile(file, 'utf8'));
+    expect(stored).toMatchObject({ publish: target });
+    await writeFile(
+      file,
+      `${JSON.stringify(
+        {
+          ...(typeof stored === 'object' ? stored : {}),
+          publish: { accountId, ...target },
+        },
+        null,
+        2,
+      )}\n`,
+    );
+
+    const read = siteSchema.parse(
+      await (await request(`/api/sites/${slug}`)).json(),
+    );
+    expect(read.publish).toEqual(target);
+    await patch(slug, { name: 'Iceland' });
+    expect(await readFile(file, 'utf8')).not.toContain('accountId');
+  });
+
   test.each([
-    [
-      'an account ID that is not 32 hex characters',
-      { accountId: 'abc' },
-      'accountId',
-    ],
     ['a bucket name R2 would not take', { bucket: 'Photos_Pirt' }, 'bucket'],
     ['an address that is not https', { address: 'http://a.com' }, 'address'],
   ])('refuses %s, saving nothing', async (_name, change, field) => {
@@ -244,6 +283,38 @@ describe('GET /api/sites/{slug}/published', () => {
     const { published } = setUp();
 
     expect((await published('nowhere')).status).toBe(404);
+  });
+});
+
+describe('without a Cloudflare account in Settings', () => {
+  test('says to set one, and refuses to publish or unpublish', async () => {
+    const { request, post, aSiteWithATarget, status } = setUp();
+    const slug = await aSiteWithATarget(false);
+    const needsAccount = {
+      error: 'invalid request',
+      issues: [
+        {
+          path: ['cloudflareAccountId'],
+          message: 'Set your Cloudflare account ID in Settings.',
+        },
+      ],
+    };
+
+    expect(await status(slug)).toMatchObject({
+      stands: 'unknown',
+      check: {
+        failure: 'no-account',
+        message: 'Set your Cloudflare account ID in Settings.',
+      },
+    });
+    const publish = await post(`/api/sites/${slug}/publish`, {});
+    expect(publish.status).toBe(422);
+    expect(await publish.json()).toEqual(needsAccount);
+    const unpublish = await request(`/api/sites/${slug}/published`, {
+      method: 'DELETE',
+    });
+    expect(unpublish.status).toBe(422);
+    expect(await unpublish.json()).toEqual(needsAccount);
   });
 });
 
@@ -573,7 +644,7 @@ describe('DELETE /api/sites/{slug}/published', () => {
     await aRollWithFrames('1');
     const slug = await aSiteWithATarget();
     await publishAndWait(slug);
-    const other = { accountId: target.accountId, bucket: 'someone-elses' };
+    const other = { accountId, bucket: 'someone-elses' };
     bucket.createBucket(other);
     await bucket.put(
       other,

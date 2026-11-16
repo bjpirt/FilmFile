@@ -86,7 +86,6 @@ export function siteRepositoryContract(
       const sites = make();
       const published = aSite('Iceland', {
         publish: {
-          accountId: '0123456789abcdef0123456789abcdef',
           bucket: 'photos-pirt',
           address: 'https://photos.example.com',
         },

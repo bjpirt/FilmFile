@@ -34,6 +34,12 @@ export interface FileToPut {
  * come back in the result, never with internals.
  */
 export interface PublishBucket {
+  /**
+   * Whether the keys the requests are signed with are there to use: only
+   * that, not whether the service accepts them. Never gives the keys.
+   */
+  hasKeys(): Promise<boolean>;
+
   /** Every file in the bucket. */
   list(
     target: BucketTarget,

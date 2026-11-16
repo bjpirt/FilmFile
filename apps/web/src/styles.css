@@ -1700,6 +1700,29 @@ textarea {
   user-select: text;
 }
 
+/* Settings: the steps to set up Cloudflare (D119), with the credentials file's profile as text to copy. */
+.settings .account-id {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  max-width: 24rem;
+}
+
+.settings .cloudflare-steps {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+.settings .cloudflare-steps li + li {
+  margin-top: var(--space-2);
+}
+
+.settings .cloudflare-steps pre {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.85rem;
+  margin: var(--space-2) 0 0;
+  overflow-x: auto;
+  user-select: text;
+}
+
 /* The rolls to import and what an import did (FF-154): a table, a row to each folder, with headings, rules and alternating rows. */
 .import-rolls,
 .import-summary {

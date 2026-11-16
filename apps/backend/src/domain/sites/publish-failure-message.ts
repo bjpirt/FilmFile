@@ -4,6 +4,8 @@ import type { PublishFailed } from '../shared/domain-error.ts';
 /** What to fix, in words, with no internals (FF-201). */
 export function publishFailureMessage(failure: PublishFailed): string {
   switch (failure.reason) {
+    case 'no-account':
+      return 'Set your Cloudflare account ID in Settings.';
     case 'no-credentials':
       return "No [filmfile] profile in ~/.aws/credentials, so the site can't be published.";
     case 'keys-refused':

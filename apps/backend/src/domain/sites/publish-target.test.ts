@@ -2,7 +2,6 @@ import { describe, expect, test } from 'vitest';
 import { parsePublishTarget } from './publish-target.ts';
 
 const valid = {
-  accountId: '0123456789abcdef0123456789abcdef',
   bucket: 'photos-pirt',
   address: 'https://photos.example.com',
 };
@@ -13,12 +12,6 @@ describe('parsePublishTarget', () => {
   });
 
   test.each([
-    ['an account ID that is too short', { accountId: 'abc' }, 'accountId'],
-    [
-      'an account ID that is not hexadecimal',
-      { accountId: 'g123456789abcdef0123456789abcdef' },
-      'accountId',
-    ],
     ['a bucket with capitals', { bucket: 'Photos' }, 'bucket'],
     ['a bucket that is too short', { bucket: 'ab' }, 'bucket'],
     ['a bucket ending in a hyphen', { bucket: 'photos-' }, 'bucket'],
@@ -46,13 +39,8 @@ describe('parsePublishTarget', () => {
   });
 
   test('names every field that is wrong', () => {
-    const result = parsePublishTarget({
-      accountId: '',
-      bucket: '',
-      address: '',
-    });
+    const result = parsePublishTarget({ bucket: '', address: '' });
     expect(result.ok ? [] : result.error.issues.map((i) => i.path[1])).toEqual([
-      'accountId',
       'bucket',
       'address',
     ]);

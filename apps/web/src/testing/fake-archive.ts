@@ -113,6 +113,8 @@ export const setUpSettings: Settings = {
   author: 'Test author',
   copyright: null,
   rollNumberPattern: '{year}-{n:3}',
+  cloudflareAccountId: null,
+  cloudflareKeysFound: false,
   folder: '/Users/test/Pictures/FilmFile',
 };
 
@@ -685,11 +687,37 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         );
       }
     }
+    // As the service does: a blank account ID takes it away, and one that isn't 32 hexadecimal characters is refused (D119).
+    if (body.value.cloudflareAccountId !== undefined) {
+      const accountId = body.value.cloudflareAccountId?.trim() ?? '';
+      if (accountId !== '' && !/^[0-9a-f]{32}$/iu.test(accountId)) {
+        return Response.json(
+          {
+            error: 'invalid request',
+            issues: [
+              {
+                path: ['cloudflareAccountId'],
+                message: 'must be 32 hexadecimal characters',
+              },
+            ],
+          },
+          { status: 422 },
+        );
+      }
+      settings = {
+        ...settings,
+        cloudflareAccountId: accountId === '' ? null : accountId,
+      };
+    }
     // A detail left out stays as it is.
     settings = {
       ...settings,
       ...Object.fromEntries(
-        Object.entries(body.value).filter(([, value]) => value !== undefined),
+        Object.entries(body.value).filter(
+          // The account ID was dealt with above, trimmed.
+          ([name, value]) =>
+            value !== undefined && name !== 'cloudflareAccountId',
+        ),
       ),
     };
     change('settings');

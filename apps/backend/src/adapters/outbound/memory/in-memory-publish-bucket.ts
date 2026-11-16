@@ -29,9 +29,15 @@ export class InMemoryPublishBucket implements PublishBucket {
   readonly #buckets = new Map<string, Map<string, InMemoryBucketFile>>();
   readonly #clock: Clock;
   #failure: PublishFailureReason | undefined;
+  /** Whether the keys are there, as the credentials file would say. */
+  keysFound = true;
 
   constructor(clock: Clock) {
     this.#clock = clock;
+  }
+
+  hasKeys(): Promise<boolean> {
+    return Promise.resolve(this.keysFound);
   }
 
   createBucket(target: BucketTarget): void {

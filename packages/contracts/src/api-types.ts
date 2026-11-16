@@ -2884,7 +2884,7 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change the author or copyright
+         * Change the author, copyright, roll number pattern or Cloudflare account
          * @description Send the settings' ETag as If-Match: the change is refused if they have changed since. The response's ETag is their new version.
          */
         patch: {
@@ -3625,8 +3625,6 @@ export interface components {
             presentation: components["schemas"]["SitePresentation"];
             /** @description Where the site is published, or null while it is not set. */
             publish: {
-                /** @description The Cloudflare account ID: 32 hexadecimal characters. */
-                accountId: string;
                 /** @description The R2 bucket, used only for this site: what the site doesn't have is removed from it. */
                 bucket: string;
                 /** @description Where the published site is seen, an https:// address; only ever a link. */
@@ -3664,8 +3662,6 @@ export interface components {
             presentation?: components["schemas"]["SitePresentation"];
             /** @description Where to publish the site; null takes the target away. Every field is checked. */
             publish?: {
-                /** @description The Cloudflare account ID: 32 hexadecimal characters. */
-                accountId: string;
                 /** @description The R2 bucket, used only for this site: what the site doesn't have is removed from it. */
                 bucket: string;
                 /** @description Where the published site is seen, an https:// address; only ever a link. */
@@ -3714,7 +3710,7 @@ export interface components {
             /** @description Why the bucket could not be asked, in words, when stands is unknown. */
             check: {
                 /** @enum {string} */
-                failure: "no-credentials" | "keys-refused" | "no-bucket" | "unreachable" | "other";
+                failure: "no-account" | "no-credentials" | "keys-refused" | "no-bucket" | "unreachable" | "other";
                 message: string;
             } | null;
             /**
@@ -3742,7 +3738,7 @@ export interface components {
                  * @description Why it failed, if it did; build-failed when the site could not be built first.
                  * @enum {string|null}
                  */
-                failure: "no-credentials" | "keys-refused" | "no-bucket" | "unreachable" | "other" | "build-failed" | null;
+                failure: "no-account" | "no-credentials" | "keys-refused" | "no-bucket" | "unreachable" | "other" | "build-failed" | null;
                 /** @description What to fix, in words, when it failed. */
                 message: string | null;
             } | null;
@@ -3762,7 +3758,7 @@ export interface components {
              * @description Why it failed, if it did; build-failed when the site could not be built first.
              * @enum {string|null}
              */
-            failure: "no-credentials" | "keys-refused" | "no-bucket" | "unreachable" | "other" | "build-failed" | null;
+            failure: "no-account" | "no-credentials" | "keys-refused" | "no-bucket" | "unreachable" | "other" | "build-failed" | null;
             /** @description What to fix, in words, when it failed. */
             message: string | null;
         };
@@ -3770,7 +3766,7 @@ export interface components {
             /** @description What to fix, in words, such as "Cloudflare refused the keys in the [filmfile] profile." */
             error: string;
             /** @enum {string} */
-            reason: "no-credentials" | "keys-refused" | "no-bucket" | "unreachable" | "other";
+            reason: "no-account" | "no-credentials" | "keys-refused" | "no-bucket" | "unreachable" | "other";
         };
         Settings: {
             id: string;
@@ -3790,6 +3786,13 @@ export interface components {
              */
             rollNumberPattern: string;
             /**
+             * @description The Cloudflare account sites are published in (and later synced with), or null until it is set (D119).
+             * @example 0123456789abcdef0123456789abcdef
+             */
+            cloudflareAccountId: string | null;
+            /** @description Read-only: whether this computer's ~/.aws/credentials has both keys in its [filmfile] profile. Only that they are there, never what they are, and not whether Cloudflare accepts them. */
+            cloudflareKeysFound: boolean;
+            /**
              * @description The FilmFile folder's absolute path: read-only, chosen when FilmFile starts (by the desktop app, or FILMFILE_FOLDER) and never set through the API. The one absolute path any response carries (D64).
              * @example /Users/ben/Pictures/FilmFile
              */
@@ -3805,6 +3808,8 @@ export interface components {
             author?: string;
             copyright?: string | null;
             rollNumberPattern?: string;
+            /** @description The Cloudflare account ID, 32 hexadecimal characters; null or blank takes it away. */
+            cloudflareAccountId?: string | null;
         };
     };
     responses: never;

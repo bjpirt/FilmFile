@@ -29,6 +29,7 @@ test('the archive gives its author, and a copyright if it has one', () => {
       author: 'Ben Pirt',
       copyright: null,
       rollNumberPattern: '{year}-{n:3}',
+      cloudflareAccountId: null,
     }),
   ).toEqual({
     source: { layer: 'archive', id: archiveId },

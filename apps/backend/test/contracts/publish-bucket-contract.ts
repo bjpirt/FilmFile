@@ -27,6 +27,12 @@ export function publishBucketContract(
   describe(`${name} meets the PublishBucket contract`, () => {
     const signal = new AbortController().signal;
 
+    test('has the keys it signs with', async () => {
+      const { bucket } = await make();
+
+      expect(await bucket.hasKeys()).toBe(true);
+    });
+
     test('lists nothing in an empty bucket', async () => {
       const { bucket, target } = await make();
 

@@ -39,7 +39,6 @@ export class UpdateSite {
       /** Where to publish; null takes the target away. */
       readonly publish?:
         | {
-            readonly accountId: string;
             readonly bucket: string;
             readonly address: string;
           }

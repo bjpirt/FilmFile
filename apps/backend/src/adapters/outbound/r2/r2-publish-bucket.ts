@@ -111,6 +111,10 @@ export class R2PublishBucket implements PublishBucket {
     }
   }
 
+  async hasKeys(): Promise<boolean> {
+    return (await this.#keys()) !== undefined;
+  }
+
   /** Sends a signed request; the response if it worked, else why not. */
   async #send(
     target: BucketTarget,

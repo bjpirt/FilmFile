@@ -14,6 +14,7 @@ describe('settings.json', () => {
       author: 'Ben Pirt',
       copyright: null,
       rollNumberPattern: '{year}-{n:3}',
+      cloudflareAccountId: null,
     });
 
     expect(JSON.parse(text)).toEqual({
@@ -38,6 +39,7 @@ describe('settings.json', () => {
       author: 'Ben Pirt',
       copyright: '© Ben Pirt',
       rollNumberPattern: '{year}-{n:3}',
+      cloudflareAccountId: null,
     });
   });
 
@@ -47,6 +49,7 @@ describe('settings.json', () => {
       author: 'Ben Pirt',
       copyright: null,
       rollNumberPattern: 'BP-{year}-{n:2}',
+      cloudflareAccountId: null,
     };
 
     const text = settingsFileContent(settings);
@@ -61,5 +64,25 @@ describe('settings.json', () => {
     expect(() =>
       parseSettingsFile(JSON.stringify({ schema: 1, id, meta: {} })),
     ).toThrow();
+  });
+
+  test('keeps the Cloudflare account ID, and says nothing of it until one is set (D119)', () => {
+    const settings = {
+      id,
+      author: 'Ben Pirt',
+      copyright: null,
+      rollNumberPattern: '{year}-{n:3}',
+      cloudflareAccountId: '0123456789abcdef0123456789abcdef',
+    };
+
+    const text = settingsFileContent(settings);
+
+    expect(text).toContain(
+      '"cloudflareAccountId": "0123456789abcdef0123456789abcdef"',
+    );
+    expect(parseSettingsFile(text)).toEqual(settings);
+    expect(
+      settingsFileContent({ ...settings, cloudflareAccountId: null }),
+    ).not.toContain('cloudflareAccountId');
   });
 });

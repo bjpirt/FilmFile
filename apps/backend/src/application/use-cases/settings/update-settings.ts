@@ -15,11 +15,12 @@ import type {
   SettingsRepository,
   VersionedSettings,
 } from '../../ports/settings-repository.ts';
+import { parseCloudflareAccountId } from '../../../domain/settings/cloudflare-account-id.ts';
 import { textOrNull } from '../rolls/text-or-null.ts';
 import { settingsAuthor } from './settings-author.ts';
 
 /**
- * Changes the author, copyright or roll number pattern. A detail left out stays as it is; null or
+ * Changes the author, copyright, roll number pattern or Cloudflare account ID. A detail left out stays as it is; null or
  * blank clears the copyright, but the author can't be cleared (D44). Saved
  * only if the settings haven't changed since the caller read them at
  * `expectedVersion`. A pattern that needs a shot month, day or event is
@@ -41,6 +42,8 @@ export class UpdateSettings {
       readonly author?: string | undefined;
       readonly copyright?: string | null | undefined;
       readonly rollNumberPattern?: string | undefined;
+      /** Null or blank takes the account away (D119). */
+      readonly cloudflareAccountId?: string | null | undefined;
     },
   ): Promise<
     Result<VersionedSettings, NotFound | ConcurrencyConflict | ValidationFailed>
@@ -49,6 +52,14 @@ export class UpdateSettings {
       input.author === undefined ? ok(undefined) : settingsAuthor(input.author);
     if (!author.ok) {
       return author;
+    }
+    const account = textOrNull(input.cloudflareAccountId ?? null);
+    const accountId =
+      input.cloudflareAccountId === undefined || account === null
+        ? ok(account)
+        : parseCloudflareAccountId(account);
+    if (!accountId.ok) {
+      return accountId;
     }
     const pattern = await this.#pattern(ctx, input.rollNumberPattern);
     if (!pattern.ok) {
@@ -67,6 +78,9 @@ export class UpdateSettings {
       ...(input.rollNumberPattern === undefined
         ? {}
         : { rollNumberPattern: input.rollNumberPattern }),
+      ...(input.cloudflareAccountId === undefined
+        ? {}
+        : { cloudflareAccountId: accountId.value }),
     };
     const saved = await this.#settings.save(
       ctx,

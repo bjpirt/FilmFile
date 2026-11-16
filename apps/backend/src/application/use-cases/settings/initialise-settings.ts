@@ -40,6 +40,7 @@ export class InitialiseSettings {
       author: author.value,
       copyright: textOrNull(input.copyright),
       rollNumberPattern: defaultRollNumberPattern,
+      cloudflareAccountId: null,
     };
     const created = await this.#settings.create(ctx, settings);
     return created.ok ? ok(settings) : created;
