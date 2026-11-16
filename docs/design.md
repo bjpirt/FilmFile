@@ -387,7 +387,7 @@ Each use case is a class with its dependencies injected through the constructor 
 - The web UI uses a **typed client generated from the spec** (`openapi-typescript` + `openapi-fetch`), so it depends only on the API contract.
 - A roll response includes its catalogue fields and `ETag`; resolved metadata with provenance is returned by the frame-details endpoint. Versioned writes require `If-Match` and return 409 on conflict.
 - **Image data and metadata have separate endpoints.** Frames are created and edited as JSON (`/api/rolls/{rollId}/frames`). Images are uploaded as versions of a frame, one file per request, with the raw image as the body (`POST /api/rolls/{rollId}/frames/{frameId}/versions?file=…`); the query carries the original file name and kind. Uploads support the implemented Scan, Raw scan and Final kinds. Batch import and scan-list matching remain planned. A raw image body can't be sent by a cross-site form.
-- Original files and thumbnails are read through their version (`…/versions/{versionId}/file` and `…/versions/{versionId}/thumbnail?size=small|large`), never by path or hash. Thumbnails are cached by content hash behind the scenes.
+- Original files and thumbnails are read through their version (`…/versions/{versionId}/file` and `…/versions/{versionId}/thumbnail?size=small|large`), never by path or hash. Thumbnails are cached by content hash behind the scenes, and browsers keep each for a year, since its address names its bytes; a change to how thumbnails are made must change their address and the cached files' names (D114).
 
 ### 13.9 Repository layout
 

@@ -264,8 +264,30 @@ After "Integrate with NegPy", whose folder of links (in `Editors/`, FF-105), fil
 
 ### 16. Internal improvements
 
-Changes to how FilmFile is built that add nothing to see: speed, legibility and keeping the code to its own rules. They come from the architecture review (`docs/architecture-review.md`), one task for each recommendation as it's taken up, and can be done between the tasks of any other group.
+Changes to how FilmFile is built that add nothing to see: speed, legibility and keeping the code to its own rules. They come from the architecture review (`docs/architecture-review.md`, recommendations R1 to R10), in its order of priority, and can be done between the tasks of any other group. Only FF-203 and FF-204 change anything a person or a log can see; for the rest, the existing tests stay green and are the proof.
 
+- [ ] [FF-203 Report failures in background work](tasks/FF-203.md): a failed site build, a frame that can't be exported and a failed startup step are logged, not dropped (R2).
+- [ ] [FF-204 Let browsers cache thumbnails](tasks/FF-204.md): a roll page opened again doesn't fetch its thumbnails again (R3).
+- [ ] [FF-205 Bring the architecture documents back in line](tasks/FF-205.md): `CLAUDE.md` and the design say what's built, with one complete port table (R4).
+- [ ] [FF-206 One lock in the roll repository](tasks/FF-206.md): the inner locks that can never be contended go (R5a).
+- [ ] [FF-207 Renumbering rules in the domain](tasks/FF-207.md): one pure function checks a batch renumbering, for both repositories (R5b).
+- [ ] [FF-208 The roll repository's folder moves in their own files](tasks/FF-208.md): the repository file down to about 300 lines (R5c).
+- [ ] [FF-209 The sites list reads the archive once](tasks/FF-209.md): finding a selection's frames as a pure function, read once for every site (R6).
+- [ ] [FF-210 A site's build status reads the archive once](tasks/FF-210.md): one read of the rolls per status (R6).
+- [ ] [FF-211 Equipment and events read once per build or export](tasks/FF-211.md): not once per frame (R6).
+- [ ] [FF-212 A roll's reads and writes in one place](tasks/FF-212.md): `useRoll` and one function per write on the roll page (R7).
+- [ ] [FF-213 Split the roll page by mode](tasks/FF-213.md): choosing frames, renumbering and adding scans each in their own file (R7).
+- [ ] [FF-214 A frame's writes in one place](tasks/FF-214.md): the frame view's writes out of `useSaveFrame` (R7; when the frame view is next changed).
+- [ ] [FF-215 A site's reads and writes in one place](tasks/FF-215.md): the sites pages' queries and writes in two files (R7; when sites are next changed).
+- [ ] [FF-216 An event's reads and writes in one place](tasks/FF-216.md): the events list defined once, and events' writes in one file (R7; when events are next changed).
+- [ ] [FF-217 Split the rolls route file](tasks/FF-217.md): rolls, frames and versions in three route files, with shared response helpers (R8).
+- [ ] [FF-218 Branded IDs without dead branches](tasks/FF-218.md): no unreachable 404 guards, and no frame IDs silently dropped (R8).
+- [ ] [FF-219 Resolve a frame's details in one place](tasks/FF-219.md): the layering of a frame's details written once, not in four use cases (R9a).
+- [ ] [FF-220 The version shown for a frame in one place](tasks/FF-220.md): the chosen-or-first version rule written once (R9b).
+- [ ] [FF-221 Parse fields that may be left out with one helper](tasks/FF-221.md): `whenGiven` in place of about 20 repeated blocks (R9c).
+- [ ] [FF-222 Domain types and pure code in the domain](tasks/FF-222.md): export types, pure export code and group labels where they belong (R10).
+- [ ] [FF-223 Correlation IDs from the composition, and one entry per use case](tasks/FF-223.md): the error handler given its IDs, and `ListRolls` split in two (R10).
+- [ ] [later] [FF-224 A log file](tasks/FF-224.md): request errors and background failures written to a file in the OS's logs folder, so the packaged app's can be found.
 - [x] [FF-202 Find a roll by its ID](tasks/FF-202.md)
 
 ---
@@ -417,6 +439,8 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D110 | Each platform's app is built and checked on its own GitHub runner (Apple silicon, Intel Mac, Windows, Linux), since pnpm installs sharp's native files only for the machine it runs on. Macs get a disk image each, Windows a zip and Linux an AppImage: no installer dependency until updates (FF-138) need Squirrel on Windows. | FF-161, FF-197, FF-198 |
 | D111 | A site is published to a Cloudflare R2 bucket first, not Pages or Workers: those cap a site at 20,000 files free (100,000 paid), about 4,000 photos, while R2 has no limit, free downloads and S3's API, which S3 publishing (FF-200) then shares. The target (account ID, bucket, folder, address) is kept with the site, synced, since a site goes to the same place from any computer; the keys stay per computer (D52) in the `[filmfile]` profile of `~/.aws/credentials`, so FilmFile keeps no keys. What to upload and remove is worked out by comparing with the bucket, keeping no record. Requests are signed by our own code, with no SDK. | FF-201, FF-200 |
 | D112 | A roll is found only in a folder whose name ends with the last 8 characters of its ID, and whose `roll.json` says that ID: the name says where to look and the file still says whose it is. Nothing searches the other folders, so finding a roll doesn't slow as the library grows (a lookup took about 215 ms at 300 rolls). A roll in a folder named any other way (made before D66, or renamed by hand) can't be opened; it's listed with the rolls that can't be read, saying what to rename its folder to, and FilmFile never renames it itself; its number is kept for it only by its folder's name, as for any unreadable roll. A rename cut short keeps the ID in the name, so it's still found. Replaces D66's rule that rolls are found by their `roll.json` whatever the folder is called. | FF-202 |
+| D113 | Unexpected failures in background work (a site build, each frame an export can't make, an export to a folder that stops, making originals read-only at startup) are reported through an `ErrorReporter` port to the service's error output, with words saying what failed; the page still says only that it failed. A log file the packaged app's errors can be found in is later (FF-224). | FF-203, FF-224 |
+| D114 | Browsers keep a thumbnail for a year (`Cache-Control: private, max-age=31536000, immutable`), since its address names its bytes. So a change to how thumbnails are made must change their address (e.g. `&v=2`) and the service's cached files' names in the same task, and no format number is added before then. | FF-204 |
 
 **Still open:** see `docs/design.md`, section 15.
 

@@ -5,7 +5,7 @@ Reviewed on 2026-11-14 at commit `a16f35c`. This is a list of recommended change
 ## How to use this document
 
 - Work through the recommendations in order unless told otherwise. Each one stands alone except where it says it depends on another.
-- Each recommendation is one or more roadmap tasks. Before building one, add its tasks with the `write-task` skill (FF-202 is R1; take the next free ID for the others) and have the acceptance criteria reviewed, as for any other task.
+- Each recommendation is one or more roadmap tasks, in group 16 of `docs/roadmap.md`: R1 is FF-202 (done), R2 FF-203, R3 FF-204, R4 FF-205, R5 FF-206 to FF-208, R6 FF-209 to FF-211, R7 FF-212 to FF-216, R8 FF-217 and FF-218, R9 FF-219 to FF-221, R10 FF-222 and FF-223. Build from the task files, which were checked against the code on 2026-11-16 and go further than this document in places; refine each (`refine-task`) before building it, as for any other task.
 - All of this is "make it pretty" work except R1, R2 and R3, which change behaviour that a person or a log can see. For the rest, behaviour must not change: the existing tests stay green throughout and are the proof.
 - Follow `CLAUDE.md`: test first, one task at a time, `pnpm verify` through the `check` skill, and update `docs/design.md` when a recommendation says to.
 - File paths are relative to the repository root. Line counts and occurrence counts were true at the commit above; check them again before relying on them.
