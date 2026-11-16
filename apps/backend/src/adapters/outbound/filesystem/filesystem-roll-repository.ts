@@ -170,7 +170,8 @@ function versionFolderMoves(
 /**
  * Rolls kept as roll.json files in the archive, one folder per roll, named
  * by its number and ID and renamed when its number changes (D66). Every
- * write is atomic, and writes to the same roll take turns.
+ * write is atomic, and every roll read and change takes its turn, one at a
+ * time (D77).
  */
 export class FilesystemRollRepository implements RollRepository {
   readonly #archivePath: string;
@@ -179,10 +180,11 @@ export class FilesystemRollRepository implements RollRepository {
     destination: string,
   ) => Promise<void>;
   readonly #removeYear: (folder: string) => Promise<void>;
-  readonly #lock = new KeyedLock();
+  // The one lock: every roll read and change takes its turn on it (D77). So a
+  // listing is the same all through while a batch is checked and applied, a
+  // roll number is checked and taken with no other roll taking it in between,
+  // and a year folder isn't removed as a roll is put in it.
   readonly #archive = new KeyedLock();
-  // Year folders are made and removed one at a time, so one isn't removed as a roll is put in it.
-  readonly #years = new KeyedLock();
 
   constructor(
     archivePath: string,
@@ -360,29 +362,27 @@ export class FilesystemRollRepository implements RollRepository {
   ): Promise<Result<void, AlreadyExists>> {
     // The number is checked and the folder made together, so two new rolls
     // can't both take it. A roll that can't be read counts: it's never built over.
-    return this.#archive.run('archive', () =>
-      this.#years.run('years', async () => {
-        if (await this.#numberTaken(roll)) {
-          return err({ kind: 'already-exists', entity: 'roll', id: roll.roll });
-        }
-        const folder = rollFolderFor(this.#archivePath, roll);
-        await mkdir(folder, { recursive: true });
-        const created = await createAtomically(
-          safePath(folder, 'roll.json'),
-          rollFileContent(roll),
-        );
-        return created
-          ? ok(undefined)
-          : err({ kind: 'already-exists', entity: 'roll', id: roll.roll });
-      }),
-    );
+    return this.#archive.run('archive', async () => {
+      if (await this.#numberTaken(roll)) {
+        return err({ kind: 'already-exists', entity: 'roll', id: roll.roll });
+      }
+      const folder = rollFolderFor(this.#archivePath, roll);
+      await mkdir(folder, { recursive: true });
+      const created = await createAtomically(
+        safePath(folder, 'roll.json'),
+        rollFileContent(roll),
+      );
+      return created
+        ? ok(undefined)
+        : err({ kind: 'already-exists', entity: 'roll', id: roll.roll });
+    });
   }
 
   /**
    * Renames only the roll folder's leaf for its new number (D87); returns the roll.json in it. The folder is moved first,
    * then roll.json written in it, so a move cut short leaves a roll that's
    * still found, in a folder named for its new number. Called with the
-   * years' turn taken.
+   * archive's turn taken.
    */
   async #move(current: StoredRoll, roll: Roll): Promise<string> {
     const from = path.dirname(current.file);
@@ -402,24 +402,22 @@ export class FilesystemRollRepository implements RollRepository {
     roll: Roll,
     expectedVersion: string,
   ): Promise<Result<string, NotFound | ConcurrencyConflict>> {
-    return this.#archive.run('archive', () =>
-      this.#lock.run(roll.id, async () => {
-        const current = await this.#find(roll.id);
-        if (current === undefined) {
-          return err({ kind: 'not-found', entity: 'roll', id: roll.id });
-        }
-        if (current.version !== expectedVersion) {
-          return err({
-            kind: 'concurrency-conflict',
-            entity: 'roll',
-            id: roll.id,
-          });
-        }
-        sameNumber(current.roll, roll);
-        const saved = await this.#saveChanged(current, roll);
-        return ok(saved.version);
-      }),
-    );
+    return this.#archive.run('archive', async () => {
+      const current = await this.#find(roll.id);
+      if (current === undefined) {
+        return err({ kind: 'not-found', entity: 'roll', id: roll.id });
+      }
+      if (current.version !== expectedVersion) {
+        return err({
+          kind: 'concurrency-conflict',
+          entity: 'roll',
+          id: roll.id,
+        });
+      }
+      sameNumber(current.roll, roll);
+      const saved = await this.#saveChanged(current, roll);
+      return ok(saved.version);
+    });
   }
 
   saveRenumbered(
@@ -432,51 +430,47 @@ export class FilesystemRollRepository implements RollRepository {
       NotFound | ConcurrencyConflict | AlreadyExists | ValidationFailed
     >
   > {
-    return this.#archive.run('archive', () =>
-      this.#lock.run(roll.id, async () => {
-        const current = await this.#find(roll.id);
-        if (current === undefined) {
-          return err({ kind: 'not-found', entity: 'roll', id: roll.id });
-        }
-        if (current.version !== expectedVersion) {
-          return err({
-            kind: 'concurrency-conflict',
-            entity: 'roll',
-            id: roll.id,
-          });
-        }
-        if (current.roll.filed && current.roll.roll !== roll.roll) {
-          return err({
-            kind: 'validation-failed',
-            issues: [
-              {
-                path: ['roll'],
-                message: "A filed roll's number can't be changed.",
-              },
-            ],
-          });
-        }
-        const content = rollFileContent(roll);
-        if (roll.roll === current.roll.roll) {
-          await writeAtomically(current.file, content);
-          return ok(versionOf(content));
-        }
-        // The number is checked, and the folder moved, with no other roll
-        // taking a number or making a year folder in between.
-        return this.#years.run('years', async () => {
-          if (await this.#numberTaken(roll)) {
-            return err({
-              kind: 'already-exists',
-              entity: 'roll',
-              id: roll.roll,
-            });
-          }
-          const file = await this.#move(current, roll);
-          await writeAtomically(file, content);
-          return ok(versionOf(content));
+    return this.#archive.run('archive', async () => {
+      const current = await this.#find(roll.id);
+      if (current === undefined) {
+        return err({ kind: 'not-found', entity: 'roll', id: roll.id });
+      }
+      if (current.version !== expectedVersion) {
+        return err({
+          kind: 'concurrency-conflict',
+          entity: 'roll',
+          id: roll.id,
         });
-      }),
-    );
+      }
+      if (current.roll.filed && current.roll.roll !== roll.roll) {
+        return err({
+          kind: 'validation-failed',
+          issues: [
+            {
+              path: ['roll'],
+              message: "A filed roll's number can't be changed.",
+            },
+          ],
+        });
+      }
+      const content = rollFileContent(roll);
+      if (roll.roll === current.roll.roll) {
+        await writeAtomically(current.file, content);
+        return ok(versionOf(content));
+      }
+      // The number is checked, and the folder moved, with no other roll
+      // taking a number or making a year folder in between.
+      if (await this.#numberTaken(roll)) {
+        return err({
+          kind: 'already-exists',
+          entity: 'roll',
+          id: roll.roll,
+        });
+      }
+      const file = await this.#move(current, roll);
+      await writeAtomically(file, content);
+      return ok(versionOf(content));
+    });
   }
 
   saveRenumberedBatch(
@@ -730,21 +724,19 @@ export class FilesystemRollRepository implements RollRepository {
     id: RollId,
     apply: (roll: Roll) => Promise<Result<RollChange<T>, E>>,
   ): Promise<Result<T, E | NotFound>> {
-    return this.#archive.run('archive', () =>
-      this.#lock.run(id, async () => {
-        const current = await this.#find(id);
-        if (current === undefined) {
-          return err({ kind: 'not-found', entity: 'roll', id });
-        }
-        const changed = await apply(current.roll);
-        if (!changed.ok) {
-          return changed;
-        }
-        sameNumber(current.roll, changed.value.roll);
-        await this.#saveChanged(current, changed.value.roll);
-        return ok(changed.value.value);
-      }),
-    );
+    return this.#archive.run('archive', async () => {
+      const current = await this.#find(id);
+      if (current === undefined) {
+        return err({ kind: 'not-found', entity: 'roll', id });
+      }
+      const changed = await apply(current.roll);
+      if (!changed.ok) {
+        return changed;
+      }
+      sameNumber(current.roll, changed.value.roll);
+      await this.#saveChanged(current, changed.value.roll);
+      return ok(changed.value.value);
+    });
   }
 
   remove(
@@ -753,28 +745,24 @@ export class FilesystemRollRepository implements RollRepository {
     expectedVersion: string,
     handOver: (roll: Roll) => Promise<void>,
   ): Promise<Result<void, NotFound | ConcurrencyConflict>> {
-    return this.#archive.run('archive', () =>
-      this.#lock.run(id, async () => {
-        const current = await this.#find(id);
-        if (current === undefined) {
-          return err({ kind: 'not-found', entity: 'roll', id });
-        }
-        if (current.version !== expectedVersion) {
-          return err({ kind: 'concurrency-conflict', entity: 'roll', id });
-        }
-        await handOver(current.roll);
-        if (await this.#find(id)) {
-          throw new Error(
-            `roll ${id} was handed over but is still in the archive`,
-          );
-        }
-        // The year's folder is left empty if that was its last roll.
-        await this.#years.run('years', () =>
-          this.#removeYear(path.dirname(path.dirname(current.file))),
+    return this.#archive.run('archive', async () => {
+      const current = await this.#find(id);
+      if (current === undefined) {
+        return err({ kind: 'not-found', entity: 'roll', id });
+      }
+      if (current.version !== expectedVersion) {
+        return err({ kind: 'concurrency-conflict', entity: 'roll', id });
+      }
+      await handOver(current.roll);
+      if (await this.#find(id)) {
+        throw new Error(
+          `roll ${id} was handed over but is still in the archive`,
         );
-        return ok(undefined);
-      }),
-    );
+      }
+      // The year's folder is left empty if that was its last roll.
+      await this.#removeYear(path.dirname(path.dirname(current.file)));
+      return ok(undefined);
+    });
   }
 }
 

@@ -34,8 +34,9 @@ function sameNumber(before: Roll, after: Roll): void {
 /** Rolls kept in memory, for tests. Versions count up from 1 per save. */
 export class InMemoryRollRepository implements RollRepository {
   readonly #rolls = new Map<RollId, VersionedRoll>();
-  readonly #lock = new KeyedLock();
-  readonly #writes = new KeyedLock();
+  // The one lock, as in the filesystem repository: every roll change takes its
+  // turn on it, so two can't both take a number (D77).
+  readonly #archive = new KeyedLock();
   #saves = 0;
 
   #store(roll: Roll): string {
@@ -70,7 +71,7 @@ export class InMemoryRollRepository implements RollRepository {
     _ctx: ArchiveContext,
     roll: Roll,
   ): Promise<Result<void, AlreadyExists>> {
-    return this.#writes.run<Result<void, AlreadyExists>>('archive', () => {
+    return this.#archive.run<Result<void, AlreadyExists>>('archive', () => {
       if (
         [...this.#rolls.values()].some((r) =>
           sameRollNumber(r.roll.roll, roll.roll),
@@ -90,25 +91,23 @@ export class InMemoryRollRepository implements RollRepository {
     roll: Roll,
     expectedVersion: string,
   ): Promise<Result<string, NotFound | ConcurrencyConflict>> {
-    return this.#writes.run('archive', () =>
-      this.#lock.run(roll.id, () => {
-        const current = this.#rolls.get(roll.id);
-        let result: Result<string, NotFound | ConcurrencyConflict>;
-        if (current === undefined) {
-          result = err({ kind: 'not-found', entity: 'roll', id: roll.id });
-        } else if (current.version !== expectedVersion) {
-          result = err({
-            kind: 'concurrency-conflict',
-            entity: 'roll',
-            id: roll.id,
-          });
-        } else {
-          sameNumber(current.roll, roll);
-          result = ok(this.#store(roll));
-        }
-        return Promise.resolve(result);
-      }),
-    );
+    return this.#archive.run('archive', () => {
+      const current = this.#rolls.get(roll.id);
+      let result: Result<string, NotFound | ConcurrencyConflict>;
+      if (current === undefined) {
+        result = err({ kind: 'not-found', entity: 'roll', id: roll.id });
+      } else if (current.version !== expectedVersion) {
+        result = err({
+          kind: 'concurrency-conflict',
+          entity: 'roll',
+          id: roll.id,
+        });
+      } else {
+        sameNumber(current.roll, roll);
+        result = ok(this.#store(roll));
+      }
+      return Promise.resolve(result);
+    });
   }
 
   saveRenumbered(
@@ -121,49 +120,46 @@ export class InMemoryRollRepository implements RollRepository {
       NotFound | ConcurrencyConflict | AlreadyExists | ValidationFailed
     >
   > {
-    // One at a time across rolls, so two can't both take a number.
-    return this.#writes.run('archive', () =>
-      this.#lock.run('numbers', () => {
-        const current = this.#rolls.get(roll.id);
-        let result: Result<
-          string,
-          NotFound | ConcurrencyConflict | AlreadyExists | ValidationFailed
-        >;
-        if (current === undefined) {
-          result = err({ kind: 'not-found', entity: 'roll', id: roll.id });
-        } else if (current.version !== expectedVersion) {
-          result = err({
-            kind: 'concurrency-conflict',
-            entity: 'roll',
-            id: roll.id,
-          });
-        } else if (current.roll.filed && current.roll.roll !== roll.roll) {
-          result = err({
-            kind: 'validation-failed',
-            issues: [
-              {
-                path: ['roll'],
-                message: "A filed roll's number can't be changed.",
-              },
-            ],
-          });
-        } else if (
-          [...this.#rolls.values()].some(
-            (r) =>
-              r.roll.id !== roll.id && sameRollNumber(r.roll.roll, roll.roll),
-          )
-        ) {
-          result = err({
-            kind: 'already-exists',
-            entity: 'roll',
-            id: roll.roll,
-          });
-        } else {
-          result = ok(this.#store(roll));
-        }
-        return Promise.resolve(result);
-      }),
-    );
+    return this.#archive.run('archive', () => {
+      const current = this.#rolls.get(roll.id);
+      let result: Result<
+        string,
+        NotFound | ConcurrencyConflict | AlreadyExists | ValidationFailed
+      >;
+      if (current === undefined) {
+        result = err({ kind: 'not-found', entity: 'roll', id: roll.id });
+      } else if (current.version !== expectedVersion) {
+        result = err({
+          kind: 'concurrency-conflict',
+          entity: 'roll',
+          id: roll.id,
+        });
+      } else if (current.roll.filed && current.roll.roll !== roll.roll) {
+        result = err({
+          kind: 'validation-failed',
+          issues: [
+            {
+              path: ['roll'],
+              message: "A filed roll's number can't be changed.",
+            },
+          ],
+        });
+      } else if (
+        [...this.#rolls.values()].some(
+          (r) =>
+            r.roll.id !== roll.id && sameRollNumber(r.roll.roll, roll.roll),
+        )
+      ) {
+        result = err({
+          kind: 'already-exists',
+          entity: 'roll',
+          id: roll.roll,
+        });
+      } else {
+        result = ok(this.#store(roll));
+      }
+      return Promise.resolve(result);
+    });
   }
 
   saveRenumberedBatch(
@@ -180,7 +176,7 @@ export class InMemoryRollRepository implements RollRepository {
   ): Promise<
     Result<void, AlreadyExists | ConcurrencyConflict | ValidationFailed>
   > {
-    return this.#writes.run<
+    return this.#archive.run<
       Result<void, AlreadyExists | ConcurrencyConflict | ValidationFailed>
     >('archive', () => {
       const current = [...this.#rolls.values()];
@@ -292,21 +288,19 @@ export class InMemoryRollRepository implements RollRepository {
     id: RollId,
     apply: (roll: Roll) => Promise<Result<RollChange<T>, E>>,
   ): Promise<Result<T, E | NotFound>> {
-    return this.#writes.run('archive', () =>
-      this.#lock.run(id, async () => {
-        const current = this.#rolls.get(id);
-        if (current === undefined) {
-          return err({ kind: 'not-found', entity: 'roll', id });
-        }
-        const changed = await apply(current.roll);
-        if (!changed.ok) {
-          return changed;
-        }
-        sameNumber(current.roll, changed.value.roll);
-        this.#store(changed.value.roll);
-        return ok(changed.value.value);
-      }),
-    );
+    return this.#archive.run('archive', async () => {
+      const current = this.#rolls.get(id);
+      if (current === undefined) {
+        return err({ kind: 'not-found', entity: 'roll', id });
+      }
+      const changed = await apply(current.roll);
+      if (!changed.ok) {
+        return changed;
+      }
+      sameNumber(current.roll, changed.value.roll);
+      this.#store(changed.value.roll);
+      return ok(changed.value.value);
+    });
   }
 
   remove(
@@ -315,19 +309,17 @@ export class InMemoryRollRepository implements RollRepository {
     expectedVersion: string,
     handOver: (roll: Roll) => Promise<void>,
   ): Promise<Result<void, NotFound | ConcurrencyConflict>> {
-    return this.#writes.run('archive', () =>
-      this.#lock.run(id, async () => {
-        const current = this.#rolls.get(id);
-        if (current === undefined) {
-          return err({ kind: 'not-found', entity: 'roll', id });
-        }
-        if (current.version !== expectedVersion) {
-          return err({ kind: 'concurrency-conflict', entity: 'roll', id });
-        }
-        this.#rolls.delete(id);
-        await handOver(current.roll);
-        return ok(undefined);
-      }),
-    );
+    return this.#archive.run('archive', async () => {
+      const current = this.#rolls.get(id);
+      if (current === undefined) {
+        return err({ kind: 'not-found', entity: 'roll', id });
+      }
+      if (current.version !== expectedVersion) {
+        return err({ kind: 'concurrency-conflict', entity: 'roll', id });
+      }
+      this.#rolls.delete(id);
+      await handOver(current.roll);
+      return ok(undefined);
+    });
   }
 }
