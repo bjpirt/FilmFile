@@ -12,6 +12,7 @@ import type { SettingsRepository } from '../application/ports/settings-repositor
 import type { BlobStore } from '../application/ports/blob-store.ts';
 import type { Clock } from '../application/ports/clock.ts';
 import type { EquipmentRepository } from '../application/ports/equipment-repository.ts';
+import type { ErrorReporter } from '../application/ports/error-reporter.ts';
 import type { EventRepository } from '../application/ports/event-repository.ts';
 import type { ExportDestination } from '../application/ports/export-destination.ts';
 import type { ExportTickets } from '../application/ports/export-tickets.ts';
@@ -83,6 +84,8 @@ export interface Adapters {
   readonly destination?: ExportDestination | undefined;
   readonly ids: IdGenerator;
   readonly clock: Clock;
+  /** Where unexpected failures in background work are reported (D113). */
+  readonly errors: ErrorReporter;
 }
 
 /** The use cases, wired to the given adapters. */
@@ -102,6 +105,7 @@ export function useCasesFor({
   siteFolders,
   ids,
   clock,
+  errors,
 }: Adapters): RollUseCases &
   EquipmentUseCases &
   EventUseCases &
@@ -120,6 +124,7 @@ export function useCasesFor({
     tickets,
     renderer,
     clock,
+    errors,
   );
   return {
     getSettings: new GetSettings(settings),
@@ -145,7 +150,12 @@ export function useCasesFor({
     getThumbnail: new GetThumbnail(rolls, blobs, previews),
     prepareQuickExport: new PrepareQuickExport(rolls, tickets),
     makeQuickExport,
-    folderExports: new FolderExports(rolls, makeQuickExport, destination),
+    folderExports: new FolderExports(
+      rolls,
+      makeQuickExport,
+      destination,
+      errors,
+    ),
     searchFrames,
     siteBuilds: new SiteBuilds(
       sites,
@@ -160,6 +170,7 @@ export function useCasesFor({
         siteFolders,
       ),
       settings,
+      errors,
     ),
     getBuiltSiteFile: new GetBuiltSiteFile(siteFolders),
     listSites: new ListSites(sites, searchFrames),

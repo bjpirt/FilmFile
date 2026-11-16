@@ -1,6 +1,7 @@
 import { chmod, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { describe, expect, test } from 'vitest';
+import { beforeEach, describe, expect, test } from 'vitest';
+import { InMemoryErrorReporter } from '../../src/adapters/outbound/memory/in-memory-error-reporter.ts';
 import { localStartup } from '../../src/composition/compose-local.ts';
 import { aJpeg } from '../support/a-jpeg.ts';
 import { apiFor, idOf } from '../support/api.ts';
@@ -63,6 +64,12 @@ async function isReadOnly(file: string): Promise<boolean> {
   return ((await stat(file)).mode & 0o222) === 0;
 }
 
+let errors = new InMemoryErrorReporter();
+
+beforeEach(() => {
+  errors = new InMemoryErrorReporter();
+});
+
 describe('localStartup (FF-109)', () => {
   test('makes the images already in the library read-only, says so once, and has nothing to say the next time', async () => {
     const { images } = await aLibraryWithImages();
@@ -71,12 +78,20 @@ describe('localStartup (FF-109)', () => {
     }
     const said: string[] = [];
 
-    await localStartup({ archivePath: archive.path() }, (m) => said.push(m));
+    await localStartup(
+      { archivePath: archive.path() },
+      (m) => said.push(m),
+      errors,
+    );
 
     expect(await Promise.all(images.map(isReadOnly))).toEqual([true, true]);
     expect(said).toEqual(['Made 2 originals read-only.']);
 
-    await localStartup({ archivePath: archive.path() }, (m) => said.push(m));
+    await localStartup(
+      { archivePath: archive.path() },
+      (m) => said.push(m),
+      errors,
+    );
     expect(said).toHaveLength(1);
   });
 
@@ -94,7 +109,11 @@ describe('localStartup (FF-109)', () => {
     await writeFile(sidecar, '{}');
     const content = await readFile(images[0] ?? '');
 
-    await localStartup({ archivePath: archive.path() }, () => undefined);
+    await localStartup(
+      { archivePath: archive.path() },
+      () => undefined,
+      errors,
+    );
 
     expect(await isReadOnly(rollJson)).toBe(false);
     expect(await readFile(rollJson)).toEqual(before);
@@ -111,7 +130,11 @@ describe('localStartup (FF-109)', () => {
     await rm(images[0] ?? '');
     const said: string[] = [];
 
-    await localStartup({ archivePath: archive.path() }, (m) => said.push(m));
+    await localStartup(
+      { archivePath: archive.path() },
+      (m) => said.push(m),
+      errors,
+    );
 
     expect(said).toEqual(["Made 1 original read-only; 1 couldn't be changed."]);
     expect(await isReadOnly(images[1] ?? '')).toBe(true);
@@ -120,16 +143,52 @@ describe('localStartup (FF-109)', () => {
   test('says nothing, and does not fail, for an archive with nothing in it', async () => {
     const said: string[] = [];
 
-    await localStartup({ archivePath: archive.path() }, (m) => said.push(m));
+    await localStartup(
+      { archivePath: archive.path() },
+      (m) => said.push(m),
+      errors,
+    );
 
     expect(said).toEqual([]);
+    expect(errors.reported).toEqual([]);
+  });
+
+  test('reports a failure to make originals read-only once, and still finishes (FF-203)', async () => {
+    // A roll.json that's a folder can't be read, so listing the rolls throws.
+    await mkdir(
+      path.join(
+        archive.path(),
+        'rolls',
+        '2026',
+        '2026-099-ABCDEFGH',
+        'roll.json',
+      ),
+      { recursive: true },
+    );
+    const said: string[] = [];
+
+    await localStartup(
+      { archivePath: archive.path() },
+      (m) => said.push(m),
+      errors,
+    );
+
+    expect(said).toEqual([]);
+    expect(errors.reported.map(({ what }) => what)).toEqual([
+      "Couldn't make originals read-only",
+    ]);
+    expect(errors.reported[0]?.error).toBeInstanceOf(Error);
   });
 
   test('stores each new image read-only, so there is nothing to change on the next start', async () => {
     const { images } = await aLibraryWithImages();
     const said: string[] = [];
 
-    await localStartup({ archivePath: archive.path() }, (m) => said.push(m));
+    await localStartup(
+      { archivePath: archive.path() },
+      (m) => said.push(m),
+      errors,
+    );
 
     expect(await Promise.all(images.map(isReadOnly))).toEqual([true, true]);
     expect(said).toEqual([]);

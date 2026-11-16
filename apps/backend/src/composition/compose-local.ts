@@ -12,12 +12,14 @@ import { FilesystemRollRepository } from '../adapters/outbound/filesystem/filesy
 import { InMemoryExportTickets } from '../adapters/outbound/memory/in-memory-export-tickets.ts';
 import { ParentProcessExportDestination } from '../adapters/outbound/node/parent-process-export-destination.ts';
 import type { ExportDestination } from '../application/ports/export-destination.ts';
+import { ConsoleErrorReporter } from '../adapters/outbound/node/console-error-reporter.ts';
 import { NodeClock } from '../adapters/outbound/node/node-clock.ts';
 import { UlidGenerator } from '../adapters/outbound/node/ulid-generator.ts';
 import { SharpImageInspector } from '../adapters/outbound/sharp/sharp-image-inspector.ts';
 import { SharpImageRenderer } from '../adapters/outbound/sharp/sharp-image-renderer.ts';
 import { SharpPreviewProvider } from '../adapters/outbound/sharp/sharp-preview-provider.ts';
 import type { Clock } from '../application/ports/clock.ts';
+import type { ErrorReporter } from '../application/ports/error-reporter.ts';
 import type { IdGenerator } from '../application/ports/id-generator.ts';
 import { localArchive } from './local-archive.ts';
 import { ProtectOriginals } from '../application/use-cases/originals/protect-originals.ts';
@@ -31,11 +33,13 @@ export const maxPixels = 100_000_000;
  * What the service does once as it starts, in the background (FF-109): makes
  * the images already in the library read-only. It says what it did through
  * `log`, once, and nothing when there was nothing to do. It never throws: a
- * library it can't read is for the requests that need it to report.
+ * failure goes to `errors` (D113), and the requests that need the library say
+ * what's wrong with it.
  */
 export async function localStartup(
   config: { readonly archivePath: string },
   log: (message: string) => void,
+  errors: ErrorReporter = new ConsoleErrorReporter(),
 ): Promise<void> {
   try {
     const { changed, couldNotChange } = await new ProtectOriginals(
@@ -50,8 +54,8 @@ export async function localStartup(
           : `${made}; ${String(couldNotChange)} couldn't be changed.`,
       );
     }
-  } catch {
-    // Nothing to protect, or nothing readable: requests say what's wrong.
+  } catch (error) {
+    errors.report("Couldn't make originals read-only", error);
   }
 }
 
@@ -92,6 +96,7 @@ export function composeLocal(config: {
       tickets: new InMemoryExportTickets(clock),
       destination,
       ids: config.ids ?? new UlidGenerator(),
+      errors: new ConsoleErrorReporter(),
       clock,
     }),
   });

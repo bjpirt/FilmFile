@@ -9,6 +9,7 @@ import type { Slug } from '../../../domain/shared/slug.ts';
 import { describeSiteStatus } from '../../../domain/sites/plan-site-build.ts';
 import type { SiteOptions } from '../../../domain/sites/site-options.ts';
 import type { Site } from '../../../domain/sites/site.ts';
+import type { ErrorReporter } from '../../ports/error-reporter.ts';
 import type { SiteRepository } from '../../ports/site-repository.ts';
 import type { SearchFrames } from '../selections/search-frames.ts';
 import type { SettingsRepository } from '../../ports/settings-repository.ts';
@@ -62,6 +63,7 @@ export class SiteBuilds {
   readonly #search: SearchFrames;
   readonly #building: BuildSite;
   readonly #settings: SettingsRepository;
+  readonly #errors: ErrorReporter;
   readonly #jobs = new Map<Slug, Job>();
 
   constructor(
@@ -69,11 +71,13 @@ export class SiteBuilds {
     search: SearchFrames,
     building: BuildSite,
     settings: SettingsRepository,
+    errors: ErrorReporter,
   ) {
     this.#sites = sites;
     this.#search = search;
     this.#building = building;
     this.#settings = settings;
+    this.#errors = errors;
   }
 
   async #optionsOf(ctx: ArchiveContext, site: Site): Promise<SiteOptions> {
@@ -184,9 +188,11 @@ export class SiteBuilds {
           state: built.error.kind === 'cancelled' ? 'cancelled' : 'failed',
         });
       }
-    } catch {
-      // The page is told it failed, in words that give no internals; the site
-      // is as it was, since a build is only swapped in whole.
+    } catch (error) {
+      // The page is told it failed, in words that give no internals, and the
+      // error goes to the log (D113); the site is as it was, since a build is
+      // only swapped in whole.
+      this.#errors.report(`Couldn't build site ${site.slug}`, error);
       update({ state: 'failed' });
     }
   }

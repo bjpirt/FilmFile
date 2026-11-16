@@ -8,6 +8,7 @@ import type {
   ExportDestination,
   ExportFolder,
 } from '../../ports/export-destination.ts';
+import type { ErrorReporter } from '../../ports/error-reporter.ts';
 import type { QuickExport } from '../../ports/export-tickets.ts';
 import type { RollRepository } from '../../ports/roll-repository.ts';
 import type { MakeQuickExport } from './make-quick-export.ts';
@@ -27,7 +28,7 @@ export interface FolderExportStatus {
 
 interface Job {
   status: FolderExportStatus;
-  cancelled: boolean;
+  readonly controller: AbortController;
 }
 
 /** How many finished exports are remembered, for a page that asks after one. */
@@ -45,6 +46,7 @@ export class FolderExports {
   readonly #rolls: RollRepository;
   readonly #making: MakeQuickExport;
   readonly #destination: ExportDestination | undefined;
+  readonly #errors: ErrorReporter;
   readonly #jobs = new Map<string, Job>();
   #next = 0;
 
@@ -52,10 +54,12 @@ export class FolderExports {
     rolls: RollRepository,
     making: MakeQuickExport,
     destination: ExportDestination | undefined,
+    errors: ErrorReporter,
   ) {
     this.#rolls = rolls;
     this.#making = making;
     this.#destination = destination;
+    this.#errors = errors;
   }
 
   /**
@@ -97,7 +101,7 @@ export class FolderExports {
         written: 0,
         leftOut: 0,
       },
-      cancelled: false,
+      controller: new AbortController(),
     };
     this.#jobs.set(id, job);
     this.#forget();
@@ -118,7 +122,7 @@ export class FolderExports {
     if (job === undefined) {
       return err({ kind: 'not-found', entity: 'export', id });
     }
-    job.cancelled = true;
+    job.controller.abort();
     return ok(undefined);
   }
 
@@ -148,7 +152,7 @@ export class FolderExports {
     const entries = this.#making.entries(ctx, quick);
     try {
       for await (const { name, data } of entries) {
-        if (job.cancelled) {
+        if (job.controller.signal.aborted) {
           break;
         }
         await folder.write(name, data);
@@ -160,19 +164,23 @@ export class FolderExports {
         }
       }
       const leftOut = job.status.total - job.status.written;
+      const cancelled = job.controller.signal.aborted;
       update({
-        state: job.cancelled ? 'cancelled' : 'done',
-        done: job.cancelled ? job.status.done : job.status.total,
-        leftOut: job.cancelled ? 0 : leftOut,
+        state: cancelled ? 'cancelled' : 'done',
+        done: cancelled ? job.status.done : job.status.total,
+        leftOut: cancelled ? 0 : leftOut,
       });
       destination.finished({
         folder: folder.path,
         written: job.status.written,
         leftOut: job.status.leftOut,
       });
-    } catch {
-      // The page is told it failed, in words that give no internals; what was
-      // written stays, since files are only ever written whole.
+    } catch (error) {
+      // The page is told it failed, in words that give no internals, and the
+      // error goes to the log (D113); what was written stays, since files are
+      // only ever written whole. A frame that can't be made doesn't get here:
+      // it's left out, and reported, as it's made.
+      this.#errors.report("Couldn't finish an export to a folder", error);
       update({ state: 'failed' });
     } finally {
       await entries.return(undefined);

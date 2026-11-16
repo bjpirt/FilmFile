@@ -14,6 +14,7 @@ import type { EquipmentRepository } from '../../ports/equipment-repository.ts';
 import type { EventRepository } from '../../ports/event-repository.ts';
 import type { ExportTickets, QuickExport } from '../../ports/export-tickets.ts';
 import type { ImageRenderer } from '../../ports/image-renderer.ts';
+import type { ErrorReporter } from '../../ports/error-reporter.ts';
 import type { RollRepository } from '../../ports/roll-repository.ts';
 import type { SettingsRepository } from '../../ports/settings-repository.ts';
 import { FilePaths, fileNameOf, safeName } from './export-names.ts';
@@ -63,6 +64,7 @@ export class MakeQuickExport {
   readonly #tickets: ExportTickets;
   readonly #renderer: ImageRenderer;
   readonly #clock: Clock;
+  readonly #errors: ErrorReporter;
 
   constructor(
     rolls: RollRepository,
@@ -73,6 +75,7 @@ export class MakeQuickExport {
     tickets: ExportTickets,
     renderer: ImageRenderer,
     clock: Clock,
+    errors: ErrorReporter,
   ) {
     this.#rolls = rolls;
     this.#settings = settings;
@@ -82,6 +85,7 @@ export class MakeQuickExport {
     this.#tickets = tickets;
     this.#renderer = renderer;
     this.#clock = clock;
+    this.#errors = errors;
   }
 
   async execute(
@@ -167,14 +171,15 @@ export class MakeQuickExport {
         yield { name: paths.next(this.#partsOf(made)), data: made.jpeg };
       } catch (error) {
         // A frame that can't be made is left out and said so, rather than
-        // stopping a zip that's already being downloaded.
-        const reason =
-          error instanceof LeftOut
-            ? error.message
-            : "its image couldn't be made";
-        leftOut.push(
-          `${await this.#describe(ctx, rollId, frameId)}: ${reason}`,
-        );
+        // stopping a zip that's already being downloaded. Why it couldn't,
+        // when that's not a reason it gives, goes to the log (D113).
+        const frame = await this.#describe(ctx, rollId, frameId);
+        if (error instanceof LeftOut) {
+          leftOut.push(`${frame}: ${error.message}`);
+        } else {
+          this.#errors.report(`Couldn't make ${frame}`, error);
+          leftOut.push(`${frame}: its image couldn't be made`);
+        }
       }
     }
     if (leftOut.length > 0) {

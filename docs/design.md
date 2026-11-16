@@ -337,6 +337,7 @@ Outbound ports, defined in `application/ports/` and implemented by outbound adap
 | `PreviewProvider` | Thumbnails and previews by content hash, generated lazily | sharp + cache folder | sharp + S3 cache |
 | `ImageInspector` | Reads an uploaded image's pixel dimensions from its header, within the input pixel limit | sharp; a TIFF's or raw's (Sony ARW) size from its TIFF tables, by our own reader | same |
 | `Clock`, `IdGenerator` | Current time; ULIDs | Node | Node |
+| `ErrorReporter` | Takes an unexpected failure in background work (a site build, a frame an export can't make, a startup step), with words saying what failed, to the log, never the page (D113) | The service's error output | same |
 
 The filesystem roll repository takes one in-process lock around every roll
 read and mutation. This keeps versioned listings stable while a batch is
@@ -361,6 +362,8 @@ Each use case is a class with its dependencies injected through the constructor 
 - `ctx` is an **archive context** (`{ archiveId }`). There's only one archive today, but threading it through every use case means a future multi-archive or multi-user setup doesn't require rewiring.
 - Use cases return a **`Result<T, E>`** (a small in-house discriminated union, no library) rather than throwing for expected failures. Current use cases return typed errors such as `NotFound`, `ValidationFailed`, `ConcurrencyConflict` and `AlreadyExists`, which the HTTP adapter maps to status codes (404, 422, 409 and 409). `MappingInvalid` remains in the error model for the deferred mapping design; there is no mapping use case today.
 - Unexpected errors (I/O failure, bugs) throw and become a 500 with a logged correlation ID.
+
+Two classes in `application/use-cases/` are **job runners**, not use cases: `SiteBuilds` and `FolderExports` run work in the background so the page can follow it. They keep their jobs in memory and offer `start`, `status` and `cancel` instead of one `execute`, and cancel through an `AbortController`. What a job does is a use case's (`BuildSite`, `MakeQuickExport`); an unexpected failure in it is reported through the `ErrorReporter` (D113), and the page is told only that the job failed.
 
 ### 13.6 Dependency injection
 

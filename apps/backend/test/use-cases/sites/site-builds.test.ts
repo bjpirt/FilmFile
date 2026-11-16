@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 import { InMemoryBlobStore } from '../../../src/adapters/outbound/memory/in-memory-blob-store.ts';
 import { InMemoryEquipmentRepository } from '../../../src/adapters/outbound/memory/in-memory-equipment-repository.ts';
+import { InMemoryErrorReporter } from '../../../src/adapters/outbound/memory/in-memory-error-reporter.ts';
 import { InMemoryEventRepository } from '../../../src/adapters/outbound/memory/in-memory-event-repository.ts';
 import { InMemoryImageRenderer } from '../../../src/adapters/outbound/memory/in-memory-image-renderer.ts';
 import { InMemoryRollRepository } from '../../../src/adapters/outbound/memory/in-memory-roll-repository.ts';
@@ -97,6 +98,7 @@ test('never says a build is done alongside how the site stood before it ended', 
     new SearchFrames(rolls, settings, new InMemoryEventRepository()),
     building,
     settings,
+    new InMemoryErrorReporter(),
   );
   await builds.start(ctx, { slug });
 

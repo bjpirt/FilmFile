@@ -4,6 +4,7 @@ import { FixedClock } from '../adapters/outbound/memory/fixed-clock.ts';
 import { InMemorySettingsRepository } from '../adapters/outbound/memory/in-memory-settings-repository.ts';
 import { InMemoryBlobStore } from '../adapters/outbound/memory/in-memory-blob-store.ts';
 import { InMemoryEquipmentRepository } from '../adapters/outbound/memory/in-memory-equipment-repository.ts';
+import { InMemoryErrorReporter } from '../adapters/outbound/memory/in-memory-error-reporter.ts';
 import { InMemoryEventRepository } from '../adapters/outbound/memory/in-memory-event-repository.ts';
 import { InMemoryExportTickets } from '../adapters/outbound/memory/in-memory-export-tickets.ts';
 import { InMemoryHoldingArea } from '../adapters/outbound/memory/in-memory-holding-area.ts';
@@ -47,6 +48,7 @@ export function composeInMemory(
       siteFolders: new InMemorySiteFolders(),
       tickets: new InMemoryExportTickets(clock),
       ids: new SequentialIdGenerator(),
+      errors: new InMemoryErrorReporter(),
       clock,
       ...overrides,
     }),
