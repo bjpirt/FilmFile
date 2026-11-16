@@ -11,8 +11,10 @@ import type {
   VersionedRollListing,
 } from '../../../application/ports/roll-repository.ts';
 import {
+  folderName,
   frameFolderName,
   rollFolderLabel,
+  rollFolderName,
   versionFolderName,
 } from '../../../domain/rolls/folder-names.ts';
 import {
@@ -35,7 +37,11 @@ import { err, ok, type Result } from '../../../domain/shared/result.ts';
 import { KeyedLock } from '../node/keyed-lock.ts';
 import { hasErrorCode } from './error-codes.ts';
 import { parseRollFile, rollFileContent } from './roll-file.ts';
-import { rollFolderFor, rollFolderForNumberChange } from './roll-folder.ts';
+import {
+  findRollFolder,
+  rollFolderFor,
+  rollFolderForNumberChange,
+} from './roll-folder.ts';
 import { safePath } from './safe-path.ts';
 import { createAtomically, writeAtomically } from './write-atomically.ts';
 
@@ -268,25 +274,42 @@ export class FilesystemRollRepository implements RollRepository {
       cwd: this.#archivePath,
     })) {
       const names = relative.split(path.sep);
+      const folder = names.at(-2) ?? '';
       const file = safePath(this.#archivePath, ...names);
       const content = await readFile(file, 'utf8');
       const parsed = parseRollFile(content);
-      if (parsed.ok) {
+      if (!parsed.ok) {
+        unreadable.push({ folder, problem: parsed.error });
+      } else if (!folder.endsWith(`-${folderName(parsed.value.id)}`)) {
+        // It can't be found by its ID, so it can't be opened (D112).
+        unreadable.push({
+          folder,
+          problem: `its folder isn’t named with its ID; rename it to ${rollFolderName(parsed.value.roll, parsed.value.id)}`,
+        });
+      } else {
         stored.push({
           roll: parsed.value,
           version: versionOf(content),
           file,
           content,
         });
-      } else {
-        unreadable.push({ folder: names.at(-2) ?? '', problem: parsed.error });
       }
     }
     return { stored, unreadable };
   }
 
+  /** The roll, read from its own folder alone (D112); undefined if it can't be found or read. */
   async #find(id: RollId): Promise<StoredRoll | undefined> {
-    return (await this.#readAll()).stored.find((s) => s.roll.id === id);
+    const folder = await findRollFolder(this.#archivePath, id);
+    if (folder === undefined) {
+      return undefined;
+    }
+    const file = safePath(folder, 'roll.json');
+    const content = await readFile(file, 'utf8');
+    const parsed = parseRollFile(content);
+    return parsed.ok && parsed.value.id === id
+      ? { roll: parsed.value, version: versionOf(content), file, content }
+      : undefined;
   }
 
   async list(ctx: ArchiveContext): Promise<RollListing> {

@@ -13,7 +13,7 @@ const versionId = '01JC8Z7K3M0000000000000003';
 
 beforeEach(async () => {
   // A version whose file has gone from the archive: something the service doesn't expect.
-  const folder = path.join(archive.path(), 'rolls/2026/2026-014');
+  const folder = path.join(archive.path(), 'rolls/2026/2026-014-00000001');
   await mkdir(folder, { recursive: true });
   const version = {
     id: versionId,

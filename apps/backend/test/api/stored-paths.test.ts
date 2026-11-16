@@ -13,7 +13,7 @@ const versionId = '01JC8Z7K3M0000000000000003';
 
 /** A roll.json edited outside the service, with a version file pointing elsewhere. */
 async function aRollWithVersionFile(file: string): Promise<void> {
-  const folder = path.join(archive.path(), 'rolls/2026/2026-014');
+  const folder = path.join(archive.path(), 'rolls/2026/2026-014-00000001');
   await mkdir(folder, { recursive: true });
   await writeFile(path.join(archive.path(), 'secret.txt'), 'secret');
   const roll = {

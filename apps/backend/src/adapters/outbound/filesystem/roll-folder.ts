@@ -10,9 +10,10 @@ import { safePath } from './safe-path.ts';
 
 // New roll folders use the shot year and a safe version of the number label;
 // existing folders keep their parent when the label changes (D87).
-// A roll is found by the roll.json in its folder, never by the folder's name,
-// so folders made before this naming, and any a rename left half done, are
-// found too.
+// A roll is found only in a folder whose name ends with the end of its ID,
+// and only if the roll.json there says that ID (D112): the name says where to
+// look, the file says whose it is. A rename cut short keeps the ID, so it's
+// still found; nothing searches the other folders.
 
 /** Where a new roll's folder goes: `rolls/<shot year>/<safe label>-<ID>/`. */
 export function rollFolderFor(
@@ -56,35 +57,22 @@ function idIn(text: string): unknown {
   }
 }
 
-async function folderHolding(
+/**
+ * The folder a roll is in: the one named with the end of its ID whose
+ * roll.json says it's the roll's. Undefined if there's none, including when
+ * the roll's folder is named some other way (D112).
+ */
+export async function findRollFolder(
   archivePath: string,
-  pattern: string,
   id: RollId,
 ): Promise<string | undefined> {
-  for await (const relative of glob(pattern, { cwd: archivePath })) {
+  for await (const relative of glob(`rolls/*/*-${folderName(id)}/roll.json`, {
+    cwd: archivePath,
+  })) {
     const file = safePath(archivePath, ...relative.split(path.sep));
     if (idIn(await readFile(file, 'utf8')) === id) {
       return path.dirname(file);
     }
   }
   return undefined;
-}
-
-/**
- * The folder a roll is in now, whatever it's called: the one named with its
- * ID if there is one, otherwise any folder whose roll.json says it's the
- * roll's (a name from before this naming, or an interrupted rename's).
- * Undefined if the roll has no folder.
- */
-export async function findRollFolder(
-  archivePath: string,
-  id: RollId,
-): Promise<string | undefined> {
-  return (
-    (await folderHolding(
-      archivePath,
-      `rolls/*/*-${folderName(id)}/roll.json`,
-      id,
-    )) ?? (await folderHolding(archivePath, 'rolls/*/*/roll.json', id))
-  );
 }

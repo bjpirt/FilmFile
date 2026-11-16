@@ -30,6 +30,17 @@ function repository(
   return new FilesystemRollRepository(archive.path(), renameFolder, removeYear);
 }
 
+/** A roll.json in a folder named by a roll number alone, as an unreadable roll's may be. */
+function numberOnlyFile(roll: string): string {
+  return path.join(
+    archive.path(),
+    'rolls',
+    roll.slice(0, 4),
+    roll,
+    'roll.json',
+  );
+}
+
 /** A roll's folder as the service names it: its number and the end of its ID (D66). */
 function rollFolder(roll: string, id = ulidFor(1)): string {
   return path.join(
@@ -42,17 +53,6 @@ function rollFolder(roll: string, id = ulidFor(1)): string {
 
 function rollFile(roll: string, id = ulidFor(1)): string {
   return path.join(rollFolder(roll, id), 'roll.json');
-}
-
-/** A roll's folder as it was named before D66: its number alone. */
-function oldStyleFile(roll: string): string {
-  return path.join(
-    archive.path(),
-    'rolls',
-    roll.slice(0, 4),
-    roll,
-    'roll.json',
-  );
 }
 
 async function names(folder: string): Promise<string[]> {
@@ -166,8 +166,8 @@ test('is unaffected by a half-written file a crash left behind', async () => {
 test('reports a roll.json it cannot read, and still lists the rest', async () => {
   const rolls = repository();
   await rolls.create(ctx, aRoll());
-  await mkdir(path.dirname(oldStyleFile('2026-015')), { recursive: true });
-  await writeFile(oldStyleFile('2026-015'), '{ not json');
+  await mkdir(path.dirname(numberOnlyFile('2026-015')), { recursive: true });
+  await writeFile(numberOnlyFile('2026-015'), '{ not json');
 
   const listed = await rolls.list(ctx);
 
@@ -226,28 +226,58 @@ test('names a roll’s folder by its number and the end of its ID', async () => 
 });
 
 describe('finding a roll', () => {
-  test('finds a roll in a folder named by its number alone, as made before D66', async () => {
+  test('doesn’t find a roll in a folder not named with its ID, and lists it as unreadable, saying what to rename it to (D112)', async () => {
     const rolls = repository();
     await rolls.create(ctx, aRoll());
-    await mkdir(path.dirname(oldStyleFile('2026-014')), { recursive: true });
-    await rename(
-      rollFolder('2026-014'),
-      path.dirname(oldStyleFile('2026-014')),
-    );
+    const misnamed = path.join(archive.path(), 'rolls', '2026', 'by-hand');
+    await rename(rollFolder('2026-014'), misnamed);
+
+    expect(await rolls.get(ctx, aRoll().id)).toBeUndefined();
+    expect(await findRollFolder(archive.path(), aRoll().id)).toBeUndefined();
+    expect(await rolls.list(ctx)).toEqual({
+      rolls: [],
+      unreadable: [
+        {
+          folder: 'by-hand',
+          problem:
+            'its folder isn’t named with its ID; rename it to 2026-014-00000001',
+        },
+      ],
+    });
+
+    await rename(misnamed, rollFolder('2026-014'));
 
     expect((await rolls.get(ctx, aRoll().id))?.roll).toEqual(aRoll());
-    expect((await rolls.list(ctx)).rolls).toEqual([aRoll()]);
   });
 
-  test('finds a roll whatever its folder is called, as it is the roll.json that says whose it is', async () => {
+  test('gets, saves and changes a roll beside an unreadable roll and a misnamed one', async () => {
     const rolls = repository();
     await rolls.create(ctx, aRoll());
+    await rolls.create(ctx, aRoll({ id: ulidFor(2), roll: '2026-015' }));
     await rename(
-      rollFolder('2026-014'),
-      path.join(archive.path(), 'rolls', '2026', 'put-here-by-hand'),
+      rollFolder('2026-015', ulidFor(2)),
+      path.join(archive.path(), 'rolls', '2026', 'by-hand'),
+    );
+    await mkdir(path.dirname(numberOnlyFile('2026-016')), { recursive: true });
+    await writeFile(numberOnlyFile('2026-016'), '{ not json');
+
+    const read = await rolls.get(ctx, aRoll().id);
+    const saved = await rolls.save(
+      ctx,
+      { ...aRoll(), name: 'Westfjords' },
+      read?.version ?? '',
+    );
+    const changed = await rolls.change(ctx, aRoll().id, (roll) =>
+      Promise.resolve(ok({ roll: { ...roll, notes: 'Fog' }, value: 1 })),
     );
 
-    expect((await rolls.get(ctx, aRoll().id))?.roll).toEqual(aRoll());
+    expect(read?.roll).toEqual(aRoll());
+    expect(saved.ok).toBe(true);
+    expect(changed).toEqual(ok(1));
+    expect((await rolls.get(ctx, aRoll().id))?.roll).toMatchObject({
+      name: 'Westfjords',
+      notes: 'Fog',
+    });
   });
 
   test('doesn’t take another roll’s folder for a roll’s because of its name', async () => {
@@ -266,11 +296,8 @@ describe('finding a roll', () => {
     expect(folder === undefined ? '' : path.basename(folder)).toBe(
       '2026-014-00000001',
     );
-    expect(
-      (await findRollFolder(archive.path(), other.id))?.endsWith(
-        '2026-015-00000001',
-      ),
-    ).toBe(true);
+    // Named with the wrong ID, the other roll isn't found at all (D112).
+    expect(await findRollFolder(archive.path(), other.id)).toBeUndefined();
   });
 });
 
@@ -360,10 +387,6 @@ describe('renaming a roll’s folder when its number changes', () => {
   test('leaves a roll’s folder alone when its number stays the same', async () => {
     const rolls = repository();
     await rolls.create(ctx, aRoll());
-    await rename(
-      rollFolder('2026-014'),
-      path.dirname(oldStyleFile('2026-014')),
-    );
     const read = await rolls.get(ctx, aRoll().id);
 
     await rolls.save(
@@ -373,7 +396,7 @@ describe('renaming a roll’s folder when its number changes', () => {
     );
 
     expect(await names(path.join(archive.path(), 'rolls', '2026'))).toEqual([
-      '2026-014',
+      '2026-014-00000001',
     ]);
   });
 
@@ -413,21 +436,6 @@ describe('renaming a roll’s folder when its number changes', () => {
     );
     expect(await names(path.join(archive.path(), 'rolls', '2026'))).toEqual([
       path.basename(rollFolder(roll.roll)),
-    ]);
-  });
-
-  test('renames a folder named by number alone the first time its number changes', async () => {
-    const rolls = repository();
-    await rolls.create(ctx, aRoll());
-    await rename(
-      rollFolder('2026-014'),
-      path.dirname(oldStyleFile('2026-014')),
-    );
-
-    await renumber(rolls, aRoll(), '2026-009');
-
-    expect(await names(path.join(archive.path(), 'rolls', '2026'))).toEqual([
-      '2026-009-00000001',
     ]);
   });
 

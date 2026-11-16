@@ -1,7 +1,7 @@
 import {
   chmod,
-  mkdir,
   mkdtemp,
+  readdir,
   readFile,
   rename,
   rm,
@@ -84,19 +84,15 @@ test('has nowhere to put or find a file of a roll that has no folder', async () 
   );
 });
 
-test('stores a file in a roll’s folder named by number alone, as made before D66', async () => {
+test('stores nothing in a roll’s folder not named with its ID (D112)', async () => {
   const folder = path.join(archivePath, 'rolls/2026/2026-014');
-  await mkdir(folder, { recursive: true });
-  const rollJson = new FilesystemRollRepository(archivePath);
-  await rollJson.create(ctx, roll);
+  await new FilesystemRollRepository(archivePath).create(ctx, roll);
   await rename(path.join(archivePath, 'rolls/2026/2026-014-00000001'), folder);
 
-  const file = await store().put(ctx, blob, new Uint8Array([7]));
-
-  expect(await readFile(path.join(folder, file))).toEqual(Buffer.from([7]));
-  expect(new Uint8Array(await store().get(ctx, roll.id, file))).toEqual(
-    new Uint8Array([7]),
+  await expect(store().put(ctx, blob, new Uint8Array([7]))).rejects.toThrow(
+    'has no folder',
   );
+  expect(await readdir(folder)).toEqual(['roll.json']);
 });
 
 test('makes a file it stores read-only, keeping its other permissions (D96)', async () => {

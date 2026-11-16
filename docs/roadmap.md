@@ -266,7 +266,7 @@ After "Integrate with NegPy", whose folder of links (in `Editors/`, FF-105), fil
 
 Changes to how FilmFile is built that add nothing to see: speed, legibility and keeping the code to its own rules. They come from the architecture review (`docs/architecture-review.md`), one task for each recommendation as it's taken up, and can be done between the tasks of any other group.
 
-- [ ] [FF-202 Find a roll by its ID](tasks/FF-202.md): a roll is found by the ID in its folder's name, so opening one no longer reads every roll in the library.
+- [x] [FF-202 Find a roll by its ID](tasks/FF-202.md)
 
 ---
 

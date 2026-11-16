@@ -17,7 +17,7 @@ import { safePath } from './safe-path.ts';
 /**
  * Image files in the archive, one folder per version inside one per frame:
  * `rolls/YYYY/YYYY-NNN-<ID>/frames/<number>-<ID>/<kind>-<ID>/<original
- * name>` (D66, D69). A roll's folder is found by its ID, whatever it's called.
+ * name>` (D66, D69). A roll's folder is found by the ID its name ends with (D112).
  */
 export class FilesystemBlobStore implements BlobStore {
   readonly #archivePath: string;

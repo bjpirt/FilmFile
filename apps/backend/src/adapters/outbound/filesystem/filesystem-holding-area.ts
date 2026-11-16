@@ -57,7 +57,7 @@ export class FilesystemHoldingArea implements HoldingArea {
     this.#archivePath = archivePath;
   }
 
-  /** The folder a held thing came out of: its roll's, found by its ID, whatever it's called. */
+  /** The folder a held thing came out of: its roll's, found by the ID its name ends with (D112). */
   #rollFolder(rollId: RollId): Promise<string | undefined> {
     return findRollFolder(this.#archivePath, rollId);
   }
