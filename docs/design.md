@@ -16,8 +16,8 @@ The phased roadmap is in section 14; the task files under `docs/tasks/` record i
 - Organise by **roll** (physical) and by **event** (what happened), with events that can nest.
 - Keep **multiple versions** of each photograph (lab scan, raw camera scans, edits, exports) with their lineage.
 - Store all metadata as **JSON on the filesystem**, with layered overrides.
-- Run **workflows** when things happen in the archive (back up to S3, publish to a gallery or other sites).
-- Back up to S3 and use S3 to **sync between devices**.
+- Run **workflows** when things happen in the archive (publish to a gallery or other sites).
+- Back up to a bucket (Cloudflare R2, then S3) and use it to **sync between computers**, one editing at a time.
 - Integrate with an **external editor** (currently NegPy) without depending on it.
 
 **Non-goals**
@@ -81,6 +81,7 @@ FilmFile/
   Exports/       one folder of JPEGs per export, made on demand from its selection (D94)
   Sites/         built sites, one folder each, ready to upload (D91, D92)
   Editors/       folders of links for editors: NegPy/, later darktable/ (D51)
+  Set aside/     files a sync replaced, kept for the person to look at (D116)
 ```
 
 The archive (`Library/`):
@@ -229,26 +230,30 @@ FF-104's scan mark is implemented. The numbered scan-list and matching workflow 
 
 ---
 
-## 10. Storage, sync and backup (planned)
+## 10. Sync and backup (planned, D115–D118)
 
-**S3 has three roles:** backup, sync between devices, and hosting the public gallery (in a separate bucket). Backup and sync cover the library (`Library/`) and `settings.json` only (D57, D65).
+One bucket keeps a copy of the library and is how the copies on several computers stay in step: Cloudflare R2 first, then S3 (D111's request signing and `[filmfile]` keys). It holds `Library/` and `settings.json` only (D57, D65). Syncing is started by hand, and only one computer edits at a time, so there is nothing to merge (D115).
 
-| Content | Storage class | Purpose |
-|---|---|---|
-| JSON, sidecars, recipes, previews, lab scans | S3 Standard or Standard-IA | Sync and quick restore |
-| Masters and raws | Glacier Deep Archive | Disaster recovery (12–48 h restore, 180-day minimum) |
-| Masters and raws (optional) | Standard-IA as well | Any device can fetch hi-res on demand — **decision open** |
+**What a person sees**
 
-**Device profiles:** a *full* device holds every original; a *browse* device holds JSON and previews and fetches originals on demand.
+- **Setting up.** In Settings, "Sync" takes the bucket's details, kept per computer (D52), and this computer's name. The first sync of a library claims an empty bucket for it. A second computer starts from an empty FilmFile folder: given the same bucket, it offers "Download the library from the bucket", saying how much there is, with progress. A folder that already has a library can connect only to that library's bucket (checked by its archive ID).
+- **Status.** The header shows how things stand ("Synced 2 h ago", "Not synced yet", or a warning that another computer has synced since this one did), and opens the sync panel with the "Sync" button. When the app opens, it reads the bucket's sync record and warns if this computer is out of date.
+- **One computer edits at a time (D116).** A computer without the lock is read-only, and says who is editing: "Read-only: MacBook is editing (since 14:10)". "Edit on this computer" syncs down, then takes the lock; "Sync" backs up and keeps it; "Done editing here" backs up and releases it. The lock never expires. If a computer never hands it back, another can "Take over editing", after a warning that changes not yet backed up there will be set aside.
+- **Sync** works out the direction itself: up if only this computer changed, down if only the bucket did. While it runs the person can browse, and edits wait. A sync that fails part-way changes nothing a later sync relies on, and says to try again. When a sync is about to remove files from the bucket (because they were emptied from `deleted/`), it says so.
+- **Both changed.** This happens only after a takeover. Sync says what happened ("MacBook synced at 15:02, after this computer's last sync at 11:40, and both have changes") and offers to keep this computer's, take the bucket's, or cancel. Whichever side loses, its changed files are copied to `Set aside/<date>/` in the FilmFile folder, outside the library, so nothing is lost.
+- **Back up when closing.** A setting, in the desktop app only, that syncs, releases the lock and then quits when FilmFile is closed, showing progress. If the sync fails it offers "Quit anyway" or "Try again".
 
-**Sync**
+**How it works (D117)**
 
-- Files sync individually, with each file's hash at the last sync recorded, plus a copy of the last-synced `roll.json` as a merge base.
-- One side changed: copy it across.
-- Both changed a `roll.json`: three-way merge by frame and field. Only a genuine clash (both changed the same field of the same frame) is flagged for resolution.
-- Image files never conflict, because versions are only added.
+- **Bucket layout.** The bucket mirrors the folder (`Library/…`, `settings.json`), so any S3 tool can browse it and restore from it. Beside it, `filmfile/` holds the sync record (`sync.json`: archive ID, sync number, computer and time), the manifest (every file's path, size and SHA-256 as of that sync) and the lock (`lock.json`: computer and since when).
+- **Each computer remembers its last sync** (sync number and manifest) in its per-computer state, outside the library. "The bucket changed" means the bucket's sync number isn't ours. "This computer changed" means the library's files differ from our last manifest; size and modified time decide which files to hash again.
+- **Pushing** uploads new files first, then JSON, then the manifest and the sync record last, written conditionally on the record read when the sync began. A sync cut short leaves the old record in force, and a computer that has lost the lock can't overwrite newer work. A rename is a copy inside the bucket, matched by hash, so nothing is uploaded again.
+- **Removing.** A file leaves the bucket only when no `roll.json` lists it and it is gone from the library: a rename's old path at once, and a deleted frame's files once the person empties `deleted/` by hand. A file that `roll.json` still lists but that is missing locally is damage. It is never removed from the bucket, and sync says so.
+- **The lock** is created only if absent, and taken over by replacing it conditionally (S3 and R2 both support conditional writes). Without it the service refuses writes (423) and the UI is read-only.
 
-**Security:** a private, versioned bucket (consider Object Lock on originals), per-device access keys scoped to the bucket, server-side encryption by default. The gallery bucket only ever holds web-sized exports.
+**Every computer holds the whole library (D118).** Storage classes such as Glacier, and computers that keep only metadata and fetch originals on demand, are set aside. R2 has no archive class, and both can be added later.
+
+**Security:** a private bucket, keys per computer scoped to the bucket and kept in `~/.aws/credentials` (never by FilmFile), server-side encryption by default. A site's bucket is separate and only ever holds web-sized exports.
 
 ---
 
@@ -459,11 +464,11 @@ packages/
 | 1. MVP: rolls and frames | Upload lab scans in the browser, fix numbering, catalogue and browse in the web UI |
 | 2. Versions and hi-res | Raws, NegPy round trip, version lineage, crop and rotate |
 | 3. Events | Nested events, membership, event metadata, `_folder.json` |
-| 4. Workflows and S3 backup | Workflow engine, with S3 backup as the first workflow |
-| 5. Sync | Device sync through S3 with merge |
+| 4. Sync and backup | Back up to a bucket and sync between computers by hand, one editing at a time |
+| 5. Workflows | Workflow engine |
 | 6. Gallery and publishing | Static gallery, then other targets |
 
-**Ideas backlog:** equipment register linked to repair notes, shot-log import from phone apps, central workflow coordination, running on a NAS, a Tauri desktop wrapper.
+**Ideas backlog:** fetching originals on demand on computers that keep only metadata, Glacier for raws, syncing automatically, equipment register linked to repair notes, shot-log import from phone apps, central workflow coordination, running on a NAS, a Tauri desktop wrapper.
 
 ---
 
@@ -471,9 +476,7 @@ packages/
 
 - **Choosing locations on a map:** a map picker (and showing frames on a map) needs map tiles from an outside service, which means loosening the CSP and calling out to the network. Until then locations are typed or pasted as coordinates (D26).
 - **Name clearance:** check the domain, GitHub organisation and UK IPO register for FilmFile, noting the Print File brand.
-- **Masters in Standard-IA too?** Whether hi-res files should be fetchable from other devices.
 - **Workflow definition format.**
-- **Other devices:** viewing only, or editing too?
 
 ---
 

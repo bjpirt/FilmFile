@@ -290,6 +290,20 @@ Changes to how FilmFile is built that add nothing to see: speed, legibility and 
 - [x] [FF-203 Report failures in background work](tasks/FF-203.md)
 - [x] [FF-202 Find a roll by its ID](tasks/FF-202.md)
 
+### 17. Sync and backup
+
+A copy of the library in one bucket (Cloudflare R2 first, then S3), kept in step between computers by syncing by hand, with one computer editing at a time so nothing needs merging (D115–D118, design section 10). It reuses the request signing and keys from publishing a site (FF-201); whichever is built first builds them.
+
+- [ ] [FF-225 Back up the library to a bucket](tasks/FF-225.md): set a bucket in Settings and sync the library up to it, sending only what changed.
+- [ ] [FF-226 Sync status in the header](tasks/FF-226.md): see when the library was last synced and sync from anywhere. Edits wait while a sync runs.
+- [ ] [FF-227 Start a second computer from the bucket](tasks/FF-227.md): download the whole library into an empty FilmFile folder.
+- [ ] [FF-228 Bring this computer up to date](tasks/FF-228.md): a warning when another computer has synced since, and syncing down.
+- [ ] [FF-229 One computer edits at a time](tasks/FF-229.md): read-only without the lock, with "Edit on this computer" and "Done editing here".
+- [ ] [FF-230 Take over editing](tasks/FF-230.md): take the lock from a computer that never handed it back, after a warning.
+- [ ] [FF-231 When both computers have changed](tasks/FF-231.md): keep this computer's or take the bucket's, with the other side's changes set aside.
+- [ ] [FF-232 Back up when closing FilmFile](tasks/FF-232.md): a desktop setting that syncs and hands back editing on close.
+- [ ] [later] [FF-233 Sync with an S3 bucket](tasks/FF-233.md): the same with AWS S3.
+
 ---
 
 ## Key journeys
@@ -441,6 +455,10 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D112 | A roll is found only in a folder whose name ends with the last 8 characters of its ID, and whose `roll.json` says that ID: the name says where to look and the file still says whose it is. Nothing searches the other folders, so finding a roll doesn't slow as the library grows (a lookup took about 215 ms at 300 rolls). A roll in a folder named any other way (made before D66, or renamed by hand) can't be opened; it's listed with the rolls that can't be read, saying what to rename its folder to, and FilmFile never renames it itself; its number is kept for it only by its folder's name, as for any unreadable roll. A rename cut short keeps the ID in the name, so it's still found. Replaces D66's rule that rolls are found by their `roll.json` whatever the folder is called. | FF-202 |
 | D113 | Unexpected failures in background work (a site build, each frame an export can't make, an export to a folder that stops, making originals read-only at startup) are reported through an `ErrorReporter` port to the service's error output, with words saying what failed; the page still says only that it failed. A log file the packaged app's errors can be found in is later (FF-224). | FF-203, FF-224 |
 | D114 | Browsers keep a thumbnail for a year (`Cache-Control: private, max-age=31536000, immutable`), since its address names its bytes. So a change to how thumbnails are made must change their address (e.g. `&v=2`) and the service's cached files' names in the same task, and no format number is added before then. | FF-204 |
+| D115 | The library syncs between computers through one bucket (Cloudflare R2 first, then S3), started by hand with "Sync", which works out the direction itself. It replaces the design's plan of syncing automatically and merging `roll.json` three ways: with one computer editing at a time (D116) there's nothing to merge. Workflows come after sync. | FF-225, FF-226, FF-228 |
+| D116 | One computer edits at a time, holding a lock in the bucket. Without it the library is read-only (writes are 423). "Edit on this computer" syncs down and takes the lock, and "Done editing here" (or closing with "Back up when I close FilmFile", desktop only) syncs up and releases it. The lock never expires; another computer can "Take over editing" after a warning. If both sides then have changes, the person keeps one, and the other's changed files go to `Set aside/` in the FilmFile folder, never synced or deleted. | FF-229, FF-230, FF-231, FF-232 |
+| D117 | The bucket mirrors the folder (`Library/…`, `settings.json`), so it can be browsed and restored with any S3 tool. Beside it, `filmfile/` holds the sync record, manifest and lock, written last and conditionally, so a sync cut short or from a computer that lost the lock changes nothing. Renames are copies inside the bucket. A file leaves the bucket only when no `roll.json` lists it and it's gone from the library (a rename's old path, or a file emptied from `deleted/`, which the sync says first). A listed file that's missing is never removed. | FF-225, FF-227, FF-228 |
+| D118 | Every computer holds the whole library. The bucket's details, this computer's name and its last sync are kept per computer (D52), since a new computer needs them before it has a library; this updates D65, which expected the bucket in `settings.json`. Storage classes (Glacier) and fetching originals on demand are set aside. | FF-225, FF-227 |
 
 **Still open:** see `docs/design.md`, section 15.
 
