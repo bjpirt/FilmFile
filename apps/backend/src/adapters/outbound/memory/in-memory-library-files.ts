@@ -1,13 +1,13 @@
 import { createHash } from 'node:crypto';
 import type { LibraryFiles } from '../../../application/ports/library-files.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
-import type { ManifestEntry } from '../../../domain/sync/manifest.ts';
+import type { LibraryFile } from '../../../domain/sync/library-file.ts';
 
 /** The library's files in memory, for tests: `files` maps a path from the folder to its bytes. */
 export class InMemoryLibraryFiles implements LibraryFiles {
   readonly files = new Map<string, Uint8Array>();
 
-  describe(): Promise<readonly ManifestEntry[]> {
+  describe(): Promise<readonly LibraryFile[]> {
     return Promise.resolve(
       [...this.files]
         .filter(([path]) => !path.split('/').some((n) => n.startsWith('.')))
@@ -15,6 +15,7 @@ export class InMemoryLibraryFiles implements LibraryFiles {
           path,
           size: bytes.length,
           sha256: createHash('sha256').update(bytes).digest('hex'),
+          md5: createHash('md5').update(bytes).digest('hex'),
         }))
         .sort((a, b) => (a.path < b.path ? -1 : 1)),
     );

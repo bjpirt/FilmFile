@@ -298,7 +298,6 @@ Changes to how FilmFile is built that add nothing to see: speed, legibility and 
 
 A copy of the library in one bucket (Cloudflare R2 first, then S3), kept in step between computers by syncing by hand, with one computer editing at a time so nothing needs merging (D115–D118, design section 10). It reuses the request signing and keys from publishing a site (FF-201); whichever is built first builds them.
 
-- [ ] [FF-239 A sync that didn't finish carries on](tasks/FF-239.md): files already in the bucket are checked by MD5 and skipped, so the next sync doesn't upload them again.
 - [ ] [FF-240 Cancel stops a sync at once](tasks/FF-240.md): "Stopping…" straight away, and the uploads under way cut off.
 - [ ] [FF-241 How far the first sync has got](tasks/FF-241.md): "Checking the library…", progress across the whole library, the time left, and "First sync 38% done" between runs.
 - [ ] [FF-238 Renames and removals in the backup](tasks/FF-238.md): renamed files copied inside the bucket, files emptied from `deleted/` removed, and missing files kept.
@@ -309,6 +308,7 @@ A copy of the library in one bucket (Cloudflare R2 first, then S3), kept in step
 - [ ] [FF-231 When both computers have changed](tasks/FF-231.md): keep this computer's or take the bucket's, with the other side's changes set aside.
 - [ ] [FF-232 Back up when closing FilmFile](tasks/FF-232.md): a desktop setting that syncs and hands back editing on close.
 - [ ] [later] [FF-233 Sync with an S3 bucket](tasks/FF-233.md): the same with AWS S3.
+- [x] [FF-239 A sync that didn't finish carries on](tasks/FF-239.md)
 - [x] [FF-226 Sync status in the header](tasks/FF-226.md)
 - [x] [FF-225 Back up the library to a bucket](tasks/FF-225.md)
 

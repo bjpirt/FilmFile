@@ -8,10 +8,11 @@ import { InMemoryPublishBucket } from '../../src/adapters/outbound/memory/in-mem
 import { InMemorySyncSettings } from '../../src/adapters/outbound/memory/in-memory-sync-settings.ts';
 import type {
   BucketTarget,
+  RemoteFile,
   StreamToPut,
 } from '../../src/application/ports/publish-bucket.ts';
 import type { PublishFailed } from '../../src/domain/shared/domain-error.ts';
-import type { Result } from '../../src/domain/shared/result.ts';
+import { err, type Result } from '../../src/domain/shared/result.ts';
 import { computerNameFrom } from '../../src/domain/sync/computer-name.ts';
 import {
   parseManifest,
@@ -29,6 +30,16 @@ const now = '2026-11-16T14:02:00.000Z';
 class WatchedBucket extends InMemoryPublishBucket {
   readonly streamed: string[] = [];
   holding: Promise<void> | undefined;
+  /** How many times the bucket was listed. */
+  listed = 0;
+
+  override async list(
+    to: BucketTarget,
+    signal: AbortSignal,
+  ): Promise<Result<readonly RemoteFile[], PublishFailed>> {
+    this.listed += 1;
+    return super.list(to, signal);
+  }
 
   override async putStream(
     to: BucketTarget,
@@ -39,6 +50,25 @@ class WatchedBucket extends InMemoryPublishBucket {
     await this.holding;
     return super.putStream(to, file, signal);
   }
+}
+
+/** The third upload fails as if offline; the others go, so some files really are sent. */
+function failTheThirdUpload(bucket: WatchedBucket): void {
+  const putStream = bucket.putStream.bind(bucket);
+  let started = 0;
+  bucket.putStream = async (to, file, signal) => {
+    started += 1;
+    if (started === 3) {
+      bucket.streamed.push(file.key);
+      await file.body.cancel();
+      return err({
+        kind: 'publish-failed',
+        reason: 'unreachable',
+        bucket: to.bucket,
+      });
+    }
+    return putStream(to, file, signal);
+  };
 }
 
 function setUp(options: { readonly app?: boolean } = {}) {
@@ -431,34 +461,105 @@ describe('POST /api/sync', () => {
     await ready();
     await putInLibrary('a.json', 'a');
     await sync();
-    for (const name of ['b', 'c', 'd', 'e', 'f', 'g']) {
+    const names = ['b', 'c', 'd', 'e', 'f', 'g'];
+    for (const name of names) {
       await putInLibrary(`${name}.json`, name);
     }
-    const putStream = bucket.putStream.bind(bucket);
-    let sent = 0;
-    bucket.putStream = (to, file, signal) => {
-      sent += 1;
-      if (sent === 3) {
-        bucket.failWith('unreachable');
-      }
-      return putStream(to, file, signal);
-    };
+    failTheThirdUpload(bucket);
 
     const failed = await sync();
 
     expect(failed).toMatchObject({ state: 'failed', failure: 'unreachable' });
-    bucket.failWith(undefined);
+    // Some really were sent before it failed.
+    expect(failed.filesDone).toBeGreaterThan(0);
     expect(
       parseSyncRecord((await fileInBucket('filmfile/sync.json')) ?? '')?.sync,
     ).toBe(1);
-    bucket.putStream = putStream;
+    const sentBefore = names.length - failed.filesDone;
     bucket.streamed.length = 0;
     const again = await sync();
-    expect(again.state).toBe('done');
-    expect(bucket.streamed.length).toBe(6 - failed.filesDone);
+    expect(again).toMatchObject({ state: 'done', filesTotal: sentBefore });
+    expect(bucket.streamed.length).toBe(sentBefore);
     expect(
       parseSyncRecord((await fileInBucket('filmfile/sync.json')) ?? '')?.sync,
     ).toBe(2);
+    // The manifest has every file, whether sent now or found in the bucket.
+    expect(
+      parseManifest((await fileInBucket('filmfile/manifest.json')) ?? '')?.map(
+        (file) => file.path,
+      ),
+    ).toEqual([
+      'Library/a.json',
+      ...names.map((name) => `Library/${name}.json`),
+      'settings.json',
+    ]);
+  });
+
+  test('a first sync cancelled part-way carries on where it stopped', async () => {
+    const { bucket, ready, sync, request } = setUp();
+    await ready();
+    const names = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+    for (const name of names) {
+      await putInLibrary(`${name}.json`, name);
+    }
+    const putStream = bucket.putStream.bind(bucket);
+    let started = 0;
+    bucket.putStream = async (to, file, signal) => {
+      started += 1;
+      if (started === 2) {
+        await request('/api/sync', { method: 'DELETE' });
+      }
+      return putStream(to, file, signal);
+    };
+
+    const cancelled = await sync();
+
+    expect(cancelled.state).toBe('cancelled');
+    expect(cancelled.filesDone).toBeGreaterThan(0);
+    bucket.putStream = putStream;
+    bucket.streamed.length = 0;
+    const again = await sync();
+    // The ten files and settings.json, less those already sent.
+    expect(again.state).toBe('done');
+    expect(bucket.streamed.length).toBe(11 - cancelled.filesDone);
+  });
+
+  test('a file changed after a sync that didn’t finish sent it is sent again', async () => {
+    const { bucket, ready, sync, fileInBucket } = setUp();
+    await ready();
+    for (const name of ['a', 'b', 'c', 'd', 'e', 'f']) {
+      await putInLibrary(`${name}.json`, name);
+    }
+    failTheThirdUpload(bucket);
+    await sync();
+    const sentAlready = bucket.streamed.find(
+      (key) => key !== bucket.streamed[2] && key.startsWith('Library/'),
+    );
+    if (sentAlready === undefined) {
+      throw new Error('nothing was sent before the failure');
+    }
+    await putInLibrary(sentAlready.replace('Library/', ''), 'changed');
+    bucket.streamed.length = 0;
+
+    await sync();
+
+    expect(bucket.streamed).toContain(sentAlready);
+    expect(await fileInBucket(sentAlready)).toBe('changed');
+  });
+
+  test('lists the bucket only when there is something to send', async () => {
+    const { bucket, ready, sync } = setUp();
+    await ready();
+    await putInLibrary('a.json', 'a');
+    await sync();
+    bucket.listed = 0;
+
+    await sync();
+    expect(bucket.listed).toBe(0);
+
+    await putInLibrary('b.json', 'b');
+    await sync();
+    expect(bucket.listed).toBe(1);
   });
 });
 

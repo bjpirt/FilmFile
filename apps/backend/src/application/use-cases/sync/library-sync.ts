@@ -9,6 +9,8 @@ import type {
   SyncRecord,
 } from '../../../domain/sync/manifest.ts';
 import { manifestAfter, planBackup } from '../../../domain/sync/plan-backup.ts';
+import { filesAlreadyInBucket } from '../../../domain/sync/files-already-in-bucket.ts';
+import type { LibraryFile } from '../../../domain/sync/library-file.ts';
 import {
   manifestText,
   parseManifest,
@@ -85,7 +87,8 @@ class Stopped extends Error {
 /**
  * Backs the library up to this computer's bucket (FF-225, D117): claims an
  * empty bucket for the library, sends what's new or changed since the
- * bucket's manifest, and only then writes the manifest and the sync record,
+ * bucket's manifest, skipping what the bucket already has from a sync that
+ * didn't finish (D122), and only then writes the manifest and the sync record,
  * conditionally on the record read at the start. A sync cut short leaves the
  * record as it was. Runs in the background so the page can follow and
  * cancel; one at a time.
@@ -219,13 +222,17 @@ export class LibrarySync {
         library: await this.#files.describe(ctx),
         manifest,
       });
+      const { uploads, found } = await this.#notYetInBucket(
+        target,
+        plan.uploads,
+      );
       this.#update(job, {
-        bytesTotal: plan.bytes,
-        filesTotal: plan.uploads.length,
+        bytesTotal: uploads.reduce((total, file) => total + file.size, 0),
+        filesTotal: uploads.length,
       });
-      const sent = await this.#send(ctx, target, plan.uploads, job);
+      const sent = await this.#send(ctx, target, uploads, job);
       const at = this.#clock.now().toISOString();
-      const after = manifestAfter(manifest, sent);
+      const after = manifestAfter(manifest, [...found, ...sent]);
       this.#must(
         await this.#bucket.put(
           target,
@@ -341,6 +348,27 @@ export class LibrarySync {
     return { record, etag: claimed.value.etag };
   }
 
+  /**
+   * Of the files to upload, those the bucket doesn't already have, and those
+   * it does, sent by a sync that didn't finish (D122). The bucket is listed
+   * only when there's something to upload.
+   */
+  async #notYetInBucket(
+    target: BucketTarget,
+    uploads: readonly LibraryFile[],
+  ): Promise<{
+    readonly uploads: readonly LibraryFile[];
+    readonly found: readonly LibraryFile[];
+  }> {
+    if (uploads.length === 0) {
+      return { uploads, found: [] };
+    }
+    const listing = this.#must(
+      await this.#bucket.list(target, new AbortController().signal),
+    );
+    return filesAlreadyInBucket({ uploads, listing });
+  }
+
   /** The bucket's manifest from the last sync: none before the first. */
   async #manifest(target: BucketTarget): Promise<readonly ManifestEntry[]> {
     const got = this.#must(
@@ -368,7 +396,7 @@ export class LibrarySync {
   async #send(
     ctx: ArchiveContext,
     target: BucketTarget,
-    uploads: readonly ManifestEntry[],
+    uploads: readonly LibraryFile[],
     job: Job,
   ): Promise<readonly ManifestEntry[]> {
     const sent: ManifestEntry[] = [];
@@ -397,7 +425,11 @@ export class LibrarySync {
           stop.reason ??= put.error.reason;
           return;
         }
-        sent.push({ ...file, sha256: put.value.sha256 });
+        sent.push({
+          path: file.path,
+          size: file.size,
+          sha256: put.value.sha256,
+        });
         this.#update(job, {
           bytesDone: job.progress.bytesDone + file.size,
           filesDone: job.progress.filesDone + 1,

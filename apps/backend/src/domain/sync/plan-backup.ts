@@ -1,9 +1,9 @@
 import type { ManifestEntry } from './manifest.ts';
 
 /** What a backup sends, and how much. */
-export interface BackupPlan {
+export interface BackupPlan<F extends ManifestEntry = ManifestEntry> {
   /** New or changed files, by path. */
-  readonly uploads: readonly ManifestEntry[];
+  readonly uploads: readonly F[];
   readonly bytes: number;
 }
 
@@ -12,10 +12,10 @@ export interface BackupPlan {
  * a file is sent when the bucket has nothing at its path, or something with
  * another SHA-256. Nothing is removed here (FF-238).
  */
-export function planBackup(input: {
-  readonly library: readonly ManifestEntry[];
+export function planBackup<F extends ManifestEntry>(input: {
+  readonly library: readonly F[];
   readonly manifest: readonly ManifestEntry[];
-}): BackupPlan {
+}): BackupPlan<F> {
   const inBucket = new Map(input.manifest.map((file) => [file.path, file]));
   const uploads = input.library
     .filter((file) => inBucket.get(file.path)?.sha256 !== file.sha256)

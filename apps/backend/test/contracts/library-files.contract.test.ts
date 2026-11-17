@@ -3,6 +3,7 @@ import {
   mkdir,
   mkdtemp,
   readdir,
+  readFile,
   rm,
   utimes,
   writeFile,
@@ -78,4 +79,35 @@ test('FilesystemLibraryFiles keeps its hashes in the cache folder, never the Fil
   );
   expect(await readdir(cache)).toEqual(['sync-hashes.json']);
   expect(await readdir(folder)).toEqual(['Library']);
+});
+
+test('FilesystemLibraryFiles reads a file again, once, whose cached hashes have no MD5 (cached before FF-239)', async () => {
+  const { folder, cache } = await aFolder();
+  const file = path.join(folder, 'Library', 'a.json');
+  const at = new Date('2026-11-16T14:02:00.000Z');
+  await putIn(folder, 'Library/a.json', 'one');
+  await utimes(file, at, at);
+  await writeFile(
+    path.join(cache, 'sync-hashes.json'),
+    JSON.stringify({
+      'Library/a.json': {
+        size: 3,
+        modified: at.getTime(),
+        sha256: 'an-old-sha256',
+      },
+    }),
+  );
+  const files = new FilesystemLibraryFiles(folder, cache);
+
+  const [described] = await files.describe();
+
+  expect(described).toEqual({
+    path: 'Library/a.json',
+    size: 3,
+    sha256: createHash('sha256').update('one').digest('hex'),
+    md5: createHash('md5').update('one').digest('hex'),
+  });
+  expect(
+    JSON.parse(await readFile(path.join(cache, 'sync-hashes.json'), 'utf8')),
+  ).toMatchObject({ 'Library/a.json': { md5: described?.md5 } });
 });
