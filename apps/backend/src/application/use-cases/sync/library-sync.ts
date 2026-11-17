@@ -46,6 +46,8 @@ export interface SyncProgress {
 /** How syncing stands on this computer. */
 export interface SyncStatus {
   readonly available: boolean;
+  /** Whether a sync can be started: available, with the account ID and a bucket set. */
+  readonly ready: boolean;
   /** When this computer last finished a sync, an ISO 8601 time. */
   readonly lastSyncedAt: string | null;
   /** The latest sync since the service started, if there was one. */
@@ -116,10 +118,13 @@ export class LibrarySync {
     this.#thisComputer = dependencies.thisComputer;
   }
 
-  async status(): Promise<SyncStatus> {
+  async status(ctx: ArchiveContext): Promise<SyncStatus> {
     const saved = await this.#store?.get();
+    const accountId =
+      (await this.#settings.get(ctx))?.settings.cloudflareAccountId ?? null;
     return {
-      available: this.#store !== undefined,
+      available: saved !== undefined,
+      ready: (saved?.bucket ?? null) !== null && accountId !== null,
       lastSyncedAt: saved?.lastSync?.at ?? null,
       run: this.#job?.progress ?? null,
     };

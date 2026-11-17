@@ -2801,6 +2801,10 @@
           "available": {
             "type": "boolean"
           },
+          "ready": {
+            "type": "boolean",
+            "description": "Whether a sync can be started: in the desktop app, with the Cloudflare account ID and a bucket set."
+          },
           "lastSyncedAt": {
             "type": [
               "string",
@@ -2875,6 +2879,7 @@
         },
         "required": [
           "available",
+          "ready",
           "lastSyncedAt",
           "run"
         ]
@@ -6045,7 +6050,7 @@
     "/api/sync": {
       "get": {
         "summary": "How syncing stands",
-        "description": "When this computer last finished a sync, and how the latest sync since the service started went.",
+        "description": "Whether a sync can be started, when this computer last finished one, and how the latest sync since the service started went.",
         "responses": {
           "200": {
             "description": "How it stands.",

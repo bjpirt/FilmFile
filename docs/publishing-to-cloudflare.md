@@ -79,6 +79,8 @@ The same account and keys back up the whole library (everything in `Library/`, a
 3. In FilmFile, open **Settings**. Under **Sync**, enter the **Bucket** and this computer's name, and press **Save**.
 4. Press **Sync**. The first sync sends everything, which can take a while for a big library; after that, only what's new or changed is sent.
 
+Once it's set up, the cloud at the right of FilmFile's header says when the library was last synced ("Synced 2 h ago"), and clicking it syncs from any page.
+
 A bucket with other things in it is refused, so nothing of anyone else's is mixed in. Cancelling, or a sync that fails part-way, loses nothing: the next sync carries on.
 
 ## Trying it without a domain

@@ -1,6 +1,7 @@
 import { rollsLink } from './rolls/rolls-address.ts';
 import type { ApiClient } from '@filmfile/contracts/client';
 import { SettingsPage } from './settings/settings-page.tsx';
+import { SyncStatusButton } from './sync/sync-status-button.tsx';
 import { SetUpPage } from './settings/set-up-page.tsx';
 import { useSettings, type ReadSettings } from './settings/use-settings.ts';
 import { EventPage } from './events/event-page.tsx';
@@ -190,6 +191,7 @@ export function App({ api }: { readonly api: ApiClient }) {
             Settings
           </Link>
         </nav>
+        <SyncStatusButton api={api} />
       </header>
       <main className="page">
         <Page

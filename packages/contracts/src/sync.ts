@@ -63,6 +63,10 @@ export const syncProgress = z
 export const syncStatus = z
   .object({
     available: z.boolean(),
+    ready: z.boolean().meta({
+      description:
+        'Whether a sync can be started: in the desktop app, with the Cloudflare account ID and a bucket set.',
+    }),
     lastSyncedAt: z.iso.datetime().nullable(),
     run: syncProgress.nullable().meta({
       description:

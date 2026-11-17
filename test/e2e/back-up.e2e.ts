@@ -3,7 +3,7 @@ import { expect, test } from './support/isolated-test.ts';
 import { journeyAccountId, journeyBackupBucket } from './support/journey-r2.ts';
 import { createRoll } from './support/journeys.ts';
 
-test('back up the library: set the Cloudflare account and a bucket, sync everything, change the copyright and sync only what changed (FF-225)', async ({
+test('back up the library: set the Cloudflare account and a bucket, sync everything, change the copyright and sync only what changed, then sync from the header (FF-225, FF-226)', async ({
   page,
 }) => {
   await createRoll(page, '2026-081', { scans: fixtureSets.headToTail });
@@ -40,4 +40,17 @@ test('back up the library: set the Cloudflare account and a bucket, sync everyth
   await expect(sync.getByText(/^Sent 1 file \(.+\)\.$/)).toBeVisible({
     timeout: 30_000,
   });
+
+  // From any page, the header says how the backup stands and syncs (FF-226).
+  await page.goto('/events');
+  const header = page.getByRole('banner');
+  await header.getByRole('button', { name: 'Synced just now' }).click();
+  const panel = page.getByRole('dialog', { name: 'Sync' });
+  await panel.getByRole('button', { name: 'Sync' }).click();
+  await expect(panel.getByText('Nothing had changed.')).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(
+    header.getByRole('button', { name: 'Synced just now' }),
+  ).toBeVisible();
 });

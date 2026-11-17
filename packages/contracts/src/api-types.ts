@@ -2880,7 +2880,7 @@ export interface paths {
         };
         /**
          * How syncing stands
-         * @description When this computer last finished a sync, and how the latest sync since the service started went.
+         * @description Whether a sync can be started, when this computer last finished one, and how the latest sync since the service started went.
          */
         get: {
             parameters: {
@@ -3983,6 +3983,8 @@ export interface components {
         };
         SyncStatus: {
             available: boolean;
+            /** @description Whether a sync can be started: in the desktop app, with the Cloudflare account ID and a bucket set. */
+            ready: boolean;
             /** Format: date-time */
             lastSyncedAt: string | null;
             /** @description How the latest sync since the service started went, if there was one. */

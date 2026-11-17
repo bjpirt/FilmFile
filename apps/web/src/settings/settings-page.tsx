@@ -99,6 +99,11 @@ export function SettingsPage({
             settings: data,
             etag: response.headers.get('ETag') ?? read.etag,
           });
+          // The header's sync status needs the account ID (FF-226).
+          void queryClient.invalidateQueries({
+            queryKey: ['sync'],
+            exact: true,
+          });
           return undefined;
         }}
       />

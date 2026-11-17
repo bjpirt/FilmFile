@@ -299,14 +299,14 @@ Changes to how FilmFile is built that add nothing to see: speed, legibility and 
 A copy of the library in one bucket (Cloudflare R2 first, then S3), kept in step between computers by syncing by hand, with one computer editing at a time so nothing needs merging (D115–D118, design section 10). It reuses the request signing and keys from publishing a site (FF-201); whichever is built first builds them.
 
 - [ ] [FF-238 Renames and removals in the backup](tasks/FF-238.md): renamed files copied inside the bucket, files emptied from `deleted/` removed, and missing files kept.
-- [ ] [FF-226 Sync status in the header](tasks/FF-226.md): see when the library was last synced and sync from anywhere. Edits wait while a sync runs.
 - [ ] [FF-227 Start a second computer from the bucket](tasks/FF-227.md): download the whole library into an empty FilmFile folder.
-- [ ] [FF-228 Bring this computer up to date](tasks/FF-228.md): a warning when another computer has synced since, and syncing down.
+- [ ] [FF-228 Bring this computer up to date](tasks/FF-228.md): a warning when another computer has synced since, and syncing down, with edits waiting while a sync runs.
 - [ ] [FF-229 One computer edits at a time](tasks/FF-229.md): read-only without the lock, with "Edit on this computer" and "Done editing here".
 - [ ] [FF-230 Take over editing](tasks/FF-230.md): take the lock from a computer that never handed it back, after a warning.
 - [ ] [FF-231 When both computers have changed](tasks/FF-231.md): keep this computer's or take the bucket's, with the other side's changes set aside.
 - [ ] [FF-232 Back up when closing FilmFile](tasks/FF-232.md): a desktop setting that syncs and hands back editing on close.
 - [ ] [later] [FF-233 Sync with an S3 bucket](tasks/FF-233.md): the same with AWS S3.
+- [x] [FF-226 Sync status in the header](tasks/FF-226.md)
 - [x] [FF-225 Back up the library to a bucket](tasks/FF-225.md)
 
 ---
@@ -466,6 +466,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D118 | Every computer holds the whole library. The bucket's details, this computer's name and its last sync are kept per computer (D52), since a new computer needs them before it has a library; this updates D65, which expected the bucket in `settings.json`. Storage classes (Glacier) and fetching originals on demand are set aside. | FF-225, FF-227 |
 | D119 | The Cloudflare account ID is set once in Settings and kept in `settings.json`, synced, since it's the same account for every site and for sync; a site's target is only its bucket and address, and sync's bucket stays per computer (D118). The keys stay per computer in the `[filmfile]` profile (D52, D111), one token with access to every bucket used: a leaked token reaches more, which R2's per-bucket token scopes keep small. Settings says whether the keys are found and what to do in Cloudflare. | FF-236, FF-234, FF-225, FF-237 |
 | D120 | Sync's per-computer settings (the bucket, this computer's name, the last sync number) are kept by the desktop app with its other per-computer settings, and the service reads them over its private channel, so sync works only in the app (a test-only `FILMFILE_SYNC_SETTINGS` file stands in for it). The last sync's manifest isn't kept locally: each sync reads it from the bucket, and SHA-256s are cached by path, size and modified time in the OS cache folder, so clearing the cache costs only hashing again. Names starting with `.` are never synced. A file edited during a sync is recorded by the hash of what was sent. | FF-225, FF-238 |
+| D121 | Edits stay open while a sync uploads: the manifest records the hash of what was actually sent (D120), so an edit made meanwhile is sent next time, and a file renamed mid-sync only makes that sync not finish. Writes are refused (423) and the page made read-only during a sync only once sync also downloads (FF-228), where an edit could clash with a file being written; the check is shared with the lock (FF-229). | FF-226, FF-228, FF-229 |
 
 **Still open:** see `docs/design.md`, section 15.
 

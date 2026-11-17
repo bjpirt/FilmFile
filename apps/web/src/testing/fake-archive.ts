@@ -1382,7 +1382,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       if (latestSync.state === 'done') {
         syncSettings = {
           ...syncSettings,
-          lastSyncedAt: '2026-11-16T14:02:00.000Z',
+          // Now, so the header reads "Synced just now".
+          lastSyncedAt: new Date().toISOString(),
         };
       }
       if (latestSync.state !== 'running') {
@@ -1391,6 +1392,10 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     }
     return Response.json({
       available: syncSettings.available,
+      ready:
+        syncSettings.available &&
+        syncSettings.bucket !== null &&
+        (settings?.cloudflareAccountId ?? null) !== null,
       lastSyncedAt: syncSettings.lastSyncedAt,
       run: latestSync,
     });

@@ -61,7 +61,7 @@ const getStatus = createRoute({
   path: '/',
   summary: 'How syncing stands',
   description:
-    'When this computer last finished a sync, and how the latest sync since the service started went.',
+    'Whether a sync can be started, when this computer last finished one, and how the latest sync since the service started went.',
   responses: { 200: json(syncStatus, 'How it stands.') },
 });
 
@@ -120,7 +120,7 @@ export function syncRoutes({
   });
 
   routes.openapi(getStatus, async (c) =>
-    c.json(await useCases.librarySync.status(), 200),
+    c.json(await useCases.librarySync.status(ctx), 200),
   );
 
   routes.openapi(startSync, async (c) => {

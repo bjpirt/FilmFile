@@ -222,6 +222,41 @@ describe("this computer's sync settings", () => {
   });
 });
 
+describe('GET /api/sync', () => {
+  test('is ready only once the Cloudflare account and a bucket are set', async () => {
+    const { status, put, setUpWithAccount } = setUp();
+    await setUpWithAccount(false);
+    await put('/api/sync/settings', {
+      bucket: 'backup-pirt',
+      computerName: 'Studio',
+    });
+    expect((await status()).ready).toBe(false);
+
+    await setUpWithAccount();
+
+    expect(await status()).toEqual({
+      available: true,
+      ready: true,
+      lastSyncedAt: null,
+      run: null,
+    });
+  });
+
+  test('is not ready without a bucket', async () => {
+    const withoutBucket = setUp();
+    await withoutBucket.setUpWithAccount();
+    expect((await withoutBucket.status()).ready).toBe(false);
+  });
+
+  test('is not ready without the desktop app', async () => {
+    const { request, setUpWithAccount } = setUp({ app: false });
+    await setUpWithAccount();
+    expect(
+      syncStatus.parse(await (await request('/api/sync')).json()).ready,
+    ).toBe(false);
+  });
+});
+
 describe('POST /api/sync', () => {
   test('says to set the account, or the bucket, first', async () => {
     const { post, put, setUpWithAccount } = setUp();

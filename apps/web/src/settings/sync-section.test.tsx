@@ -9,7 +9,6 @@ import {
 } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app.tsx';
-import { publishedTime } from '../sites/published-time.ts';
 import {
   fakeArchive,
   setUpSettings,
@@ -23,7 +22,6 @@ const withAccount = {
   ...setUpSettings,
   cloudflareAccountId: '0123456789abcdef0123456789abcdef',
 };
-const syncedAt = '2026-11-16T14:02:00.000Z';
 
 function openSettings(contents: ArchiveContents = {}): FakeArchive {
   window.history.pushState(null, '', '/settings');
@@ -150,7 +148,7 @@ describe('Settings › Sync', () => {
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
     expect(
       await screen.findByText(
-        `Synced ${publishedTime(syncedAt)}`,
+        /^Synced \d{1,2} \w{3} \d{4}, \d\d:\d\d$/u,
         {},
         {
           timeout: 3000,
