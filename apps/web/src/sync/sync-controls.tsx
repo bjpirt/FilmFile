@@ -24,13 +24,15 @@ const refusals: ReadonlySet<Failure> = new Set([
 
 const unfinished =
   "Sync didn't finish. Nothing already backed up was lost. Try again.";
+const stopped =
+  'Sync stopped. The next sync carries on where this one left off.';
 
 const files = (n: number) => `${String(n)} ${n === 1 ? 'file' : 'files'}`;
 
 /** How a sync went, when it didn't finish. */
 function Failed({ run }: { readonly run: SyncProgress }) {
   if (run.state === 'cancelled') {
-    return <p role="status">{unfinished}</p>;
+    return <p role="status">{stopped}</p>;
   }
   const failure = run.failure ?? 'other';
   return (
@@ -67,10 +69,13 @@ export function SyncControls({
 }) {
   const [starting, setStarting] = useState(false);
   const [problem, setProblem] = useState<string | undefined>(undefined);
+  // Set the moment Cancel is pressed, before the service says it's stopping.
+  const [cancelling, setCancelling] = useState(false);
   const status = useSyncStatus(api);
 
   async function sync() {
     setProblem(undefined);
+    setCancelling(false);
     setStarting(true);
     try {
       const { response, error } = await api.POST('/api/sync');
@@ -88,12 +93,14 @@ export function SyncControls({
   }
 
   async function cancel() {
+    setCancelling(true);
     await api.DELETE('/api/sync');
     await status.refetch();
   }
 
   const run = status.data?.run ?? null;
-  const running = run?.state === 'running';
+  const running = run?.state === 'running' || run?.state === 'stopping';
+  const stopping = run?.state === 'stopping' || (running && cancelling);
   const syncedAt = status.data?.lastSyncedAt ?? lastSyncedAt;
   return (
     <>
@@ -125,8 +132,12 @@ export function SyncControls({
       {problem !== undefined && <p role="alert">{problem}</p>}
       <div className="form-actions">
         {running ? (
-          <button type="button" onClick={() => void cancel()}>
-            Cancel
+          <button
+            type="button"
+            disabled={stopping}
+            onClick={() => void cancel()}
+          >
+            {stopping ? 'Stopping…' : 'Cancel'}
           </button>
         ) : (
           <button

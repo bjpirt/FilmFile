@@ -119,7 +119,11 @@ function setUp(options: { readonly app?: boolean } = {}) {
     // Up to 30 seconds, for when every test file runs at once.
     for (let tries = 0; tries < 3000; tries += 1) {
       const now = await status();
-      if (now.run !== null && now.run.state !== 'running') {
+      if (
+        now.run !== null &&
+        now.run.state !== 'running' &&
+        now.run.state !== 'stopping'
+      ) {
         return now.run;
       }
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -503,13 +507,14 @@ describe('POST /api/sync', () => {
       await putInLibrary(`${name}.json`, name);
     }
     const putStream = bucket.putStream.bind(bucket);
-    let started = 0;
+    let arrived = 0;
     bucket.putStream = async (to, file, signal) => {
-      started += 1;
-      if (started === 2) {
+      const put = await putStream(to, file, signal);
+      arrived += 1;
+      if (arrived === 2) {
         await request('/api/sync', { method: 'DELETE' });
       }
-      return putStream(to, file, signal);
+      return put;
     };
 
     const cancelled = await sync();
@@ -600,38 +605,84 @@ test('a record written by another sync meanwhile is never overwritten', async ()
 });
 
 describe('DELETE /api/sync', () => {
-  test('starts no more files, lets those going finish, and leaves the record as it was', async () => {
-    const { bucket, request, post, ready, untilDone, fileInBucket } = setUp();
+  test('cuts off the files going and starts no more, reading "stopping" until it has stopped, and leaves the record as it was', async () => {
+    const { bucket, request, post, ready, status, untilDone, fileInBucket } =
+      setUp();
     await ready();
     for (const name of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']) {
       await putInLibrary(`${name}.json`, name);
     }
+    // Each upload runs until it's cut off, then takes a moment to stop.
     let release: () => void = () => undefined;
-    bucket.holding = new Promise<void>((resolve) => {
+    const stopped = new Promise<void>((resolve) => {
       release = resolve;
     });
+    const going: AbortSignal[] = [];
+    bucket.putStream = (_to, _file, signal) => {
+      going.push(signal);
+      return new Promise((_resolve, reject) => {
+        signal.addEventListener('abort', () => {
+          void stopped.then(() => {
+            reject(new DOMException('aborted', 'AbortError'));
+          });
+        });
+      });
+    };
     await post('/api/sync', {});
-    for (
-      let tries = 0;
-      tries < 200 && bucket.streamed.length === 0;
-      tries += 1
-    ) {
+    for (let tries = 0; tries < 200 && going.length < 4; tries += 1) {
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
-    const going = bucket.streamed.length;
 
     const cancelled = await request('/api/sync', { method: 'DELETE' });
-    release();
-    const run = await untilDone();
 
     expect(cancelled.status).toBe(204);
-    expect(run.state).toBe('cancelled');
-    expect(going).toBeLessThanOrEqual(4);
-    expect(bucket.streamed.length).toBe(going);
+    expect((await status()).run?.state).toBe('stopping');
+    expect(going.every((signal) => signal.aborted)).toBe(true);
+    release();
+    const run = await untilDone();
+    expect(run).toMatchObject({ state: 'cancelled', filesDone: 0 });
+    expect(going.length).toBe(4);
+    expect(await fileInBucket('Library/a.json')).toBeUndefined();
     // The claim was made, but no sync was recorded as finished.
     expect(
       parseSyncRecord((await fileInBucket('filmfile/sync.json')) ?? '')?.sync,
     ).toBe(0);
+    expect(await fileInBucket('filmfile/manifest.json')).toBeUndefined();
+  });
+
+  test('asking to cancel again while it stops is no failure, and starting one follows the one stopping', async () => {
+    const { bucket, request, post, ready, untilDone } = setUp();
+    await ready();
+    await putInLibrary('a.json', 'a');
+    let release: () => void = () => undefined;
+    const stopped = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const started: string[] = [];
+    bucket.putStream = (_to, file, signal) => {
+      started.push(file.key);
+      return new Promise((_resolve, reject) => {
+        signal.addEventListener('abort', () => {
+          void stopped.then(() => {
+            reject(new DOMException('aborted', 'AbortError'));
+          });
+        });
+      });
+    };
+    await post('/api/sync', {});
+    for (let tries = 0; tries < 200 && started.length === 0; tries += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    await request('/api/sync', { method: 'DELETE' });
+
+    const again = await request('/api/sync', { method: 'DELETE' });
+    const start = await post('/api/sync', {});
+
+    expect(again.status).toBe(204);
+    expect(start.status).toBe(202);
+    expect(await start.json()).toMatchObject({ state: 'stopping' });
+    release();
+    expect((await untilDone()).state).toBe('cancelled');
   });
 
   test('is refused when no sync is running', async () => {

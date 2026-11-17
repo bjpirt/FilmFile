@@ -180,11 +180,13 @@ describe('the header’s sync status', () => {
     ).toBe(false);
   });
 
-  test('a cancelled sync leaves the header on the last finished sync', async () => {
+  test('Cancel reads "Stopping…" in the panel and the header, then the header goes back to the last finished sync', async () => {
     openApp({
       sync: { bucket: 'backup-pirt', lastSyncedAt: twoHoursAgo() },
       syncStates: [
         { state: 'running', bytesTotal: 100, filesTotal: 3 },
+        { state: 'stopping', bytesTotal: 100, filesTotal: 3 },
+        { state: 'stopping', bytesTotal: 100, filesTotal: 3 },
         { state: 'cancelled' },
       ],
     });
@@ -196,8 +198,16 @@ describe('the header’s sync status', () => {
     );
 
     expect(
+      within(panel)
+        .getByRole('button', { name: 'Stopping…' })
+        .hasAttribute('disabled'),
+    ).toBe(true);
+    expect(
+      await within(header()).findByRole('button', { name: 'Stopping…' }),
+    ).toBeTruthy();
+    expect(
       await within(panel).findByText(
-        "Sync didn't finish. Nothing already backed up was lost. Try again.",
+        'Sync stopped. The next sync carries on where this one left off.',
         {},
         { timeout: 3000 },
       ),

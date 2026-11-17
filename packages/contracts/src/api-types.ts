@@ -2938,7 +2938,7 @@ export interface paths {
         };
         /**
          * Stop syncing
-         * @description No more files are started; those going finish. The bucket’s sync record stays as it was.
+         * @description The uploads going are cut off and no more start; the sync reads stopping until they have. The bucket’s sync record stays as it was. Asking again while it stops is no failure.
          */
         delete: {
             parameters: {
@@ -3989,8 +3989,11 @@ export interface components {
             lastSyncedAt: string | null;
             /** @description How the latest sync since the service started went, if there was one. */
             run: {
-                /** @enum {string} */
-                state: "running" | "done" | "cancelled" | "failed";
+                /**
+                 * @description `stopping` from a cancel until the uploads going have been cut off.
+                 * @enum {string}
+                 */
+                state: "running" | "stopping" | "done" | "cancelled" | "failed";
                 bytesDone: number;
                 bytesTotal: number;
                 filesDone: number;
@@ -4005,8 +4008,11 @@ export interface components {
             } | null;
         };
         SyncProgress: {
-            /** @enum {string} */
-            state: "running" | "done" | "cancelled" | "failed";
+            /**
+             * @description `stopping` from a cancel until the uploads going have been cut off.
+             * @enum {string}
+             */
+            state: "running" | "stopping" | "done" | "cancelled" | "failed";
             bytesDone: number;
             bytesTotal: number;
             filesDone: number;

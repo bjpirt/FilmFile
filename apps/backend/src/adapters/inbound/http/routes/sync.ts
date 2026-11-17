@@ -85,7 +85,7 @@ const cancelSync = createRoute({
   path: '/',
   summary: 'Stop syncing',
   description:
-    'No more files are started; those going finish. The bucket’s sync record stays as it was.',
+    'The uploads going are cut off and no more start; the sync reads stopping until they have. The bucket’s sync record stays as it was. Asking again while it stops is no failure.',
   responses: {
     204: { description: 'Asked to stop.' },
     422: json(invalidRequestResponse, 'No sync is running.'),

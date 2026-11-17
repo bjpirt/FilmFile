@@ -159,26 +159,50 @@ describe('Settings › Sync', () => {
     expect(archive.syncs).toEqual(['backup-pirt']);
   });
 
-  test('Cancel stops it, and it says nothing already backed up was lost', async () => {
+  test('Cancel reads "Stopping…" at once, disabled, then says the next sync carries on', async () => {
     const archive = openSettings({
       sync: { bucket: 'backup-pirt' },
       syncStates: [
         { state: 'running', bytesTotal: 100, filesTotal: 3 },
+        { state: 'running', bytesTotal: 100, filesTotal: 3 },
+        { state: 'stopping', bytesTotal: 100, filesTotal: 3 },
         { state: 'cancelled' },
       ],
     });
-    await screen.findByText('Not synced yet');
-    fireEvent.click(screen.getByRole('button', { name: 'Sync' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
+    const sync = await section();
+    await within(sync).findByText('Not synced yet');
+    fireEvent.click(within(sync).getByRole('button', { name: 'Sync' }));
+
+    fireEvent.click(
+      await within(sync).findByRole('button', { name: 'Cancel' }),
+    );
+
+    const stopping = within(sync).getByRole('button', { name: 'Stopping…' });
+    expect(stopping.hasAttribute('disabled')).toBe(true);
+    expect(within(sync).getByText(/^Uploading /u)).toBeTruthy();
+    const stopped = await within(sync).findByText(
+      'Sync stopped. The next sync carries on where this one left off.',
+      {},
+      { timeout: 3000 },
+    );
+    expect(stopped.getAttribute('role')).toBe('status');
+    expect(within(sync).getByRole('button', { name: 'Sync' })).toBeTruthy();
+    expect(archive.syncsCancelled).toEqual(['backup-pirt']);
+  });
+
+  test('a sync the service says is stopping reads "Stopping…" when the page opens', async () => {
+    openSettings({
+      sync: { bucket: 'backup-pirt' },
+      syncStates: [{ state: 'stopping', bytesTotal: 100, filesTotal: 3 }],
+    });
+    const sync = await section();
+    fireEvent.click(await within(sync).findByRole('button', { name: 'Sync' }));
 
     expect(
-      await screen.findByText(
-        "Sync didn't finish. Nothing already backed up was lost. Try again.",
-        {},
-        { timeout: 3000 },
-      ),
-    ).toBeTruthy();
-    expect(archive.syncsCancelled).toEqual(['backup-pirt']);
+      (
+        await within(sync).findByRole('button', { name: 'Stopping…' })
+      ).hasAttribute('disabled'),
+    ).toBe(true);
   });
 
   test.each([

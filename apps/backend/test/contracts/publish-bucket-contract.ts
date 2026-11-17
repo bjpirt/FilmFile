@@ -232,6 +232,36 @@ export function publishBucketContract(
       ).toEqual([['Library/2026/scan.jpg', text.length]]);
     });
 
+    test('a streamed put cut off part-way leaves nothing at its key', async () => {
+      const { bucket, target } = await make();
+      const stopped = new AbortController();
+      // The first part is sent; asked for the rest, the put is cut off.
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(bytes('the first part, '));
+        },
+        pull() {
+          stopped.abort();
+          return new Promise<void>(() => undefined);
+        },
+      });
+
+      await expect(
+        bucket.putStream(
+          target,
+          {
+            key: 'Library/2026/scan.jpg',
+            size: 1000,
+            contentType: 'image/jpeg',
+            body,
+          },
+          stopped.signal,
+        ),
+      ).rejects.toThrow();
+      const listed = await bucket.list(target, signal);
+      expect(listed.ok && listed.value).toEqual([]);
+    });
+
     test('stops when asked to', async () => {
       const { bucket, target } = await make();
       const stopped = new AbortController();

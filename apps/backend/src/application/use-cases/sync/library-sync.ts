@@ -34,7 +34,8 @@ import { syncNeedsTheApp } from './save-sync-settings.ts';
 
 /** Where a sync has got to. */
 export interface SyncProgress {
-  readonly state: 'running' | 'done' | 'cancelled' | 'failed';
+  /** `stopping` from a cancel until the uploads going have been cut off. */
+  readonly state: 'running' | 'stopping' | 'done' | 'cancelled' | 'failed';
   readonly bytesDone: number;
   readonly bytesTotal: number;
   readonly filesDone: number;
@@ -140,7 +141,10 @@ export class LibrarySync {
     if (this.#store === undefined) {
       return err(syncNeedsTheApp);
     }
-    if (this.#job?.progress.state === 'running') {
+    if (
+      this.#job?.progress.state === 'running' ||
+      this.#job?.progress.state === 'stopping'
+    ) {
       return ok(this.#job.progress);
     }
     const saved = await this.#store.get();
@@ -188,15 +192,24 @@ export class LibrarySync {
     return ok(job.progress);
   }
 
-  /** Stops the sync running: no more files start, those going finish, and the bucket's record stays as it was. */
+  /**
+   * Stops the sync running (FF-240): the uploads going are cut off, no more
+   * start, and the bucket's record stays as it was. It reads `stopping`
+   * until they have. Asking again while it stops is no failure.
+   */
   cancel(): Result<undefined, ValidationFailed> {
-    if (this.#job?.progress.state !== 'running') {
+    const job = this.#job;
+    if (job?.progress.state === 'stopping') {
+      return ok(undefined);
+    }
+    if (job?.progress.state !== 'running') {
       return err({
         kind: 'validation-failed',
         issues: [{ path: ['sync'], message: 'no sync is running' }],
       });
     }
-    this.#job.controller.abort();
+    this.#update(job, { state: 'stopping' });
+    job.controller.abort();
     return ok(undefined);
   }
 
@@ -389,8 +402,9 @@ export class LibrarySync {
   }
 
   /**
-   * Streams the files to the bucket a few at a time. A cancel starts no
-   * more; one that fails stops the rest being started. Gives what was sent,
+   * Streams the files to the bucket a few at a time. A cancel cuts off
+   * those going and starts no more; one that fails stops the rest being
+   * started. Gives what was sent,
    * with the SHA-256 of the bytes that went.
    */
   async #send(
@@ -404,6 +418,8 @@ export class LibrarySync {
       reason: undefined,
     };
     let next = 0;
+    // Asked afresh each time: a cancel can come while an upload is going.
+    const cancelled = () => job.controller.signal.aborted;
     const worker = async (): Promise<void> => {
       while (stop.reason === undefined && !job.controller.signal.aborted) {
         const file = uploads[next];
@@ -411,16 +427,26 @@ export class LibrarySync {
         if (file === undefined) {
           return;
         }
-        const put = await this.#bucket.putStream(
-          target,
-          {
-            key: file.path,
-            size: file.size,
-            contentType: 'application/octet-stream',
-            body: this.#files.read(ctx, file.path),
-          },
-          new AbortController().signal,
-        );
+        let put;
+        try {
+          put = await this.#bucket.putStream(
+            target,
+            {
+              key: file.path,
+              size: file.size,
+              contentType: 'application/octet-stream',
+              body: this.#files.read(ctx, file.path),
+            },
+            // A cancel cuts the upload off; it never reaches the bucket, so
+            // the next sync sends it (D122).
+            job.controller.signal,
+          );
+        } catch (error) {
+          if (cancelled()) {
+            return;
+          }
+          throw error;
+        }
         if (!put.ok) {
           stop.reason ??= put.error.reason;
           return;

@@ -81,7 +81,7 @@ The same account and keys back up the whole library (everything in `Library/`, a
 
 Once it's set up, the cloud at the right of FilmFile's header says when the library was last synced ("Synced 2 h ago"), and clicking it syncs from any page.
 
-A bucket with other things in it is refused, so nothing of anyone else's is mixed in. Cancelling, or a sync that fails part-way, loses nothing: the next sync carries on.
+A bucket with other things in it is refused, so nothing of anyone else's is mixed in. Cancelling stops a sync within a second or two, and neither that nor a sync that fails part-way loses anything: the next sync carries on from what's already in the bucket.
 
 ## Trying it without a domain
 

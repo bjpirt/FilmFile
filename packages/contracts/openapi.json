@@ -2822,10 +2822,12 @@
                 "type": "string",
                 "enum": [
                   "running",
+                  "stopping",
                   "done",
                   "cancelled",
                   "failed"
-                ]
+                ],
+                "description": "`stopping` from a cancel until the uploads going have been cut off."
               },
               "bytesDone": {
                 "type": "integer"
@@ -2891,10 +2893,12 @@
             "type": "string",
             "enum": [
               "running",
+              "stopping",
               "done",
               "cancelled",
               "failed"
-            ]
+            ],
+            "description": "`stopping` from a cancel until the uploads going have been cut off."
           },
           "bytesDone": {
             "type": "integer"
@@ -6092,7 +6096,7 @@
       },
       "delete": {
         "summary": "Stop syncing",
-        "description": "No more files are started; those going finish. The bucket’s sync record stays as it was.",
+        "description": "The uploads going are cut off and no more start; the sync reads stopping until they have. The bucket’s sync record stays as it was. Asking again while it stops is no failure.",
         "responses": {
           "204": {
             "description": "Asked to stop."

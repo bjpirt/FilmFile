@@ -34,6 +34,9 @@ function wordsFor(
         : Math.floor((run.bytesDone / run.bytesTotal) * 100);
     return { words: `Syncing ${String(percent)}%`, warning: false };
   }
+  if (run?.state === 'stopping') {
+    return { words: 'Stopping…', warning: false };
+  }
   if (run?.state === 'failed') {
     return { words: "Sync didn't finish", warning: true };
   }
@@ -69,7 +72,7 @@ function CloudIcon({ warning }: { readonly warning: boolean }) {
 /**
  * How the backup stands, at the header's right end (FF-226), once sync is
  * set up: "Not synced yet", "Synced 2 h ago" (the full time on hover),
- * "Syncing 34%" or "Sync didn't finish". It opens a panel with "Sync", its
+ * "Syncing 34%", "Stopping…" or "Sync didn't finish". It opens a panel with "Sync", its
  * progress and "Cancel", and a link to the Sync settings.
  */
 export function SyncStatusButton({ api }: { readonly api: ApiClient }) {

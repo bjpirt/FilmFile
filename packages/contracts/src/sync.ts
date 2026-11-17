@@ -46,7 +46,10 @@ export const saveSyncSettingsRequest = z
 
 export const syncProgress = z
   .object({
-    state: z.enum(['running', 'done', 'cancelled', 'failed']),
+    state: z.enum(['running', 'stopping', 'done', 'cancelled', 'failed']).meta({
+      description:
+        '`stopping` from a cancel until the uploads going have been cut off.',
+    }),
     bytesDone: z.number().int(),
     bytesTotal: z.number().int(),
     filesDone: z.number().int(),

@@ -2,7 +2,7 @@ import type { ApiClient } from '@filmfile/contracts/client';
 import { useQuery } from '@tanstack/react-query';
 
 /**
- * How syncing stands (`GET /api/sync`), polled while a sync runs. The header
+ * How syncing stands (`GET /api/sync`), polled while a sync runs or stops. The header
  * and Settings share it, so a sync started in one shows in the other.
  */
 export function useSyncStatus(api: ApiClient, enabled = true) {
@@ -16,7 +16,9 @@ export function useSyncStatus(api: ApiClient, enabled = true) {
       }
       return data;
     },
-    refetchInterval: (query) =>
-      query.state.data?.run?.state === 'running' ? 400 : false,
+    refetchInterval: (query) => {
+      const state = query.state.data?.run?.state;
+      return state === 'running' || state === 'stopping' ? 400 : false;
+    },
   });
 }

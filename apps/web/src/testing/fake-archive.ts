@@ -1386,7 +1386,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
           lastSyncedAt: new Date().toISOString(),
         };
       }
-      if (latestSync.state !== 'running') {
+      if (latestSync.state !== 'running' && latestSync.state !== 'stopping') {
         syncing = false;
       }
     }

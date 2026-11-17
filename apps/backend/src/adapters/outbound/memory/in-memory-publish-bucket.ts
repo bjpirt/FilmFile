@@ -177,7 +177,20 @@ export class InMemoryPublishBucket implements PublishBucket {
     signal: AbortSignal,
   ): Promise<Result<{ readonly sha256: string }, PublishFailed>> {
     signal.throwIfAborted();
-    const bytes = new Uint8Array(await new Response(file.body).arrayBuffer());
+    // Cut off part-way, as a request is: nothing reaches the bucket.
+    const cutOff = new Promise<never>((_resolve, reject) => {
+      signal.addEventListener(
+        'abort',
+        () => {
+          reject(new DOMException('aborted', 'AbortError'));
+        },
+        { once: true },
+      );
+    });
+    cutOff.catch(() => undefined);
+    const bytes = new Uint8Array(
+      await Promise.race([new Response(file.body).arrayBuffer(), cutOff]),
+    );
     const put = await this.put(
       target,
       {
