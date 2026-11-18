@@ -4,7 +4,8 @@ name: Package
 # since pnpm installs sharp's native files only for the machine it runs on
 # (D110), then checked from outside by the packaged-app journey. Called by CI
 # on every push and pull request, and by Release, which publishes what it
-# uploads. Intel Macs, Windows and Linux add their rows (FF-161, FF-197, FF-198).
+# uploads. Macs with Apple silicon and Intel (FF-161); Windows and Linux add
+# their rows (FF-197, FF-198).
 
 on:
   workflow_call:
@@ -21,10 +22,18 @@ jobs:
   package:
     name: ${{ matrix.platform }}
     strategy:
+      # A failure on one platform still lets the others say how they did; a
+      # release publishes nothing unless every one passes.
+      fail-fast: false
       matrix:
         include:
           - platform: mac-arm64
             runner: macos-latest
+          # GitHub's last Intel image. When it's retired, build x64 on Apple
+          # silicon (pnpm's supportedArchitectures) and run the journey under
+          # Rosetta (FF-161).
+          - platform: mac-x64
+            runner: macos-15-intel
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     steps:

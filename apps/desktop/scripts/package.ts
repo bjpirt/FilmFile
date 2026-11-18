@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs';
 import {
   cp,
   mkdir,
+  readdir,
   readFile,
   realpath,
   rm,
@@ -14,6 +15,7 @@ import {
 import path from 'node:path';
 import { z } from 'zod';
 import { build } from 'rolldown';
+import { sharpArchitectureProblem } from './sharp-architecture-problem.ts';
 
 // Builds FilmFile.app and its disk image, FilmFile-<version>-mac-<arch>.dmg,
 // in apps/desktop/out (U84, D56, FF-194), from the UI `pnpm build` has built. The app holds two bundles, its own main
@@ -125,6 +127,15 @@ await cp(path.join(repo, 'apps', 'web', 'dist'), path.join(stage, 'web'), {
 });
 for (const name of ['sharp', 'swagger-ui-dist']) {
   await copyPackage(name, path.join(backend, 'node_modules'));
+}
+// Only this Mac's sharp: another architecture's would be dead weight, and
+// none at all would make an app that can't read images (FF-161).
+const sharpProblem = sharpArchitectureProblem(
+  await readdir(path.join(stage, 'node_modules', '@img')),
+  arch,
+);
+if (sharpProblem !== undefined) {
+  throw new Error(sharpProblem);
 }
 await writeFile(
   path.join(stage, 'package.json'),
