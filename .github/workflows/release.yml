@@ -1,0 +1,140 @@
+name: Release
+
+# Publishes the version in package.json once its release pull request is
+# merged (FF-244, D125): if it hasn't a tag yet, builds and checks the app
+# again from this commit, then publishes the GitHub release "FilmFile
+# <version>" with the disk images, SHA256SUMS, build provenance and notes from
+# CHANGELOG.md. `pnpm release` prepares the pull request (FF-243). Run it by
+# hand (Run workflow) to try again after a failure; a version already tagged
+# is left alone. Never runs on pull requests.
+
+on:
+  push:
+    branches: [main]
+    # The first release (0.1.0) changes only CHANGELOG.md.
+    paths: [package.json, CHANGELOG.md]
+  workflow_dispatch:
+
+# Least privilege: only the publish job can write.
+permissions:
+  contents: read
+
+# One release at a time, and never cancel one under way.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  check:
+    # Is there anything to release, and are its notes there? Fails before
+    # anything is built if CHANGELOG.md has no entry for the version. Run by
+    # hand, only on main.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      released: ${{ steps.tag.outputs.released }}
+    steps:
+      # Actions are pinned to full commit SHAs; the comment gives the release.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - id: version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if ! echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::package.json's version, $version, isn't major.minor.patch."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$VERSION" --silent 2>/dev/null; then
+            echo "released=true" >> "$GITHUB_OUTPUT"
+            echo "$VERSION is already released: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/v$VERSION" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.tag.outputs.released == 'false'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: node scripts/release-notes.ts "$VERSION" > release-notes.md
+
+      - if: steps.tag.outputs.released == 'false'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-notes
+          path: release-notes.md
+          if-no-files-found: error
+          retention-days: 7
+
+  package:
+    # Built again from this commit, not reused from the pull request.
+    needs: check
+    if: needs.check.outputs.released == 'false'
+    uses: ./.github/workflows/package.yml
+    with:
+      release: true
+
+  publish:
+    # Draft first, published last: publishing makes the tag, so a run that
+    # fails part-way leaves at most a draft, which running again replaces.
+    # No checkout: nothing from the repository runs with write access.
+    needs: [check, package]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: FilmFile-*
+          path: dist
+          merge-multiple: true
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-notes
+
+      - working-directory: dist
+        run: sha256sum -- * > SHA256SUMS
+
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/*
+
+      - name: Remove a draft left by a failed run
+        run: |
+          if [ "$(gh release view "v$VERSION" --json isDraft --jq .isDraft 2>/dev/null)" = "true" ]; then
+            gh release delete "v$VERSION" --yes
+          fi
+
+      - name: Make the draft
+        run: >
+          gh release create "v$VERSION" dist/*
+          --draft
+          --target "$GITHUB_SHA"
+          --title "FilmFile $VERSION"
+          --notes-file release-notes.md
+
+      - name: Publish it
+        run: |
+          gh release edit "v$VERSION" --draft=false --latest
+          echo "Released FilmFile $VERSION: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/v$VERSION" >> "$GITHUB_STEP_SUMMARY"
