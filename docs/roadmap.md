@@ -195,7 +195,7 @@ FilmFile as a Mac app, opened from the Dock rather than by starting a service an
 - [ ] [later] [FF-138 Updates](tasks/FF-138.md): the app updates itself.
 - [ ] [later] [FF-245 Prepare a release from GitHub](tasks/FF-245.md): `pnpm release` as a workflow in the Actions tab.
 - [x] [FF-244 Publish a release](tasks/FF-244.md)
-- [x] [FF-243 Prepare a release](tasks/FF-243.md)
+- [x] [FF-243 Prepare a release](tasks/FF-243.md): `pnpm release minor` bumps the version and writes the changelog, in a pull request.
 - [x] [FF-242 Protect main](tasks/FF-242.md): changes reach `main` only by pull request once CI passes, and it can't be force-pushed or deleted.
 - [x] [FF-194 The app's version](tasks/FF-194.md)
 - [x] [U84 A packaged Mac app](tasks/U84.md)
