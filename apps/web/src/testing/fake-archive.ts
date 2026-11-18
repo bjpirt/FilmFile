@@ -40,6 +40,7 @@ import {
 } from '@filmfile/contracts/sites';
 import {
   saveSyncSettingsRequest,
+  type BackupFigure,
   type SyncProgress,
   type SyncSettings,
 } from '@filmfile/contracts/sync';
@@ -119,6 +120,8 @@ export interface ArchiveContents {
     Pick<SitePublishProgress, 'state'>)[];
   /** This computer's sync settings (FF-225): available, with nothing set, unless said. */
   readonly sync?: Partial<SyncSettings>;
+  /** How far a first sync that didn't finish got, as the service works it out (FF-241). */
+  readonly firstSync?: BackupFigure;
   /** What a sync's progress says as it's asked after, one after another; the last is kept. */
   readonly syncStates?: readonly (Partial<SyncProgress> &
     Pick<SyncProgress, 'state'>)[];
@@ -1349,10 +1352,16 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       syncCalls = 0;
       latestSync = {
         state: 'running',
+        phase: 'uploading',
+        filesChecked: 0,
+        filesToCheck: 0,
         bytesDone: 0,
         bytesTotal: 0,
         filesDone: 0,
         filesTotal: 0,
+        first: false,
+        library: null,
+        secondsLeft: null,
         failure: null,
         message: null,
       };
@@ -1369,10 +1378,16 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       syncCalls += 1;
       const now = states[Math.min(syncCalls, states.length) - 1];
       latestSync = {
+        phase: 'uploading',
+        filesChecked: 0,
+        filesToCheck: 0,
         bytesDone: 0,
         bytesTotal: 2048,
         filesDone: 0,
         filesTotal: 1,
+        first: false,
+        library: null,
+        secondsLeft: null,
         failure: null,
         message: null,
         ...latestSync,
@@ -1397,6 +1412,11 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         syncSettings.bucket !== null &&
         (settings?.cloudflareAccountId ?? null) !== null,
       lastSyncedAt: syncSettings.lastSyncedAt,
+      // Once a sync finishes, a first sync's figure goes.
+      firstSync:
+        syncSettings.lastSyncedAt === null
+          ? (contents.firstSync ?? null)
+          : null,
       run: latestSync,
     });
   }

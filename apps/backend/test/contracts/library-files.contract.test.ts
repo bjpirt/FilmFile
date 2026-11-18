@@ -13,6 +13,7 @@ import path from 'node:path';
 import { afterEach, expect, test } from 'vitest';
 import { FilesystemLibraryFiles } from '../../src/adapters/outbound/filesystem/filesystem-library-files.ts';
 import { InMemoryLibraryFiles } from '../../src/adapters/outbound/memory/in-memory-library-files.ts';
+import { ctx } from '../support/builders.ts';
 import { libraryFilesContract } from './library-files-contract.ts';
 
 const folders: string[] = [];
@@ -63,15 +64,15 @@ test('FilesystemLibraryFiles keeps its hashes in the cache folder, never the Fil
   await putIn(folder, 'Library/a.json', 'one');
   await utimes(file, at, at);
   const files = new FilesystemLibraryFiles(folder, cache);
-  await files.describe();
+  await files.describe(ctx);
 
   // Same size and time, other bytes: the cached hash stands.
   await writeFile(file, 'two');
   await utimes(file, at, at);
-  const [cached] = await files.describe();
+  const [cached] = await files.describe(ctx);
   // A new time: read again.
   await utimes(file, at, new Date('2026-11-16T15:00:00.000Z'));
-  const [readAgain] = await files.describe();
+  const [readAgain] = await files.describe(ctx);
 
   expect(cached?.sha256).toBe(createHash('sha256').update('one').digest('hex'));
   expect(readAgain?.sha256).toBe(
@@ -99,7 +100,7 @@ test('FilesystemLibraryFiles reads a file again, once, whose cached hashes have 
   );
   const files = new FilesystemLibraryFiles(folder, cache);
 
-  const [described] = await files.describe();
+  const [described] = await files.describe(ctx);
 
   expect(described).toEqual({
     path: 'Library/a.json',

@@ -245,4 +245,48 @@ describe('Settings › Sync', () => {
       );
     },
   );
+
+  test('between runs, says how far a first sync that didn’t finish got', async () => {
+    openSettings({
+      sync: { bucket: 'backup-pirt' },
+      firstSync: {
+        bytes: 34_000_000_000,
+        files: 2340,
+        bytesBackedUp: 13_000_000_000,
+        filesBackedUp: 1212,
+      },
+    });
+    const sync = await section();
+
+    expect(
+      await within(sync).findByText(
+        "The first sync didn't finish: 13 GB of 34 GB backed up. Sync carries on from there.",
+      ),
+    ).toBeTruthy();
+  });
+
+  test('a later sync counts only its upload, with no time left until it’s been timed', async () => {
+    openSettings({
+      sync: { bucket: 'backup-pirt' },
+      syncStates: [
+        {
+          state: 'running',
+          bytesDone: 1_200_000_000,
+          bytesTotal: 3_000_000_000,
+          filesDone: 12,
+          filesTotal: 34,
+        },
+        { state: 'done' },
+      ],
+    });
+    const sync = await section();
+    fireEvent.click(await within(sync).findByRole('button', { name: 'Sync' }));
+
+    expect(
+      await within(sync).findByText(
+        'Uploading 1.2 GB of 3 GB (12 of 34 files)',
+      ),
+    ).toBeTruthy();
+    expect(within(sync).queryByText(/left$/u)).toBeNull();
+  });
 });

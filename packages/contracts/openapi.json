@@ -2812,6 +2812,33 @@
             ],
             "format": "date-time"
           },
+          "firstSync": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "bytes": {
+                "type": "integer"
+              },
+              "files": {
+                "type": "integer"
+              },
+              "bytesBackedUp": {
+                "type": "integer"
+              },
+              "filesBackedUp": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "bytes",
+              "files",
+              "bytesBackedUp",
+              "filesBackedUp"
+            ],
+            "description": "How far a first sync that didn’t finish got, worked out from the bucket by path and size; null until it’s known, or when there’s none."
+          },
           "run": {
             "type": [
               "object",
@@ -2829,6 +2856,21 @@
                 ],
                 "description": "`stopping` from a cancel until the uploads going have been cut off."
               },
+              "phase": {
+                "type": "string",
+                "enum": [
+                  "checking-library",
+                  "checking-bucket",
+                  "uploading"
+                ],
+                "description": "Reading the library to see what changed, listing the bucket for what it already has, then uploading."
+              },
+              "filesChecked": {
+                "type": "integer"
+              },
+              "filesToCheck": {
+                "type": "integer"
+              },
               "bytesDone": {
                 "type": "integer"
               },
@@ -2840,6 +2882,44 @@
               },
               "filesTotal": {
                 "type": "integer"
+              },
+              "first": {
+                "type": "boolean",
+                "description": "Whether this is the first sync of the library to the bucket, or one carrying it on."
+              },
+              "library": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "bytes": {
+                    "type": "integer"
+                  },
+                  "files": {
+                    "type": "integer"
+                  },
+                  "bytesBackedUp": {
+                    "type": "integer"
+                  },
+                  "filesBackedUp": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "bytes",
+                  "files",
+                  "bytesBackedUp",
+                  "filesBackedUp"
+                ],
+                "description": "For a first sync, the whole library and how much is backed up."
+              },
+              "secondsLeft": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "description": "About how long the upload has left, once a minute of it has been timed."
               },
               "failure": {
                 "type": [
@@ -2869,10 +2949,16 @@
             },
             "required": [
               "state",
+              "phase",
+              "filesChecked",
+              "filesToCheck",
               "bytesDone",
               "bytesTotal",
               "filesDone",
               "filesTotal",
+              "first",
+              "library",
+              "secondsLeft",
               "failure",
               "message"
             ],
@@ -2883,6 +2969,7 @@
           "available",
           "ready",
           "lastSyncedAt",
+          "firstSync",
           "run"
         ]
       },
@@ -2900,6 +2987,21 @@
             ],
             "description": "`stopping` from a cancel until the uploads going have been cut off."
           },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "checking-library",
+              "checking-bucket",
+              "uploading"
+            ],
+            "description": "Reading the library to see what changed, listing the bucket for what it already has, then uploading."
+          },
+          "filesChecked": {
+            "type": "integer"
+          },
+          "filesToCheck": {
+            "type": "integer"
+          },
           "bytesDone": {
             "type": "integer"
           },
@@ -2911,6 +3013,44 @@
           },
           "filesTotal": {
             "type": "integer"
+          },
+          "first": {
+            "type": "boolean",
+            "description": "Whether this is the first sync of the library to the bucket, or one carrying it on."
+          },
+          "library": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "bytes": {
+                "type": "integer"
+              },
+              "files": {
+                "type": "integer"
+              },
+              "bytesBackedUp": {
+                "type": "integer"
+              },
+              "filesBackedUp": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "bytes",
+              "files",
+              "bytesBackedUp",
+              "filesBackedUp"
+            ],
+            "description": "For a first sync, the whole library and how much is backed up."
+          },
+          "secondsLeft": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "About how long the upload has left, once a minute of it has been timed."
           },
           "failure": {
             "type": [
@@ -2940,10 +3080,16 @@
         },
         "required": [
           "state",
+          "phase",
+          "filesChecked",
+          "filesToCheck",
           "bytesDone",
           "bytesTotal",
           "filesDone",
           "filesTotal",
+          "first",
+          "library",
+          "secondsLeft",
           "failure",
           "message"
         ]

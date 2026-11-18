@@ -21,31 +21,42 @@ function useNow(): Date {
   return now;
 }
 
+/** A share as a whole percentage, rounded down so 100% means all of it. */
+const percent = (part: number, whole: number) =>
+  whole === 0 ? 0 : Math.floor((part / whole) * 100);
+
 /** What the header says, and whether it's a warning. */
 function wordsFor(
   status: SyncStatus,
   now: Date,
 ): { readonly words: string; readonly warning: boolean } {
-  const { run, lastSyncedAt } = status;
-  if (run?.state === 'running') {
-    const percent =
-      run.bytesTotal === 0
-        ? 0
-        : Math.floor((run.bytesDone / run.bytesTotal) * 100);
-    return { words: `Syncing ${String(percent)}%`, warning: false };
-  }
+  const { run, lastSyncedAt, firstSync } = status;
   if (run?.state === 'stopping') {
     return { words: 'Stopping…', warning: false };
+  }
+  if (run?.state === 'running') {
+    if (run.phase !== 'uploading') {
+      return { words: 'Checking…', warning: false };
+    }
+    // A first sync counts the whole library (FF-241).
+    const share =
+      run.library === null
+        ? percent(run.bytesDone, run.bytesTotal)
+        : percent(run.library.bytesBackedUp, run.library.bytes);
+    return { words: `Syncing ${String(share)}%`, warning: false };
   }
   if (run?.state === 'failed') {
     return { words: "Sync didn't finish", warning: true };
   }
   // A cancelled sync was the person's choice: the last finished one stands.
+  if (lastSyncedAt !== null) {
+    return { words: `Synced ${syncedAgo(lastSyncedAt, now)}`, warning: false };
+  }
   return {
     words:
-      lastSyncedAt === null
+      firstSync === null
         ? 'Not synced yet'
-        : `Synced ${syncedAgo(lastSyncedAt, now)}`,
+        : `First sync ${String(percent(firstSync.bytesBackedUp, firstSync.bytes))}% done`,
     warning: false,
   };
 }

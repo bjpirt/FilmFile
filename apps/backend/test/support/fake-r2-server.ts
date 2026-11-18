@@ -75,6 +75,10 @@ export async function startFakeR2(
   keys: AwsKeys,
   bucketNames: readonly string[],
 ): Promise<FakeR2> {
+  options: {
+    /** Milliseconds each upload of a library file (`Library/…`) to these buckets takes, so a journey can stop a sync part-way. */
+    readonly slowPuts?: Readonly<Record<string, number>>;
+  } = {},
   const buckets = new Map(
     bucketNames.map((name) => [name, new Map<string, FakeR2File>()]),
   );
@@ -141,6 +145,20 @@ export async function startFakeR2(
     );
     requests.push(`${request.method ?? ''} ${url.pathname}${url.search}`);
     const body = await bodyOf(request);
+    // A slow upload waits before its body arrives, so one cut off meanwhile
+    // stores nothing, as with a slow connection.
+    const [, slowBucket = '', firstName = ''] = url.pathname.split('/');
+    const delay =
+      request.method === 'PUT' && firstName === 'Library'
+        ? (options.slowPuts?.[decodeURIComponent(slowBucket)] ?? 0)
+        : 0;
+    if (delay > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      // Cut off meanwhile: like R2, nothing is stored.
+      if (request.socket.destroyed) {
+        return;
+      }
+    }
     const signature = signatureIsRight(request, url, body);
     if (signature !== 'ok') {
       failure(

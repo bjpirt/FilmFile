@@ -47,7 +47,9 @@ function openApp(contents: ArchiveContents = {}, at = '/events'): FakeArchive {
 
 const header = () => screen.getByRole('banner');
 const statusButton = () =>
-  within(header()).findByRole('button', { name: /^(Sync|Not synced)/u });
+  within(header()).findByRole('button', {
+    name: /^(Sync|Not synced|First sync)/u,
+  });
 
 describe('the header’s sync status', () => {
   test.each([
@@ -255,5 +257,87 @@ describe('the header’s sync status', () => {
     fireEvent.click(within(form).getByRole('button', { name: 'Save' }));
 
     expect((await statusButton()).textContent).toBe('Not synced yet');
+  });
+
+  test('reads "Checking…" while a sync checks the library and the bucket', async () => {
+    openApp({
+      syncStates: [
+        {
+          state: 'running',
+          phase: 'checking-library',
+          filesChecked: 1200,
+          filesToCheck: 2340,
+        },
+        { state: 'running', phase: 'checking-bucket' },
+        { state: 'done' },
+      ],
+    });
+    fireEvent.click(await statusButton());
+    const panel = screen.getByRole('dialog', { name: 'Sync' });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Sync' }));
+
+    expect(
+      await within(header()).findByRole('button', { name: 'Checking…' }),
+    ).toBeTruthy();
+    expect(
+      within(panel).getByText('Checking the library… 1,200 of 2,340 files'),
+    ).toBeTruthy();
+    expect(await within(panel).findByText('Checking the bucket…')).toBeTruthy();
+    expect(within(panel).getByRole('button', { name: 'Cancel' })).toBeTruthy();
+  });
+
+  test('a first sync reads its share of the whole library, with the time left', async () => {
+    openApp({
+      syncStates: [
+        {
+          state: 'running',
+          phase: 'uploading',
+          first: true,
+          bytesDone: 1_000_000_000,
+          bytesTotal: 22_000_000_000,
+          library: {
+            bytes: 34_000_000_000,
+            files: 2340,
+            bytesBackedUp: 13_000_000_000,
+            filesBackedUp: 1212,
+          },
+          secondsLeft: 2 * 3600,
+        },
+        { state: 'done' },
+      ],
+    });
+    fireEvent.click(await statusButton());
+    const panel = screen.getByRole('dialog', { name: 'Sync' });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Sync' }));
+
+    expect(
+      await within(header()).findByRole('button', { name: 'Syncing 38%' }),
+    ).toBeTruthy();
+    expect(
+      within(panel).getByText(
+        'Backed up 13 GB of 34 GB (1,212 of 2,340 files)',
+      ),
+    ).toBeTruthy();
+    expect(within(panel).getByText('About 2 h left')).toBeTruthy();
+  });
+
+  test('between runs, reads how far a first sync that didn’t finish got', async () => {
+    openApp({
+      firstSync: {
+        bytes: 34_000_000_000,
+        files: 2340,
+        bytesBackedUp: 13_000_000_000,
+        filesBackedUp: 1212,
+      },
+    });
+    const button = await statusButton();
+
+    expect(button.textContent).toBe('First sync 38% done');
+    fireEvent.click(button);
+    expect(
+      within(screen.getByRole('dialog', { name: 'Sync' })).getByText(
+        "The first sync didn't finish: 13 GB of 34 GB backed up. Sync carries on from there.",
+      ),
+    ).toBeTruthy();
   });
 });

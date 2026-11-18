@@ -11,6 +11,13 @@ import type {
 import { manifestAfter, planBackup } from '../../../domain/sync/plan-backup.ts';
 import { filesAlreadyInBucket } from '../../../domain/sync/files-already-in-bucket.ts';
 import type { LibraryFile } from '../../../domain/sync/library-file.ts';
+import type { BackupFigure } from '../../../domain/sync/backup-figure.ts';
+import { bucketKeys } from '../../../domain/sync/bucket-keys.ts';
+import {
+  secondsLeft,
+  type UploadSample,
+} from '../../../domain/sync/seconds-left.ts';
+import { FirstSyncFigures } from './first-sync-figures.ts';
 import {
   manifestText,
   parseManifest,
@@ -36,10 +43,20 @@ import { syncNeedsTheApp } from './save-sync-settings.ts';
 export interface SyncProgress {
   /** `stopping` from a cancel until the uploads going have been cut off. */
   readonly state: 'running' | 'stopping' | 'done' | 'cancelled' | 'failed';
+  /** Reading the library, listing the bucket, then uploading (FF-241). */
+  readonly phase: 'checking-library' | 'checking-bucket' | 'uploading';
+  readonly filesChecked: number;
+  readonly filesToCheck: number;
   readonly bytesDone: number;
   readonly bytesTotal: number;
   readonly filesDone: number;
   readonly filesTotal: number;
+  /** Whether it's the library's first sync to the bucket, or one carrying it on. */
+  readonly first: boolean;
+  /** For a first sync, the whole library and how much is backed up. */
+  readonly library: BackupFigure | null;
+  /** About how long the upload has left, once a minute of it has been timed. */
+  readonly secondsLeft: number | null;
   /** Why it failed, if it did. */
   readonly failure: SyncFailureReason | null;
   /** What to fix, in words, when it failed. */
@@ -53,6 +70,8 @@ export interface SyncStatus {
   readonly ready: boolean;
   /** When this computer last finished a sync, an ISO 8601 time. */
   readonly lastSyncedAt: string | null;
+  /** How far a first sync that didn't finish got, once it's known (FF-241). */
+  readonly firstSync: BackupFigure | null;
   /** The latest sync since the service started, if there was one. */
   readonly run: SyncProgress | null;
 }
@@ -60,10 +79,12 @@ export interface SyncStatus {
 interface Job {
   progress: SyncProgress;
   readonly controller: AbortController;
+  /** How much had gone up, and when, for the time left. */
+  readonly samples: UploadSample[];
 }
 
-const recordKey = 'filmfile/sync.json';
-const manifestKey = 'filmfile/manifest.json';
+const recordKey = bucketKeys.syncRecord;
+const manifestKey = bucketKeys.manifest;
 // How many files go up at once; each is streamed, so memory stays small (D120).
 const uploadsAtOnce = 4;
 
@@ -102,6 +123,7 @@ export class LibrarySync {
   readonly #clock: Clock;
   readonly #errors: ErrorReporter;
   readonly #thisComputer: string;
+  readonly #firstSyncs: FirstSyncFigures;
   #job: Job | undefined;
 
   constructor(dependencies: {
@@ -120,17 +142,48 @@ export class LibrarySync {
     this.#clock = dependencies.clock;
     this.#errors = dependencies.errors;
     this.#thisComputer = dependencies.thisComputer;
+    this.#firstSyncs = new FirstSyncFigures(dependencies);
   }
 
   async status(ctx: ArchiveContext): Promise<SyncStatus> {
     const saved = await this.#store?.get();
-    const accountId =
-      (await this.#settings.get(ctx))?.settings.cloudflareAccountId ?? null;
+    const settings = (await this.#settings.get(ctx))?.settings;
+    const accountId = settings?.cloudflareAccountId ?? null;
+    const bucket = saved?.bucket ?? null;
+    const state = this.#job?.progress.state;
+    // While a sync runs, its own figures say more, so the bucket isn't asked.
+    const running = state === 'running' || state === 'stopping';
+    const firstSync =
+      settings === undefined ||
+      accountId === null ||
+      bucket === null ||
+      saved?.lastSync !== null
+        ? null
+        : running
+          ? this.#firstSyncs.known({ accountId, bucket })
+          : this.#firstSyncs.figure(ctx, { accountId, bucket }, settings.id);
     return {
       available: saved !== undefined,
-      ready: (saved?.bucket ?? null) !== null && accountId !== null,
+      ready: bucket !== null && accountId !== null,
       lastSyncedAt: saved?.lastSync?.at ?? null,
-      run: this.#job?.progress ?? null,
+      firstSync,
+      run: this.#job === undefined ? null : this.#progressNow(this.#job),
+    };
+  }
+
+  /** A job's progress, with the time left as of now. */
+  #progressNow(job: Job): SyncProgress {
+    const { progress } = job;
+    if (progress.state !== 'running' || progress.phase !== 'uploading') {
+      return progress;
+    }
+    return {
+      ...progress,
+      secondsLeft: secondsLeft({
+        samples: job.samples,
+        now: this.#clock.now().getTime(),
+        remaining: progress.bytesTotal - progress.bytesDone,
+      }),
     };
   }
 
@@ -172,20 +225,28 @@ export class LibrarySync {
     const job: Job = {
       progress: {
         state: 'running',
+        phase: 'checking-library',
+        filesChecked: 0,
+        filesToCheck: 0,
         bytesDone: 0,
         bytesTotal: 0,
         filesDone: 0,
         filesTotal: 0,
+        first: false,
+        library: null,
+        secondsLeft: null,
         failure: null,
         message: null,
       },
       controller: new AbortController(),
+      samples: [],
     };
     this.#job = job;
     void this.#run(ctx, {
       target: { accountId, bucket: saved.bucket },
       archiveId: settings.id,
       computer: saved.computerName ?? this.#thisComputer,
+      everSynced: saved.lastSync !== null,
       store: this.#store,
       job,
     });
@@ -223,6 +284,8 @@ export class LibrarySync {
       readonly target: BucketTarget;
       readonly archiveId: string;
       readonly computer: string;
+      /** Whether this computer has finished a sync with this bucket. */
+      readonly everSynced: boolean;
       readonly store: SyncSettingsStore;
       readonly job: Job;
     },
@@ -231,21 +294,40 @@ export class LibrarySync {
     try {
       const claimed = await this.#claim(target, run.archiveId, run.computer);
       const manifest = await this.#manifest(target);
-      const plan = planBackup({
-        library: await this.#files.describe(ctx),
-        manifest,
+      // No manifest: no sync of this library to the bucket has finished.
+      const first = !run.everSynced && manifest === undefined;
+      this.#update(job, { first });
+      const library = await this.#files.describe(ctx, {
+        checked: (done, total) => {
+          this.#update(job, { filesChecked: done, filesToCheck: total });
+        },
+        signal: job.controller.signal,
       });
+      const plan = planBackup({ library, manifest: manifest ?? [] });
+      this.#update(job, { phase: 'checking-bucket' });
       const { uploads, found } = await this.#notYetInBucket(
         target,
         plan.uploads,
       );
+      const sum = (files: readonly LibraryFile[]) =>
+        files.reduce((total, file) => total + file.size, 0);
+      job.samples.push({ at: this.#clock.now().getTime(), bytes: 0 });
       this.#update(job, {
-        bytesTotal: uploads.reduce((total, file) => total + file.size, 0),
+        phase: 'uploading',
+        bytesTotal: sum(uploads),
         filesTotal: uploads.length,
+        library: first
+          ? {
+              bytes: sum(library),
+              files: library.length,
+              bytesBackedUp: sum(found),
+              filesBackedUp: found.length,
+            }
+          : null,
       });
       const sent = await this.#send(ctx, target, uploads, job);
       const at = this.#clock.now().toISOString();
-      const after = manifestAfter(manifest, [...found, ...sent]);
+      const after = manifestAfter(manifest ?? [], [...found, ...sent]);
       this.#must(
         await this.#bucket.put(
           target,
@@ -281,7 +363,11 @@ export class LibrarySync {
         lastSync: { sync: record.sync, at },
       });
       this.#update(job, { state: 'done' });
+      this.#firstSyncs.set(target, null);
     } catch (error) {
+      if (job.progress.first) {
+        this.#firstSyncs.set(target, job.progress.library);
+      }
       if (error instanceof Stopped || job.controller.signal.aborted) {
         const reason = error instanceof Stopped ? error.reason : 'cancelled';
         this.#update(
@@ -382,13 +468,15 @@ export class LibrarySync {
     return filesAlreadyInBucket({ uploads, listing });
   }
 
-  /** The bucket's manifest from the last sync: none before the first. */
-  async #manifest(target: BucketTarget): Promise<readonly ManifestEntry[]> {
+  /** The bucket's manifest from the last sync: none before the first has finished. */
+  async #manifest(
+    target: BucketTarget,
+  ): Promise<readonly ManifestEntry[] | undefined> {
     const got = this.#must(
       await this.#bucket.get(target, manifestKey, new AbortController().signal),
     );
     if (got === undefined) {
-      return [];
+      return undefined;
     }
     const manifest = parseManifest(textOf(got.bytes));
     if (manifest === undefined) {
@@ -456,9 +544,22 @@ export class LibrarySync {
           size: file.size,
           sha256: put.value.sha256,
         });
+        const { bytesDone, filesDone, library } = job.progress;
         this.#update(job, {
-          bytesDone: job.progress.bytesDone + file.size,
-          filesDone: job.progress.filesDone + 1,
+          bytesDone: bytesDone + file.size,
+          filesDone: filesDone + 1,
+          library:
+            library === null
+              ? null
+              : {
+                  ...library,
+                  bytesBackedUp: library.bytesBackedUp + file.size,
+                  filesBackedUp: library.filesBackedUp + 1,
+                },
+        });
+        job.samples.push({
+          at: this.#clock.now().getTime(),
+          bytes: bytesDone + file.size,
         });
       }
     };

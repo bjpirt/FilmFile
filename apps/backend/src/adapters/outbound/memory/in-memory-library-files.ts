@@ -1,5 +1,8 @@
 import { createHash } from 'node:crypto';
-import type { LibraryFiles } from '../../../application/ports/library-files.ts';
+import type {
+  CheckingWatch,
+  LibraryFiles,
+} from '../../../application/ports/library-files.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type { LibraryFile } from '../../../domain/sync/library-file.ts';
 
@@ -7,17 +10,37 @@ import type { LibraryFile } from '../../../domain/sync/library-file.ts';
 export class InMemoryLibraryFiles implements LibraryFiles {
   readonly files = new Map<string, Uint8Array>();
 
-  describe(): Promise<readonly LibraryFile[]> {
+  #shown(): [string, Uint8Array][] {
+    return [...this.files]
+      .filter(([path]) => !path.split('/').some((n) => n.startsWith('.')))
+      .sort(([a], [b]) => (a < b ? -1 : 1));
+  }
+
+  describe(
+    _ctx: ArchiveContext,
+    watch?: CheckingWatch,
+  ): Promise<readonly LibraryFile[]> {
+    if (watch?.signal.aborted === true) {
+      return Promise.reject(new DOMException('aborted', 'AbortError'));
+    }
+    const shown = this.#shown();
+    watch?.checked(0, shown.length);
+    watch?.checked(shown.length, shown.length);
     return Promise.resolve(
-      [...this.files]
-        .filter(([path]) => !path.split('/').some((n) => n.startsWith('.')))
-        .map(([path, bytes]) => ({
-          path,
-          size: bytes.length,
-          sha256: createHash('sha256').update(bytes).digest('hex'),
-          md5: createHash('md5').update(bytes).digest('hex'),
-        }))
-        .sort((a, b) => (a.path < b.path ? -1 : 1)),
+      shown.map(([path, bytes]) => ({
+        path,
+        size: bytes.length,
+        sha256: createHash('sha256').update(bytes).digest('hex'),
+        md5: createHash('md5').update(bytes).digest('hex'),
+      })),
+    );
+  }
+
+  sizes(): Promise<
+    readonly { readonly path: string; readonly size: number }[]
+  > {
+    return Promise.resolve(
+      this.#shown().map(([path, bytes]) => ({ path, size: bytes.length })),
     );
   }
 

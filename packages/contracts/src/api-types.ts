@@ -3987,6 +3987,13 @@ export interface components {
             ready: boolean;
             /** Format: date-time */
             lastSyncedAt: string | null;
+            /** @description How far a first sync that didn’t finish got, worked out from the bucket by path and size; null until it’s known, or when there’s none. */
+            firstSync: {
+                bytes: number;
+                files: number;
+                bytesBackedUp: number;
+                filesBackedUp: number;
+            } | null;
             /** @description How the latest sync since the service started went, if there was one. */
             run: {
                 /**
@@ -3994,10 +4001,28 @@ export interface components {
                  * @enum {string}
                  */
                 state: "running" | "stopping" | "done" | "cancelled" | "failed";
+                /**
+                 * @description Reading the library to see what changed, listing the bucket for what it already has, then uploading.
+                 * @enum {string}
+                 */
+                phase: "checking-library" | "checking-bucket" | "uploading";
+                filesChecked: number;
+                filesToCheck: number;
                 bytesDone: number;
                 bytesTotal: number;
                 filesDone: number;
                 filesTotal: number;
+                /** @description Whether this is the first sync of the library to the bucket, or one carrying it on. */
+                first: boolean;
+                /** @description For a first sync, the whole library and how much is backed up. */
+                library: {
+                    bytes: number;
+                    files: number;
+                    bytesBackedUp: number;
+                    filesBackedUp: number;
+                } | null;
+                /** @description About how long the upload has left, once a minute of it has been timed. */
+                secondsLeft: number | null;
                 /**
                  * @description Why it failed, if it did.
                  * @enum {string|null}
@@ -4013,10 +4038,28 @@ export interface components {
              * @enum {string}
              */
             state: "running" | "stopping" | "done" | "cancelled" | "failed";
+            /**
+             * @description Reading the library to see what changed, listing the bucket for what it already has, then uploading.
+             * @enum {string}
+             */
+            phase: "checking-library" | "checking-bucket" | "uploading";
+            filesChecked: number;
+            filesToCheck: number;
             bytesDone: number;
             bytesTotal: number;
             filesDone: number;
             filesTotal: number;
+            /** @description Whether this is the first sync of the library to the bucket, or one carrying it on. */
+            first: boolean;
+            /** @description For a first sync, the whole library and how much is backed up. */
+            library: {
+                bytes: number;
+                files: number;
+                bytesBackedUp: number;
+                filesBackedUp: number;
+            } | null;
+            /** @description About how long the upload has left, once a minute of it has been timed. */
+            secondsLeft: number | null;
             /**
              * @description Why it failed, if it did.
              * @enum {string|null}

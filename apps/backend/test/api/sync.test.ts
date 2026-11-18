@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { hostname } from 'node:os';
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
@@ -144,9 +144,21 @@ function setUp(options: { readonly app?: boolean } = {}) {
       : undefined;
   };
 
+  /** How syncing stands, asked of the service started again, with the same bucket and this computer's settings. */
+  function restarted() {
+    const again = apiFor(archive, {
+      clock: new FixedClock(now),
+      publishBucket: bucket,
+      ...((options.app ?? true) ? { syncSettings: store } : {}),
+    });
+    return async () =>
+      syncStatus.parse(await (await again.request('/api/sync')).json());
+  }
+
   return {
     bucket,
     store,
+    restarted,
     request,
     post,
     put,
@@ -272,6 +284,7 @@ describe('GET /api/sync', () => {
       available: true,
       ready: true,
       lastSyncedAt: null,
+      firstSync: null,
       run: null,
     });
   });
@@ -689,5 +702,193 @@ describe('DELETE /api/sync', () => {
     const { request } = setUp();
 
     expect((await request('/api/sync', { method: 'DELETE' })).status).toBe(422);
+  });
+});
+
+/** Asks until the answer passes, for up to 30 seconds. */
+async function eventually<T>(
+  ask: () => Promise<T>,
+  passes: (got: T) => boolean,
+) {
+  for (let tries = 0; tries < 3000; tries += 1) {
+    const got = await ask();
+    if (passes(got)) {
+      return got;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error('it never passed');
+}
+
+describe('how far the first sync has got (FF-241)', () => {
+  test('a first sync says what it checks, then counts the whole library as it uploads', async () => {
+    const { bucket, ready, post, status, untilDone } = setUp();
+    await ready();
+    await putInLibrary('a.json', 'aa');
+    await putInLibrary('b.json', 'bbb');
+    let releaseList: () => void = () => undefined;
+    let releaseUploads: () => void = () => undefined;
+    const listHeld = new Promise<void>((resolve) => {
+      releaseList = resolve;
+    });
+    // The first listing is the claim's, of the empty bucket; the second
+    // looks for what's already there, and waits.
+    const list = bucket.list.bind(bucket);
+    bucket.list = async (to, signal) => {
+      const listed = await list(to, signal);
+      if (bucket.listed === 2) {
+        await listHeld;
+      }
+      return listed;
+    };
+    bucket.holding = new Promise<void>((resolve) => {
+      releaseUploads = resolve;
+    });
+    await post('/api/sync', {});
+
+    const checkingBucket = await eventually(
+      status,
+      (now) => now.run?.phase === 'checking-bucket' && bucket.listed > 0,
+    );
+    releaseList();
+    const uploading = await eventually(
+      status,
+      (now) => now.run?.phase === 'uploading',
+    );
+    releaseUploads();
+    const done = await untilDone();
+
+    expect(checkingBucket.run).toMatchObject({ first: true });
+    const settingsSize = (
+      await readFile(path.join(archive.folder(), 'settings.json'))
+    ).length;
+    expect(uploading.run).toMatchObject({
+      first: true,
+      filesChecked: 3,
+      filesToCheck: 3,
+      library: {
+        bytes: 5 + settingsSize,
+        files: 3,
+        bytesBackedUp: 0,
+        filesBackedUp: 0,
+      },
+      // A fixed clock times nothing.
+      secondsLeft: null,
+    });
+    expect(done).toMatchObject({
+      state: 'done',
+      library: {
+        bytes: 5 + settingsSize,
+        files: 3,
+        bytesBackedUp: 5 + settingsSize,
+        filesBackedUp: 3,
+      },
+    });
+  });
+
+  test('a later sync counts only its own upload', async () => {
+    const { ready, sync } = setUp();
+    await ready();
+    await putInLibrary('a.json', 'a');
+    await sync();
+    await putInLibrary('b.json', 'b');
+
+    expect(await sync()).toMatchObject({
+      first: false,
+      library: null,
+      filesTotal: 1,
+    });
+  });
+
+  test('a first sync carrying on counts what the bucket already has', async () => {
+    const { bucket, ready, sync } = setUp();
+    await ready();
+    for (const name of ['a', 'b', 'c', 'd', 'e', 'f']) {
+      await putInLibrary(`${name}.json`, name);
+    }
+    failTheThirdUpload(bucket);
+    const failed = await sync();
+    bucket.putStream = WatchedBucket.prototype.putStream.bind(bucket);
+
+    const again = await sync();
+
+    expect(again).toMatchObject({
+      first: true,
+      library: { files: 7, filesBackedUp: 7 },
+      filesTotal: 7 - failed.filesDone,
+    });
+  });
+
+  test('between runs, a first sync that stopped says how far it got, from its own count', async () => {
+    const { bucket, ready, sync, request, status } = setUp();
+    await ready();
+    for (const name of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']) {
+      await putInLibrary(`${name}.json`, name);
+    }
+    const putStream = bucket.putStream.bind(bucket);
+    let arrived = 0;
+    bucket.putStream = async (to, file, signal) => {
+      const put = await putStream(to, file, signal);
+      arrived += 1;
+      if (arrived === 2) {
+        await request('/api/sync', { method: 'DELETE' });
+      }
+      return put;
+    };
+    const cancelled = await sync();
+    const listedBefore = bucket.listed;
+
+    const now = await status();
+
+    expect(now.firstSync).toEqual(cancelled.library);
+    expect(now.firstSync?.filesBackedUp).toBe(cancelled.filesDone);
+    expect(bucket.listed).toBe(listedBefore);
+  });
+
+  test('when the service starts again, it works out how far the first sync got from the bucket, by path and size', async () => {
+    const { bucket, ready, sync, restarted } = setUp();
+    await ready();
+    for (const name of ['a', 'b', 'c', 'd', 'e', 'f']) {
+      await putInLibrary(`${name}.json`, name);
+    }
+    failTheThirdUpload(bucket);
+    const failed = await sync();
+    const status = restarted();
+
+    expect((await status()).firstSync).toBeNull();
+    const answered = await eventually(status, (now) => now.firstSync !== null);
+
+    expect(answered.firstSync).toEqual({
+      ...failed.library,
+      filesBackedUp: failed.filesDone,
+      bytesBackedUp: failed.bytesDone,
+    });
+  });
+
+  test('says nothing between runs when the bucket can’t be reached, is empty, or a sync has finished', async () => {
+    const unreachable = setUp();
+    await unreachable.ready();
+    await putInLibrary('a.json', 'a');
+    failTheThirdUpload(unreachable.bucket);
+    unreachable.bucket.failWith('unreachable');
+    const offline = unreachable.restarted();
+    await offline();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect((await offline()).firstSync).toBeNull();
+
+    const empty = setUp();
+    await empty.ready();
+    const fresh = empty.restarted();
+    await fresh();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect((await fresh()).firstSync).toBeNull();
+
+    const finished = setUp();
+    await finished.ready();
+    await finished.sync();
+    const listed = finished.bucket.listed;
+    expect((await finished.status()).firstSync).toBeNull();
+    expect((await finished.restarted()()).firstSync).toBeNull();
+    expect(finished.bucket.listed).toBe(listed);
   });
 });

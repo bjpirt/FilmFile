@@ -3,7 +3,10 @@ import { createReadStream } from 'node:fs';
 import { mkdir, readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
-import type { LibraryFiles } from '../../../application/ports/library-files.ts';
+import type {
+  CheckingWatch,
+  LibraryFiles,
+} from '../../../application/ports/library-files.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type { LibraryFile } from '../../../domain/sync/library-file.ts';
 import { hasErrorCode } from './error-codes.ts';
@@ -104,11 +107,17 @@ export class FilesystemLibraryFiles implements LibraryFiles {
     return paths.sort();
   }
 
-  async describe(): Promise<readonly LibraryFile[]> {
+  async describe(
+    _ctx: ArchiveContext,
+    watch?: CheckingWatch,
+  ): Promise<readonly LibraryFile[]> {
     const cached = await this.#cached();
     const next: CachedHashes = {};
     const files: LibraryFile[] = [];
-    for (const relative of await this.#paths()) {
+    const paths = await this.#paths();
+    watch?.checked(0, paths.length);
+    for (const relative of paths) {
+      watch?.signal.throwIfAborted();
       const file = safePath(this.#folder, ...relative.split('/'));
       const { size, mtimeMs } = await stat(file);
       // Whole milliseconds: finer than that doesn't survive every filesystem.
@@ -122,10 +131,24 @@ export class FilesystemLibraryFiles implements LibraryFiles {
           : await hashesOf(file);
       next[relative] = { size, modified, ...hashes };
       files.push({ path: relative, size, ...hashes });
+      watch?.checked(files.length, paths.length);
     }
     await mkdir(this.#cacheFolder, { recursive: true });
     await writeAtomically(this.#cacheFile, JSON.stringify(next));
     return files;
+  }
+
+  async sizes(): Promise<
+    readonly { readonly path: string; readonly size: number }[]
+  > {
+    const sizes = [];
+    for (const relative of await this.#paths()) {
+      const { size } = await stat(
+        safePath(this.#folder, ...relative.split('/')),
+      );
+      sizes.push({ path: relative, size });
+    }
+    return sizes;
   }
 
   read(_ctx: ArchiveContext, relative: string): ReadableStream<Uint8Array> {

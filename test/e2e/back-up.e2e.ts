@@ -3,7 +3,7 @@ import { expect, test } from './support/isolated-test.ts';
 import { journeyAccountId, journeyBackupBucket } from './support/journey-r2.ts';
 import { createRoll } from './support/journeys.ts';
 
-test('back up the library: set the Cloudflare account and a bucket, sync everything, change the copyright and sync only what changed, then sync from the header (FF-225, FF-226)', async ({
+test('back up the library: set the Cloudflare account and a bucket, stop the first sync part-way and carry it on, change the copyright and sync only what changed, then sync from the header (FF-225, FF-226, FF-241)', async ({
   page,
 }) => {
   await createRoll(page, '2026-081', { scans: fixtureSets.headToTail });
@@ -22,9 +22,36 @@ test('back up the library: set the Cloudflare account and a bucket, sync everyth
   await where.getByRole('button', { name: 'Save' }).click();
   await expect(sync.getByText('Not synced yet')).toBeVisible();
 
+  // The first sync, stopped part-way, says how far it got (FF-241).
+  await sync.getByRole('button', { name: 'Sync' }).click();
+  await expect(
+    // Some files backed up, not all: the fake R2 takes a while over each.
+    sync.getByText(/^Backed up .+ of .+ \([1-9]\d* of \d+ files\)$/),
+  ).toBeVisible({
+    timeout: 30_000,
+  });
+  await sync.getByRole('button', { name: 'Cancel' }).click();
+  await expect(
+    sync.getByText(
+      'Sync stopped. The next sync carries on where this one left off.',
+    ),
+  ).toBeVisible({ timeout: 30_000 });
+  await page.reload();
+  await expect(
+    page
+      .getByRole('banner')
+      .getByRole('button', { name: /^First sync \d+% done$/ }),
+  ).toBeVisible();
+  await expect(
+    sync.getByText(
+      /^The first sync didn't finish: .+ backed up\. Sync carries on from there\.$/,
+    ),
+  ).toBeVisible();
+
+  // Syncing again carries on, sending the rest.
   await sync.getByRole('button', { name: 'Sync' }).click();
   await expect(sync.getByText(/^Synced .+$/)).toBeVisible({ timeout: 30_000 });
-  await expect(sync.getByText(/^Sent \d+ files \(.+\)\.$/)).toBeVisible();
+  await expect(sync.getByText(/^Sent \d+ files? \(.+\)\.$/)).toBeVisible();
 
   // Syncing again with nothing changed sends nothing.
   await sync.getByRole('button', { name: 'Sync' }).click();

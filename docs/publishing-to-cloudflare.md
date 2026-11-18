@@ -77,7 +77,7 @@ The same account and keys back up the whole library (everything in `Library/`, a
 1. In **R2 Object Storage**, create a bucket for the backup, such as `filmfile-backup`. Use it for nothing else, and don't give it a custom domain or a public address: it stays private.
 2. Make sure the token from step 1 covers it (edit the token's buckets if you chose them one by one).
 3. In FilmFile, open **Settings**. Under **Sync**, enter the **Bucket** and this computer's name, and press **Save**.
-4. Press **Sync**. The first sync sends everything, which can take a while for a big library; after that, only what's new or changed is sent.
+4. Press **Sync**. The first sync sends everything, which can take a while for a big library: it says how much is backed up and about how long is left, and if it's stopped, the next sync carries on. After that, only what's new or changed is sent.
 
 Once it's set up, the cloud at the right of FilmFile's header says when the library was last synced ("Synced 2 h ago"), and clicking it syncs from any page.
 

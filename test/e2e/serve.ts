@@ -31,10 +31,12 @@ if (mode === 'set-up') {
 
 // Publishing goes to a local fake of Cloudflare R2, never the real one (FF-234):
 // its keys in a credentials file of the journey's own, and one bucket.
-const r2 = await startFakeR2(journeyR2Keys, [
-  journeyBucket,
-  journeyBackupBucket,
-]);
+const r2 = await startFakeR2(
+  journeyR2Keys,
+  [journeyBucket, journeyBackupBucket],
+  // Slow enough for the backup journey to stop its first sync part-way (FF-241).
+  { slowPuts: { [journeyBackupBucket]: 2000 } },
+);
 const credentials = path.join(cache, 'aws-credentials');
 writeFileSync(
   credentials,

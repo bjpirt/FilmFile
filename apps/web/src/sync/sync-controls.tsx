@@ -5,6 +5,8 @@ import { firstIssueMessage } from '../forms/first-issue-message.ts';
 import { Link } from '../routing.tsx';
 import { formatBytes } from '../settings/format-bytes.ts';
 import { publishedTime } from '../sites/published-time.ts';
+import { files, progressWords } from './progress-words.ts';
+import { timeLeftText } from './time-left-text.ts';
 import { useSyncStatus } from './use-sync-status.ts';
 
 type Failure = NonNullable<SyncProgress['failure']>;
@@ -26,8 +28,6 @@ const unfinished =
   "Sync didn't finish. Nothing already backed up was lost. Try again.";
 const stopped =
   'Sync stopped. The next sync carries on where this one left off.';
-
-const files = (n: number) => `${String(n)} ${n === 1 ? 'file' : 'files'}`;
 
 /** How a sync went, when it didn't finish. */
 function Failed({ run }: { readonly run: SyncProgress }) {
@@ -102,21 +102,25 @@ export function SyncControls({
   const running = run?.state === 'running' || run?.state === 'stopping';
   const stopping = run?.state === 'stopping' || (running && cancelling);
   const syncedAt = status.data?.lastSyncedAt ?? lastSyncedAt;
+  const firstSync = status.data?.firstSync ?? null;
   return (
     <>
       {!ready ? (
         <p>Say which bucket to sync with.</p>
       ) : running ? (
-        <p role="status">
-          Uploading {formatBytes(run.bytesDone)} of{' '}
-          {formatBytes(run.bytesTotal)} ({String(run.filesDone)} of{' '}
-          {files(run.filesTotal)})
-        </p>
+        <>
+          <p role="status">{progressWords(run)}</p>
+          {run.secondsLeft !== null && (
+            <p className="muted">{timeLeftText(run.secondsLeft)}</p>
+          )}
+        </>
       ) : (
         <p role="status">
-          {syncedAt === null
-            ? 'Not synced yet'
-            : `Synced ${publishedTime(syncedAt)}`}
+          {syncedAt !== null
+            ? `Synced ${publishedTime(syncedAt)}`
+            : firstSync === null
+              ? 'Not synced yet'
+              : `The first sync didn't finish: ${formatBytes(firstSync.bytesBackedUp)} of ${formatBytes(firstSync.bytes)} backed up. Sync carries on from there.`}
         </p>
       )}
       {run?.state === 'done' && (

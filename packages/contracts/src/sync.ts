@@ -44,16 +44,46 @@ export const saveSyncSettingsRequest = z
   })
   .meta({ id: 'SaveSyncSettingsRequest' });
 
+export const backupFigure = z
+  .object({
+    bytes: z.number().int(),
+    files: z.number().int(),
+    bytesBackedUp: z.number().int(),
+    filesBackedUp: z.number().int(),
+  })
+  .meta({
+    id: 'BackupFigure',
+    description: 'How much of the whole library is in the bucket (FF-241).',
+  });
+
 export const syncProgress = z
   .object({
     state: z.enum(['running', 'stopping', 'done', 'cancelled', 'failed']).meta({
       description:
         '`stopping` from a cancel until the uploads going have been cut off.',
     }),
+    phase: z.enum(['checking-library', 'checking-bucket', 'uploading']).meta({
+      description:
+        'Reading the library to see what changed, listing the bucket for what it already has, then uploading.',
+    }),
+    filesChecked: z.number().int(),
+    filesToCheck: z.number().int(),
     bytesDone: z.number().int(),
     bytesTotal: z.number().int(),
     filesDone: z.number().int(),
     filesTotal: z.number().int(),
+    first: z.boolean().meta({
+      description:
+        'Whether this is the first sync of the library to the bucket, or one carrying it on.',
+    }),
+    library: backupFigure.nullable().meta({
+      description:
+        'For a first sync, the whole library and how much is backed up.',
+    }),
+    secondsLeft: z.number().int().nullable().meta({
+      description:
+        'About how long the upload has left, once a minute of it has been timed.',
+    }),
     failure: failureReason.nullable().meta({
       description: 'Why it failed, if it did.',
     }),
@@ -71,6 +101,10 @@ export const syncStatus = z
         'Whether a sync can be started: in the desktop app, with the Cloudflare account ID and a bucket set.',
     }),
     lastSyncedAt: z.iso.datetime().nullable(),
+    firstSync: backupFigure.nullable().meta({
+      description:
+        'How far a first sync that didn’t finish got, worked out from the bucket by path and size; null until it’s known, or when there’s none.',
+    }),
     run: syncProgress.nullable().meta({
       description:
         'How the latest sync since the service started went, if there was one.',
@@ -81,3 +115,4 @@ export const syncStatus = z
 export type SyncSettings = z.infer<typeof syncSettings>;
 export type SyncProgress = z.infer<typeof syncProgress>;
 export type SyncStatus = z.infer<typeof syncStatus>;
+export type BackupFigure = z.infer<typeof backupFigure>;

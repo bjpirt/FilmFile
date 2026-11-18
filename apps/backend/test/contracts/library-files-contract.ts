@@ -73,6 +73,48 @@ export function libraryFilesContract(
       ]);
     });
 
+    test('says how many files it has checked, of how many, as it goes', async () => {
+      const { files, put } = await make();
+      await put('Library/a.json', 'a');
+      await put('Library/b.json', 'b');
+      await put('settings.json', 's');
+      const told: (readonly [number, number])[] = [];
+
+      await files.describe(ctx, {
+        checked: (done, total) => told.push([done, total]),
+        signal: new AbortController().signal,
+      });
+
+      expect(told.at(0)).toEqual([0, 3]);
+      expect(told.at(-1)).toEqual([3, 3]);
+    });
+
+    test('stops checking when asked to', async () => {
+      const { files, put } = await make();
+      await put('Library/a.json', 'a');
+      const stopped = new AbortController();
+      stopped.abort();
+
+      await expect(
+        files.describe(ctx, {
+          checked: () => undefined,
+          signal: stopped.signal,
+        }),
+      ).rejects.toThrow();
+    });
+
+    test('gives every file’s size, by path, without hashing', async () => {
+      const { files, put } = await make();
+      await put('settings.json', '{"s":1}');
+      await put('Library/.DS_Store', 'x');
+      await put('Library/a.json', 'abc');
+
+      expect(await files.sizes(ctx)).toEqual([
+        { path: 'Library/a.json', size: 3 },
+        { path: 'settings.json', size: 7 },
+      ]);
+    });
+
     test('reads a file’s bytes as a stream', async () => {
       const { files, put } = await make();
       await put('Library/a.json', 'the bytes');
