@@ -28,6 +28,13 @@ export interface LibraryFiles {
   sizes(
     ctx: ArchiveContext,
   ): Promise<readonly { readonly path: string; readonly size: number }[]>;
+  /**
+   * Every file a `roll.json` in the library mentions (each version's file),
+   * by path from the folder, so a sync never removes a catalogued file from
+   * the bucket (D117). A `roll.json` that can't be read mentions everything
+   * in its folder, given as the folder's path ending in `/`.
+   */
+  mentioned(ctx: ArchiveContext): Promise<readonly string[]>;
   /** A file's bytes as a stream, read as it's sent; refuses a path outside the folder. */
   read(ctx: ArchiveContext, path: string): ReadableStream<Uint8Array>;
 }

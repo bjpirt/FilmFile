@@ -18,7 +18,9 @@ export function useSyncStatus(api: ApiClient, enabled = true) {
     },
     refetchInterval: (query) => {
       const state = query.state.data?.run?.state;
-      return state === 'running' || state === 'stopping' ? 400 : false;
+      return state === 'running' || state === 'waiting' || state === 'stopping'
+        ? 400
+        : false;
     },
   });
 }

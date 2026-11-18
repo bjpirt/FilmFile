@@ -1,11 +1,12 @@
 import type { ApiClient } from '@filmfile/contracts/client';
-import type { SyncProgress } from '@filmfile/contracts/sync';
+import type { FileList, SyncProgress } from '@filmfile/contracts/sync';
 import { useState } from 'react';
 import { firstIssueMessage } from '../forms/first-issue-message.ts';
 import { Link } from '../routing.tsx';
 import { formatBytes } from '../settings/format-bytes.ts';
 import { publishedTime } from '../sites/published-time.ts';
-import { files, progressWords } from './progress-words.ts';
+import { doneWords } from './done-words.ts';
+import { count, files, progressWords } from './progress-words.ts';
 import { timeLeftText } from './time-left-text.ts';
 import { useSyncStatus } from './use-sync-status.ts';
 
@@ -51,6 +52,21 @@ function Failed({ run }: { readonly run: SyncProgress }) {
   );
 }
 
+/** "Show files", opening the files' paths, and how many more there are. */
+function ShowFiles({ list }: { readonly list: FileList }) {
+  return (
+    <details>
+      <summary>Show files</summary>
+      <ul>
+        {list.paths.map((path) => (
+          <li key={path}>{path}</li>
+        ))}
+      </ul>
+      {list.more > 0 && <p className="muted">and {count(list.more)} more</p>}
+    </details>
+  );
+}
+
 /**
  * "Sync" with its progress and "Cancel", when the last sync finished and
  * what it sent, or why it didn't finish (FF-225). Settings and the header's
@@ -92,6 +108,11 @@ export function SyncControls({
     }
   }
 
+  async function answer(remove: boolean) {
+    await api.POST('/api/sync/removals', { body: { remove } });
+    await status.refetch();
+  }
+
   async function cancel() {
     setCancelling(true);
     await api.DELETE('/api/sync');
@@ -99,7 +120,10 @@ export function SyncControls({
   }
 
   const run = status.data?.run ?? null;
-  const running = run?.state === 'running' || run?.state === 'stopping';
+  const running =
+    run?.state === 'running' ||
+    run?.state === 'waiting' ||
+    run?.state === 'stopping';
   const stopping = run?.state === 'stopping' || (running && cancelling);
   const syncedAt = status.data?.lastSyncedAt ?? lastSyncedAt;
   const firstSync = status.data?.firstSync ?? null;
@@ -108,12 +132,23 @@ export function SyncControls({
       {!ready ? (
         <p>Say which bucket to sync with.</p>
       ) : running ? (
-        <>
-          <p role="status">{progressWords(run)}</p>
-          {run.secondsLeft !== null && (
-            <p className="muted">{timeLeftText(run.secondsLeft)}</p>
-          )}
-        </>
+        run.state === 'waiting' && run.toRemove !== null ? (
+          <>
+            <p role="status">
+              This sync will also remove {files(run.toRemove.files)} from the
+              backup that are no longer in the library (
+              {formatBytes(run.toRemove.bytes)}).
+            </p>
+            <ShowFiles list={run.toRemove} />
+          </>
+        ) : (
+          <>
+            <p role="status">{progressWords(run)}</p>
+            {run.secondsLeft !== null && (
+              <p className="muted">{timeLeftText(run.secondsLeft)}</p>
+            )}
+          </>
+        )
       ) : (
         <p role="status">
           {syncedAt !== null
@@ -123,18 +158,36 @@ export function SyncControls({
               : `The first sync didn't finish: ${formatBytes(firstSync.bytesBackedUp)} of ${formatBytes(firstSync.bytes)} backed up. Sync carries on from there.`}
         </p>
       )}
-      {run?.state === 'done' && (
-        <p className="muted">
-          {run.filesDone === 0
-            ? 'Nothing had changed.'
-            : `Sent ${files(run.filesDone)} (${formatBytes(run.bytesDone)}).`}
-        </p>
+      {run?.state === 'done' && <p className="muted">{doneWords(run)}</p>}
+      {run?.state === 'done' && run.missing !== null && (
+        <>
+          <p>
+            {run.missing.files === 1
+              ? '1 file that was backed up is missing on this computer. The backup still has it.'
+              : `${count(run.missing.files)} files that were backed up are missing on this computer. The backup still has them.`}
+          </p>
+          <ShowFiles list={run.missing} />
+        </>
       )}
       {(run?.state === 'failed' || run?.state === 'cancelled') && (
         <Failed run={run} />
       )}
       {problem !== undefined && <p role="alert">{problem}</p>}
       <div className="form-actions">
+        {run?.state === 'waiting' && !stopping && (
+          <>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => void answer(true)}
+            >
+              Remove them
+            </button>
+            <button type="button" onClick={() => void answer(false)}>
+              Keep them for now
+            </button>
+          </>
+        )}
         {running ? (
           <button
             type="button"

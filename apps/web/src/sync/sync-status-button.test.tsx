@@ -286,6 +286,42 @@ describe('the header’s sync status', () => {
     expect(within(panel).getByRole('button', { name: 'Cancel' })).toBeTruthy();
   });
 
+  test('reads "Waiting…" while a sync waits to be told whether to remove files', async () => {
+    openApp({
+      syncStates: [
+        {
+          state: 'waiting',
+          toRemove: { files: 1, bytes: 10, paths: ['Library/x.tif'], more: 0 },
+        },
+      ],
+    });
+    fireEvent.click(await statusButton());
+    const panel = screen.getByRole('dialog', { name: 'Sync' });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Sync' }));
+
+    expect(
+      await within(header()).findByRole('button', { name: 'Waiting…' }),
+    ).toBeTruthy();
+    expect(
+      await within(panel).findByRole('button', { name: 'Remove them' }),
+    ).toBeTruthy();
+  });
+
+  test('a sync that only copies reads its share of the files', async () => {
+    openApp({
+      syncStates: [
+        { state: 'running', bytesTotal: 0, filesDone: 9, filesTotal: 36 },
+      ],
+    });
+    fireEvent.click(await statusButton());
+    const panel = screen.getByRole('dialog', { name: 'Sync' });
+    fireEvent.click(within(panel).getByRole('button', { name: 'Sync' }));
+
+    expect(
+      await within(header()).findByRole('button', { name: 'Syncing 25%' }),
+    ).toBeTruthy();
+  });
+
   test('a first sync reads its share of the whole library, with the time left', async () => {
     openApp({
       syncStates: [

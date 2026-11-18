@@ -6,6 +6,7 @@ import type {
   PreconditionFailed,
   PublishBucket,
   RemoteFile,
+  SourceMissing,
   StreamToPut,
 } from '../../../application/ports/publish-bucket.ts';
 import type { Clock } from '../../../application/ports/clock.ts';
@@ -204,6 +205,29 @@ export class InMemoryPublishBucket implements PublishBucket {
     return put.ok
       ? ok({ sha256: createHash('sha256').update(bytes).digest('hex') })
       : put;
+  }
+
+  copy(
+    target: BucketTarget,
+    keys: { readonly from: string; readonly to: string },
+    signal: AbortSignal,
+  ): Promise<Result<undefined, PublishFailed | SourceMissing>> {
+    if (signal.aborted) {
+      return Promise.reject(new DOMException('aborted', 'AbortError'));
+    }
+    const opened = this.#open(target);
+    if (!opened.ok) {
+      return Promise.resolve(opened);
+    }
+    const file = opened.value.get(keys.from);
+    if (file === undefined) {
+      return Promise.resolve(err({ kind: 'source-missing' }));
+    }
+    opened.value.set(keys.to, {
+      ...file,
+      lastModified: this.#clock.now().toISOString(),
+    });
+    return Promise.resolve(ok(undefined));
   }
 
   deleteMany(

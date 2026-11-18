@@ -8,10 +8,15 @@ import type {
   ManifestEntry,
   SyncRecord,
 } from '../../../domain/sync/manifest.ts';
-import { manifestAfter, planBackup } from '../../../domain/sync/plan-backup.ts';
+import {
+  manifestAfter,
+  planBackup,
+  type BackupCopy,
+} from '../../../domain/sync/plan-backup.ts';
 import { filesAlreadyInBucket } from '../../../domain/sync/files-already-in-bucket.ts';
 import type { LibraryFile } from '../../../domain/sync/library-file.ts';
 import type { BackupFigure } from '../../../domain/sync/backup-figure.ts';
+import { fileListOf, type FileList } from '../../../domain/sync/file-list.ts';
 import { bucketKeys } from '../../../domain/sync/bucket-keys.ts';
 import {
   secondsLeft,
@@ -41,16 +46,30 @@ import { syncNeedsTheApp } from './save-sync-settings.ts';
 
 /** Where a sync has got to. */
 export interface SyncProgress {
-  /** `stopping` from a cancel until the uploads going have been cut off. */
-  readonly state: 'running' | 'stopping' | 'done' | 'cancelled' | 'failed';
+  /**
+   * `waiting` for the person to say whether to remove files gone from the
+   * library (FF-238); `stopping` from a cancel until the uploads going have
+   * been cut off.
+   */
+  readonly state:
+    'running' | 'waiting' | 'stopping' | 'done' | 'cancelled' | 'failed';
   /** Reading the library, listing the bucket, then uploading (FF-241). */
   readonly phase: 'checking-library' | 'checking-bucket' | 'uploading';
   readonly filesChecked: number;
   readonly filesToCheck: number;
   readonly bytesDone: number;
   readonly bytesTotal: number;
+  /** Files uploaded or copied, of those to upload or copy. */
   readonly filesDone: number;
   readonly filesTotal: number;
+  /** Renamed files copied inside the bucket, among those done (FF-238). */
+  readonly filesCopied: number;
+  /** Files gone from the library removed from the bucket, once agreed. */
+  readonly filesRemoved: number;
+  /** While waiting, the files it would remove. */
+  readonly toRemove: FileList | null;
+  /** Files a roll.json mentions that are missing on this computer, kept in the bucket. */
+  readonly missing: FileList | null;
   /** Whether it's the library's first sync to the bucket, or one carrying it on. */
   readonly first: boolean;
   /** For a first sync, the whole library and how much is backed up. */
@@ -81,7 +100,14 @@ interface Job {
   readonly controller: AbortController;
   /** How much had gone up, and when, for the time left. */
   readonly samples: UploadSample[];
+  /** While waiting, gives the person's answer: whether to remove the files. */
+  answer: ((remove: boolean) => void) | undefined;
 }
+
+/** A file to upload, or to copy inside the bucket from where it already is. */
+type Work =
+  | { readonly kind: 'upload'; readonly file: LibraryFile }
+  | ({ readonly kind: 'copy' } & BackupCopy<LibraryFile>);
 
 const recordKey = bucketKeys.syncRecord;
 const manifestKey = bucketKeys.manifest;
@@ -152,7 +178,8 @@ export class LibrarySync {
     const bucket = saved?.bucket ?? null;
     const state = this.#job?.progress.state;
     // While a sync runs, its own figures say more, so the bucket isn't asked.
-    const running = state === 'running' || state === 'stopping';
+    const running =
+      state === 'running' || state === 'waiting' || state === 'stopping';
     const firstSync =
       settings === undefined ||
       accountId === null ||
@@ -194,9 +221,10 @@ export class LibrarySync {
     if (this.#store === undefined) {
       return err(syncNeedsTheApp);
     }
+    const state = this.#job?.progress.state;
     if (
-      this.#job?.progress.state === 'running' ||
-      this.#job?.progress.state === 'stopping'
+      this.#job !== undefined &&
+      (state === 'running' || state === 'waiting' || state === 'stopping')
     ) {
       return ok(this.#job.progress);
     }
@@ -232,6 +260,10 @@ export class LibrarySync {
         bytesTotal: 0,
         filesDone: 0,
         filesTotal: 0,
+        filesCopied: 0,
+        filesRemoved: 0,
+        toRemove: null,
+        missing: null,
         first: false,
         library: null,
         secondsLeft: null,
@@ -240,6 +272,7 @@ export class LibrarySync {
       },
       controller: new AbortController(),
       samples: [],
+      answer: undefined,
     };
     this.#job = job;
     void this.#run(ctx, {
@@ -263,7 +296,10 @@ export class LibrarySync {
     if (job?.progress.state === 'stopping') {
       return ok(undefined);
     }
-    if (job?.progress.state !== 'running') {
+    if (
+      job?.progress.state !== 'running' &&
+      job?.progress.state !== 'waiting'
+    ) {
       return err({
         kind: 'validation-failed',
         issues: [{ path: ['sync'], message: 'no sync is running' }],
@@ -272,6 +308,45 @@ export class LibrarySync {
     this.#update(job, { state: 'stopping' });
     job.controller.abort();
     return ok(undefined);
+  }
+
+  /**
+   * The person's answer to a sync waiting to remove files gone from the
+   * library (FF-238, D123): remove them, or keep them for now. Either way
+   * the sync carries on.
+   */
+  answer(remove: boolean): Result<undefined, ValidationFailed> {
+    const answer = this.#job?.answer;
+    if (answer === undefined) {
+      return err({
+        kind: 'validation-failed',
+        issues: [
+          { path: ['sync'], message: 'no sync is waiting for an answer' },
+        ],
+      });
+    }
+    answer(remove);
+    return ok(undefined);
+  }
+
+  /** Waits for the person's answer, or a cancel. */
+  #waitForAnswer(job: Job, toRemove: FileList): Promise<boolean> {
+    this.#update(job, { state: 'waiting', toRemove });
+    return new Promise<boolean>((resolve, reject) => {
+      const cancelled = () => {
+        job.answer = undefined;
+        reject(new Stopped('cancelled'));
+      };
+      job.controller.signal.addEventListener('abort', cancelled, {
+        once: true,
+      });
+      job.answer = (remove) => {
+        job.answer = undefined;
+        job.controller.signal.removeEventListener('abort', cancelled);
+        this.#update(job, { state: 'running', toRemove: null });
+        resolve(remove);
+      };
+    });
   }
 
   #update(job: Job, change: Partial<SyncProgress>): void {
@@ -303,19 +378,31 @@ export class LibrarySync {
         },
         signal: job.controller.signal,
       });
-      const plan = planBackup({ library, manifest: manifest ?? [] });
-      this.#update(job, { phase: 'checking-bucket' });
-      const { uploads, found } = await this.#notYetInBucket(
-        target,
-        plan.uploads,
-      );
+      const plan = planBackup({
+        library,
+        manifest: manifest ?? [],
+        mentioned: await this.#files.mentioned(ctx),
+      });
+      this.#update(job, {
+        phase: 'checking-bucket',
+        missing: fileListOf(plan.missing),
+      });
+      const { work, found } = await this.#notYetInBucket(target, [
+        ...plan.uploads.map((file) => ({ kind: 'upload' as const, file })),
+        ...plan.copies.map((copy) => ({ kind: 'copy' as const, ...copy })),
+      ]);
+      const toRemove = fileListOf(plan.removals);
+      const remove =
+        toRemove !== null && (await this.#waitForAnswer(job, toRemove));
       const sum = (files: readonly LibraryFile[]) =>
         files.reduce((total, file) => total + file.size, 0);
       job.samples.push({ at: this.#clock.now().getTime(), bytes: 0 });
       this.#update(job, {
         phase: 'uploading',
-        bytesTotal: sum(uploads),
-        filesTotal: uploads.length,
+        bytesTotal: sum(
+          work.flatMap((item) => (item.kind === 'upload' ? [item.file] : [])),
+        ),
+        filesTotal: work.length,
         library: first
           ? {
               bytes: sum(library),
@@ -325,9 +412,20 @@ export class LibrarySync {
             }
           : null,
       });
-      const sent = await this.#send(ctx, target, uploads, job);
+      const sent = await this.#send(ctx, target, work, job);
+      // Removed last, so a sync cut short before here removed nothing (D117).
+      const removed = [
+        ...plan.renamed,
+        ...(remove ? plan.removals.map((file) => file.path) : []),
+      ];
+      if (removed.length > 0) {
+        this.#must(
+          await this.#bucket.deleteMany(target, removed, job.controller.signal),
+        );
+      }
+      this.#update(job, { filesRemoved: remove ? plan.removals.length : 0 });
       const at = this.#clock.now().toISOString();
-      const after = manifestAfter(manifest ?? [], [...found, ...sent]);
+      const after = manifestAfter(manifest ?? [], [...found, ...sent], removed);
       this.#must(
         await this.#bucket.put(
           target,
@@ -448,24 +546,32 @@ export class LibrarySync {
   }
 
   /**
-   * Of the files to upload, those the bucket doesn't already have, and those
-   * it does, sent by a sync that didn't finish (D122). The bucket is listed
-   * only when there's something to upload.
+   * Of the files to upload or copy, those the bucket doesn't already have at
+   * their paths, and those it does, sent by a sync that didn't finish (D122).
+   * The bucket is listed only when there's something to do.
    */
   async #notYetInBucket(
     target: BucketTarget,
-    uploads: readonly LibraryFile[],
+    work: readonly Work[],
   ): Promise<{
-    readonly uploads: readonly LibraryFile[];
+    readonly work: readonly Work[];
     readonly found: readonly LibraryFile[];
   }> {
-    if (uploads.length === 0) {
-      return { uploads, found: [] };
+    if (work.length === 0) {
+      return { work, found: [] };
     }
     const listing = this.#must(
       await this.#bucket.list(target, new AbortController().signal),
     );
-    return filesAlreadyInBucket({ uploads, listing });
+    const { found } = filesAlreadyInBucket({
+      uploads: work.map((item) => item.file),
+      listing,
+    });
+    const there = new Set(found.map((file) => file.path));
+    return {
+      work: work.filter((item) => !there.has(item.file.path)),
+      found,
+    };
   }
 
   /** The bucket's manifest from the last sync: none before the first has finished. */
@@ -490,15 +596,16 @@ export class LibrarySync {
   }
 
   /**
-   * Streams the files to the bucket a few at a time. A cancel cuts off
+   * Streams the files to the bucket a few at a time, and copies renamed ones
+   * inside it, uploading one whose old copy has gone. A cancel cuts off
    * those going and starts no more; one that fails stops the rest being
-   * started. Gives what was sent,
-   * with the SHA-256 of the bytes that went.
+   * started. Gives what was sent or copied, with the SHA-256 of the bytes
+   * that went.
    */
   async #send(
     ctx: ArchiveContext,
     target: BucketTarget,
-    uploads: readonly LibraryFile[],
+    work: readonly Work[],
     job: Job,
   ): Promise<readonly ManifestEntry[]> {
     const sent: ManifestEntry[] = [];
@@ -510,10 +617,49 @@ export class LibrarySync {
     const cancelled = () => job.controller.signal.aborted;
     const worker = async (): Promise<void> => {
       while (stop.reason === undefined && !job.controller.signal.aborted) {
-        const file = uploads[next];
+        const item = work[next];
         next += 1;
-        if (file === undefined) {
+        if (item === undefined) {
           return;
+        }
+        const { file } = item;
+        if (item.kind === 'copy') {
+          const copied = await this.#bucket
+            .copy(
+              target,
+              { from: item.from, to: file.path },
+              job.controller.signal,
+            )
+            .catch((error: unknown) => {
+              if (cancelled()) {
+                return undefined;
+              }
+              throw error;
+            });
+          if (copied === undefined) {
+            return;
+          }
+          if (copied.ok) {
+            sent.push({
+              path: file.path,
+              size: file.size,
+              sha256: file.sha256,
+            });
+            const { filesDone, filesCopied } = job.progress;
+            this.#update(job, {
+              filesDone: filesDone + 1,
+              filesCopied: filesCopied + 1,
+            });
+            continue;
+          }
+          if (copied.error.kind === 'publish-failed') {
+            stop.reason ??= copied.error.reason;
+            return;
+          }
+          // The old copy has gone from the bucket: send the file instead.
+          this.#update(job, {
+            bytesTotal: job.progress.bytesTotal + file.size,
+          });
         }
         let put;
         try {
@@ -564,7 +710,7 @@ export class LibrarySync {
       }
     };
     await Promise.all(
-      Array.from({ length: Math.min(uploadsAtOnce, uploads.length) }, worker),
+      Array.from({ length: Math.min(uploadsAtOnce, work.length) }, worker),
     );
     if (stop.reason !== undefined) {
       throw new Stopped(stop.reason);

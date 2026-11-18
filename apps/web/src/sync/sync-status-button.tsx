@@ -34,15 +34,21 @@ function wordsFor(
   if (run?.state === 'stopping') {
     return { words: 'Stopping…', warning: false };
   }
+  if (run?.state === 'waiting') {
+    return { words: 'Waiting…', warning: false };
+  }
   if (run?.state === 'running') {
     if (run.phase !== 'uploading') {
       return { words: 'Checking…', warning: false };
     }
     // A first sync counts the whole library (FF-241).
     const share =
-      run.library === null
-        ? percent(run.bytesDone, run.bytesTotal)
-        : percent(run.library.bytesBackedUp, run.library.bytes);
+      run.library !== null
+        ? percent(run.library.bytesBackedUp, run.library.bytes)
+        : // Copies send no bytes, so a sync of only copies counts files (FF-238).
+          run.bytesTotal === 0
+          ? percent(run.filesDone, run.filesTotal)
+          : percent(run.bytesDone, run.bytesTotal);
     return { words: `Syncing ${String(share)}%`, warning: false };
   }
   if (run?.state === 'failed') {

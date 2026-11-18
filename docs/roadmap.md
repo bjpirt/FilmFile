@@ -298,7 +298,6 @@ Changes to how FilmFile is built that add nothing to see: speed, legibility and 
 
 A copy of the library in one bucket (Cloudflare R2 first, then S3), kept in step between computers by syncing by hand, with one computer editing at a time so nothing needs merging (D115–D118, design section 10). It reuses the request signing and keys from publishing a site (FF-201); whichever is built first builds them.
 
-- [ ] [FF-238 Renames and removals in the backup](tasks/FF-238.md): renamed files copied inside the bucket, files gone from the library removed once you agree, and missing files kept and listed.
 - [ ] [FF-227 Start a second computer from the bucket](tasks/FF-227.md): download the whole library into an empty FilmFile folder.
 - [ ] [FF-228 Bring this computer up to date](tasks/FF-228.md): a warning when another computer has synced since, and syncing down, with edits waiting while a sync runs.
 - [ ] [FF-229 One computer edits at a time](tasks/FF-229.md): read-only without the lock, with "Edit on this computer" and "Done editing here".
@@ -306,6 +305,7 @@ A copy of the library in one bucket (Cloudflare R2 first, then S3), kept in step
 - [ ] [FF-231 When both computers have changed](tasks/FF-231.md): keep this computer's or take the bucket's, with the other side's changes set aside.
 - [ ] [FF-232 Back up when closing FilmFile](tasks/FF-232.md): a desktop setting that syncs and hands back editing on close.
 - [ ] [later] [FF-233 Sync with an S3 bucket](tasks/FF-233.md): the same with AWS S3.
+- [x] [FF-238 Renames and removals in the backup](tasks/FF-238.md)
 - [x] [FF-241 How far the first sync has got](tasks/FF-241.md)
 - [x] [FF-240 Cancel stops a sync at once](tasks/FF-240.md)
 - [x] [FF-239 A sync that didn't finish carries on](tasks/FF-239.md)
@@ -471,7 +471,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D120 | Sync's per-computer settings (the bucket, this computer's name, the last sync number) are kept by the desktop app with its other per-computer settings, and the service reads them over its private channel, so sync works only in the app (a test-only `FILMFILE_SYNC_SETTINGS` file stands in for it). The last sync's manifest isn't kept locally: each sync reads it from the bucket, and SHA-256s are cached by path, size and modified time in the OS cache folder, so clearing the cache costs only hashing again. Names starting with `.` are never synced. A file edited during a sync is recorded by the hash of what was sent. | FF-225, FF-238 |
 | D121 | Edits stay open while a sync uploads: the manifest records the hash of what was actually sent (D120), so an edit made meanwhile is sent next time, and a file renamed mid-sync only makes that sync not finish. Writes are refused (423) and the page made read-only during a sync only once sync also downloads (FF-228), where an edit could clash with a file being written; the check is shared with the lock (FF-229). | FF-226, FF-228, FF-229 |
 | D122 | Before uploading, a sync lists the bucket and skips files already there with an ETag matching their MD5 (kept in the hash cache beside the SHA-256), so a sync that didn't finish carries on. It's checked against the bucket, not a list kept on this computer, so it survives a crash or a cleared cache, at the cost of one listing (1,000 files a request) when there's anything to upload; an ETag that isn't an MD5 means sending again. The record and manifest are still written only when a sync finishes (D117). Until a first sync finishes, its progress counts the whole library, worked out on opening from the bucket by path and size. | FF-239, FF-240, FF-241 |
-| D123 | A sync pauses after checking, before changing anything, to ask about every removal but a rename's old copy ("Remove them" or "Keep them for now"; kept files stay and are asked about again), since D117's rule also covers a roll folder deleted outside FilmFile, which only the person can tell from emptying `deleted/`. A rename is a copy inside the bucket, counted in the upload's files but not its bytes so the time left stays about real uploading; a copy whose source is gone is uploaded instead. | FF-238 |
+| D123 | A sync pauses after checking, before changing anything, to ask about every removal but a rename's old copy ("Remove them" or "Keep them for now"; kept files stay and are asked about again), since D117's rule also covers a roll folder deleted outside FilmFile, which only the person can tell from emptying `deleted/`. A rename is a copy inside the bucket, counted in the upload's files but not its bytes so the time left stays about real uploading; a copy whose source is gone is uploaded instead. A file is also taken as renamed when its folders have the same IDs (D66) as a library file's, so a renumbered roll's changed `roll.json` is never asked about. | FF-238 |
 
 **Still open:** see `docs/design.md`, section 15.
 

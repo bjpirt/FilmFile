@@ -77,11 +77,13 @@ The same account and keys back up the whole library (everything in `Library/`, a
 1. In **R2 Object Storage**, create a bucket for the backup, such as `filmfile-backup`. Use it for nothing else, and don't give it a custom domain or a public address: it stays private.
 2. Make sure the token from step 1 covers it (edit the token's buckets if you chose them one by one).
 3. In FilmFile, open **Settings**. Under **Sync**, enter the **Bucket** and this computer's name, and press **Save**.
-4. Press **Sync**. The first sync sends everything, which can take a while for a big library: it says how much is backed up and about how long is left, and if it's stopped, the next sync carries on. After that, only what's new or changed is sent.
+4. Press **Sync**. The first sync sends everything, which can take a while for a big library: it says how much is backed up and about how long is left, and if it's stopped, the next sync carries on. After that, only what's new or changed is sent. A renumbered roll or frame is copied inside the bucket rather than sent again.
 
 Once it's set up, the cloud at the right of FilmFile's header says when the library was last synced ("Synced 2 h ago"), and clicking it syncs from any page.
 
 A bucket with other things in it is refused, so nothing of anyone else's is mixed in. Cancelling stops a sync within a second or two, and neither that nor a sync that fails part-way loses anything: the next sync carries on from what's already in the bucket.
+
+A sync removes files from the backup only once you agree. When files have gone from the library, such as those you emptied from `deleted/`, it stops before changing anything and asks: **Remove them**, or **Keep them for now** (it asks again next time). A photo the library still lists but that's missing on this computer is never removed: the sync says which, and the backup keeps it.
 
 ## Trying it without a domain
 

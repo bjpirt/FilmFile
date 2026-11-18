@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { hostname } from 'node:os';
 import path from 'node:path';
 import { describe, expect, test } from 'vitest';
@@ -890,5 +890,227 @@ describe('how far the first sync has got (FF-241)', () => {
     expect((await finished.status()).firstSync).toBeNull();
     expect((await finished.restarted()()).firstSync).toBeNull();
     expect(finished.bucket.listed).toBe(listed);
+  });
+});
+
+describe('renames and removals (FF-238)', () => {
+  const scan =
+    'rolls/2026/2026-001-AAAAAAAA/frames/3-BBBBBBBB/scan-CCCCCCCC/scan.tif';
+  const renumbered =
+    'rolls/2026/2026-001-AAAAAAAA/frames/4-BBBBBBBB/scan-CCCCCCCC/scan.tif';
+  const emptied =
+    'deleted/2026-11-02T101500Z-frame-X/7-DDDDDDDD/scan-EEEEEEEE/old.tif';
+  const manifestPaths = async (
+    fileInBucket: (key: string) => Promise<string | undefined>,
+  ) =>
+    parseManifest((await fileInBucket('filmfile/manifest.json')) ?? '')
+      ?.map((file) => file.path)
+      .filter((key) => key.startsWith('Library/'));
+  const answer = (
+    post: (url: string, body: unknown) => Promise<Response>,
+    remove: boolean,
+  ) => post('/api/sync/removals', { remove });
+
+  test('copies a renamed file inside the bucket instead of uploading it, and removes its old path', async () => {
+    const { bucket, ready, sync, fileInBucket } = setUp();
+    await ready();
+    await putInLibrary(scan, 'a scan');
+    await sync();
+    bucket.streamed.length = 0;
+    await rename(
+      path.join(
+        archive.path(),
+        'rolls/2026/2026-001-AAAAAAAA/frames/3-BBBBBBBB',
+      ),
+      path.join(
+        archive.path(),
+        'rolls/2026/2026-001-AAAAAAAA/frames/4-BBBBBBBB',
+      ),
+    );
+
+    const run = await sync();
+
+    expect(run).toMatchObject({
+      state: 'done',
+      filesDone: 1,
+      filesTotal: 1,
+      filesCopied: 1,
+      filesRemoved: 0,
+      bytesTotal: 0,
+      missing: null,
+    });
+    expect(bucket.streamed).toEqual([]);
+    expect(await fileInBucket(`Library/${renumbered}`)).toBe('a scan');
+    expect(await fileInBucket(`Library/${scan}`)).toBeUndefined();
+    expect(await manifestPaths(fileInBucket)).toEqual([
+      `Library/${renumbered}`,
+    ]);
+  });
+
+  test('uploads a renamed file when the bucket no longer has the old copy', async () => {
+    const { bucket, ready, sync, fileInBucket } = setUp();
+    await ready();
+    await putInLibrary(scan, 'a scan');
+    await sync();
+    await bucket.deleteMany(
+      target,
+      [`Library/${scan}`],
+      new AbortController().signal,
+    );
+    bucket.streamed.length = 0;
+    await rename(
+      path.join(
+        archive.path(),
+        'rolls/2026/2026-001-AAAAAAAA/frames/3-BBBBBBBB',
+      ),
+      path.join(
+        archive.path(),
+        'rolls/2026/2026-001-AAAAAAAA/frames/4-BBBBBBBB',
+      ),
+    );
+
+    const run = await sync();
+
+    expect(run).toMatchObject({ state: 'done', filesDone: 1, filesCopied: 0 });
+    expect(bucket.streamed).toEqual([`Library/${renumbered}`]);
+    expect(await fileInBucket(`Library/${renumbered}`)).toBe('a scan');
+  });
+
+  test('pauses before sending anything to ask about removing files gone from the library, and removes them when told', async () => {
+    const { bucket, ready, sync, post, untilDone, status, fileInBucket } =
+      setUp();
+    await ready();
+    await putInLibrary('a.json', 'a');
+    await putInLibrary(emptied, 'old scan');
+    await sync();
+    bucket.streamed.length = 0;
+    await rm(path.join(archive.path(), 'deleted'), { recursive: true });
+    await putInLibrary('b.json', 'b');
+
+    const waiting = await sync();
+
+    expect(waiting).toMatchObject({
+      state: 'waiting',
+      toRemove: { files: 1, bytes: 8, paths: [`Library/${emptied}`], more: 0 },
+    });
+    expect(bucket.streamed).toEqual([]);
+    expect((await status()).run?.state).toBe('waiting');
+
+    expect((await answer(post, true)).status).toBe(204);
+    const run = await untilDone();
+
+    expect(run).toMatchObject({
+      state: 'done',
+      filesDone: 1,
+      filesRemoved: 1,
+      toRemove: null,
+    });
+    expect(await fileInBucket(`Library/${emptied}`)).toBeUndefined();
+    expect(await fileInBucket('Library/b.json')).toBe('b');
+    expect(await manifestPaths(fileInBucket)).toEqual([
+      'Library/a.json',
+      'Library/b.json',
+    ]);
+  });
+
+  test('keeps them for now when told, and the next sync asks again', async () => {
+    const { ready, sync, post, untilDone, fileInBucket } = setUp();
+    await ready();
+    await putInLibrary(emptied, 'old scan');
+    await sync();
+    await rm(path.join(archive.path(), 'deleted'), { recursive: true });
+    await sync();
+
+    expect((await answer(post, false)).status).toBe(204);
+    const run = await untilDone();
+
+    expect(run).toMatchObject({ state: 'done', filesRemoved: 0 });
+    expect(await fileInBucket(`Library/${emptied}`)).toBe('old scan');
+    expect(await manifestPaths(fileInBucket)).toEqual([`Library/${emptied}`]);
+    expect(await sync()).toMatchObject({ state: 'waiting' });
+  });
+
+  test('cancelling while it waits stops the sync, leaving the bucket as it was', async () => {
+    const { ready, sync, request, untilDone, fileInBucket } = setUp();
+    await ready();
+    await putInLibrary(emptied, 'old scan');
+    await sync();
+    await rm(path.join(archive.path(), 'deleted'), { recursive: true });
+    await sync();
+
+    expect((await request('/api/sync', { method: 'DELETE' })).status).toBe(204);
+
+    expect(await untilDone()).toMatchObject({ state: 'cancelled' });
+    expect(await fileInBucket(`Library/${emptied}`)).toBe('old scan');
+    expect(
+      parseSyncRecord((await fileInBucket('filmfile/sync.json')) ?? '')?.sync,
+    ).toBe(1);
+  });
+
+  test('answering when no sync is waiting is refused', async () => {
+    const { ready, post } = setUp();
+    await ready();
+
+    const answered = await answer(post, true);
+
+    expect(answered.status).toBe(422);
+    expect(await answered.json()).toMatchObject({
+      issues: [{ path: ['sync'], message: 'no sync is waiting for an answer' }],
+    });
+  });
+
+  test('keeps a file a roll.json mentions that is missing on this computer, and says so', async () => {
+    const { ready, sync, fileInBucket } = setUp();
+    await ready();
+    await putInLibrary(
+      'rolls/2026/2026-001-AAAAAAAA/roll.json',
+      JSON.stringify({
+        frames: [
+          { versions: [{ file: 'frames/3-BBBBBBBB/scan-CCCCCCCC/scan.tif' }] },
+        ],
+      }),
+    );
+    await putInLibrary(scan, 'a scan');
+    await sync();
+    await rm(path.join(archive.path(), scan));
+
+    const run = await sync();
+
+    expect(run).toMatchObject({
+      state: 'done',
+      filesRemoved: 0,
+      missing: { files: 1, bytes: 6, paths: [`Library/${scan}`], more: 0 },
+    });
+    expect(await fileInBucket(`Library/${scan}`)).toBe('a scan');
+    expect(await manifestPaths(fileInBucket)).toContain(`Library/${scan}`);
+  });
+
+  test('a sync cut short while removing leaves the record and manifest as they were, and the next one asks again', async () => {
+    const { bucket, ready, sync, post, untilDone, fileInBucket } = setUp();
+    await ready();
+    await putInLibrary(emptied, 'old scan');
+    await sync();
+    const manifestBefore = await fileInBucket('filmfile/manifest.json');
+    await rm(path.join(archive.path(), 'deleted'), { recursive: true });
+    const deleteMany = bucket.deleteMany.bind(bucket);
+    bucket.deleteMany = (to) =>
+      Promise.resolve(
+        err({
+          kind: 'publish-failed',
+          reason: 'unreachable',
+          bucket: to.bucket,
+        }),
+      );
+    await sync();
+
+    await answer(post, true);
+
+    expect(await untilDone()).toMatchObject({ state: 'failed' });
+    expect(await fileInBucket('filmfile/manifest.json')).toBe(manifestBefore);
+    expect(
+      parseSyncRecord((await fileInBucket('filmfile/sync.json')) ?? '')?.sync,
+    ).toBe(1);
+    bucket.deleteMany = deleteMany;
+    expect(await sync()).toMatchObject({ state: 'waiting' });
   });
 });

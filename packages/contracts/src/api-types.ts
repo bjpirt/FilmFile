@@ -2972,6 +2972,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sync/removals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Say whether to remove files gone from the library
+         * @description Answers a sync waiting to remove files from the bucket that are gone from the library and that no roll.json mentions (FF-238, D123). Either way the sync carries on.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AnswerRemovalsRequest"];
+                };
+            };
+            responses: {
+                /** @description Answered. */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description The body is not valid JSON. */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The body is not of the expected type. */
+                415: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The body is not valid, or no sync is waiting for an answer. */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InvalidRequest"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings": {
         parameters: {
             query?: never;
@@ -3997,10 +4065,10 @@ export interface components {
             /** @description How the latest sync since the service started went, if there was one. */
             run: {
                 /**
-                 * @description `stopping` from a cancel until the uploads going have been cut off.
+                 * @description `waiting` for an answer to whether to remove files gone from the library (`POST /api/sync/removals`); `stopping` from a cancel until the uploads going have been cut off.
                  * @enum {string}
                  */
-                state: "running" | "stopping" | "done" | "cancelled" | "failed";
+                state: "running" | "waiting" | "stopping" | "done" | "cancelled" | "failed";
                 /**
                  * @description Reading the library to see what changed, listing the bucket for what it already has, then uploading.
                  * @enum {string}
@@ -4010,8 +4078,31 @@ export interface components {
                 filesToCheck: number;
                 bytesDone: number;
                 bytesTotal: number;
+                /** @description Files uploaded or copied, of `filesTotal`. */
                 filesDone: number;
                 filesTotal: number;
+                /** @description Renamed files copied inside the bucket instead of uploaded, among those done. */
+                filesCopied: number;
+                /** @description Files gone from the library removed from the bucket. */
+                filesRemoved: number;
+                /** @description While waiting, the files the sync would remove. */
+                toRemove: {
+                    files: number;
+                    bytes: number;
+                    /** @description The first 50 files, by path from the FilmFile folder. */
+                    paths: string[];
+                    /** @description How many more there are than `paths` gives. */
+                    more: number;
+                } | null;
+                /** @description Files a roll.json mentions that are missing on this computer; the bucket keeps them. */
+                missing: {
+                    files: number;
+                    bytes: number;
+                    /** @description The first 50 files, by path from the FilmFile folder. */
+                    paths: string[];
+                    /** @description How many more there are than `paths` gives. */
+                    more: number;
+                } | null;
                 /** @description Whether this is the first sync of the library to the bucket, or one carrying it on. */
                 first: boolean;
                 /** @description For a first sync, the whole library and how much is backed up. */
@@ -4034,10 +4125,10 @@ export interface components {
         };
         SyncProgress: {
             /**
-             * @description `stopping` from a cancel until the uploads going have been cut off.
+             * @description `waiting` for an answer to whether to remove files gone from the library (`POST /api/sync/removals`); `stopping` from a cancel until the uploads going have been cut off.
              * @enum {string}
              */
-            state: "running" | "stopping" | "done" | "cancelled" | "failed";
+            state: "running" | "waiting" | "stopping" | "done" | "cancelled" | "failed";
             /**
              * @description Reading the library to see what changed, listing the bucket for what it already has, then uploading.
              * @enum {string}
@@ -4047,8 +4138,31 @@ export interface components {
             filesToCheck: number;
             bytesDone: number;
             bytesTotal: number;
+            /** @description Files uploaded or copied, of `filesTotal`. */
             filesDone: number;
             filesTotal: number;
+            /** @description Renamed files copied inside the bucket instead of uploaded, among those done. */
+            filesCopied: number;
+            /** @description Files gone from the library removed from the bucket. */
+            filesRemoved: number;
+            /** @description While waiting, the files the sync would remove. */
+            toRemove: {
+                files: number;
+                bytes: number;
+                /** @description The first 50 files, by path from the FilmFile folder. */
+                paths: string[];
+                /** @description How many more there are than `paths` gives. */
+                more: number;
+            } | null;
+            /** @description Files a roll.json mentions that are missing on this computer; the bucket keeps them. */
+            missing: {
+                files: number;
+                bytes: number;
+                /** @description The first 50 files, by path from the FilmFile folder. */
+                paths: string[];
+                /** @description How many more there are than `paths` gives. */
+                more: number;
+            } | null;
             /** @description Whether this is the first sync of the library to the bucket, or one carrying it on. */
             first: boolean;
             /** @description For a first sync, the whole library and how much is backed up. */
@@ -4067,6 +4181,10 @@ export interface components {
             failure: "no-account" | "no-credentials" | "keys-refused" | "no-bucket" | "unreachable" | "other" | "not-empty" | "another-library" | null;
             /** @description What to fix, in words, when it failed. */
             message: string | null;
+        };
+        AnswerRemovalsRequest: {
+            /** @description true removes the files from the bucket; false keeps them for now, and the next sync asks again. */
+            remove: boolean;
         };
         Settings: {
             id: string;

@@ -56,12 +56,27 @@ export const backupFigure = z
     description: 'How much of the whole library is in the bucket (FF-241).',
   });
 
+export const fileList = z
+  .object({
+    files: z.number().int(),
+    bytes: z.number().int(),
+    paths: z.array(z.string()).readonly().meta({
+      description: 'The first 50 files, by path from the FilmFile folder.',
+    }),
+    more: z.number().int().meta({
+      description: 'How many more there are than `paths` gives.',
+    }),
+  })
+  .meta({ id: 'FileList', description: 'Some files, to list (FF-238).' });
+
 export const syncProgress = z
   .object({
-    state: z.enum(['running', 'stopping', 'done', 'cancelled', 'failed']).meta({
-      description:
-        '`stopping` from a cancel until the uploads going have been cut off.',
-    }),
+    state: z
+      .enum(['running', 'waiting', 'stopping', 'done', 'cancelled', 'failed'])
+      .meta({
+        description:
+          '`waiting` for an answer to whether to remove files gone from the library (`POST /api/sync/removals`); `stopping` from a cancel until the uploads going have been cut off.',
+      }),
     phase: z.enum(['checking-library', 'checking-bucket', 'uploading']).meta({
       description:
         'Reading the library to see what changed, listing the bucket for what it already has, then uploading.',
@@ -70,8 +85,24 @@ export const syncProgress = z
     filesToCheck: z.number().int(),
     bytesDone: z.number().int(),
     bytesTotal: z.number().int(),
-    filesDone: z.number().int(),
+    filesDone: z.number().int().meta({
+      description: 'Files uploaded or copied, of `filesTotal`.',
+    }),
     filesTotal: z.number().int(),
+    filesCopied: z.number().int().meta({
+      description:
+        'Renamed files copied inside the bucket instead of uploaded, among those done.',
+    }),
+    filesRemoved: z.number().int().meta({
+      description: 'Files gone from the library removed from the bucket.',
+    }),
+    toRemove: fileList.nullable().meta({
+      description: 'While waiting, the files the sync would remove.',
+    }),
+    missing: fileList.nullable().meta({
+      description:
+        'Files a roll.json mentions that are missing on this computer; the bucket keeps them.',
+    }),
     first: z.boolean().meta({
       description:
         'Whether this is the first sync of the library to the bucket, or one carrying it on.',
@@ -113,6 +144,16 @@ export const syncStatus = z
   .meta({ id: 'SyncStatus' });
 
 export type SyncSettings = z.infer<typeof syncSettings>;
+export const answerRemovalsRequest = z
+  .strictObject({
+    remove: z.boolean().meta({
+      description:
+        'true removes the files from the bucket; false keeps them for now, and the next sync asks again.',
+    }),
+  })
+  .meta({ id: 'AnswerRemovalsRequest' });
+
 export type SyncProgress = z.infer<typeof syncProgress>;
+export type FileList = z.infer<typeof fileList>;
 export type SyncStatus = z.infer<typeof syncStatus>;
 export type BackupFigure = z.infer<typeof backupFigure>;

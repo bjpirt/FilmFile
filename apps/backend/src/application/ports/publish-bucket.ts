@@ -39,6 +39,11 @@ export interface PreconditionFailed {
   readonly kind: 'precondition-failed';
 }
 
+/** A copy found nothing at the key to copy from. */
+export interface SourceMissing {
+  readonly kind: 'source-missing';
+}
+
 /** A file read from the bucket, with its ETag for a conditional put. */
 export interface FileGot {
   readonly bytes: Uint8Array;
@@ -106,6 +111,17 @@ export interface PublishBucket {
     file: StreamToPut,
     signal: AbortSignal,
   ): Promise<Result<{ readonly sha256: string }, PublishFailed>>;
+
+  /**
+   * Copies a file inside the bucket to another key, replacing one there,
+   * without sending its bytes again: how a sync backs up a renamed file
+   * (D117). `source-missing` when the bucket has nothing at `from`.
+   */
+  copy(
+    target: BucketTarget,
+    keys: { readonly from: string; readonly to: string },
+    signal: AbortSignal,
+  ): Promise<Result<undefined, PublishFailed | SourceMissing>>;
 
   /** Removes files by key; one that isn't there is not a failure. */
   deleteMany(

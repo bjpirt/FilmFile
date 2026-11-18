@@ -9,6 +9,7 @@ import type {
   PreconditionFailed,
   PublishBucket,
   RemoteFile,
+  SourceMissing,
   StreamToPut,
 } from '../../../application/ports/publish-bucket.ts';
 import type {
@@ -434,6 +435,46 @@ export class R2PublishBucket implements PublishBucket {
       });
     }
     return ok({ sha256: sha256.digest('hex') });
+  }
+
+  async copy(
+    target: BucketTarget,
+    keys: { readonly from: string; readonly to: string },
+    signal: AbortSignal,
+  ): Promise<Result<undefined, PublishFailed | SourceMissing>> {
+    const sent = await this.#send(target, {
+      what: `PUT ${keys.to} (a copy)`,
+      method: 'PUT',
+      key: keys.to,
+      headers: {
+        'x-amz-copy-source': `/${target.bucket}/${keys.from
+          .split('/')
+          .map(encodeURIComponent)
+          .join('/')}`,
+      },
+      signal,
+      fine: ['missing'],
+    });
+    if (!sent.ok) {
+      return sent;
+    }
+    if (sent.value.status === 404) {
+      return err({ kind: 'source-missing' });
+    }
+    // S3's API can answer a copy 200 and still report an error in the body.
+    const answer = await sent.value.text();
+    if (answer.includes('<Error>')) {
+      this.#errors.report(
+        `R2 couldn't copy to ${keys.to} in ${target.bucket}: ${tagText(answer, 'Code') ?? 'no error code'}`,
+        tagText(answer, 'Message') ?? '(no message)',
+      );
+      return err({
+        kind: 'publish-failed',
+        reason: 'other',
+        bucket: target.bucket,
+      });
+    }
+    return ok(undefined);
   }
 
   async deleteMany(

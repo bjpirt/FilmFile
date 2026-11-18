@@ -1,12 +1,20 @@
+import { rm } from 'node:fs/promises';
+import path from 'node:path';
+import { settings } from '../../packages/contracts/src/settings.ts';
 import { fixtureSets } from '../../apps/backend/test/support/lab-scans.ts';
 import { expect, test } from './support/isolated-test.ts';
 import { journeyAccountId, journeyBackupBucket } from './support/journey-r2.ts';
-import { createRoll } from './support/journeys.ts';
+import {
+  changeFrameNumber,
+  createRoll,
+  deleteFrame,
+} from './support/journeys.ts';
 
-test('back up the library: set the Cloudflare account and a bucket, stop the first sync part-way and carry it on, change the copyright and sync only what changed, then sync from the header (FF-225, FF-226, FF-241)', async ({
+test('back up the library: set the Cloudflare account and a bucket, stop the first sync part-way and carry it on, change the copyright and sync only what changed, sync from the header, then copy a renumbered frame and remove what was emptied from deleted/ (FF-225, FF-226, FF-241, FF-238)', async ({
   page,
 }) => {
   await createRoll(page, '2026-081', { scans: fixtureSets.headToTail });
+  const roll = page.url();
 
   await page.goto('/settings');
   const cloudflare = page.getByRole('form', { name: 'Cloudflare' });
@@ -80,4 +88,33 @@ test('back up the library: set the Cloudflare account and a bucket, stop the fir
   await expect(
     header.getByRole('button', { name: 'Synced just now' }),
   ).toBeVisible();
+
+  // A renumbered frame is copied inside the bucket, not uploaded again (FF-238).
+  await page.goto(roll);
+  await changeFrameNumber(page, '6', '7');
+  await page.goto('/settings');
+  await sync.getByRole('button', { name: 'Sync' }).click();
+  await expect(
+    sync.getByText(/^Sent 1 file \(.+\) and copied 1 renamed file\.$/),
+  ).toBeVisible({ timeout: 30_000 });
+
+  // A frame deleted and emptied from deleted/ by hand leaves the backup once agreed.
+  await page.goto(roll);
+  await deleteFrame(page, '5');
+  const { folder } = settings.parse(
+    await (await page.request.get('/api/settings')).json(),
+  );
+  await rm(path.join(folder, 'Library', 'deleted'), { recursive: true });
+  await page.goto('/settings');
+  await sync.getByRole('button', { name: 'Sync' }).click();
+  await expect(
+    sync.getByText(
+      /^This sync will also remove \d+ files? from the backup that are no longer in the library \(.+\)\.$/,
+    ),
+  ).toBeVisible({ timeout: 30_000 });
+  await expect(header.getByRole('button', { name: 'Waiting…' })).toBeVisible();
+  await sync.getByRole('button', { name: 'Remove them' }).click();
+  await expect(
+    sync.getByText(/removed \d+ files? from the backup\.$/),
+  ).toBeVisible({ timeout: 30_000 });
 });

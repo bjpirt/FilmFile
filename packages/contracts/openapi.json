@@ -2849,12 +2849,13 @@
                 "type": "string",
                 "enum": [
                   "running",
+                  "waiting",
                   "stopping",
                   "done",
                   "cancelled",
                   "failed"
                 ],
-                "description": "`stopping` from a cancel until the uploads going have been cut off."
+                "description": "`waiting` for an answer to whether to remove files gone from the library (`POST /api/sync/removals`); `stopping` from a cancel until the uploads going have been cut off."
               },
               "phase": {
                 "type": "string",
@@ -2878,10 +2879,83 @@
                 "type": "integer"
               },
               "filesDone": {
-                "type": "integer"
+                "type": "integer",
+                "description": "Files uploaded or copied, of `filesTotal`."
               },
               "filesTotal": {
                 "type": "integer"
+              },
+              "filesCopied": {
+                "type": "integer",
+                "description": "Renamed files copied inside the bucket instead of uploaded, among those done."
+              },
+              "filesRemoved": {
+                "type": "integer",
+                "description": "Files gone from the library removed from the bucket."
+              },
+              "toRemove": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "files": {
+                    "type": "integer"
+                  },
+                  "bytes": {
+                    "type": "integer"
+                  },
+                  "paths": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "The first 50 files, by path from the FilmFile folder."
+                  },
+                  "more": {
+                    "type": "integer",
+                    "description": "How many more there are than `paths` gives."
+                  }
+                },
+                "required": [
+                  "files",
+                  "bytes",
+                  "paths",
+                  "more"
+                ],
+                "description": "While waiting, the files the sync would remove."
+              },
+              "missing": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "files": {
+                    "type": "integer"
+                  },
+                  "bytes": {
+                    "type": "integer"
+                  },
+                  "paths": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "The first 50 files, by path from the FilmFile folder."
+                  },
+                  "more": {
+                    "type": "integer",
+                    "description": "How many more there are than `paths` gives."
+                  }
+                },
+                "required": [
+                  "files",
+                  "bytes",
+                  "paths",
+                  "more"
+                ],
+                "description": "Files a roll.json mentions that are missing on this computer; the bucket keeps them."
               },
               "first": {
                 "type": "boolean",
@@ -2956,6 +3030,10 @@
               "bytesTotal",
               "filesDone",
               "filesTotal",
+              "filesCopied",
+              "filesRemoved",
+              "toRemove",
+              "missing",
               "first",
               "library",
               "secondsLeft",
@@ -2980,12 +3058,13 @@
             "type": "string",
             "enum": [
               "running",
+              "waiting",
               "stopping",
               "done",
               "cancelled",
               "failed"
             ],
-            "description": "`stopping` from a cancel until the uploads going have been cut off."
+            "description": "`waiting` for an answer to whether to remove files gone from the library (`POST /api/sync/removals`); `stopping` from a cancel until the uploads going have been cut off."
           },
           "phase": {
             "type": "string",
@@ -3009,10 +3088,83 @@
             "type": "integer"
           },
           "filesDone": {
-            "type": "integer"
+            "type": "integer",
+            "description": "Files uploaded or copied, of `filesTotal`."
           },
           "filesTotal": {
             "type": "integer"
+          },
+          "filesCopied": {
+            "type": "integer",
+            "description": "Renamed files copied inside the bucket instead of uploaded, among those done."
+          },
+          "filesRemoved": {
+            "type": "integer",
+            "description": "Files gone from the library removed from the bucket."
+          },
+          "toRemove": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "files": {
+                "type": "integer"
+              },
+              "bytes": {
+                "type": "integer"
+              },
+              "paths": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The first 50 files, by path from the FilmFile folder."
+              },
+              "more": {
+                "type": "integer",
+                "description": "How many more there are than `paths` gives."
+              }
+            },
+            "required": [
+              "files",
+              "bytes",
+              "paths",
+              "more"
+            ],
+            "description": "While waiting, the files the sync would remove."
+          },
+          "missing": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "files": {
+                "type": "integer"
+              },
+              "bytes": {
+                "type": "integer"
+              },
+              "paths": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The first 50 files, by path from the FilmFile folder."
+              },
+              "more": {
+                "type": "integer",
+                "description": "How many more there are than `paths` gives."
+              }
+            },
+            "required": [
+              "files",
+              "bytes",
+              "paths",
+              "more"
+            ],
+            "description": "Files a roll.json mentions that are missing on this computer; the bucket keeps them."
           },
           "first": {
             "type": "boolean",
@@ -3087,12 +3239,29 @@
           "bytesTotal",
           "filesDone",
           "filesTotal",
+          "filesCopied",
+          "filesRemoved",
+          "toRemove",
+          "missing",
           "first",
           "library",
           "secondsLeft",
           "failure",
           "message"
         ]
+      },
+      "AnswerRemovalsRequest": {
+        "type": "object",
+        "properties": {
+          "remove": {
+            "type": "boolean",
+            "description": "true removes the files from the bucket; false keeps them for now, and the next sync asks again."
+          }
+        },
+        "required": [
+          "remove"
+        ],
+        "additionalProperties": false
       },
       "Settings": {
         "type": "object",
@@ -6249,6 +6418,57 @@
           },
           "422": {
             "description": "No sync is running.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sync/removals": {
+      "post": {
+        "summary": "Say whether to remove files gone from the library",
+        "description": "Answers a sync waiting to remove files from the bucket that are gone from the library and that no roll.json mentions (FF-238, D123). Either way the sync carries on.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerRemovalsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Answered."
+          },
+          "400": {
+            "description": "The body is not valid JSON.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "The body is not of the expected type.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The body is not valid, or no sync is waiting for an answer.",
             "content": {
               "application/json": {
                 "schema": {

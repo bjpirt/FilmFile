@@ -205,6 +205,58 @@ export function publishBucketContract(
       });
     });
 
+    test('copies a file inside the bucket, keeping the one copied', async () => {
+      const { bucket, target } = await make();
+      await bucket.put(
+        target,
+        aFile(
+          'Library/rolls/2026/2026-001-AAAA/frames/3-BBBB/scan.tif',
+          'scan',
+        ),
+        signal,
+      );
+
+      const copied = await bucket.copy(
+        target,
+        {
+          from: 'Library/rolls/2026/2026-001-AAAA/frames/3-BBBB/scan.tif',
+          to: 'Library/rolls/2026/2026-001-AAAA/frames/4 a+b-BBBB/scan.tif',
+        },
+        signal,
+      );
+      const listed = await bucket.list(target, signal);
+
+      expect(copied).toEqual({ ok: true, value: undefined });
+      expect(
+        listed.ok ? listed.value.map(({ key, md5 }) => ({ key, md5 })) : [],
+      ).toEqual([
+        {
+          key: 'Library/rolls/2026/2026-001-AAAA/frames/3-BBBB/scan.tif',
+          md5: createHash('md5').update('scan').digest('hex'),
+        },
+        {
+          key: 'Library/rolls/2026/2026-001-AAAA/frames/4 a+b-BBBB/scan.tif',
+          md5: createHash('md5').update('scan').digest('hex'),
+        },
+      ]);
+    });
+
+    test('says when the file to copy is not there', async () => {
+      const { bucket, target } = await make();
+
+      const copied = await bucket.copy(
+        target,
+        { from: 'Library/gone.tif', to: 'Library/new.tif' },
+        signal,
+      );
+
+      expect(copied).toEqual({ ok: false, error: { kind: 'source-missing' } });
+      expect(await bucket.get(target, 'Library/new.tif', signal)).toEqual({
+        ok: true,
+        value: undefined,
+      });
+    });
+
     test('replaces a file read with get, only if it is unchanged', async () => {
       const { bucket, target } = await make();
       await bucket.putIf(

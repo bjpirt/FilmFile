@@ -5,6 +5,7 @@ import type {
 } from '../../../application/ports/library-files.ts';
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type { LibraryFile } from '../../../domain/sync/library-file.ts';
+import { rollFileMentions } from '../filesystem/roll-file-mentions.ts';
 
 /** The library's files in memory, for tests: `files` maps a path from the folder to its bytes. */
 export class InMemoryLibraryFiles implements LibraryFiles {
@@ -41,6 +42,19 @@ export class InMemoryLibraryFiles implements LibraryFiles {
   > {
     return Promise.resolve(
       this.#shown().map(([path, bytes]) => ({ path, size: bytes.length })),
+    );
+  }
+
+  mentioned(): Promise<readonly string[]> {
+    return Promise.resolve(
+      this.#shown()
+        .filter(
+          ([path]) =>
+            path.startsWith('Library/') && path.endsWith('/roll.json'),
+        )
+        .flatMap(([path, bytes]) =>
+          rollFileMentions(path, new TextDecoder().decode(bytes)),
+        ),
     );
   }
 

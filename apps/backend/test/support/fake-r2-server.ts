@@ -209,6 +209,24 @@ export async function startFakeR2(
         failure(response, 411, 'MissingContentLength');
         return;
       }
+      const copySource = request.headers['x-amz-copy-source'];
+      if (typeof copySource === 'string') {
+        // `/bucket/key`, each part encoded, as S3's CopyObject takes it.
+        const [, fromBucket = '', ...fromParts] = copySource.split('/');
+        const from = buckets
+          .get(decodeURIComponent(fromBucket))
+          ?.get(fromParts.map(decodeURIComponent).join('/'));
+        if (from === undefined) {
+          failure(response, 404, 'NoSuchKey');
+          return;
+        }
+        bucket.set(key, from);
+        response.writeHead(200, { 'content-type': 'application/xml' });
+        response.end(
+          `<CopyObjectResult><ETag>&quot;${md5Of(from.bytes)}&quot;</ETag></CopyObjectResult>`,
+        );
+        return;
+      }
       const there = bucket.get(key);
       const ifNoneMatch = request.headers['if-none-match'];
       const ifMatch = request.headers['if-match'];

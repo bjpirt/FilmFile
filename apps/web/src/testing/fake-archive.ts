@@ -39,6 +39,7 @@ import {
   type SitePublishProgress,
 } from '@filmfile/contracts/sites';
 import {
+  answerRemovalsRequest,
   saveSyncSettingsRequest,
   type BackupFigure,
   type SyncProgress,
@@ -334,6 +335,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
   /** Every sync started, and every one cancelled. */
   const syncs: string[] = [];
   const syncsCancelled: string[] = [];
+  /** Every answer to a sync waiting to remove files (FF-238). */
+  const removalAnswers: boolean[] = [];
   let syncing = false;
   let syncCalls = 0;
   let latestSync: SyncProgress | null = null;
@@ -1334,6 +1337,19 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       syncSettings = { ...syncSettings, bucket, computerName };
       return Response.json(syncSettings);
     }
+    // The answer moves a waiting sync on to its next state.
+    if (below === 'removals') {
+      if (latestSync?.state !== 'waiting') {
+        return refuse('sync', 'no sync is waiting for an answer');
+      }
+      const body = await bodyOf(request, answerRemovalsRequest);
+      if (!body.ok) {
+        return body.response;
+      }
+      removalAnswers.push(body.value.remove);
+      latestSync = { ...latestSync, state: 'running', toRemove: null };
+      return new Response(null, { status: 204 });
+    }
     if (request.method === 'POST') {
       if (!syncSettings.available) {
         return refuse('sync', 'sync works in the FilmFile app');
@@ -1359,6 +1375,10 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         bytesTotal: 0,
         filesDone: 0,
         filesTotal: 0,
+        filesCopied: 0,
+        filesRemoved: 0,
+        toRemove: null,
+        missing: null,
         first: false,
         library: null,
         secondsLeft: null,
@@ -1371,7 +1391,8 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       syncsCancelled.push(syncSettings.bucket ?? '');
       return new Response(null, { status: 204 });
     }
-    if (syncing) {
+    // A sync waiting for an answer stays so until it has one.
+    if (syncing && latestSync?.state !== 'waiting') {
       const states = contents.syncStates ?? [
         { state: 'done' as const, bytesDone: 2048, filesDone: 1 },
       ];
@@ -1385,6 +1406,10 @@ export function fakeArchive(contents: ArchiveContents = {}) {
         bytesTotal: 2048,
         filesDone: 0,
         filesTotal: 1,
+        filesCopied: 0,
+        filesRemoved: 0,
+        toRemove: null,
+        missing: null,
         first: false,
         library: null,
         secondsLeft: null,
@@ -1401,7 +1426,11 @@ export function fakeArchive(contents: ArchiveContents = {}) {
           lastSyncedAt: new Date().toISOString(),
         };
       }
-      if (latestSync.state !== 'running' && latestSync.state !== 'stopping') {
+      if (
+        latestSync.state !== 'running' &&
+        latestSync.state !== 'waiting' &&
+        latestSync.state !== 'stopping'
+      ) {
         syncing = false;
       }
     }
@@ -1787,6 +1816,7 @@ export function fakeArchive(contents: ArchiveContents = {}) {
     },
     syncs,
     syncsCancelled,
+    removalAnswers,
     /** This computer's sync settings as they are now. */
     syncSettings: () => syncSettings,
     sitePublishes,

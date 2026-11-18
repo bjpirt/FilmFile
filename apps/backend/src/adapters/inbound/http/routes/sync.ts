@@ -4,6 +4,7 @@ import {
   invalidRequestResponse,
 } from '@filmfile/contracts/errors';
 import {
+  answerRemovalsRequest,
   saveSyncSettingsRequest,
   syncProgress,
   syncSettings,
@@ -92,6 +93,30 @@ const cancelSync = createRoute({
   },
 });
 
+const answerRemovals = createRoute({
+  method: 'post',
+  path: '/removals',
+  summary: 'Say whether to remove files gone from the library',
+  description:
+    'Answers a sync waiting to remove files from the bucket that are gone from the library and that no roll.json mentions (FF-238, D123). Either way the sync carries on.',
+  middleware: [requireJson] as const,
+  request: {
+    body: {
+      required: true,
+      content: { 'application/json': { schema: answerRemovalsRequest } },
+    },
+  },
+  responses: {
+    204: { description: 'Answered.' },
+    400: json(errorResponse, 'The body is not valid JSON.'),
+    415: json(errorResponse, 'The body is not of the expected type.'),
+    422: json(
+      invalidRequestResponse,
+      'The body is not valid, or no sync is waiting for an answer.',
+    ),
+  },
+});
+
 export interface SyncUseCases {
   readonly getSyncSettings: GetSyncSettings;
   readonly saveSyncSettings: SaveSyncSettings;
@@ -135,6 +160,13 @@ export function syncRoutes({
     return cancelled.ok
       ? c.body(null, 204)
       : domainErrorResponse(c, cancelled.error);
+  });
+
+  routes.openapi(answerRemovals, (c) => {
+    const answered = useCases.librarySync.answer(c.req.valid('json').remove);
+    return answered.ok
+      ? c.body(null, 204)
+      : domainErrorResponse(c, answered.error);
   });
 
   return routes;

@@ -289,4 +289,116 @@ describe('Settings › Sync', () => {
     ).toBeTruthy();
     expect(within(sync).queryByText(/left$/u)).toBeNull();
   });
+  test('pauses to ask before removing files gone from the library, listing them, and removes them when told', async () => {
+    const archive = openSettings({
+      sync: { bucket: 'backup-pirt' },
+      syncStates: [
+        {
+          state: 'waiting',
+          toRemove: {
+            files: 3,
+            bytes: 1_200_000_000,
+            paths: [
+              'Library/deleted/a/one.tif',
+              'Library/deleted/a/two.tif',
+              'Library/deleted/a/three.tif',
+            ],
+            more: 0,
+          },
+        },
+        { state: 'done', filesDone: 0, filesRemoved: 3 },
+      ],
+    });
+    const sync = await section();
+    fireEvent.click(await within(sync).findByRole('button', { name: 'Sync' }));
+
+    expect(
+      await within(sync).findByText(
+        'This sync will also remove 3 files from the backup that are no longer in the library (1.2 GB).',
+      ),
+    ).toBeTruthy();
+    fireEvent.click(within(sync).getByText('Show files'));
+    expect(within(sync).getByText('Library/deleted/a/two.tif')).toBeTruthy();
+    expect(within(sync).getByRole('button', { name: 'Cancel' })).toBeTruthy();
+
+    fireEvent.click(within(sync).getByRole('button', { name: 'Remove them' }));
+
+    expect(
+      await within(sync).findByText(
+        'Removed 3 files from the backup.',
+        {},
+        { timeout: 3000 },
+      ),
+    ).toBeTruthy();
+    expect(archive.removalAnswers).toEqual([true]);
+  });
+
+  test('"Keep them for now" carries on without removing them', async () => {
+    const archive = openSettings({
+      sync: { bucket: 'backup-pirt' },
+      syncStates: [
+        {
+          state: 'waiting',
+          toRemove: { files: 1, bytes: 10, paths: ['Library/x.tif'], more: 0 },
+        },
+        { state: 'done', filesDone: 0 },
+      ],
+    });
+    const sync = await section();
+    fireEvent.click(await within(sync).findByRole('button', { name: 'Sync' }));
+
+    fireEvent.click(
+      await within(sync).findByRole('button', { name: 'Keep them for now' }),
+    );
+
+    expect(
+      await within(sync).findByText(
+        'Nothing had changed.',
+        {},
+        { timeout: 3000 },
+      ),
+    ).toBeTruthy();
+    expect(archive.removalAnswers).toEqual([false]);
+  });
+
+  test('a finished sync names what it sent, copied and removed, and lists files missing on this computer', async () => {
+    openSettings({
+      sync: { bucket: 'backup-pirt' },
+      syncStates: [
+        {
+          state: 'done',
+          bytesDone: 1_200_000_000,
+          filesDone: 48,
+          filesCopied: 36,
+          filesRemoved: 3,
+          missing: {
+            files: 62,
+            bytes: 1000,
+            paths: ['Library/rolls/2024/x/scan.tif'],
+            more: 61,
+          },
+        },
+      ],
+    });
+    const sync = await section();
+    fireEvent.click(await within(sync).findByRole('button', { name: 'Sync' }));
+
+    expect(
+      await within(sync).findByText(
+        'Sent 12 files (1.2 GB), copied 36 renamed files and removed 3 files from the backup.',
+        {},
+        { timeout: 3000 },
+      ),
+    ).toBeTruthy();
+    expect(
+      within(sync).getByText(
+        '62 files that were backed up are missing on this computer. The backup still has them.',
+      ),
+    ).toBeTruthy();
+    fireEvent.click(within(sync).getByText('Show files'));
+    expect(
+      within(sync).getByText('Library/rolls/2024/x/scan.tif'),
+    ).toBeTruthy();
+    expect(within(sync).getByText('and 61 more')).toBeTruthy();
+  });
 });

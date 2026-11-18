@@ -130,5 +130,51 @@ export function libraryFilesContract(
 
       expect(() => files.read(ctx, '../outside.json')).toThrow();
     });
+
+    test('names the files each roll.json mentions, by path from the folder', async () => {
+      const { files, put } = await make();
+      const roll = (...names: string[]) =>
+        JSON.stringify({
+          schema: 1,
+          frames: [
+            { versions: names.map((file) => ({ file, sha256: 'ab' })) },
+            { versions: [] },
+          ],
+        });
+      await put(
+        'Library/rolls/2026/2026-001-AAAAAAAA/roll.json',
+        roll(
+          'frames/1-BBBBBBBB/scan-CCCCCCCC/one.jpg',
+          'frames/2-DDDDDDDD/raw-EEEEEEEE/two.dng',
+        ),
+      );
+      await put(
+        'Library/deleted/2026-11-02T101500Z-roll-X/2025-004-FFFFFFFF/roll.json',
+        roll('frames/3-GGGGGGGG/scan-HHHHHHHH/three.jpg'),
+      );
+      await put('Library/events/iceland-2026.json', roll('not/a/roll.jpg'));
+
+      expect([...(await files.mentioned(ctx))].sort()).toEqual([
+        'Library/deleted/2026-11-02T101500Z-roll-X/2025-004-FFFFFFFF/frames/3-GGGGGGGG/scan-HHHHHHHH/three.jpg',
+        'Library/rolls/2026/2026-001-AAAAAAAA/frames/1-BBBBBBBB/scan-CCCCCCCC/one.jpg',
+        'Library/rolls/2026/2026-001-AAAAAAAA/frames/2-DDDDDDDD/raw-EEEEEEEE/two.dng',
+      ]);
+    });
+
+    test('takes a roll.json it can’t read as mentioning everything in its folder', async () => {
+      const { files, put } = await make();
+      await put('Library/rolls/2026/2026-002-AAAAAAAA/roll.json', '{ not json');
+      await put(
+        'Library/rolls/2026/2026-003-BBBBBBBB/roll.json',
+        JSON.stringify({
+          frames: [{ versions: [{ file: '../../escape.jpg' }] }],
+        }),
+      );
+
+      expect([...(await files.mentioned(ctx))].sort()).toEqual([
+        'Library/rolls/2026/2026-002-AAAAAAAA/',
+        'Library/rolls/2026/2026-003-BBBBBBBB/',
+      ]);
+    });
   });
 }

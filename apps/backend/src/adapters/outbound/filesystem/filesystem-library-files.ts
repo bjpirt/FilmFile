@@ -10,6 +10,7 @@ import type {
 import type { ArchiveContext } from '../../../domain/shared/archive-context.ts';
 import type { LibraryFile } from '../../../domain/sync/library-file.ts';
 import { hasErrorCode } from './error-codes.ts';
+import { rollFileMentions } from './roll-file-mentions.ts';
 import { safePath } from './safe-path.ts';
 import { writeAtomically } from './write-atomically.ts';
 
@@ -149,6 +150,20 @@ export class FilesystemLibraryFiles implements LibraryFiles {
       sizes.push({ path: relative, size });
     }
     return sizes;
+  }
+
+  async mentioned(): Promise<readonly string[]> {
+    const mentioned: string[] = [];
+    for (const relative of await this.#paths()) {
+      if (relative.startsWith('Library/') && relative.endsWith('/roll.json')) {
+        const text = await readFile(
+          safePath(this.#folder, ...relative.split('/')),
+          'utf8',
+        );
+        mentioned.push(...rollFileMentions(relative, text));
+      }
+    }
+    return mentioned;
   }
 
   read(_ctx: ArchiveContext, relative: string): ReadableStream<Uint8Array> {
