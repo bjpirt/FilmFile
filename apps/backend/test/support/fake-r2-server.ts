@@ -5,6 +5,7 @@ import {
   type Server,
   type ServerResponse,
 } from 'node:http';
+import { gzipSync } from 'node:zlib';
 import type { AwsKeys } from '../../src/adapters/outbound/r2/aws-credentials-file.ts';
 import {
   sha256Hex,
@@ -74,11 +75,11 @@ async function bodyOf(request: IncomingMessage): Promise<Buffer> {
 export async function startFakeR2(
   keys: AwsKeys,
   bucketNames: readonly string[],
-): Promise<FakeR2> {
   options: {
     /** Milliseconds each upload of a library file (`Library/…`) to these buckets takes, so a journey can stop a sync part-way. */
     readonly slowPuts?: Readonly<Record<string, number>>;
   } = {},
+): Promise<FakeR2> {
   const buckets = new Map(
     bucketNames.map((name) => [name, new Map<string, FakeR2File>()]),
   );
@@ -144,7 +145,6 @@ export async function startFakeR2(
       `http://${request.headers.host ?? 'localhost'}`,
     );
     requests.push(`${request.method ?? ''} ${url.pathname}${url.search}`);
-    const body = await bodyOf(request);
     // A slow upload waits before its body arrives, so one cut off meanwhile
     // stores nothing, as with a slow connection.
     const [, slowBucket = '', firstName = ''] = url.pathname.split('/');
@@ -159,6 +159,7 @@ export async function startFakeR2(
         return;
       }
     }
+    const body = await bodyOf(request);
     const signature = signatureIsRight(request, url, body);
     if (signature !== 'ok') {
       failure(
@@ -186,6 +187,16 @@ export async function startFakeR2(
       const file = bucket.get(key);
       if (file === undefined) {
         failure(response, 404, 'NoSuchKey');
+        return;
+      }
+      // Cloudflare compresses a file for a client that accepts gzip, and
+      // then weakens its ETag (W/"…"), as R2 does with the sync record.
+      if (/\bgzip\b/u.test(request.headers['accept-encoding'] ?? '')) {
+        response.writeHead(200, {
+          etag: `W/"${md5Of(file.bytes)}"`,
+          'content-encoding': 'gzip',
+        });
+        response.end(gzipSync(file.bytes));
         return;
       }
       response.writeHead(200, { etag: `"${md5Of(file.bytes)}"` });

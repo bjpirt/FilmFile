@@ -205,6 +205,37 @@ export function publishBucketContract(
       });
     });
 
+    test('replaces a file read with get, only if it is unchanged', async () => {
+      const { bucket, target } = await make();
+      await bucket.putIf(
+        target,
+        aFile('record.json', '{"sync":0}'),
+        { ifNoneMatch: true },
+        signal,
+      );
+      const got = await bucket.get(target, 'record.json', signal);
+      const etag = got.ok ? (got.value?.etag ?? '') : '';
+
+      const changed = await bucket.putIf(
+        target,
+        aFile('record.json', '{"sync":1}'),
+        { ifMatch: etag },
+        signal,
+      );
+      const stale = await bucket.putIf(
+        target,
+        aFile('record.json', '{"sync":2}'),
+        { ifMatch: etag },
+        signal,
+      );
+
+      expect(changed.ok).toBe(true);
+      expect(stale).toEqual({
+        ok: false,
+        error: { kind: 'precondition-failed' },
+      });
+    });
+
     test('puts a streamed file, giving the SHA-256 of what was sent', async () => {
       const { bucket, target } = await make();
       const text = 'a scan, streamed';

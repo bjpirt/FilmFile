@@ -46,6 +46,14 @@ const escapeXml = (text: string): string =>
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;');
 
+/**
+ * An ETag's value, without its quotes, or the `W/` Cloudflare adds when it
+ * compresses a file for us: R2 compares `If-Match` with the file's own,
+ * strong ETag, which has the same value.
+ */
+const etagOf = (header: string | null): string =>
+  (header ?? '').replace(/^W\//u, '').replaceAll('"', '');
+
 /** The text between `<tag>` and `</tag>` in some XML, if the tag is there. */
 function tagText(xml: string, tag: string): string | undefined {
   const found = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, 'u').exec(xml);
@@ -68,7 +76,7 @@ function remoteFileOf(contents: string): RemoteFile | undefined {
   return {
     key,
     size,
-    md5: etag.replaceAll('"', '').toLowerCase(),
+    md5: etagOf(etag).toLowerCase(),
     lastModified: new Date(lastModified).toISOString(),
   };
 }
@@ -347,7 +355,7 @@ export class R2PublishBucket implements PublishBucket {
     }
     return ok({
       bytes: new Uint8Array(await sent.value.arrayBuffer()),
-      etag: (sent.value.headers.get('etag') ?? '').replaceAll('"', ''),
+      etag: etagOf(sent.value.headers.get('etag')),
     });
   }
 
@@ -381,7 +389,7 @@ export class R2PublishBucket implements PublishBucket {
       return err({ kind: 'precondition-failed' });
     }
     return ok({
-      etag: (sent.value.headers.get('etag') ?? '').replaceAll('"', ''),
+      etag: etagOf(sent.value.headers.get('etag')),
     });
   }
 
@@ -412,7 +420,7 @@ export class R2PublishBucket implements PublishBucket {
     if (!sent.ok) {
       return sent;
     }
-    const etag = (sent.value.headers.get('etag') ?? '').replaceAll('"', '');
+    const etag = etagOf(sent.value.headers.get('etag'));
     const sentMd5 = md5.digest('hex');
     if (etag.toLowerCase() !== sentMd5) {
       this.#errors.report(
