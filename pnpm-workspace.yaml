@@ -26,3 +26,11 @@ blockExoticSubdeps: true
 # Fail if a package's publishing trust level drops compared with earlier releases,
 # a sign of a hijacked maintainer account.
 trustPolicy: no-downgrade
+
+# Advisories `pnpm audit` passes over, each until a fixed version ships.
+auditConfig:
+  ignoreGhsas:
+    # picomatch ReDoS (high). Only in dev tools (ESLint, Vitest, Vite), never
+    # the service or the app, and no fixed picomatch yet (2026-11-18). Remove
+    # once Dependabot brings the fix.
+    - GHSA-fc5q-39xc-vjpf
