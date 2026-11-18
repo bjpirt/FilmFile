@@ -70,6 +70,10 @@ test('back up the library: set the Cloudflare account and a bucket, stop the fir
   // A change to the settings is the one file sent.
   await page.getByLabel('Copyright').fill('© The journeys');
   await page.getByRole('button', { name: 'Save', exact: true }).first().click();
+  // Saved once it shows the rolls; going to Settings sooner would cancel the save.
+  await expect(
+    page.getByRole('heading', { level: 1, name: 'Rolls' }),
+  ).toBeVisible();
   await page.goto('/settings');
   await sync.getByRole('button', { name: 'Sync' }).click();
   await expect(sync.getByText(/^Sent 1 file \(.+\)\.$/)).toBeVisible({
