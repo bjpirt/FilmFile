@@ -88,6 +88,8 @@ export interface ArchiveContents {
   readonly settings?: Settings | null;
   /** Whether the service can export into a folder the desktop app chooses (D100). */
   readonly exportToFolder?: boolean;
+  /** The version the service says it is, 0.1.0 from source by default, or null if asking fails (FF-194). */
+  readonly version?: { readonly version: string; readonly dev: boolean } | null;
   /** What a folder export's status says as it's asked after, one after another; the last is kept. */
   readonly folderExportStates?: readonly {
     readonly state: 'running' | 'done' | 'cancelled' | 'failed';
@@ -1734,10 +1736,13 @@ export function fakeArchive(contents: ArchiveContents = {}) {
       case 'sync':
         return syncRoute(request, rest[0]);
       case 'health':
-        return Response.json({
-          status: 'ok',
-          exportToFolder: contents.exportToFolder ?? false,
-        });
+        return contents.version === null
+          ? Response.json({ error: 'internal error' }, { status: 500 })
+          : Response.json({
+              status: 'ok',
+              exportToFolder: contents.exportToFolder ?? false,
+              ...(contents.version ?? { version: '0.1.0', dev: true }),
+            });
       case 'rolls': {
         if (rest.length === 0) {
           return request.method === 'GET'

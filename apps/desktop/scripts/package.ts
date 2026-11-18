@@ -15,8 +15,8 @@ import path from 'node:path';
 import { z } from 'zod';
 import { build } from 'rolldown';
 
-// Builds FilmFile.app and FilmFile.dmg in apps/desktop/out (U84, D56), from
-// the UI `pnpm build` has built. The app holds two bundles, its own main
+// Builds FilmFile.app and its disk image, FilmFile-<version>-mac-<arch>.dmg,
+// in apps/desktop/out (U84, D56, FF-194), from the UI `pnpm build` has built. The app holds two bundles, its own main
 // process and the service, with the built UI and the few packages that can't
 // be bundled: sharp (native code, kept out of the app archive) and
 // swagger-ui-dist (files the API docs serve).
@@ -75,11 +75,17 @@ async function copyPackage(
   }
 }
 
-async function bundle(input: string, file: string, external: string[]) {
+async function bundle(
+  input: string,
+  file: string,
+  external: string[],
+  version: string,
+) {
   await build({
     input,
     platform: 'node',
     external,
+    transform: { define: { FILMFILE_VERSION: JSON.stringify(version) } },
     output: { file, format: 'esm' },
     logLevel: 'warn',
   });
@@ -92,6 +98,12 @@ if (arch !== 'arm64' && arch !== 'x64') {
   throw new Error(`FilmFile can't be packaged on a ${arch} Mac.`);
 }
 
+// FilmFile's version, kept only in the root package.json (D109), built into
+// both bundles, so the packaged app and its service know it however they're
+// started (FF-194).
+const { version } = await readPackage(repo);
+const dmgName = `FilmFile-${version}-mac-${arch}.dmg`;
+
 await rm(out, { recursive: true, force: true });
 await mkdir(stage, { recursive: true });
 
@@ -100,11 +112,13 @@ await bundle(
   path.join(desktop, 'src', 'main.ts'),
   path.join(stage, 'main.mjs'),
   ['electron'],
+  version,
 );
 await bundle(
   path.join(backend, 'src', 'main.ts'),
   path.join(stage, 'service.mjs'),
   ['sharp', 'swagger-ui-dist'],
+  version,
 );
 await cp(path.join(repo, 'apps', 'web', 'dist'), path.join(stage, 'web'), {
   recursive: true,
@@ -112,7 +126,6 @@ await cp(path.join(repo, 'apps', 'web', 'dist'), path.join(stage, 'web'), {
 for (const name of ['sharp', 'swagger-ui-dist']) {
   await copyPackage(name, path.join(backend, 'node_modules'));
 }
-const { version } = await readPackage(desktop);
 await writeFile(
   path.join(stage, 'package.json'),
   `${JSON.stringify({ name: 'filmfile', productName: 'FilmFile', version, type: 'module', main: 'main.mjs' }, null, 2)}\n`,
@@ -156,7 +169,7 @@ await flipFuses(app, {
   [FuseV1Options.GrantFileProtocolExtraPrivileges]: false,
 });
 
-console.log('Making FilmFile.dmg…');
+console.log(`Making ${dmgName}…`);
 const dmgFolder = path.join(out, 'dmg');
 await mkdir(dmgFolder);
 // ditto keeps the app's framework symlinks and signature as they are.
@@ -171,7 +184,7 @@ execFileSync('hdiutil', [
   '-ov',
   '-format',
   'UDZO',
-  path.join(out, 'FilmFile.dmg'),
+  path.join(out, dmgName),
 ]);
 await rm(dmgFolder, { recursive: true });
-console.log(`Made ${app} and ${path.join(out, 'FilmFile.dmg')}`);
+console.log(`Made ${app} and ${path.join(out, dmgName)}`);

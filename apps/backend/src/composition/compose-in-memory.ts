@@ -18,6 +18,7 @@ import { InMemoryRollRepository } from '../adapters/outbound/memory/in-memory-ro
 import { SequentialIdGenerator } from '../adapters/outbound/memory/sequential-id-generator.ts';
 import { SharpImageInspector } from '../adapters/outbound/sharp/sharp-image-inspector.ts';
 import { maxPixels } from './compose-local.ts';
+import { appVersion } from './app-version.ts';
 import { localArchive } from './local-archive.ts';
 import { useCasesFor, type Adapters } from './use-cases-for.ts';
 
@@ -34,6 +35,7 @@ export function composeInMemory(
   return createApp({
     port: 4310,
     exportToFolder: overrides.destination !== undefined,
+    version: appVersion(),
     folderPath: '/in-memory/FilmFile',
     ctx: localArchive(),
     useCases: useCasesFor({

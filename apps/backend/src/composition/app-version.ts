@@ -1,0 +1,36 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { z } from 'zod';
+
+// Replaced with the version by the desktop app's package.ts when it bundles
+// the service, so a packaged service knows it however it's started; never
+// defined when run from source.
+declare const FILMFILE_VERSION: string | undefined;
+
+/** FilmFile's version, and whether it's run from source (FF-194). */
+export interface AppVersion {
+  readonly version: string;
+  readonly dev: boolean;
+}
+
+/**
+ * The version the service was bundled with, or, run from source, the one in
+ * the root package.json, the only place it's kept (D109), marked as dev.
+ */
+export function appVersion(
+  bundled: string | undefined = typeof FILMFILE_VERSION === 'string'
+    ? FILMFILE_VERSION
+    : undefined,
+  rootPackage: string = path.resolve(
+    import.meta.dirname,
+    '../../../../package.json',
+  ),
+): AppVersion {
+  if (bundled !== undefined) {
+    return { version: bundled, dev: false };
+  }
+  const { version } = z
+    .object({ version: z.string() })
+    .parse(JSON.parse(readFileSync(rootPackage, 'utf8')));
+  return { version, dev: true };
+}

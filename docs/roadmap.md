@@ -185,7 +185,6 @@ The author and copyright, set on first run and changed later (no name, D44; no l
 
 FilmFile as a Mac app, opened from the Dock rather than by starting a service and opening a browser (D54). Electron runs the service as it is, in a separate process (`utilityProcess`) on a free port of `127.0.0.1`, and opens a window on it; the web UI and API don't change, and still work from a browser while the app is open. Electron 45's own Node.js (24) runs the service's TypeScript directly, as Node 26 does, so nothing is bundled to run it from source; the packaged app bundles it, and leaves sharp's native files outside its app archive, which they can't be loaded from. A Release workflow on GitHub numbers each version, writes its changelog, and publishes the app for Macs (Apple silicon and Intel), Windows and Linux, each built and checked on its own runner (D109, D110). Signing and updates are for later.
 
-- [ ] [FF-194 The app's version](tasks/FF-194.md): a version number, shown in About and Settings and in the files' names.
 - [ ] [FF-161 An Intel Mac build](tasks/FF-161.md): the packaged app also built for Intel Macs, both checked in CI by a reusable `package.yml`.
 - [ ] [FF-195 Make a release](tasks/FF-195.md): a Release workflow that bumps the version, writes the changelog, and publishes every platform's app with checksums.
 - [ ] [FF-196 The service on Windows](tasks/FF-196.md): `pnpm verify` passing on Windows, with its paths, renames and line endings fixed.
@@ -195,6 +194,7 @@ FilmFile as a Mac app, opened from the Dock rather than by starting a service an
 - [ ] [later] [FF-137 A signed and notarised Mac app](tasks/FF-137.md): signed with a Developer ID and notarised.
 - [ ] [later] [FF-199 A signed Windows app](tasks/FF-199.md): signed, so SmartScreen doesn't warn.
 - [ ] [later] [FF-138 Updates](tasks/FF-138.md): the app updates itself.
+- [x] [FF-194 The app's version](tasks/FF-194.md)
 - [x] [U84 A packaged Mac app](tasks/U84.md)
 - [x] [U83 Choose the archive](tasks/U83.md)
 - [x] [U82 FilmFile opens in its own window](tasks/U82.md)
@@ -472,6 +472,7 @@ Made as the work goes, from 2 November 2026, and recorded in `docs/design.md` wh
 | D121 | Edits stay open while a sync uploads: the manifest records the hash of what was actually sent (D120), so an edit made meanwhile is sent next time, and a file renamed mid-sync only makes that sync not finish. Writes are refused (423) and the page made read-only during a sync only once sync also downloads (FF-228), where an edit could clash with a file being written; the check is shared with the lock (FF-229). | FF-226, FF-228, FF-229 |
 | D122 | Before uploading, a sync lists the bucket and skips files already there with an ETag matching their MD5 (kept in the hash cache beside the SHA-256), so a sync that didn't finish carries on. It's checked against the bucket, not a list kept on this computer, so it survives a crash or a cleared cache, at the cost of one listing (1,000 files a request) when there's anything to upload; an ETag that isn't an MD5 means sending again. The record and manifest are still written only when a sync finishes (D117). Until a first sync finishes, its progress counts the whole library, worked out on opening from the bucket by path and size. | FF-239, FF-240, FF-241 |
 | D123 | A sync pauses after checking, before changing anything, to ask about every removal but a rename's old copy ("Remove them" or "Keep them for now"; kept files stay and are asked about again), since D117's rule also covers a roll folder deleted outside FilmFile, which only the person can tell from emptying `deleted/`. A rename is a copy inside the bucket, counted in the upload's files but not its bytes so the time left stays about real uploading; a copy whose source is gone is uploaded instead. A file is also taken as renamed when its folders have the same IDs (D66) as a library file's, so a renumbered roll's changed `roll.json` is never asked about. | FF-238 |
+| D124 | "About FilmFile" is a message box of our own on every platform (name, version, "FilmFile on GitHub" and "OK"), not the Mac's native About panel, which can't hold a clickable link; the Mac's app menu is built by hand so its About opens it. A Help menu on every platform also has "FilmFile on GitHub". | FF-194 |
 
 **Still open:** see `docs/design.md`, section 15.
 

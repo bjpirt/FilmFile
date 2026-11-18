@@ -52,6 +52,8 @@ export function createApp(config: {
   readonly uiPath?: string;
   /** Whether exports can be written into a folder the desktop app chooses (D100). */
   readonly exportToFolder?: boolean;
+  /** FilmFile's version, and whether it was run from source (FF-194). */
+  readonly version: { readonly version: string; readonly dev: boolean };
   readonly port: number;
   readonly uiOrigin?: string;
   readonly reportError?: ReportError;
@@ -63,7 +65,12 @@ export function createApp(config: {
 
   app.openapi(getHealth, (c) =>
     c.json(
-      { status: 'ok' as const, exportToFolder: config.exportToFolder ?? false },
+      {
+        status: 'ok' as const,
+        exportToFolder: config.exportToFolder ?? false,
+        version: config.version.version,
+        dev: config.version.dev,
+      },
       200,
     ),
   );

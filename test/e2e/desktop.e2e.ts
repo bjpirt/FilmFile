@@ -305,6 +305,23 @@ test('File › Open FilmFile Folder… switches to another FilmFile folder, and 
   await app.close();
 });
 
+test('the menus have About FilmFile and FilmFile on GitHub (FF-194)', async () => {
+  remember(filmFile);
+  const app = await launchChoosing([]);
+  await expect(
+    (await app.firstWindow()).getByRole('heading', { level: 1, name: 'Rolls' }),
+  ).toBeVisible();
+
+  const labels = await app.evaluate(({ Menu }) =>
+    ['about', 'github'].map(
+      (id) => Menu.getApplicationMenu()?.getMenuItemById(id)?.label,
+    ),
+  );
+
+  expect(labels).toEqual(['About FilmFile', 'FilmFile on GitHub']);
+  await app.close();
+});
+
 test('File › Show FilmFile Folder in Finder opens the FilmFile folder', async () => {
   remember(filmFile);
   const app = await launchChoosing([]);

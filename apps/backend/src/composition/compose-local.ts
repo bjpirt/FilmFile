@@ -30,6 +30,7 @@ import { computerNameFrom } from '../domain/sync/computer-name.ts';
 import type { Clock } from '../application/ports/clock.ts';
 import type { ErrorReporter } from '../application/ports/error-reporter.ts';
 import type { IdGenerator } from '../application/ports/id-generator.ts';
+import { appVersion } from './app-version.ts';
 import { localArchive } from './local-archive.ts';
 import { ProtectOriginals } from '../application/use-cases/originals/protect-originals.ts';
 import { useCasesFor } from './use-cases-for.ts';
@@ -100,6 +101,7 @@ export function composeLocal(config: {
   return createApp({
     ...config,
     exportToFolder: destination !== undefined,
+    version: appVersion(),
     ctx: localArchive(),
     useCases: useCasesFor({
       settings: new FilesystemSettingsRepository(config.folderPath),

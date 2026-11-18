@@ -1780,6 +1780,13 @@ textarea {
   user-select: text;
 }
 
+/* Settings: which FilmFile this is (FF-194), quietly at the foot, as text to copy into a report. */
+.settings .app-version {
+  font-size: 0.85rem;
+  margin: var(--space-6) 0 0;
+  user-select: text;
+}
+
 /* The rolls to import and what an import did (FF-154): a table, a row to each folder, with headings, rules and alternating rows. */
 .import-rolls,
 .import-summary {

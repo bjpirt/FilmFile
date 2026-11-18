@@ -1,5 +1,6 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { healthQuery } from '../health/health-query.ts';
 
 /**
  * Asks whether exports of several frames can be written into a folder chosen
@@ -12,17 +13,7 @@ export function useCanExportToFolder(api: ApiClient): () => Promise<boolean> {
   const queryClient = useQueryClient();
   return async () => {
     try {
-      const health = await queryClient.query({
-        queryKey: ['health'],
-        queryFn: async () => {
-          const { data } = await api.GET('/api/health');
-          if (data === undefined) {
-            throw new Error("Couldn't reach the service.");
-          }
-          return data;
-        },
-        staleTime: Infinity,
-      });
+      const health = await queryClient.query(healthQuery(api));
       return health.exportToFolder;
     } catch {
       return false;

@@ -184,6 +184,30 @@ describe('the settings page', () => {
     expect(archive.ifMatches).toEqual(['"v1"']);
   });
 
+  test('ends with the version FilmFile is, marked when run from source (FF-194)', async () => {
+    openAt('/settings', { settings, version: { version: '0.1.0', dev: true } });
+
+    expect(await screen.findByText('FilmFile 0.1.0 (dev)')).toBeDefined();
+  });
+
+  test('shows a packaged version unmarked', async () => {
+    openAt('/settings', {
+      settings,
+      version: { version: '0.4.0', dev: false },
+    });
+
+    expect(await screen.findByText('FilmFile 0.4.0')).toBeDefined();
+  });
+
+  test('leaves the version out when the service can’t say it', async () => {
+    openAt('/settings', { settings, version: null });
+
+    expect(
+      await screen.findByRole('heading', { name: 'FilmFile folder' }),
+    ).toBeDefined();
+    expect(screen.queryByText(/^FilmFile \d/)).toBeNull();
+  });
+
   test('shows where the FilmFile folder is, and how to change it', async () => {
     openAt('/settings', { settings });
 

@@ -1,6 +1,7 @@
 import type { ApiClient } from '@filmfile/contracts/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { firstIssueMessage } from '../forms/first-issue-message.ts';
+import { AppVersion } from '../health/app-version.tsx';
 import { navigate } from '../routing.tsx';
 import { CloudflareSection } from './cloudflare-section.tsx';
 import { RollNumberPatternForm } from './roll-number-pattern-form.tsx';
@@ -111,6 +112,7 @@ export function SettingsPage({
         api={api}
         accountSet={read.settings.cloudflareAccountId !== null}
       />
+      <AppVersion api={api} />
     </section>
   );
 }

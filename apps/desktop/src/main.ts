@@ -7,7 +7,9 @@ import {
   type BrowserWindow,
 } from 'electron';
 import path from 'node:path';
+import { aboutBox, gitHub, gitHubButton } from './about-box.ts';
 import { appMenu } from './app-menu.ts';
+import { appVersion } from './app-version.ts';
 import { chooseFolder } from './choose-folder.ts';
 import { readSettings, updateSettings } from './desktop-settings.ts';
 import type { ServiceRequests } from './service-messages.ts';
@@ -39,6 +41,7 @@ function run(): void {
   let service: Service | undefined;
   let folder: string | undefined;
   let stopping = false;
+  const version = appVersion();
   // This computer's settings, not the archive's (D52).
   const settingsFile = () =>
     path.join(app.getPath('userData'), 'settings.json');
@@ -144,6 +147,18 @@ function run(): void {
     }
   }
 
+  /** About FilmFile (FF-194, D124): the version, with a way to GitHub. */
+  async function showAbout(): Promise<void> {
+    const options = aboutBox(version);
+    const { response } =
+      window === undefined
+        ? await dialog.showMessageBox(options)
+        : await dialog.showMessageBox(window, options);
+    if (response === gitHubButton) {
+      await shell.openExternal(gitHub);
+    }
+  }
+
   /** File › Show FilmFile Folder in Finder. */
   async function showFolder(): Promise<void> {
     if (folder === undefined) {
@@ -205,14 +220,22 @@ function run(): void {
         });
       });
       Menu.setApplicationMenu(
-        appMenu({
-          openFolder: () => {
-            openAnother().catch(couldNot('open that folder'));
-          },
-          showFolder: () => {
-            showFolder().catch(couldNot('show the folder'));
-          },
-        }),
+        Menu.buildFromTemplate(
+          appMenu(process.platform, {
+            openFolder: () => {
+              openAnother().catch(couldNot('open that folder'));
+            },
+            showFolder: () => {
+              showFolder().catch(couldNot('show the folder'));
+            },
+            about: () => {
+              showAbout().catch(couldNot('show About'));
+            },
+            openGitHub: () => {
+              shell.openExternal(gitHub).catch(couldNot('open GitHub'));
+            },
+          }),
+        ),
       );
       // FILMFILE_FOLDER, when set, is for development and the journeys.
       const given = process.env.FILMFILE_FOLDER ?? '';

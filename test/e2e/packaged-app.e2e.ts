@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -49,6 +50,30 @@ async function isUp(): Promise<boolean> {
     return false;
   }
 }
+
+test('the packaged app says the version it was built with, unmarked, however its service is started (FF-194)', async () => {
+  app = spawn(binary, [], {
+    env: {
+      ...process.env,
+      FILMFILE_FOLDER: folder,
+      FILMFILE_CACHE: path.join(folder, '.cache'),
+      FILMFILE_PORT: '4313',
+    },
+    stdio: 'ignore',
+  });
+  await expect.poll(isUp, { timeout: 20_000 }).toBe(true);
+
+  // The version is kept only in the root package.json (D109).
+  const rootPackage: unknown = JSON.parse(readFileSync('package.json', 'utf8'));
+  const health: unknown = await (await fetch(`${origin}/api/health`)).json();
+  expect(health).toMatchObject({
+    version: Reflect.get(Object(rootPackage), 'version'),
+    dev: false,
+  });
+
+  app.kill('SIGTERM');
+  await expect.poll(isUp).toBe(false);
+});
 
 test('the packaged app runs the service, which serves the UI and makes thumbnails of scans', async ({
   page,
