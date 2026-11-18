@@ -24,6 +24,8 @@ mkdir -p ~/FilmFile && pnpm build && FILMFILE_FOLDER=~/FilmFile pnpm start   # t
 
 `pnpm package` builds the desktop app (`apps/desktop/out/FilmFile-darwin-arm64/FilmFile.app` and a disk image named for the version, such as `FilmFile-0.1.0-mac-arm64.dmg`), and `pnpm install:app` builds it and prints the `sudo` command that puts it in /Applications, replacing the one there (quit FilmFile first).
 
+`pnpm release patch` (or `minor`, `major`) prepares a release: it sets the next version, adds its `CHANGELOG.md` entry from the `feat:` and `fix:` commits, and opens a pull request for it, labelled "release". Merging that pull request publishes the release. Add `--dry-run` to see what it would do. It needs `gh`, signed in, and an up-to-date `main`.
+
 The UI is at http://localhost:5173 with `pnpm dev`, or http://127.0.0.1:4310 with `pnpm start`. API docs are at `/api/docs`. `pnpm verify` runs the checks and tests CI runs; `pnpm e2e` runs the end-to-end tests in Chromium (once: `pnpm exec playwright install chromium`).
 
 ## Architecture
