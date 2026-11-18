@@ -112,6 +112,9 @@ lists fields or routes.
 
 ## Finishing a task
 
+A task is finished in the pull request that delivers it: tick it off in
+that pull request, not later once it's merged, released or seen working.
+
 - Tick each acceptance criterion in its file as its test passes. One that
   turned out differently is reworded to what was built, with a note why.
 - Set **Status:** to `done` with **Built in:** the group's name, and add

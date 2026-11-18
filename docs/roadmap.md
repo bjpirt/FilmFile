@@ -185,8 +185,7 @@ The author and copyright, set on first run and changed later (no name, D44; no l
 
 FilmFile as a Mac app, opened from the Dock rather than by starting a service and opening a browser (D54). Electron runs the service as it is, in a separate process (`utilityProcess`) on a free port of `127.0.0.1`, and opens a window on it; the web UI and API don't change, and still work from a browser while the app is open. Electron 45's own Node.js (24) runs the service's TypeScript directly, as Node 26 does, so nothing is bundled to run it from source; the packaged app bundles it, and leaves sharp's native files outside its app archive, which they can't be loaded from. `pnpm release` numbers each version and writes its changelog in a pull request; merging it publishes the app for Macs (Apple silicon and Intel), Windows and Linux, each built and checked on its own runner, and `main` takes changes only by pull request (D110, D125, D126). Signing and updates are for later.
 
-- [ ] [FF-244 Publish a release](tasks/FF-244.md): merging a new version publishes the app with checksums and provenance, built and checked again on `main`.
-- [ ] [FF-161 An Intel Mac build](tasks/FF-161.md): the packaged app also built for Intel Macs, both checked in CI by a reusable `package.yml`.
+- [ ] [FF-161 An Intel Mac build](tasks/FF-161.md): the packaged app also built for Intel Macs: a second row in `package.yml`, so CI and releases build both.
 - [ ] [FF-196 The service on Windows](tasks/FF-196.md): `pnpm verify` passing on Windows, with its paths, renames and line endings fixed.
 - [ ] [FF-197 The Windows app](tasks/FF-197.md): the app for Windows, as a zip, built and checked in CI.
 - [ ] [FF-198 The Linux app](tasks/FF-198.md): the app for Linux, as an AppImage, built and checked in CI.
@@ -195,6 +194,7 @@ FilmFile as a Mac app, opened from the Dock rather than by starting a service an
 - [ ] [later] [FF-199 A signed Windows app](tasks/FF-199.md): signed, so SmartScreen doesn't warn.
 - [ ] [later] [FF-138 Updates](tasks/FF-138.md): the app updates itself.
 - [ ] [later] [FF-245 Prepare a release from GitHub](tasks/FF-245.md): `pnpm release` as a workflow in the Actions tab.
+- [x] [FF-244 Publish a release](tasks/FF-244.md)
 - [x] [FF-243 Prepare a release](tasks/FF-243.md)
 - [x] [FF-242 Protect main](tasks/FF-242.md): changes reach `main` only by pull request once CI passes, and it can't be force-pushed or deleted.
 - [x] [FF-194 The app's version](tasks/FF-194.md)
