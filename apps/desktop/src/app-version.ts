@@ -15,7 +15,7 @@ export interface AppVersion {
 
 /**
  * The version the app was bundled with, or, run from source, the one in the
- * root package.json, the only place it's kept (D109), marked as dev.
+ * root package.json, the only place it's kept (D125), marked as dev.
  */
 export function appVersion(
   bundled: string | undefined = typeof FILMFILE_VERSION === 'string'

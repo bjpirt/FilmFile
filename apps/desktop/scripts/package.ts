@@ -98,7 +98,7 @@ if (arch !== 'arm64' && arch !== 'x64') {
   throw new Error(`FilmFile can't be packaged on a ${arch} Mac.`);
 }
 
-// FilmFile's version, kept only in the root package.json (D109), built into
+// FilmFile's version, kept only in the root package.json (D125), built into
 // both bundles, so the packaged app and its service know it however they're
 // started (FF-194).
 const { version } = await readPackage(repo);

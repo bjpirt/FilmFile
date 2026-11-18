@@ -63,7 +63,7 @@ test('the packaged app says the version it was built with, unmarked, however its
   });
   await expect.poll(isUp, { timeout: 20_000 }).toBe(true);
 
-  // The version is kept only in the root package.json (D109).
+  // The version is kept only in the root package.json (D125).
   const rootPackage: unknown = JSON.parse(readFileSync('package.json', 'utf8'));
   const health: unknown = await (await fetch(`${origin}/api/health`)).json();
   expect(health).toMatchObject({
